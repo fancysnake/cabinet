@@ -1,6 +1,6 @@
 """Answer the reviews `refresh` left on your branches, then ship them.
 
-    vekna cast review [--bound N]
+    vekna cast review [--bound N] [--batch N]
 
 The follow-up to `refresh`, and its opposite: nothing done without you saying
 so, and it is what commits the result.
@@ -28,6 +28,11 @@ reading's own proposal. One agent then fixes what you said to fix and writes a
 reply for every item — and the ritual, which is the only thing here that can
 reach the forge, opens the issues you said to file, posts the replies, and
 settles the threads.
+
+A branch with more open threads than ``--batch`` goes round in batches: the
+first ``--batch`` are read, answered and settled, and the next round fetches
+what the forge still holds open. The gate runs once, after the last round, so
+a forty-thread review is six triages you can hold in your head and one commit.
 
 The branch earns the ``started`` checkpoint the moment the agent is turned
 loose on the triage, and ``done`` once nothing is left open. A branch left with
@@ -63,6 +68,7 @@ from cabinet.pacts.threads import Answered, TriageNotes
 
 if TYPE_CHECKING:
     from cabinet.pacts.project import State
+    from cabinet.pacts.threads import Thread
 
 # One thread for every agent call in the cast, so a later round meets an agent
 # that remembers writing the one before.
@@ -135,47 +141,72 @@ async def pick(picking: Picking) -> Transition:
     return goto(look, branch)
 
 
-# Check the branch out and read its open threads into a triage.
+# Check the branch out.
 @step
 async def look(branch: Branch) -> Transition:
     # Asked before the checkout: a `no` from the other side of the move leaves
     # you standing on a branch you did not ask for.
     if not await decide(f"read the review on {branch.name}?"):
         return goto(pick, branch.rowed("declined"))
-    project = branch.project
     # Not fatal, unlike every other command here: a checkout that will not go
     # through is another worktree standing on the branch, and there is a whole
     # list of other pull requests this could be reading instead.
     try:
-        await services().scm(project).checkout(branch.name)
+        await services().scm(branch.project).checkout(branch.name)
     except ScmError as error:
         emit_delta(f"{branch.name} is checked out elsewhere: {error}")
         return goto(pick, branch.rowed("elsewhere", str(error)))
-    # Read after the checkout: an item is triaged against the code as it
-    # stands, and until then that was somebody else's code.
+    return goto(read, branch)
+
+
+async def _unsettled(branch: Branch) -> list[Thread]:
     try:
-        threads = await services().forge(project).threads(branch.number)
+        threads = await services().forge(branch.project).threads(branch.number)
     except ForgeError as error:
         raise RitualError(str(error)) from error
-    prompt = services().prompts.triage_read(
-        branch.number, [thread for thread in threads if not thread.resolved]
-    )
-    read = (
+    return [thread for thread in threads if not thread.resolved]
+
+
+# Where a round finds nothing to read. A branch with rounds behind it has the
+# work of those rounds sitting in the worktree, and that goes to the gate
+# whatever the forge says about the rest; a branch nothing touched is left as
+# it was, and nothing is committed or labelled on it.
+def _no_more(branch: Branch, note: str) -> Transition:
+    emit_delta(f"{branch.name}: {note}")
+    if branch.answered:
+        return goto(gates, Landing(branch=branch))
+    return goto(pick, branch.rowed("nothing", note))
+
+
+# Read the next batch of open threads into a triage.
+@step
+async def read(branch: Branch) -> Transition:
+    # Read after the checkout, and again after every round: an item is
+    # triaged against the code as it stands, and a thread the last round
+    # settled is no longer open.
+    if not (threads := await _unsettled(branch)):
+        return _no_more(branch, "nothing is left open")
+    batch = threads[: branch.batch]
+    if len(batch) < len(threads):
+        emit_delta(
+            f"{branch.name}: {len(threads)} threads open, reading {len(batch)} of them"
+        )
+    prompt = services().prompts.triage_read(branch.number, batch)
+    found = (
         await services()
-        .agent(project)
+        .agent(branch.project)
         .ask_for(prompt, output=TriageNotes, role="reader", attended=True)
     )
-    if isinstance(read, Fallen | Misread):
-        raise RitualError(read.reason)
+    if isinstance(found, Fallen | Misread):
+        raise RitualError(found.reason)
     # `pick` only got here on an unsettled thread, so an empty reading is the
     # reading disagreeing with the forge rather than a branch with nothing to
-    # do. Nothing is committed and nothing is labelled on that.
-    if not read.items:
-        emit_delta(
-            f"the reading found nothing on {branch.name}, but the forge says otherwise"
+    # do.
+    if not found.items:
+        return _no_more(
+            branch, "the reading found nothing, but the forge says otherwise"
         )
-        return goto(pick, branch.rowed("nothing"))
-    return goto(plan, Triage(branch=branch, items=read.items))
+    return goto(plan, Triage(branch=branch, items=found.items))
 
 
 # Put the triage on your terminal and take your answer to each item.
@@ -237,11 +268,13 @@ async def _mark(branch: Branch, state: State) -> str:
 
 # An issue is opened before the reply that names it, and a thread is settled
 # after the reply that answers it. A thread the agent invented is reported and
-# skipped; a thread it left unanswered stays open, and `settle` says so.
-async def _posted(answering: Answering) -> None:
+# skipped; a thread it left unanswered stays open, and the next round reads it
+# again. Answers with how many threads were settled.
+async def _posted(answering: Answering) -> int:
     branch = answering.branch
     forge = services().forge(branch.project)
     threads = {thread.id: thread for thread in await forge.threads(branch.number)}
+    settled = 0
     for item in answering.items:
         if item.thread not in answering.threads or item.thread not in threads:
             emit_delta(f"the agent answered a thread nobody triaged: {item.thread}")
@@ -252,17 +285,25 @@ async def _posted(answering: Answering) -> None:
             reply = f"{reply}\n\nFiled as {url}"
         await forge.reply(branch.number, threads[item.thread], reply)
         await forge.resolve(branch.number, threads[item.thread])
+        settled += 1
+    return settled
 
 
 # The forge writes, in one step of their own, apart from the agent's.
-# Open the issues, post the replies, settle the threads.
+# Open the issues, post the replies, settle the threads, go round again.
 @step
 async def answer(answering: Answering) -> Transition:
     try:
-        await _posted(answering)
+        settled = await _posted(answering)
     except ForgeError as error:
         raise RitualError(str(error)) from error
-    return goto(gates, Landing(branch=answering.branch))
+    # Round again rather than straight to the gate: what the forge still holds
+    # open is the next batch, and `read` is what finds out there is none. A
+    # round that settled nothing would read the same batch back, so it goes to
+    # the gate with whatever the agent did change.
+    if not settled:
+        return goto(gates, Landing(branch=answering.branch))
+    return goto(read, answering.branch.taken(settled))
 
 
 # Run the gate, repairing it up to the bound.

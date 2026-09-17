@@ -1,16 +1,23 @@
 """What the review-answering cast carries from branch to branch."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Bound, PullRequest
 from cabinet.pacts.threads import Answer, TriageItem
 
+# How many open threads one round reads, answers and settles before the next
+# round fetches what is left. Forty threads at once is one triage nobody holds
+# in their head and one agent asked to fix forty things before anything is
+# posted. No ceiling: a batch bigger than the review is the whole review.
+Batch = Annotated[int, Field(ge=1)]
+
 
 class Review(BaseModel):
     bound: Bound = 3
+    batch: Batch = 7
 
 
 Outcome = Literal["shipped", "declined", "elsewhere", "unread", "nothing"]
@@ -31,6 +38,7 @@ class Reviewed(BaseModel):
 class Picking(BaseModel):
     project: Project
     bound: Bound
+    batch: Batch = 7
     queue: list[PullRequest] = []
     reviewed: list[Reviewed] = []
     stopped: str = ""
@@ -60,10 +68,23 @@ class Branch(BaseModel):
     # Carried rather than looked up again: review threads are addressed by
     # pull request and not by branch.
     number: int
+    # Threads answered on this branch so far, round by round. Zero is a branch
+    # nothing has touched, which is the only one that can still be walked
+    # away from without a commit.
+    answered: int = 0
 
     @property
     def bound(self) -> int:
         return self.picking.bound
+
+    @property
+    def batch(self) -> int:
+        return self.picking.batch
+
+    # Another round posted and settled.
+    def taken(self, count: int) -> Branch:
+        update: dict[str, int] = {"answered": self.answered + count}
+        return self.model_copy(update=update)
 
     @property
     def project(self) -> Project:

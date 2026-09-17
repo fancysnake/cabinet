@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning].
   makes the gate green, pushes and posts a quality review; `cover`
   (Abjuration) measures diff coverage where CI is unhappy and writes the
   missing tests; `review` (Divination) triages the review threads with you
-  at the terminal, answers them, and ships the branch.
+  at the terminal, answers them, and ships the branch. `--batch N` on
+  `review` reads, answers and settles the threads in rounds of N (default
+  7), and the gate runs once after the last round.
 - A `[cabinet]` section in the consuming repository's `.vekna.toml` for
   everything that used to be a constant: the gate and coverage tasks, base
   branch, remote, labels, CI check names, review skill, agent model, effort,

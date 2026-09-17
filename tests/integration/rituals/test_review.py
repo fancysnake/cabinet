@@ -14,6 +14,7 @@ from cabinet.gates.ritual.vekna.review import (
     pick,
     plan,
     queue_up,
+    read,
     recap,
     settle,
     work,
@@ -210,18 +211,25 @@ class TestLook:
         )
 
     @staticmethod
+    def test_a_checkout_that_went_through_is_read(trial: Trial, branch: Branch) -> None:
+        trial.decide.answers(answer=True, when="read the review on feature?")
+        trial.shell.replies(when="git checkout feature")
+
+        assert trial.walk(look, branch) == goto(read, branch)
+
+
+class TestRead:
+    @staticmethod
     def test_the_reading_is_a_triage_of_the_open_threads(
         trial: Trial, branch: Branch
     ) -> None:
-        trial.decide.answers(answer=True, when="read the review on feature?")
-        trial.shell.replies(when="git checkout feature")
         trial.shell.replies(
             when=THREADS,
             stdout=_threads(_node("PRRT_1"), _node("PRRT_2", resolved=True)),
         )
         trial.coding.replies(TriageNotes(items=[_ITEM]))
 
-        transition = trial.walk(look, branch)
+        transition = trial.walk(read, branch)
 
         assert transition == goto(plan, Triage(branch=branch, items=[_ITEM]))
         prompt = trial.coding.prompts[0]
@@ -232,38 +240,96 @@ class TestLook:
         assert "Edit" not in str(trial.coding.calls[0].focus_options)
         # Somebody is at the terminal for the whole of this ritual.
         assert "permission_mode='auto'" in str(trial.coding.calls[0].focus_options)
+        assert "threads open" not in trial.deltas[0]
+
+    @staticmethod
+    def test_only_the_first_batch_is_read_and_the_rest_is_counted(
+        trial: Trial, project: Project
+    ) -> None:
+        branch = Branch(
+            picking=Picking(project=project, bound=2, batch=2), name="feature", number=7
+        )
+        trial.shell.replies(
+            when=THREADS,
+            stdout=_threads(_node("PRRT_1"), _node("PRRT_2"), _node("PRRT_3")),
+        )
+        trial.coding.replies(TriageNotes(items=[_ITEM]))
+
+        trial.walk(read, branch)
+
+        prompt = trial.coding.prompts[0]
+        assert "thread PRRT_1 (open)" in prompt
+        assert "thread PRRT_2 (open)" in prompt
+        assert "PRRT_3" not in prompt
+        assert trial.deltas[0] == "feature: 3 threads open, reading 2 of them"
 
     @staticmethod
     def test_threads_the_forge_would_not_give_fail_the_cast(
         trial: Trial, branch: Branch
     ) -> None:
-        trial.decide.answers(answer=True, when="read the review on feature?")
-        trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when=THREADS, exit_code=1, stderr="502")
 
         with pytest.raises(RitualError, match="could not read the threads"):
-            trial.walk(look, branch)
+            trial.walk(read, branch)
 
     @staticmethod
     def test_a_reading_that_found_nothing_is_said(trial: Trial, branch: Branch) -> None:
-        trial.decide.answers(answer=True, when="read the review on feature?")
-        trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies(TriageNotes(items=[]))
 
-        assert trial.walk(look, branch) == goto(pick, branch.rowed("nothing"))
+        assert trial.walk(read, branch) == goto(
+            pick,
+            branch.rowed(
+                "nothing", "the reading found nothing, but the forge says otherwise"
+            ),
+        )
+
+    @staticmethod
+    def test_nothing_left_open_on_an_untouched_branch_is_no_work(
+        trial: Trial, branch: Branch
+    ) -> None:
+        trial.shell.replies(
+            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
+        )
+
+        assert trial.walk(read, branch) == goto(
+            pick, branch.rowed("nothing", "nothing is left open")
+        )
+        assert not trial.coding.prompts
+
+    # The rounds before this one changed the worktree, so what they did goes
+    # to the gate whatever this round found.
+    @staticmethod
+    def test_nothing_left_open_after_a_round_is_the_gate(
+        trial: Trial, branch: Branch
+    ) -> None:
+        trial.shell.replies(
+            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
+        )
+        taken = branch.taken(7)
+
+        assert trial.walk(read, taken) == goto(gates, Landing(branch=taken))
+        assert trial.deltas == ["feature: nothing is left open"]
+
+    @staticmethod
+    def test_a_reading_that_found_nothing_after_a_round_is_the_gate(
+        trial: Trial, branch: Branch
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
+        trial.coding.replies(TriageNotes(items=[]))
+        taken = branch.taken(7)
+
+        assert trial.walk(read, taken) == goto(gates, Landing(branch=taken))
 
     @staticmethod
     def test_an_answer_in_the_wrong_shape_fails_the_cast(
         trial: Trial, branch: Branch
     ) -> None:
-        trial.decide.answers(answer=True, when="read the review on feature?")
-        trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies("no idea, sorry")
 
         with pytest.raises(RitualError, match="did not answer in the shape"):
-            trial.walk(look, branch)
+            trial.walk(read, branch)
 
 
 class TestPlan:
@@ -337,7 +403,7 @@ class TestAnswer:
             threads=["PRRT_1"],
         )
 
-        assert trial.walk(answer, answering) == goto(gates, Landing(branch=branch))
+        assert trial.walk(answer, answering) == goto(read, branch.taken(1))
         assert trial.shell.commands[1] == (
             "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies -f body=guarded"
         )
@@ -383,6 +449,7 @@ class TestAnswer:
             threads=["PRRT_1"],
         )
 
+        # Nothing settled, so another round would read the same thread back.
         assert trial.walk(answer, answering) == goto(gates, Landing(branch=branch))
         assert len(trial.shell.commands) == 1
         assert "a thread nobody triaged: PRRT_9" in trial.deltas[0]
@@ -551,12 +618,12 @@ class TestWholeCast:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(when="gh api repos/*")
         trial.shell.replies(when="slug=*-f id=PRRT_1")
+        trial.shell.replies(
+            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True)), always=True
+        )
         trial.shell.replies(when=_GATE)
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature")
-        trial.shell.replies(
-            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
-        )
 
         result = trial.cast(review, Review(bound=2))
 
@@ -569,9 +636,11 @@ class TestWholeCast:
             "queue_up",
             "pick",
             "look",
+            "read",
             "plan",
             "work",
             "answer",
+            "read",
             "gates",
             "land",
             "settle",
@@ -580,3 +649,92 @@ class TestWholeCast:
         ]
         assert trial.shell.commands[-1] == _DONE
         assert trial.shell.commands[-2].startswith("slug=")
+
+    # Three threads, a batch of two: two rounds of reading and answering, one
+    # gate, one commit.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_a_review_bigger_than_the_batch_goes_round_twice(trial: Trial) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(row(7, labels=[{"name": "pr::thermo"}]))
+        )
+        trial.shell.replies(when=HERE, stdout="feature\n")
+        every = _threads(_node("PRRT_1"), _node("PRRT_2"), _node("PRRT_3"))
+        trial.shell.replies(when=THREADS, stdout=every)
+        trial.shell.replies(when=STATUS)
+        trial.decide.answers(answer=True, when="read the review on feature?")
+        trial.shell.replies(when="git checkout feature")
+        # The first round reads, works and posts over the whole list.
+        trial.shell.replies(when=THREADS, stdout=every)
+        first = [_ITEM, _ITEM.model_copy(update={"thread": "PRRT_2"})]
+        trial.coding.replies(TriageNotes(items=first), when="Triage the open*")
+        trial.decide.answers(answer="", when="1. *", always=True)
+        trial.decide.answers(answer="", when="2. *")
+        trial.shell.replies(when="gh pr edit 7*", always=True)
+        trial.coding.replies(
+            Answered(
+                items=[
+                    Answer(thread="PRRT_1", reply="guarded"),
+                    Answer(thread="PRRT_2", reply="guarded"),
+                ]
+            ),
+            when="Below is a triage*",
+        )
+        trial.shell.replies(when=THREADS, stdout=every)
+        trial.shell.replies(when="gh api repos/*", always=True)
+        trial.shell.replies(when="slug=*-f id=PRRT_1")
+        trial.shell.replies(when="slug=*-f id=PRRT_2")
+        # The second round sees the first two settled and reads the third.
+        remaining = _threads(
+            _node("PRRT_1", resolved=True),
+            _node("PRRT_2", resolved=True),
+            _node("PRRT_3"),
+        )
+        trial.shell.replies(when=THREADS, stdout=remaining)
+        second = [_ITEM.model_copy(update={"thread": "PRRT_3"})]
+        trial.coding.replies(TriageNotes(items=second), when="Triage the open*")
+        trial.coding.replies(
+            Answered(items=[Answer(thread="PRRT_3", reply="guarded")]),
+            when="Below is a triage*",
+        )
+        trial.shell.replies(when=THREADS, stdout=remaining)
+        trial.shell.replies(when="slug=*-f id=PRRT_3")
+        settled = _threads(
+            _node("PRRT_1", resolved=True),
+            _node("PRRT_2", resolved=True),
+            _node("PRRT_3", resolved=True),
+        )
+        trial.shell.replies(when=THREADS, stdout=settled, always=True)
+        trial.shell.replies(when=_GATE)
+        trial.shell.replies(when="git add -A*")
+        trial.shell.replies(when="git push origin feature")
+
+        result = trial.cast(review, Review(bound=2, batch=2))
+
+        assert result.reviewed == [Reviewed(branch="feature", outcome="shipped")]
+        assert trial.steps == [
+            "queue_up",
+            "pick",
+            "look",
+            "read",
+            "plan",
+            "work",
+            "answer",
+            "read",
+            "plan",
+            "work",
+            "answer",
+            "read",
+            "gates",
+            "land",
+            "settle",
+            "pick",
+            "recap",
+        ]
+        assert "PRRT_3" not in trial.coding.prompts[0]
+        assert "PRRT_1" not in trial.coding.prompts[2]
+        assert "PRRT_3" in trial.coding.prompts[2]
+        assert trial.deltas[0] == "feature: 3 threads open, reading 2 of them"
+        assert trial.shell.commands.count(_GATE) == 1
+        assert trial.shell.commands[-1] == _DONE

@@ -1,6 +1,6 @@
 """Divination: ``review`` reads what the reviews found.
 
-    vekna cast review [--bound N]
+    vekna cast review [--bound N] [--batch N]
 
 With you at the terminal, it answers every thread and ships the branch. The
 steps live in ``cabinet.gates.ritual.vekna.review``; this module is the ritual
@@ -17,6 +17,7 @@ from cabinet.gates.ritual.vekna.review import (
     pick,
     plan,
     queue_up,
+    read,
     recap,
     settle,
     work,
@@ -35,7 +36,9 @@ _MAX_STEPS = 400
 
 @ritual("review", max_steps=_MAX_STEPS)
 def review(components: Review) -> Transition:
-    picking = Picking(project=services().project(), bound=components.bound)
+    picking = Picking(
+        project=services().project(), bound=components.bound, batch=components.batch
+    )
     return goto(queue_up, picking)
 
 
@@ -47,6 +50,7 @@ __all__ = [
     "pick",
     "plan",
     "queue_up",
+    "read",
     "recap",
     "review",
     "settle",

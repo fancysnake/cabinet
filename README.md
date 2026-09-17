@@ -37,7 +37,7 @@ Grouped by school, the way a spellbook is.
 ```bash
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
-vekna cast review [--bound N]
+vekna cast review [--bound N] [--batch N]
 vekna cast labels
 ```
 
@@ -45,7 +45,9 @@ vekna cast labels
 default 3. `--attended true` says somebody is at the terminal: the sweep asks
 before every repair attempt instead of letting the budget decide, and its
 agents run in Claude's `auto` permission mode (see below). `review` is always
-attended.
+attended. `--batch` is how many open threads `review` reads and answers in one
+round before fetching what is still open, default 7: a forty-thread review is
+six triages you can hold in your head, and still one commit.
 
 ### Using only some of them
 
