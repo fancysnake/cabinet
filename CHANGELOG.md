@@ -34,7 +34,6 @@ and this project adheres to [Semantic Versioning].
 - Tooling: mise tasks from shared-configs, hk as the pre-commit hook, a CI
   workflow with Codecov upload, tingle for the debt budget.
 
-
 <!-- Links -->
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
