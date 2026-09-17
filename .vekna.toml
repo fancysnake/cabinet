@@ -7,9 +7,10 @@ modules = ["cabinet.rituals"]
 [cabinet]
 forge = "github"
 base = "main"
-# Must point at https://github.com/fancysnake/cabinet.git with `gh` as the
-# credential helper; a cast refuses an ssh remote before its first fetch.
-remote = "origin"
+# The https twin of `origin`, with `gh` as the credential helper: a cast
+# refuses an ssh remote before its first fetch. Both point at the same
+# repository, so this is a route and not a destination.
+remote = "https-origin"
 gate = "mise run fullcheck"
 # One suite, seconds long: the full measurement and the fast one are the same.
 coverage = "mise run test:py:cov:diff"
