@@ -18,6 +18,18 @@ class ConfigError(RitualError):
     pass
 
 
+# One label as the forge should hold it. The colour is a hex triplet without
+# the hash; each forge spells it its own way.
+class LabelSpec(BaseModel):
+    name: str
+    color: str
+    description: str
+
+
+# The rituals that mark checkpoints, and so the ones whose markers are made.
+_MARKED = ("refresh", "cover", "review")
+
+
 class Labels(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -33,6 +45,40 @@ class Labels(BaseModel):
 
     def checkpoint(self, ritual: str, state: State) -> str:
         return f"{self.marker}:{ritual}:{state}"
+
+    # Every label the rituals read or write, with what it means, for the forge.
+    def conjured(self) -> list[LabelSpec]:
+        named = [
+            LabelSpec(
+                name=self.reviewed,
+                color="0e8a16",
+                description="A quality review was posted; remove to ask again",
+            ),
+            LabelSpec(
+                name=self.wait,
+                color="d93f0b",
+                description="Hands off: the rituals leave this one alone",
+            ),
+        ]
+        for ritual in _MARKED:
+            named += [
+                LabelSpec(
+                    name=self.checkpoint(ritual, "started"),
+                    color="fbca04",
+                    description=f"{ritual} began on this branch and has not finished",
+                ),
+                LabelSpec(
+                    name=self.checkpoint(ritual, "done"),
+                    color="c5def5",
+                    description=f"{ritual} ended clean on this branch",
+                ),
+            ]
+        return named
+
+
+# What `labels` leaves behind: every label it made or refreshed.
+class Labelled(BaseModel):
+    names: list[str]
 
 
 # The names CI gives the jobs the rituals read. Prefixes, matched against the

@@ -27,10 +27,18 @@ Grouped by school, the way a spellbook is.
   triages them with you at the terminal, answers every one, makes the gate
   green and ships the branch. Discovering what was found, and settling it.
 
+### Conjuration
+
+- **`labels`** — makes every label the other rituals read and write: the
+  reviewed and wait labels and each ritual's `started`/`done` checkpoints,
+  created where missing and refreshed where present. Cast it once before the
+  first sweep, and again after changing `[cabinet.labels]`.
+
 ```bash
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N]
+vekna cast labels
 ```
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,

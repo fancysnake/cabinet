@@ -2,7 +2,7 @@
 
 from cabinet.inits.services import Services
 from cabinet.pacts.services import services
-from cabinet.rituals import cover, refresh, review
+from cabinet.rituals import cover, labels, refresh, review
 
 
 # A step is named after its function and a ritual after itself, so the names
@@ -41,3 +41,10 @@ class TestFacade:
     @staticmethod
     def test_importing_a_facade_wires_the_services() -> None:
         assert isinstance(services(), Services)
+
+    @staticmethod
+    def test_labels_exports_its_ritual_and_its_step() -> None:
+        exported = [getattr(labels, name) for name in labels.__all__]
+
+        assert {one.name for one in exported} == set(labels.__all__)
+        assert "labels" in labels.__all__

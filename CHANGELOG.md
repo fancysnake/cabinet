@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning].
 - `--attended true` on `refresh` and `cover`: the sweep asks before every
   repair attempt and its agents run in `auto` permission mode; `review` is
   always attended.
+- `labels` (Conjuration) creates or refreshes every label the rituals use on
+  either forge.
 - One facade per ritual under `cabinet.rituals`, so a project loads only the
   rituals it can run.
 - Pushes go over https with the forge CLI as the credential helper; an ssh

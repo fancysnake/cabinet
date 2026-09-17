@@ -7,6 +7,7 @@ here, only `glab auth login --hostname`.
 
 import shlex
 from typing import TYPE_CHECKING, override
+from urllib.parse import quote
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from vekna.folio.shell import ShellResult, shell
@@ -17,6 +18,8 @@ from cabinet.pacts.threads import Comment, Finding, Thread
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from cabinet.pacts.project import LabelSpec
 
 _PAGE = 100
 
@@ -292,3 +295,31 @@ class GitlabForge(ForgeProtocol):
         except ValidationError as error:
             msg = f"glab returned an issue this could not read: {error}"
             raise ForgeError(msg) from error
+
+    # Created, or updated where it is already there: the API refuses a
+    # duplicate name, and a label that exists is not a failure of the ritual.
+    @override
+    async def ensure_label(self, spec: LabelSpec) -> None:
+        colour = f"-f color={_quoted(f'#{spec.color}')}"
+        description = f"-f description={_quoted(spec.description)}"
+        made = await shell(
+            _api(
+                "projects/:id/labels",
+                "-X POST",
+                f"-f name={_quoted(spec.name)}",
+                colour,
+                description,
+            ),
+            stream=False,
+        )
+        if made.exit_code == 0:
+            return
+        await _asked(
+            _api(
+                f"projects/:id/labels/{quote(spec.name, safe='')}",
+                "-X PUT",
+                colour,
+                description,
+            ),
+            f"could not create the label {spec.name}",
+        )

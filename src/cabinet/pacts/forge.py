@@ -7,6 +7,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from cabinet.pacts.project import LabelSpec
     from cabinet.pacts.pulls import Board, PullRequest
     from cabinet.pacts.threads import Finding, Thread
 
@@ -47,3 +48,7 @@ class ForgeProtocol(Protocol):
 
     # The new issue's URL.
     async def issue(self, title: str, body: str) -> str: ...
+
+    # The label exists with this colour and description afterwards, whether or
+    # not it did before.
+    async def ensure_label(self, spec: LabelSpec) -> None: ...

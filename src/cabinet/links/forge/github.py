@@ -20,6 +20,8 @@ from cabinet.pacts.threads import Comment, Finding, Thread
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from cabinet.pacts.project import LabelSpec
+
 # `labels` rides along so the wait label can be read without a call per pull
 # request: the listing is the only place every open branch is in hand at once.
 _LIST = (
@@ -319,3 +321,13 @@ class GithubForge(ForgeProtocol):
             "could not open the issue",
         )
         return made.strip()
+
+    # `--force` updates a label that is already there instead of refusing it,
+    # which is what makes the ritual safe to cast again.
+    @override
+    async def ensure_label(self, spec: LabelSpec) -> None:
+        await _asked(
+            f"gh label create {_quoted(spec.name)} --color {_quoted(spec.color)}"
+            f" --description {_quoted(spec.description)} --force",
+            f"could not create the label {spec.name}",
+        )
