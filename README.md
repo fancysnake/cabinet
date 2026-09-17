@@ -38,11 +38,29 @@ default 3.
 
 ## Install
 
-In the repository that wants the rituals:
+cabinet is not on PyPI; it is installed straight from this repository. In the
+repository that wants the rituals:
 
 ```bash
-pip install cabinet          # or add it to the dev group
+poetry add --group dev git+https://github.com/fancysnake/cabinet.git
 ```
+
+Pin a tag or a commit rather than riding `main`, so a cast tonight runs the
+rituals you read yesterday:
+
+```bash
+poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha>
+```
+
+Either way the dependency lands in `pyproject.toml` as
+
+```toml
+[dependency-groups]
+dev = ["cabinet @ git+https://github.com/fancysnake/cabinet.git@<tag-or-sha>"]
+```
+
+and `poetry install` brings `vekna` and its `trial` extra with it. Then tell
+vekna where the rituals are and the rituals what the repository is:
 
 ```toml
 # .vekna.toml
