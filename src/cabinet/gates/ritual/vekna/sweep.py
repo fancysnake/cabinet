@@ -1,13 +1,13 @@
 """Nighttime pull request maintenance, in two passes.
 
-    vekna cast pr_refresh [--bound N]
-    vekna cast pr_cover [--bound N]
+    vekna cast refresh [--bound N]
+    vekna cast cover [--bound N]
 
 Every pull request you have open is taken in turn, oldest-modified first, and
 both passes take a branch the same way: the base branch is merged in, conflicts
 are resolved, the work is pushed, and the report says how each branch ended.
 
-``pr_refresh`` is the fast one, and it is the one to run over everything: it
+``refresh`` is the fast one, and it is the one to run over everything: it
 merges the base in and makes the project's gate green — lint, types, the fast
 suites — with no coverage measurement anywhere in it. Then it posts the quality
 review, unless the branch already carries the reviewed label. A branch the
@@ -18,7 +18,7 @@ Neither gate is re-run whole while a repair is underway. Where the runner names
 the task that broke, the next round runs that task alone, and the gate itself
 runs once more when it comes back green.
 
-``pr_cover`` is the slow one, and it asks before it spends: it reads what CI
+``cover`` is the slow one, and it asks before it spends: it reads what CI
 made of the branch — the check board, including the patch coverage the
 coverage service's own check carries — and, where coverage or the suite is
 unhappy, runs the project's coverage task, writes the tests for what the branch
@@ -34,7 +34,7 @@ that one still ends the run.
 
 What neither pass does is read the review one of them posted. Answering one is
 somebody's decision and this runs at 3am with nobody to ask, so every action
-item stays an open thread and ``pr_review`` goes through them with you in the
+item stays an open thread and ``review`` goes through them with you in the
 morning.
 
 A branch the gates would not go green on is still reviewed. It stands down
@@ -74,11 +74,12 @@ branch whose gate says the same thing stands down without spending its budget.
 
 from typing import TYPE_CHECKING, NamedTuple
 
+from vekna.folio.flow import decide
 from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, ritual, step
 
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.pulls import Board, Closed, PrSweep, Report, Run, Work, joined
+from cabinet.pacts.pulls import Board, Closed, Report, Run, Sweep, Work, joined
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Finding, Findings
@@ -95,17 +96,29 @@ _MAX_STEPS = 240
 
 
 # Merge the base in, make the gate green, push, review.
-@ritual("pr_refresh", max_steps=_MAX_STEPS)
-def pr_refresh(components: PrSweep) -> Transition:
+@ritual("refresh", max_steps=_MAX_STEPS)
+def refresh(components: Sweep) -> Transition:
     project = services().project()
-    return goto(list_prs, Run(project=project, bound=components.bound, mode="refresh"))
+    run = Run(
+        project=project,
+        bound=components.bound,
+        mode="refresh",
+        attended=components.attended,
+    )
+    return goto(list_prs, run)
 
 
 # Where CI is unhappy about coverage or tests, close the gap.
-@ritual("pr_cover", max_steps=_MAX_STEPS)
-def pr_cover(components: PrSweep) -> Transition:
+@ritual("cover", max_steps=_MAX_STEPS)
+def cover(components: Sweep) -> Transition:
     project = services().project()
-    return goto(list_prs, Run(project=project, bound=components.bound, mode="cover"))
+    run = Run(
+        project=project,
+        bound=components.bound,
+        mode="cover",
+        attended=components.attended,
+    )
+    return goto(list_prs, run)
 
 
 # Ask the forge what is open, and queue what the night will take.
@@ -215,7 +228,10 @@ async def resolve_conflicts(work: Work) -> Transition:
         if not work.spent(resolve_conflicts.name):
             return goto(set_aside, work.but(note=f"no conflicts: {work.note}"))
         return goto(take_pass, work.but(note="").cleared(resolve_conflicts.name))
-    if work.exhausted(resolve_conflicts.name):
+    # The budget's say or the operator's: the branch stands down either way.
+    if work.exhausted(resolve_conflicts.name) or not await _worth_another(
+        work, "resolve the conflicts"
+    ):
         stopped = work.stopped_by("the merge conflicts were not resolved")
         return goto(stand_down, stopped)
     prompt = services().prompts.resolve(
@@ -224,7 +240,12 @@ async def resolve_conflicts(work: Work) -> Transition:
     fallen = (
         await services()
         .agent(project)
-        .ask(prompt, role="resolver", key=f"merge-{work.pr.number}")
+        .ask(
+            prompt,
+            role="resolver",
+            key=f"merge-{work.pr.number}",
+            attended=work.run.attended,
+        )
     )
     if fallen:
         return goto(report, work.abandoned(fallen.reason))
@@ -232,6 +253,20 @@ async def resolve_conflicts(work: Work) -> Transition:
     # the agent. The note goes now: past here the merge failing is just what a
     # conflict looks like, and the row is not to be told about it twice.
     return goto(resolve_conflicts, work.but(note="").charged(resolve_conflicts.name))
+
+
+_DECLINED = "was not tried again, as you decided"
+
+
+# Spending the agent's time is the operator's call where there is one: an
+# attended cast asks before every repair attempt, an unattended one lets the
+# budget answer — at 3am a prompt is a hang.
+async def _worth_another(work: Work, what: str) -> bool:
+    if not work.run.attended:
+        return True
+    spent = work.spent(resolve_conflicts.name) + work.spent(gate_check.name)
+    spent += work.spent(close_gap.name)
+    return await decide(f"{what} on {work.pr.branch} (attempt {spent + 1})?")
 
 
 # What CI says about the branch as it stands, or None where the forge would
@@ -284,15 +319,25 @@ async def gate_check(work: Work) -> Transition:
     ):
         reason = f"`{gate}` is red as it already was:\n{said_now}"
         return goto(stand_down, work.stopped_by(reason))
-    if work.exhausted(gate_check.name):
+    # Given up on by the budget or by the operator: either way the verdict is
+    # one this run will not pay for again, so it is remembered.
+    if work.exhausted(gate_check.name) or not await _worth_another(
+        work, f"repair `{gate}`"
+    ):
+        left = "is still red" if work.exhausted(gate_check.name) else _DECLINED
         seen = work.run.but(seen=[*work.run.seen, said_now])
-        reason = f"`{gate}` is still red:\n{said_now}"
+        reason = f"`{gate}` {left}:\n{said_now}"
         return goto(stand_down, work.stopped_by(reason).but(run=seen))
     prompt = services().prompts.fix_gates(project, verdicts.said(ran), gate=gate)
     fallen = (
         await services()
         .agent(project)
-        .ask(prompt, role="writer", key=f"gates-{work.pr.number}")
+        .ask(
+            prompt,
+            role="writer",
+            key=f"gates-{work.pr.number}",
+            attended=work.run.attended,
+        )
     )
     if fallen:
         return goto(report, work.abandoned(fallen.reason))
@@ -334,13 +379,13 @@ async def finish_merge(work: Work) -> Transition:
 async def check_ci(work: Work) -> Transition:
     board = await _board(work)
     if board is None or services().pulls.wants_cover(board, work.run.project):
-        return goto(cover, work)
+        return goto(close_gap, work)
     return goto(push_work, work.but(note="coverage and the suite are green on CI"))
 
 
 # Close the coverage gap, repairing a red suite like any other gate.
 @step
-async def cover(work: Work) -> Transition:
+async def close_gap(work: Work) -> Transition:
     project = work.run.project
     verdicts = services().verdicts
     # The first measurement is the whole thing, because it is the one that
@@ -354,10 +399,10 @@ async def cover(work: Work) -> Transition:
         # Anything but the full measurement is a reason to spend the full
         # measurement, not a branch that is covered.
         if gate != project.coverage:
-            return goto(cover, work.but(gate=""))
+            return goto(close_gap, work.but(gate=""))
         # Only where tests were actually written: most branches pass here
         # first time, and a commit rite that never commits is noise.
-        if work.spent(cover.name):
+        if work.spent(close_gap.name):
             try:
                 await services().scm(project).commit(
                     "test: cover the lines this branch changes"
@@ -365,34 +410,41 @@ async def cover(work: Work) -> Transition:
             except ScmError as error:
                 note = f"could not commit the tests: {error}"
                 return goto(set_aside, work.but(note=note))
-        return goto(push_work, work.but(gate="").cleared(cover.name))
+        return goto(push_work, work.but(gate="").cleared(close_gap.name))
     said_now = verdicts.verdict(measured)
     repair = _repair(work, gate=gate, measured=measured, output=output, missing=missing)
     # Against what the run knew on the way in, never `repair.run`: that one
     # has this verdict in it already and would recognise nothing but itself.
     seen_already = (
         not missing
-        and not work.spent(cover.name)
+        and not work.spent(close_gap.name)
         and verdicts.already_seen(said_now, work.run.seen)
     )
-    if seen_already or work.exhausted(cover.name):
-        reason = (
-            f"`{gate}` failed as it already did:\n{said_now}"
-            if seen_already
-            else f"`{gate}` {repair.left}:\n{said_now}"
-        )
-        stopped = work.stopped_by(reason)
-        return goto(
-            stand_down, stopped if seen_already else stopped.but(run=repair.run)
-        )
+    # Given up on by memory, by the budget or by the operator, in that order:
+    # the operator is only asked where the other two had no say.
+    stalled = seen_already or work.exhausted(close_gap.name)
+    if stalled or not await _worth_another(work, f"work on `{gate}`"):
+        if seen_already:
+            reason = f"`{gate}` failed as it already did:\n{said_now}"
+            run = work.run
+        else:
+            left = repair.left if work.exhausted(close_gap.name) else _DECLINED
+            reason = f"`{gate}` {left}:\n{said_now}"
+            run = repair.run
+        return goto(stand_down, work.stopped_by(reason).but(run=run))
     fallen = (
         await services()
         .agent(project)
-        .ask(repair.asking, role="writer", key=f"cover-{work.pr.number}")
+        .ask(
+            repair.asking,
+            role="writer",
+            key=f"cover-{work.pr.number}",
+            attended=work.run.attended,
+        )
     )
     if fallen:
         return goto(report, work.abandoned(fallen.reason))
-    return goto(cover, work.but(gate=repair.next_gate).charged(cover.name))
+    return goto(close_gap, work.but(gate=repair.next_gate).charged(close_gap.name))
 
 
 class _Repair(NamedTuple):
@@ -455,7 +507,7 @@ async def push_work(work: Work) -> Transition:
 
 
 # What the review says is not the night's to have an opinion about — the
-# outcome is the gates' answer, and `pr_review` answers the review.
+# outcome is the gates' answer, and `review` answers the review.
 def _ended(work: Work) -> Closed:
     return Closed(work=work, outcome="blocked" if work.blocked else "green")
 
@@ -484,14 +536,20 @@ async def quality_review(work: Work) -> Transition:
     read = (
         await services()
         .agent(project)
-        .ask_for(prompt, output=Findings, role="reader", key=f"review-{number}")
+        .ask_for(
+            prompt,
+            output=Findings,
+            role="reader",
+            key=f"review-{number}",
+            attended=work.run.attended,
+        )
     )
     if isinstance(read, Fallen):
         return goto(report, work.abandoned(read.reason))
     if isinstance(read, Misread):
         return goto(set_aside, work.but(note=read.reason))
     # Every item opens with the review's title, so it can be told from anyone
-    # else's comment — and answered by `pr_review` as one.
+    # else's comment — and answered by `review` as one.
     try:
         for finding in read.items:
             body = f"## {project.review_title}\n\n{finding.body}"

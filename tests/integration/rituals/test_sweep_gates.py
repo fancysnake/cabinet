@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 from vekna.lexicon import goto
 
-from cabinet.gates.ritual.vekna.pr_sweep import (
+from cabinet.gates.ritual.vekna.sweep import (
     check_ci,
-    cover,
+    close_gap,
     finish_merge,
     finish_pr,
     gate_check,
@@ -106,7 +106,52 @@ class TestTakePass:
         assert not trial.shell.commands
 
 
+def _attended(work: Work) -> Work:
+    return work.but(run=work.run.model_copy(update={"attended": True}))
+
+
 class TestGateCheck:
+    @staticmethod
+    def test_an_unattended_cast_asks_nobody(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
+        trial.coding.replies("fixed")
+
+        trial.walk(gate_check, work)
+
+        assert not trial.decide.prompts
+        assert "permission_mode='dontAsk'" in str(trial.coding.calls[0].focus_options)
+
+    @staticmethod
+    def test_an_attended_cast_asks_before_each_repair(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
+        trial.decide.answers(answer=True, when="repair `mise run pr-fix`*")
+        trial.coding.replies("fixed")
+        attended = _attended(work).charged(gate_check.name)
+
+        transition = trial.walk(gate_check, attended)
+
+        assert transition == goto(
+            gate_check, attended.but(gate="").charged(gate_check.name)
+        )
+        assert trial.decide.prompts == [
+            "repair `mise run pr-fix` on feature (attempt 2)?"
+        ]
+        assert "permission_mode='auto'" in str(trial.coding.calls[0].focus_options)
+
+    @staticmethod
+    def test_a_declined_repair_stands_the_branch_down(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
+        trial.decide.answers(answer=False, when="repair `mise run pr-fix`*")
+        attended = _attended(work)
+
+        assert trial.walk(gate_check, attended) == goto(
+            stand_down,
+            attended.stopped_by(
+                "`mise run pr-fix` was not tried again, as you decided:\n1 failed"
+            ).but(run=attended.run.but(seen=["1 failed"])),
+        )
+        assert not trial.coding.prompts
+
     @staticmethod
     def test_a_green_gate_lands(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_GATE)
@@ -256,7 +301,7 @@ class TestCheckCi:
     def test_a_patch_with_a_gap_buys_the_hour(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=board(), stdout=_GAP_BOARD)
 
-        assert trial.walk(check_ci, work) == goto(cover, work)
+        assert trial.walk(check_ci, work) == goto(close_gap, work)
 
     @staticmethod
     def test_a_board_the_forge_would_not_give_buys_the_hour(
@@ -264,17 +309,34 @@ class TestCheckCi:
     ) -> None:
         trial.shell.replies(when=board(), exit_code=1)
 
-        assert trial.walk(check_ci, work) == goto(cover, work)
+        assert trial.walk(check_ci, work) == goto(close_gap, work)
 
 
 class TestCover:
+    @staticmethod
+    def test_a_declined_round_stands_the_branch_down(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_COVERAGE, stdout=_MISSING)
+        trial.decide.answers(answer=False, when="work on `mise run diff-cover`*")
+        attended = _attended(work)
+
+        assert trial.walk(close_gap, attended) == goto(
+            stand_down,
+            attended.stopped_by(
+                "`mise run diff-cover` was not tried again, as you decided:\n"
+                + _MISSING.rstrip("\n")
+            ),
+        )
+        assert trial.decide.prompts == [
+            "work on `mise run diff-cover` on feature (attempt 1)?"
+        ]
+
     @staticmethod
     def test_a_clean_first_measurement_commits_nothing(
         trial: Trial, work: Work
     ) -> None:
         trial.shell.replies(when=_COVERAGE, stdout=_CLEAN)
 
-        assert trial.walk(cover, work) == goto(push_work, work)
+        assert trial.walk(close_gap, work) == goto(push_work, work)
         assert trial.shell.commands == [_COVERAGE]
 
     @staticmethod
@@ -283,9 +345,9 @@ class TestCover:
     ) -> None:
         trial.shell.replies(when=_COVERAGE, stdout=_CLEAN)
         trial.shell.replies(when="git add -A*")
-        charged = work.but(budgets={cover.name: 1})
+        charged = work.but(budgets={close_gap.name: 1})
 
-        assert trial.walk(cover, charged) == goto(push_work, work)
+        assert trial.walk(close_gap, charged) == goto(push_work, work)
         assert trial.shell.commands == [_COVERAGE, _TEST_COMMIT]
 
     @staticmethod
@@ -295,17 +357,18 @@ class TestCover:
         trial.shell.replies(when=_FAST, stdout=_CLEAN)
         fast = work.but(gate="mise run test:py:cov:diff")
 
-        assert trial.walk(cover, fast) == goto(cover, work)
+        assert trial.walk(close_gap, fast) == goto(close_gap, work)
 
     @staticmethod
     def test_missing_lines_are_handed_to_a_writer(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_COVERAGE, stdout=f"tests PASSED\n{_MISSING}")
         trial.coding.replies("wrote a test")
 
-        transition = trial.walk(cover, work)
+        transition = trial.walk(close_gap, work)
 
         assert transition == goto(
-            cover, work.but(gate="mise run test:py:cov:diff").charged(cover.name)
+            close_gap,
+            work.but(gate="mise run test:py:cov:diff").charged(close_gap.name),
         )
         prompt = trial.coding.prompts[0]
         assert _MISSING in prompt
@@ -318,9 +381,9 @@ class TestCover:
     ) -> None:
         trial.shell.replies(when=_FAST, stdout=_MISSING)
         trial.coding.replies("wrote a test")
-        fast = work.but(gate="mise run test:py:cov:diff").charged(cover.name)
+        fast = work.but(gate="mise run test:py:cov:diff").charged(close_gap.name)
 
-        trial.walk(cover, fast)
+        trial.walk(close_gap, fast)
 
         assert "leaves the slow suites out" in trial.coding.prompts[0]
 
@@ -336,10 +399,10 @@ class TestCover:
         )
         trial.coding.replies("fixed")
 
-        transition = trial.walk(cover, work)
+        transition = trial.walk(close_gap, work)
 
         assert transition == goto(
-            cover, work.but(gate="mise run test:unit").charged(cover.name)
+            close_gap, work.but(gate="mise run test:unit").charged(close_gap.name)
         )
         assert trial.coding.prompts[0].startswith(
             "`mise run diff-cover` is this project's gate"
@@ -348,9 +411,9 @@ class TestCover:
     @staticmethod
     def test_a_red_suite_that_stays_red_is_remembered(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_COVERAGE, exit_code=1, stdout="1 failed")
-        spent = work.but(budgets={cover.name: 3})
+        spent = work.but(budgets={close_gap.name: 3})
 
-        assert trial.walk(cover, spent) == goto(
+        assert trial.walk(close_gap, spent) == goto(
             stand_down,
             spent.stopped_by("`mise run diff-cover` is still red:\n1 failed").but(
                 run=work.run.but(seen=["1 failed"])
@@ -362,9 +425,9 @@ class TestCover:
         trial: Trial, work: Work
     ) -> None:
         trial.shell.replies(when=_COVERAGE, stdout=_MISSING)
-        spent = work.but(budgets={cover.name: 3})
+        spent = work.but(budgets={close_gap.name: 3})
 
-        transition = trial.walk(cover, spent)
+        transition = trial.walk(close_gap, spent)
 
         assert transition == goto(
             stand_down,
@@ -381,7 +444,7 @@ class TestCover:
         trial.shell.replies(when=_COVERAGE, exit_code=1, stdout="1 failed in 2s")
         seen = work.but(run=work.run.but(seen=["1 failed in 9s"]))
 
-        assert trial.walk(cover, seen) == goto(
+        assert trial.walk(close_gap, seen) == goto(
             stand_down,
             seen.stopped_by(
                 "`mise run diff-cover` failed as it already did:\n1 failed in 2s"
@@ -393,9 +456,9 @@ class TestCover:
     def test_a_test_commit_that_fails_is_set_aside(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_COVERAGE, stdout=_CLEAN)
         trial.shell.replies(when="git add -A*", exit_code=1, stderr="gpg failed")
-        charged = work.but(budgets={cover.name: 1})
+        charged = work.but(budgets={close_gap.name: 1})
 
-        assert trial.walk(cover, charged) == goto(
+        assert trial.walk(close_gap, charged) == goto(
             set_aside,
             charged.but(
                 note="could not commit the tests: could not commit: gpg failed"
@@ -407,7 +470,7 @@ class TestCover:
         falling()
         trial.shell.replies(when=_COVERAGE, stdout=_MISSING)
 
-        assert trial.walk(cover, work) == goto(
+        assert trial.walk(close_gap, work) == goto(
             report, work.abandoned("the agent stopped mid-flight: boom")
         )
 

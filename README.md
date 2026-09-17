@@ -10,31 +10,47 @@ Grouped by school, the way a spellbook is.
 
 ### Transmutation
 
-- **`pr_refresh`** — the night's fast pass. Every open pull request of yours
+- **`refresh`** — the night's fast pass. Every open pull request of yours
   gets the base branch merged in, conflicts resolved, the gate made green, the
   work pushed and a quality review posted. Like *Purify Food and Drink*: what
   was there is still there, only fit to use.
 
 ### Abjuration
 
-- **`pr_cover`** — the night's slow pass. Where CI says the coverage or the
+- **`cover`** — the night's slow pass. Where CI says the coverage or the
   suite is unhappy, it measures, writes the tests for what the branch left
   uncovered, repairs a red suite, and pushes. Building the defences up.
 
 ### Divination
 
-- **`pr_review`** — the morning after. Reads the review threads the night left,
+- **`review`** — the morning after. Reads the review threads the night left,
   triages them with you at the terminal, answers every one, makes the gate
   green and ships the branch. Discovering what was found, and settling it.
 
 ```bash
-vekna cast pr_refresh [--bound N]
-vekna cast pr_cover [--bound N]
-vekna cast pr_review [--bound N]
+vekna cast refresh [--bound N] [--attended true]
+vekna cast cover [--bound N] [--attended true]
+vekna cast review [--bound N]
 ```
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
-default 3.
+default 3. `--attended true` says somebody is at the terminal: the sweep asks
+before every repair attempt instead of letting the budget decide, and its
+agents run in Claude's `auto` permission mode (see below). `review` is always
+attended.
+
+### Using only some of them
+
+Each ritual has a facade of its own under `cabinet.rituals`, so a project
+names the ones it wants. A repository with no coverage task casts `refresh`
+and `review` and never sees `cover`:
+
+```toml
+[rituals]
+modules = ["cabinet.rituals.refresh", "cabinet.rituals.review"]
+```
+
+`modules = ["cabinet.rituals"]` loads all three.
 
 ## Install
 
@@ -101,7 +117,7 @@ out.
 
 ### The review skill
 
-`pr_refresh` reviews with the thermo-nuclear code quality review, which is not
+`refresh` reviews with the thermo-nuclear code quality review, which is not
 part of this tome: it is Cursor's, from the
 [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review)
 plugin. Put it where `review_skill` points before the first cast:
@@ -138,9 +154,13 @@ type a passphrase, so either keep the key unlocked for the night or set
 
 ### What an agent may do
 
-Every agent call runs under Claude's `dontAsk` permission mode with an explicit
-allowlist, so an unattended cast never hangs on a prompt and nothing outside
-the list happens whatever the prompt says.
+Unattended, every agent call runs under Claude's `dontAsk` permission mode with
+an explicit allowlist, so a cast at 3am never hangs on a prompt and nothing
+outside the list happens whatever the prompt says. Attended — `review` always,
+the sweeps with `--attended true` — the mode is `auto`: the allowlist still
+approves what it names, and what falls outside it is judged rather than
+refused. Run attended casts inside a sandbox such as fence, where an approved
+mistake cannot reach anything that matters.
 
 | role       | may use                                                                     |
 | ---------- | --------------------------------------------------------------------------- |
@@ -175,5 +195,5 @@ rituals/   what vekna sweeps: one module per ritual, re-exporting its steps
 mise run test:py       # the suite
 mise run lint:py       # every linter
 mise run fullcheck     # the gate before a commit
-vekna rituals show pr_refresh
+vekna rituals show refresh
 ```

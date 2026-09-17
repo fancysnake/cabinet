@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING
 import pytest
 from vekna.lexicon import Goto, RitualError, done, goto
 
-from cabinet.gates.ritual.vekna.pr_sweep import (
+from cabinet.gates.ritual.vekna.sweep import (
+    cover,
     finish_pr,
     next_pr,
-    pr_cover,
-    pr_refresh,
     push_work,
     quality_review,
+    refresh,
     report,
     set_aside,
     skip_pr,
     stand_down,
 )
-from cabinet.pacts.pulls import Checked, Closed, PrSweep, Report, Run, Work
+from cabinet.pacts.pulls import Checked, Closed, Report, Run, Sweep, Work
 from cabinet.pacts.threads import Finding, Findings
 from tests.conftest import (
     HERE,
@@ -372,7 +372,7 @@ class TestWholeCast:
         trial.shell.replies(when=THREADS, stdout=_NO_THREADS)
         trial.coding.replies(Findings(items=[]), when="Review the changes*")
 
-        result = trial.cast(pr_refresh, PrSweep(bound=3))
+        result = trial.cast(refresh, Sweep(bound=3))
 
         assert result == Report(checked=[_GREEN_ROW])
         assert trial.steps == [
@@ -401,7 +401,7 @@ class TestWholeCast:
         self._night(trial)
         trial.shell.replies(when=board(), stdout=_GREEN_BOARD)
 
-        result = trial.cast(pr_cover, PrSweep(bound=3))
+        result = trial.cast(cover, Sweep(bound=3))
 
         assert result == Report(
             checked=[
@@ -437,7 +437,7 @@ class TestWholeCast:
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!glab auth\n")
         trial.shell.replies(when="glab api 'projects/:id/merge_requests?*", stdout="[]")
 
-        result = trial.cast(pr_refresh, PrSweep(bound=3))
+        result = trial.cast(refresh, Sweep(bound=3))
 
         assert result == Report()
         assert trial.shell.commands[-1].startswith("glab api")

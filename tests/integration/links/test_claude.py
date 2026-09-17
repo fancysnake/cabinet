@@ -33,6 +33,7 @@ _WRITER = [*_READER, "Edit", "Write", "MultiEdit", "Bash(mise run test:unit:*)"]
 class _Ask(BaseModel):
     role: Role = "writer"
     key: str | None = None
+    attended: bool = False
 
 
 class _Came(BaseModel):
@@ -43,7 +44,9 @@ class _Came(BaseModel):
 
 @step
 async def ask(asked: _Ask) -> Transition:
-    fallen = await ClaudeAgent(_PROJECT).ask("do it", role=asked.role, key=asked.key)
+    fallen = await ClaudeAgent(_PROJECT).ask(
+        "do it", role=asked.role, key=asked.key, attended=asked.attended
+    )
     return done(_Came(fallen=fallen))
 
 
@@ -58,7 +61,11 @@ async def ask_twice(asked: _Ask) -> Transition:
 @step
 async def ask_for(asked: _Ask) -> Transition:
     came = await ClaudeAgent(_PROJECT).ask_for(
-        "read it", output=TriageNotes, role=asked.role, key=asked.key
+        "read it",
+        output=TriageNotes,
+        role=asked.role,
+        key=asked.key,
+        attended=asked.attended,
     )
     if isinstance(came, Fallen):
         return done(_Came(fallen=came))
@@ -104,6 +111,16 @@ class TestAsk:
             max_turns=30,
         )
         assert trial.coding.calls[0].resume is None
+
+    @staticmethod
+    def test_an_attended_call_runs_in_auto_mode(trial: Trial) -> None:
+        trial.coding.replies("did it")
+
+        trial.walk(ask, _Ask(attended=True))
+
+        assert trial.coding.calls[0].focus_options == ClaudeOptions(
+            permission_mode="auto", allowed_tools=_WRITER, effort="high", max_turns=30
+        )
 
     @staticmethod
     def test_a_keyed_call_continues_its_thread(trial: Trial) -> None:

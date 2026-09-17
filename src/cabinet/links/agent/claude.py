@@ -1,9 +1,11 @@
 """Asking Claude, with the reach each role is allowed and nothing more.
 
-Every call runs under `dontAsk`: a tool outside the allowlist is refused
+Unattended, every call runs under `dontAsk`: a tool outside the allowlist is refused
 silently, so an unattended cast never hangs on a prompt and an agent never
 commits, pushes, runs a sweep, or speaks to the forge — whatever the prompt
-says. The list is built from the same project setting the prompt quotes.
+says. Attended, the mode is `auto`: the allowlist still approves what it names,
+and what is outside it is judged, with somebody there to be asked. The list is
+built from the same project setting the prompt quotes.
 """
 
 import logging
@@ -53,12 +55,12 @@ class ClaudeAgent(AgentProtocol):
     def __init__(self, project: Project) -> None:
         self._project = project
 
-    def _opts(self, role: Role) -> CodingOpts:
+    def _opts(self, role: Role, *, attended: bool) -> CodingOpts:
         agent = self._project.agent
         return CodingOpts(
             model=agent.model,
             focus_options=ClaudeOptions(
-                permission_mode="dontAsk",
+                permission_mode="auto" if attended else "dontAsk",
                 allowed_tools=allowed_tools(role, self._project),
                 effort=agent.effort,
                 max_turns=agent.max_turns or None,
@@ -70,11 +72,12 @@ class ClaudeAgent(AgentProtocol):
     # takes the report with it. So the failure comes back as a value.
     @override
     async def ask(
-        self, prompt: str, *, role: Role, key: str | None = None
+        self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
     ) -> Fallen | None:
         session = Session.CONTINUE if key is not None else Session.NEW
         try:
-            await coding(prompt, opts=self._opts(role), session=session, key=key)
+            opts = self._opts(role, attended=attended)
+            await coding(prompt, opts=opts, session=session, key=key)
         except (ClaudeSDKError, RitualError, OSError) as error:
             _LOG.exception("the agent stopped mid-flight")
             return Fallen(reason=f"the agent stopped mid-flight: {error}")
@@ -82,12 +85,22 @@ class ClaudeAgent(AgentProtocol):
 
     @override
     async def ask_for[OutputT: BaseModel](
-        self, prompt: str, *, output: type[OutputT], role: Role, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[OutputT],
+        role: Role,
+        key: str | None = None,
+        attended: bool = False,
     ) -> OutputT | Fallen | Misread:
         session = Session.CONTINUE if key is not None else Session.NEW
         try:
             return await coding(
-                prompt, output=output, opts=self._opts(role), session=session, key=key
+                prompt,
+                output=output,
+                opts=self._opts(role, attended=attended),
+                session=session,
+                key=key,
             )
         # Caught ahead of the rest and answered differently: an agent whose
         # JSON does not fit the schema is a bad answer, not a dead CLI, and

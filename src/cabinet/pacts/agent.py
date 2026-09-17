@@ -27,11 +27,19 @@ class Misread(BaseModel):
 class AgentProtocol(Protocol):
     # Nothing reads what the agent said back: the call is judged by what it
     # left in the worktree. A key joins the call to a thread, so a retry meets
-    # an agent that remembers the attempt that just failed.
+    # an agent that remembers the attempt that just failed. `attended` says
+    # somebody is at the terminal to be asked: the allowlist stays, but what is
+    # outside it is judged rather than refused.
     async def ask(
-        self, prompt: str, *, role: Role, key: str | None = None
+        self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
     ) -> Fallen | None: ...
 
     async def ask_for[OutputT: BaseModel](
-        self, prompt: str, *, output: type[OutputT], role: Role, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[OutputT],
+        role: Role,
+        key: str | None = None,
+        attended: bool = False,
     ) -> OutputT | Fallen | Misread: ...

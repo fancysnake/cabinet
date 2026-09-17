@@ -11,8 +11,12 @@ from cabinet.pacts.project import Project
 Bound = Annotated[int, Field(ge=1, le=5)]
 
 
-class PrSweep(BaseModel):
+class Sweep(BaseModel):
     bound: Bound = 3
+    # Somebody is at the terminal: an agent runs in Claude's `auto` permission
+    # mode instead of refusing everything outside its allowlist, and another
+    # repair attempt is asked for rather than spent on the budget's say-so.
+    attended: bool = False
 
 
 # Which pass a cast is. The two share every step that takes a branch and writes
@@ -85,6 +89,7 @@ class Run(BaseModel):
     project: Project
     bound: int
     mode: Mode = "refresh"
+    attended: bool = False
     queue: list[PullRequest] = []
     checked: list[Checked] = []
     stopped: str = ""

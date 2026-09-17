@@ -20,13 +20,19 @@ if TYPE_CHECKING:
 class FallingAgent(AgentProtocol):
     @override
     async def ask(
-        self, prompt: str, *, role: Role, key: str | None = None
+        self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
     ) -> Fallen | None:
         return Fallen(reason="the agent stopped mid-flight: boom")
 
     @override
     async def ask_for[OutputT: BaseModel](
-        self, prompt: str, *, output: type[OutputT], role: Role, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[OutputT],
+        role: Role,
+        key: str | None = None,
+        attended: bool = False,
     ) -> OutputT | Fallen | Misread:
         return Fallen(reason="the agent stopped mid-flight: boom")
 

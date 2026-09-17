@@ -1,4 +1,4 @@
-# This tome's own rituals, cast on itself: `vekna rituals show pr_refresh` draws
+# This tome's own rituals, cast on itself: `vekna rituals show refresh` draws
 # the graph from here, and the `[cabinet]` section is what the rituals read
 # when they run over this repository's pull requests.
 [rituals]

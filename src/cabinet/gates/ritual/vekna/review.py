@@ -1,8 +1,8 @@
-"""Answer the reviews `pr_refresh` left on your branches, then ship them.
+"""Answer the reviews `refresh` left on your branches, then ship them.
 
-    vekna cast pr_review [--bound N]
+    vekna cast review [--bound N]
 
-The follow-up to `pr_refresh`, and its opposite: nothing done without you saying
+The follow-up to `refresh`, and its opposite: nothing done without you saying
 so, and it is what commits the result.
 
 A branch is a candidate when its pull request is open, yours, wearing the
@@ -35,7 +35,7 @@ threads still open, or one a gate stopped, keeps ``started``.
 
 Then the gate runs, is repaired up to ``--bound`` times, and what came out is
 committed and pushed — no question in between, because the answers you gave
-were the decision. Diff coverage is not measured here — that is ``pr_cover``.
+were the decision. Diff coverage is not measured here — that is ``cover``.
 
 A gate that will not go green after ``--bound`` attempts ends the cast rather
 than moving on: the repair work is sitting uncommitted in the worktree, and
@@ -55,7 +55,7 @@ from cabinet.pacts.reviews import (
     Instructed,
     Landing,
     Picking,
-    PrReview,
+    Review,
     Triage,
 )
 from cabinet.pacts.scm import ScmError
@@ -72,11 +72,11 @@ _MAX_STEPS = 400
 
 # One thread for every agent call in the cast, so a later round meets an agent
 # that remembers writing the one before.
-_THREAD = "pr_review"
+_THREAD = "review"
 
 
-@ritual("pr_review", max_steps=_MAX_STEPS)
-def pr_review(components: PrReview) -> Transition:
+@ritual("review", max_steps=_MAX_STEPS)
+def review(components: Review) -> Transition:
     project = services().project()
     return goto(queue_up, Picking(project=project, bound=components.bound))
 
@@ -175,7 +175,7 @@ async def look(branch: Branch) -> Transition:
     read = (
         await services()
         .agent(project)
-        .ask_for(prompt, output=TriageNotes, role="reader")
+        .ask_for(prompt, output=TriageNotes, role="reader", attended=True)
     )
     if isinstance(read, Fallen | Misread):
         raise RitualError(read.reason)
@@ -223,7 +223,13 @@ async def work(instructed: Instructed) -> Transition:
     came = (
         await services()
         .agent(branch.project)
-        .ask_for(instructed.prompt, output=Answered, role="writer", key=_THREAD)
+        .ask_for(
+            instructed.prompt,
+            output=Answered,
+            role="writer",
+            key=_THREAD,
+            attended=True,
+        )
     )
     if isinstance(came, Fallen | Misread):
         raise RitualError(came.reason)
@@ -294,7 +300,11 @@ async def gates(landing: Landing) -> Transition:
     # Another agent attempt is normally yours to approve; here the triage was
     # the approval, and the bound is what holds the loop.
     prompt = services().prompts.fix_gates(project, verdicts.said(ran), gate=gate)
-    fallen = await services().agent(project).ask(prompt, role="writer", key=_THREAD)
+    fallen = (
+        await services()
+        .agent(project)
+        .ask(prompt, role="writer", key=_THREAD, attended=True)
+    )
     if fallen:
         raise RitualError(fallen.reason)
     return goto(

@@ -9,7 +9,7 @@ from cabinet.pacts.pulls import Bound, PullRequest
 from cabinet.pacts.threads import Answer, TriageItem
 
 
-class PrReview(BaseModel):
+class Review(BaseModel):
     bound: Bound = 3
 
 

@@ -42,7 +42,7 @@ def _line(row: Checked) -> str:
 class Report(ReportProtocol):
     @override
     def sweep(self, run: Run) -> str:
-        lines = [f"pr_{run.mode} — {len(run.checked)} checked", ""]
+        lines = [f"{run.mode} — {len(run.checked)} checked", ""]
         lines += [_line(row) for row in run.checked] or ["  (none)"]
         # Only when there are any, unlike the rows: a pass that reached every
         # pull request is the normal night, and a line saying "none" on every
@@ -55,7 +55,7 @@ class Report(ReportProtocol):
 
     @override
     def review(self, picking: Picking) -> str:
-        lines = [f"pr_review — {len(picking.reviewed)} branches"]
+        lines = [f"review — {len(picking.reviewed)} branches"]
         lines += [
             f"  {row.branch}: {_TOLD[row.outcome]}"
             + (f" — {row.note}" if row.note else "")

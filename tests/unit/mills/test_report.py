@@ -29,7 +29,7 @@ class TestSweep:
     @staticmethod
     def test_a_green_row() -> None:
         assert _REPORT.sweep(_run(checked=[_GREEN])) == (
-            "pr_refresh — 1 checked\n\n  #7 feature: green and reviewed, 0 unpushed\n"
+            "refresh — 1 checked\n\n  #7 feature: green and reviewed, 0 unpushed\n"
         )
 
     @staticmethod
@@ -39,7 +39,7 @@ class TestSweep:
         )
 
         assert _REPORT.sweep(_run(checked=[row])) == (
-            "pr_refresh — 1 checked\n\n"
+            "refresh — 1 checked\n\n"
             "  #7 feature: blocked, unknown — red:\n      1 failed\n"
         )
 
@@ -53,12 +53,12 @@ class TestSweep:
 
     @staticmethod
     def test_nothing_checked() -> None:
-        assert _REPORT.sweep(_run(mode="cover")) == "pr_cover — 0 checked\n\n  (none)\n"
+        assert _REPORT.sweep(_run(mode="cover")) == "cover — 0 checked\n\n  (none)\n"
 
     @staticmethod
     def test_what_was_not_reached_and_why() -> None:
         assert _REPORT.sweep(_run(queue=[_PULL], stopped="gh died")) == (
-            "pr_refresh — 0 checked\n\n  (none)\n\n"
+            "refresh — 0 checked\n\n  (none)\n\n"
             "not reached: feature\n\nthe run failed: gh died\n"
         )
 
@@ -76,14 +76,14 @@ class TestReview:
         )
 
         assert _REPORT.review(picking) == (
-            "pr_review — 2 branches\n  a: shipped\n"
+            "review — 2 branches\n  a: shipped\n"
             "  b: checked out elsewhere — worktree"
         )
 
     @staticmethod
     def test_nothing_reviewed() -> None:
         assert _REPORT.review(Picking(project=_PROJECT, bound=2)) == (
-            "pr_review — 0 branches\n  (none had a review waiting)"
+            "review — 0 branches\n  (none had a review waiting)"
         )
 
     @staticmethod

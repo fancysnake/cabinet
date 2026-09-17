@@ -1,29 +1,26 @@
-"""The night's two passes over your open pull requests.
+"""Transmutation: ``refresh`` merges the base in and makes the gate green.
 
-Transmutation — ``pr_refresh``: merges the base in and makes the gate green,
-the way *Purify Food and Drink* leaves what was there, only fit to use.
+The way *Purify Food and Drink* leaves what was there, only fit to use.
 
-Abjuration — ``pr_cover``: builds the defences up, writing the tests for what
-a branch left uncovered.
-
-The steps live in ``cabinet.gates.ritual.vekna.pr_sweep``; this module is the
-surface vekna sweeps, and the one place the services are wired.
+The steps live in ``cabinet.gates.ritual.vekna.sweep``; this module is the
+surface vekna sweeps, and the one place the services are wired. Every step of
+the sweep is exported, not only the ones this ritual walks, so the graph
+``vekna rituals show`` draws is whole whichever facades a project loads.
 """
 
-from cabinet.gates.ritual.vekna.pr_sweep import (
+from cabinet.gates.ritual.vekna.sweep import (
     check_ci,
     check_clean,
-    cover,
+    close_gap,
     finish_merge,
     finish_pr,
     gate_check,
     list_prs,
     merge_base,
     next_pr,
-    pr_cover,
-    pr_refresh,
     push_work,
     quality_review,
+    refresh,
     report,
     resolve_conflicts,
     set_aside,
@@ -39,17 +36,16 @@ wire()
 __all__ = [
     "check_ci",
     "check_clean",
-    "cover",
+    "close_gap",
     "finish_merge",
     "finish_pr",
     "gate_check",
     "list_prs",
     "merge_base",
     "next_pr",
-    "pr_cover",
-    "pr_refresh",
     "push_work",
     "quality_review",
+    "refresh",
     "report",
     "resolve_conflicts",
     "set_aside",

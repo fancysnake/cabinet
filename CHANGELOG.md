@@ -12,10 +12,10 @@ and this project adheres to [Semantic Versioning].
 ### Added
 
 - Three rituals, cast through `[rituals] modules = ["cabinet.rituals"]`:
-  `pr_refresh` (Transmutation) merges the base into every open pull request,
-  makes the gate green, pushes and posts a quality review; `pr_cover`
+  `refresh` (Transmutation) merges the base into every open pull request,
+  makes the gate green, pushes and posts a quality review; `cover`
   (Abjuration) measures diff coverage where CI is unhappy and writes the
-  missing tests; `pr_review` (Divination) triages the review threads with you
+  missing tests; `review` (Divination) triages the review threads with you
   at the terminal, answers them, and ships the branch.
 - A `[cabinet]` section in the consuming repository's `.vekna.toml` for
   everything that used to be a constant: the gate and coverage tasks, base
@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning].
 - Agents run under Claude's `dontAsk` permission mode with per-role
   allowlists (reader, writer, resolver). Every forge write, commit, push and
   task run is the ritual's, through `shell`.
+- `--attended true` on `refresh` and `cover`: the sweep asks before every
+  repair attempt and its agents run in `auto` permission mode; `review` is
+  always attended.
+- One facade per ritual under `cabinet.rituals`, so a project loads only the
+  rituals it can run.
 - Pushes go over https with the forge CLI as the credential helper; an ssh
   remote is refused before the first fetch. `sign_commits = false` commits
   with `commit.gpgsign=false` for casts that run unattended.

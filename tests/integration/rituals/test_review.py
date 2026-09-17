@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING
 import pytest
 from vekna.lexicon import Goto, RitualError, done, goto
 
-from cabinet.gates.ritual.vekna.pr_review import (
+from cabinet.gates.ritual.vekna.review import (
     answer,
     gates,
     land,
     look,
     pick,
     plan,
-    pr_review,
     queue_up,
     recap,
+    review,
     settle,
     work,
 )
@@ -25,7 +25,7 @@ from cabinet.pacts.reviews import (
     Instructed,
     Landing,
     Picking,
-    PrReview,
+    Review,
     Reviewed,
     Triage,
 )
@@ -230,6 +230,8 @@ class TestLook:
         assert "UNTRUSTED" in prompt
         assert trial.coding.calls[0].focus_options is not None
         assert "Edit" not in str(trial.coding.calls[0].focus_options)
+        # Somebody is at the terminal for the whole of this ritual.
+        assert "permission_mode='auto'" in str(trial.coding.calls[0].focus_options)
 
     @staticmethod
     def test_threads_the_forge_would_not_give_fail_the_cast(
@@ -556,7 +558,7 @@ class TestWholeCast:
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
         )
 
-        result = trial.cast(pr_review, PrReview(bound=2))
+        result = trial.cast(review, Review(bound=2))
 
         assert result == Picking(
             project=Picking.model_validate({"project": {}, "bound": 2}).project,

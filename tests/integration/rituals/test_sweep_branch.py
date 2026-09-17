@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from vekna.lexicon import Goto, goto
 
-from cabinet.gates.ritual.vekna.pr_sweep import (
+from cabinet.gates.ritual.vekna.sweep import (
     check_clean,
     list_prs,
     merge_base,
@@ -247,6 +247,21 @@ class TestResolveConflicts:
         assert trial.coding.calls[0].resume is None
         assert trial.coding.calls[0].focus_options is not None
         assert "Bash(git add:*)" in str(trial.coding.calls[0].focus_options)
+
+    @staticmethod
+    def test_an_attended_cast_asks_before_a_resolver_is_spent(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=_UNMERGED, stdout="src/thing.py\n")
+        trial.decide.answers(answer=False, when="resolve the conflicts*")
+        attended = work.but(run=work.run.model_copy(update={"attended": True}))
+
+        assert trial.walk(resolve_conflicts, attended.merging_on("")) == goto(
+            stand_down,
+            attended.merging_on("").stopped_by("the merge conflicts were not resolved"),
+        )
+        assert trial.decide.prompts == ["resolve the conflicts on feature (attempt 1)?"]
+        assert not trial.coding.prompts
 
     @staticmethod
     def test_an_index_that_cannot_be_read_is_set_aside(
