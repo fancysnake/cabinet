@@ -34,9 +34,6 @@ and this project adheres to [Semantic Versioning].
 - Tooling: mise tasks from shared-configs, hk as the pre-commit hook, a CI
   workflow with Codecov upload, tingle for the debt budget.
 
-## [0.0.1] - 2026-09-17
-
-- initial release
 
 <!-- Links -->
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
@@ -44,5 +41,4 @@ and this project adheres to [Semantic Versioning].
 
 <!-- Versions -->
 [unreleased]: https://github.com/fancysnake/cabinet/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/fancysnake/cabinet/compare/v0.0.1...v0.1.0
-[0.0.1]: https://github.com/fancysnake/cabinet/releases/tag/v0.0.1
+[0.1.0]: https://github.com/fancysnake/cabinet/releases/tag/v0.1.0
