@@ -1,0 +1,15 @@
+# This tome's own rituals, cast on itself: `vekna rituals show pr_refresh` draws
+# the graph from here, and a `[cabinet]` section is what the rituals read.
+[rituals]
+modules = ["cabinet.rituals"]
+
+[cabinet]
+forge = "github"
+base = "main"
+remote = "origin"
+gate = "mise run fullcheck"
+coverage = "mise run test:py:cov:diff"
+fast_coverage = "mise run test:py:cov:diff"
+
+[cabinet.agent]
+may_run = ["mise run test:unit", "mise run test:int"]

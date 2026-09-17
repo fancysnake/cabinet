@@ -1,0 +1,49 @@
+[tools]
+actionlint = "1.7.12"
+hk = "1.56.0"
+pipx = "1.17.2"
+"pipx:poetry" = "2.4.3"
+pkl = "0.32.1"
+python = "3.14.7"
+# actionlint hands every `run:` script to shellcheck.
+shellcheck = "0.11.0"
+
+[hooks]
+enter = ["poetry install", "hk install"]
+
+[env]
+# Mise creates and activates this virtualenv automatically
+_.python.venv = { path = ".venv", create = true }
+PACKAGE = "cabinet"
+SRC_PATHS = "src"
+TEST_PATHS = "tests"
+SCRIPT_PATHS = ""
+TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml"
+
+[task_config]
+includes = [
+    "git::https://github.com/fancysnake/shared-configs.git//python.toml?ref=5da354f89c7e72d677e80326270aa8d8226ee76e",
+]
+
+[tasks."lint:deptry"]
+description = "Find declared-but-unused and used-but-undeclared dependencies"
+run = "deptry src tests"
+
+# What the pre-commit hook runs on the staged files, run here over all of
+# them. `hk install` (the enter hook) is what puts the git hook in place.
+[tasks."lint:hk"]
+description = "Run every hk linter on all files"
+run = "hk check --all"
+
+# `lint:py` comes from the shared config and cannot be appended to from here, so
+# `lint:deptry` hangs off `fullcheck` instead — which is the gate that matters.
+[tasks.fullcheck]
+description = "The gate before a commit: format, lint, test with diff coverage"
+run = [
+    "poetry install",
+    { task = "format:py" },
+    { task = "lint:py" },
+    { task = "lint:deptry" },
+    { task = "lint:hk" },
+    { task = "test:py:cov:diff" },
+]
