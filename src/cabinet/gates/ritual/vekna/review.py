@@ -45,7 +45,7 @@ taking another branch would either commit it there or throw it away.
 from typing import TYPE_CHECKING
 
 from vekna.folio.flow import decide
-from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, ritual, step
+from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
 
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
@@ -55,7 +55,6 @@ from cabinet.pacts.reviews import (
     Instructed,
     Landing,
     Picking,
-    Review,
     Triage,
 )
 from cabinet.pacts.scm import ScmError
@@ -65,20 +64,9 @@ from cabinet.pacts.threads import Answered, TriageNotes
 if TYPE_CHECKING:
     from cabinet.pacts.project import State
 
-# The engine's backstop and nothing else: the repair loop is bounded by the
-# person sitting at it, and the branch loop by how many branches were reviewed
-# in the night.
-_MAX_STEPS = 400
-
 # One thread for every agent call in the cast, so a later round meets an agent
 # that remembers writing the one before.
 _THREAD = "review"
-
-
-@ritual("review", max_steps=_MAX_STEPS)
-def review(components: Review) -> Transition:
-    project = services().project()
-    return goto(queue_up, Picking(project=project, bound=components.bound))
 
 
 # Ask the forge which of your branches carry a review, and queue them.

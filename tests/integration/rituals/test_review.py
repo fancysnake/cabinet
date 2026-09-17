@@ -15,7 +15,6 @@ from cabinet.gates.ritual.vekna.review import (
     plan,
     queue_up,
     recap,
-    review,
     settle,
     work,
 )
@@ -30,6 +29,7 @@ from cabinet.pacts.reviews import (
     Triage,
 )
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
+from cabinet.rituals.review import review
 from tests.conftest import HERE, LIST, STATUS, THREADS, checkpoint, commit, listing, row
 from tests.integration.rituals.falling import falling
 

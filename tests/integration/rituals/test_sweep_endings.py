@@ -7,12 +7,10 @@ import pytest
 from vekna.lexicon import Goto, RitualError, done, goto
 
 from cabinet.gates.ritual.vekna.sweep import (
-    cover,
     finish_pr,
     next_pr,
     push_work,
     quality_review,
-    refresh,
     report,
     set_aside,
     skip_pr,
@@ -20,6 +18,8 @@ from cabinet.gates.ritual.vekna.sweep import (
 )
 from cabinet.pacts.pulls import Checked, Closed, Report, Run, Sweep, Work
 from cabinet.pacts.threads import Finding, Findings
+from cabinet.rituals.cover import cover
+from cabinet.rituals.refresh import refresh
 from tests.conftest import (
     HERE,
     LABELS,

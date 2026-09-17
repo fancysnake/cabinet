@@ -7,24 +7,11 @@ there, so casting it twice is as safe as once. Cast it on a repository before
 the first sweep, and again after changing `[cabinet.labels]`.
 """
 
-from vekna.lexicon import (
-    NoComponents,
-    RitualError,
-    Transition,
-    done,
-    goto,
-    ritual,
-    step,
-)
+from vekna.lexicon import RitualError, Transition, done, step
 
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.project import Labelled, Project
 from cabinet.pacts.services import services
-
-
-@ritual("labels")
-def labels(_: NoComponents) -> Transition:
-    return goto(conjure, services().project())
 
 
 # Create every label, or bring it up to date.

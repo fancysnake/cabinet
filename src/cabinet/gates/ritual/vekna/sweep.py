@@ -75,11 +75,11 @@ branch whose gate says the same thing stands down without spending its budget.
 from typing import TYPE_CHECKING, NamedTuple
 
 from vekna.folio.flow import decide
-from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, ritual, step
+from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
 
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.pulls import Board, Closed, Report, Run, Sweep, Work, joined
+from cabinet.pacts.pulls import Board, Closed, Report, Run, Work, joined
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Finding, Findings
@@ -87,38 +87,6 @@ from cabinet.pacts.threads import Finding, Findings
 if TYPE_CHECKING:
     from cabinet.pacts.project import State
     from cabinet.pacts.tasks import Ran
-
-# The backstop, not the control — the per-step bounds are. Six pull requests
-# through ~9 steps each, with three repair loops that may each burn two turns
-# per `--bound`, comes to a little over 200 at the maximum bound; this sits
-# above that, because tripping it costs the report as well as the run.
-_MAX_STEPS = 240
-
-
-# Merge the base in, make the gate green, push, review.
-@ritual("refresh", max_steps=_MAX_STEPS)
-def refresh(components: Sweep) -> Transition:
-    project = services().project()
-    run = Run(
-        project=project,
-        bound=components.bound,
-        mode="refresh",
-        attended=components.attended,
-    )
-    return goto(list_prs, run)
-
-
-# Where CI is unhappy about coverage or tests, close the gap.
-@ritual("cover", max_steps=_MAX_STEPS)
-def cover(components: Sweep) -> Transition:
-    project = services().project()
-    run = Run(
-        project=project,
-        bound=components.bound,
-        mode="cover",
-        attended=components.attended,
-    )
-    return goto(list_prs, run)
 
 
 # Ask the forge what is open, and queue what the night will take.

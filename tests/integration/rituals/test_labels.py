@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 import pytest
 from vekna.lexicon import NoComponents, RitualError
 
-from cabinet.gates.ritual.vekna.labels import labels
 from cabinet.pacts.project import Labelled
+from cabinet.rituals.labels import labels
 
 if TYPE_CHECKING:
     from pathlib import Path
