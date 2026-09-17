@@ -1,15 +1,36 @@
 # This tome's own rituals, cast on itself: `vekna rituals show pr_refresh` draws
-# the graph from here, and a `[cabinet]` section is what the rituals read.
+# the graph from here, and the `[cabinet]` section is what the rituals read
+# when they run over this repository's pull requests.
 [rituals]
 modules = ["cabinet.rituals"]
 
 [cabinet]
 forge = "github"
 base = "main"
+# Must point at https://github.com/fancysnake/cabinet.git with `gh` as the
+# credential helper; a cast refuses an ssh remote before its first fetch.
 remote = "origin"
 gate = "mise run fullcheck"
+# One suite, seconds long: the full measurement and the fast one are the same.
 coverage = "mise run test:py:cov:diff"
 fast_coverage = "mise run test:py:cov:diff"
+sign_commits = true
+
+[cabinet.labels]
+reviewed = "pr::thermo"
+wait = "pr::wait"
+marker = "v"
+
+# The job names in .github/workflows/ci.yml, plus what Codecov posts.
+[cabinet.ci]
+gate_checks = ["checks", "test"]
+cover_checks = ["codecov/", "test"]
+patch_check = "codecov/patch"
 
 [cabinet.agent]
+model = "opus"
+effort = "high"
+max_turns = 0
+# A single test file or case is a quick check; the linters and the sweeps stay
+# the ritual's.
 may_run = ["mise run test:unit", "mise run test:int"]

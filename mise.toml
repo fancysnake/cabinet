@@ -18,7 +18,7 @@ PACKAGE = "cabinet"
 SRC_PATHS = "src"
 TEST_PATHS = "tests"
 SCRIPT_PATHS = ""
-TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml"
+TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml tingle.toml"
 
 [task_config]
 includes = [
@@ -47,3 +47,8 @@ run = [
     { task = "lint:hk" },
     { task = "test:py:cov:diff" },
 ]
+
+# `lint:tingle` (from the shared config) measures the branch's debt against
+# main and is deliberately not in `fullcheck`: it is advisory in CI, and the
+# first branch — this one — compares against a main that carries no tooling
+# at all, so every ignore it introduces counts as growth. Run it by hand.

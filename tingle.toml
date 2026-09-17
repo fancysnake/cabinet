@@ -1,0 +1,112 @@
+[ranges.python]
+include = ["src/**/*.py", "tests/**/*.py"]
+default = true
+
+[ranges.config]
+include = ["pyproject.toml"]
+
+[ranges.python-src]
+include = ["src/**/*.py"]
+
+[ranges.python-tests]
+include = ["tests/**/*.py"]
+
+# A branch may take on debt in one metric if it pays off as much elsewhere.
+[check]
+policy = "sum"
+
+# Formatting
+
+[[metrics]]
+base = "tingle.builtins.black.fmt_comment"
+
+[[metrics]]
+base = "tingle.builtins.taplo.ignore_comment"
+
+# Linting
+
+[[metrics]]
+base = "tingle.builtins.codespell.ignore_comment"
+group = "linting"
+
+[[metrics]]
+base = "tingle.builtins.ruff.noqa_comment"
+
+[[metrics]]
+base = "tingle.builtins.ruff.ignore_comment"
+
+[[metrics]]
+base = "tingle.builtins.ruff.suppressed_ranges"
+
+[[metrics]]
+base = "tingle.builtins.ruff.file_exemptions"
+
+[[metrics]]
+base = "tingle.builtins.ruff.lint_ignores"
+
+[[metrics]]
+base = "tingle.builtins.ruff.per_file_ignores"
+
+[[metrics]]
+base = "tingle.builtins.pylint.disable_comment"
+
+[[metrics]]
+base = "tingle.builtins.pylint.rcfile_disables"
+name = "pylint-disables"
+
+# testing
+
+[[metrics]]
+base = "tingle.builtins.coverage.pragma_comment"
+ranges = ["python-tests"]
+
+[[metrics]]
+base = "tingle.builtins.unittest_mock.any_used"
+name = "mock-ANY"
+ranges = ["python-tests"]
+ignore_lines = ['(?:\b|_)(view|form|import)\b']
+
+[[metrics]]
+base = "tingle.builtins.pytest.skip_marks"
+ranges = ["python-tests"]
+
+[[metrics]]
+base = "tingle.builtins.pytest.xfail_marks"
+ranges = ["python-tests"]
+
+# typing
+
+[[metrics]]
+base = "tingle.builtins.mypy.type_ignore_comment"
+ranges = ["python-src"]
+
+[[metrics]]
+base = "tingle.builtins.mypy.overrides"
+
+[[metrics]]
+base = "tingle.builtins.python.any_used"
+name = "type-any"
+ranges = ["python-src"]
+
+[[metrics]]
+name = "type-object"
+type = "symbol_uses"
+group = "typing"
+symbol = "object"
+ranges = ["python-src"]
+
+[[metrics]]
+base = "tingle.builtins.python.cast_used"
+name = "type-cast"
+ranges = ["python-src"]
+
+[[metrics]]
+base = "tingle.builtins.mypy.strictness_holes"
+ranges = ["config"]
+
+# Refactoring
+
+[[metrics]]
+base = "tingle.builtins.python.todo_comments"
+group = "refactoring"
+ranges = ["python-src"]
