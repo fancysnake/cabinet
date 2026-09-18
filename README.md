@@ -184,6 +184,26 @@ it re-runs the task the runner named as broken and hands the agent the output.
 `may_run` is for the narrow, quick commands you want an agent to check itself
 with — a single test, say — and the prompt quotes exactly that list.
 
+## Claude Code plugins
+
+The repository is also a Claude Code plugin marketplace, named `cabinet`.
+Its plugins live under `plugins/`, each with its own manifest and skills.
+
+| plugin         | what it adds                                 |
+| -------------- | -------------------------------------------- |
+| `issue-maker`  | a skill that files or updates a GitHub issue |
+| `release-bump` | a skill that cuts a release                  |
+
+Add the marketplace once, then install what you want:
+
+```bash
+claude plugin marketplace add fancysnake/cabinet
+claude plugin install issue-maker@cabinet
+```
+
+Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
+`/plugin install issue-maker@cabinet`.
+
 ## Layout
 
 [GLIMPSE](https://glimpse.fancysnake.dev/) layering under `src/cabinet`,

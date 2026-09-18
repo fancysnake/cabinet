@@ -1,0 +1,12 @@
+{
+  "name": "cabinet",
+  "description": "Radek's Claude Code plugins: skills that file issues, cut releases, and run other repo rituals",
+  "owner": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "plugins": [
+    { "name": "issue-maker", "source": "./plugins/issue-maker", "category": "productivity" },
+    { "name": "release-bump", "source": "./plugins/release-bump", "category": "productivity" }
+  ]
+}
