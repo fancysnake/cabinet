@@ -1,0 +1,40 @@
+amends "package://github.com/jdx/hk/releases/download/v1.56.0/hk@1.56.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.56.0/hk@1.56.0#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+  // File hygiene
+  ["check-added-large-files"] = Builtins.check_added_large_files
+  ["check-merge-conflict"] = Builtins.check_merge_conflict
+  ["detect-private-key"] = Builtins.detect_private_key
+  ["end-of-file-fixer"] = Builtins.newlines
+  ["trailing-whitespace"] = Builtins.trailing_whitespace
+
+  // Python — the same tools `mise run lint:py` runs, on the staged files only
+  ["black"] = Builtins.black
+  ["ruff"] = Builtins.ruff
+  ["codespell"] {
+    glob = List("**/*.py", "**/*.md", "**/*.toml")
+    exclude = List("**/*.lock")
+    check = "codespell {{files}}"
+  }
+
+  // Config / CI
+  ["taplo"] = Builtins.taplo
+  ["yamllint"] = Builtins.yamllint
+  ["actionlint"] = Builtins.actionlint
+}
+
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps = linters
+  }
+  ["fix"] {
+    fix = true
+    steps = linters
+  }
+  ["check"] {
+    steps = linters
+  }
+}

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+concurrency:
+  # The pull request's own number, so two of them sharing a branch name — two
+  # forks both on `main` — cannot cancel each other. A push to a branch has no
+  # pull request in its event, and the run id is unique, so nothing cancels it.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      # The steps below run code the pull request itself supplies, so the
+      # checkout token has no business staying behind in `.git/config`.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # tingle measures the branch against main, so main has to be there.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+      - run: mise install
+      - run: poetry install
+      - run: mise run lint:py
+      - run: mise run lint:deptry
+      # The same linters the pre-commit hook runs, over every file.
+      - run: mise run lint:hk
+      # Advisory: reports the branch's debt against main without blocking the
+      # merge, so the number is seen every time and gated on nowhere yet.
+      - run: mise run lint:tingle
+        continue-on-error: true
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # diff-cover on Codecov's side needs the base to compare against.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+      - run: mise install
+      - run: poetry install
+      - run: mise run test:py:cov
+      - run: mise exec -- coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          disable_search: true

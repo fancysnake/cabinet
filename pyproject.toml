@@ -1,0 +1,259 @@
+[project]
+name = "cabinet"
+version = "0.1.0"
+description = "A vekna tome: pull request maintenance rituals for GitHub and GitLab"
+authors = [{ name = "Radosław Ganczarek", email = "radoslaw@ganczarek.in" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "claude-agent-sdk (>=0.2,<1.0)",
+    "pydantic (>=2.12.5,<3.0.0)",
+    "vekna[trial] (>=0.7.0,<0.8.0)",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "cabinet", from = "src" }]
+
+[dependency-groups]
+dev = [
+    "black (>=26.3.1,<27.0.0)",
+    "codespell (>=2.4.2,<3.0.0)",
+    "deptry (>=0.25.1,<0.26.0)",
+    "import-linter (>=2.11,<3.0)",
+    "mypy (>=2.3.0,<3.0.0)",
+    "pylint (>=4.0.5,<5.0.0)",
+    "ruff (>=0.16.0,<0.17.0)",
+    "vulture (>=2.16,<3.0)",
+    "pytest (>=9.0.2,<10.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "diff-cover (>=10.2.0,<11.0.0)",
+    "pytest-asyncio (>=1.3.0,<2.0.0)",
+    "taplo (>=0.9.3,<0.10.0)",
+    "pytest-xdist (>=3.8.0,<4.0.0)",
+    "yamllint (>=1.37,<2.0)",
+    "tingle (>=0.7.2,<0.8.0)",
+]
+
+# BLACK
+
+[tool.black]
+line-length = 88
+preview = true
+skip-magic-trailing-comma = true
+target-version = ['py314']
+
+# DEPTRY
+
+[tool.deptry]
+known_first_party = ["cabinet"]
+
+# IMPORT LINTER
+
+[tool.importlinter]
+root_package = "cabinet"
+
+[[tool.importlinter.contracts]]
+name = "gates"
+type = "forbidden"
+source_modules = ["cabinet.gates"]
+forbidden_modules = [
+    "cabinet.links",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.specs",
+    "cabinet.edges",
+]
+
+[[tool.importlinter.contracts]]
+name = "links"
+type = "forbidden"
+source_modules = ["cabinet.links"]
+forbidden_modules = [
+    "cabinet.gates",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.specs",
+    "cabinet.edges",
+]
+
+[[tool.importlinter.contracts]]
+name = "inits"
+type = "forbidden"
+source_modules = ["cabinet.inits"]
+forbidden_modules = ["cabinet.specs", "cabinet.edges"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "mills"
+type = "forbidden"
+source_modules = ["cabinet.mills"]
+forbidden_modules = ["cabinet.gates", "cabinet.links", "cabinet.inits", "cabinet.edges"]
+
+[[tool.importlinter.contracts]]
+name = "pacts"
+type = "forbidden"
+source_modules = ["cabinet.pacts"]
+forbidden_modules = [
+    "cabinet.gates",
+    "cabinet.links",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.specs",
+    "cabinet.edges",
+]
+
+[[tool.importlinter.contracts]]
+name = "specs"
+type = "forbidden"
+source_modules = ["cabinet.specs"]
+forbidden_modules = [
+    "cabinet.gates",
+    "cabinet.links",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.edges",
+]
+
+[[tool.importlinter.contracts]]
+name = "edges"
+type = "forbidden"
+source_modules = ["cabinet.edges"]
+forbidden_modules = [
+    "cabinet.gates",
+    "cabinet.links",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.pacts",
+    "cabinet.specs",
+]
+
+# The ritual facades are the tome's own surface: they import the layers, and
+# nothing in the layers may import back.
+[[tool.importlinter.contracts]]
+name = "rituals"
+type = "forbidden"
+source_modules = [
+    "cabinet.gates",
+    "cabinet.links",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.pacts",
+    "cabinet.specs",
+    "cabinet.edges",
+]
+forbidden_modules = ["cabinet.rituals"]
+
+[[tool.importlinter.contracts]]
+name = "inside-gates"
+type = "independence"
+modules = ["cabinet.gates.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-links"
+type = "independence"
+modules = ["cabinet.links.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-edges"
+type = "independence"
+modules = ["cabinet.edges.*"]
+
+# MYPY
+
+[tool.mypy]
+check_untyped_defs = true
+color_output = true
+disallow_any_decorated = true
+disallow_any_explicit = true
+disallow_any_expr = true
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+exclude = []
+explicit_package_bases = true
+extra_checks = true
+implicit_reexport = true
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+pretty = true
+python_version = "3.14"
+strict = true
+strict_equality = true
+strict_equality_for_none = true
+warn_incomplete_stub = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+
+# `tomllib.load` hands back `dict[str, Any]`, and the one thing done with it
+# is handing it to pydantic. The boundary is this one module.
+[[tool.mypy.overrides]]
+module = "cabinet.links.config.vekna_toml"
+disallow_any_expr = false
+
+# RUFF
+
+[tool.ruff]
+line-length = 88
+output-format = 'concise'
+preview = true
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",  # Trailing comma missing
+    "CPY",     # Missing copyright notice at top of file
+    "D1",      # Missing docstring
+    "PLC2701", # Private name import
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**.py" = [
+    "ANN",                    # flake8-annotations
+    "S",
+    "pytest-fixture-autouse",
+]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+# VULTURE
+
+[tool.vulture]
+exclude = []
+min_confidence = 61
+
+# COVERAGE
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["src/cabinet/edges/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "# pragma: no cover"]
+precision = 2

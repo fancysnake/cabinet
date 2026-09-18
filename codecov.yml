@@ -1,0 +1,15 @@
+# The same bar `mise run test:py:cov:diff` holds locally: every line a change
+# touches is covered. The project number may not drop either.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0%
+    patch:
+      default:
+        target: 100%
+
+comment:
+  layout: "condensed_header, diff, files"
+  require_changes: true
