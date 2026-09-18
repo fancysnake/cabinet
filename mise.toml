@@ -1,6 +1,6 @@
 [tools]
 actionlint = "1.7.12"
-hk = "1.56.0"
+hk = "1.58.1"
 pipx = "1.17.2"
 "pipx:poetry" = "2.4.3"
 pkl = "0.32.1"
@@ -23,6 +23,13 @@ TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml tingle.toml"
 [task_config]
 includes = [
     "git::https://github.com/fancysnake/shared-configs.git//python.toml?ref=5da354f89c7e72d677e80326270aa8d8226ee76e",
+]
+
+[tasks.update]
+run = [
+    "mise upgrade --bump --exclude python --minimum-release-age=7d",
+    "mise install",
+    { task = "dep:upgrade:py" },
 ]
 
 [tasks."lint:deptry"]
