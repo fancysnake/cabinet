@@ -4,7 +4,7 @@ from cabinet.mills.report import Report
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, PullRequest, Run
 from cabinet.pacts.reviews import Picking, Reviewed
-from cabinet.pacts.threads import TriageItem
+from cabinet.pacts.threads import Finding, TriageItem
 
 _REPORT = Report()
 _PROJECT = Project()
@@ -113,3 +113,34 @@ class TestTriage:
             "1. [p1/fix] src/thing.py — add a guard\n   -> the guard is missing",
             "2. [p4/fix] src/thing.py — add a guard\n   -> the guard is missing",
         ]
+
+
+class TestFindings:
+    # The heading is for whoever opens the pull request and finds a comment on
+    # their line. Nothing reads it back, so what it owes is a person.
+    @staticmethod
+    def test_every_item_is_headed_with_the_reviews_title() -> None:
+        found = [
+            Finding(path="src/thing.py", line=12, body="guard this"),
+            Finding(path="", body="split the change"),
+        ]
+
+        assert _REPORT.findings(_PROJECT, found) == [
+            Finding(
+                path="src/thing.py",
+                line=12,
+                body="## Thermo-nuclear code quality review\n\nguard this",
+            ),
+            Finding(
+                path="",
+                body="## Thermo-nuclear code quality review\n\nsplit the change",
+            ),
+        ]
+
+    @staticmethod
+    def test_the_title_follows_the_config() -> None:
+        project = _PROJECT.model_copy(update={"review_title": "Night review"})
+
+        headed = _REPORT.findings(project, [Finding(path="", body="hm")])
+
+        assert headed[0].body == "## Night review\n\nhm"

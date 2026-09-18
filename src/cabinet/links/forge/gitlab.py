@@ -5,16 +5,16 @@ project the worktree's remote names — so a self-hosted instance needs nothing
 here, only `glab auth login --hostname`.
 """
 
-import shlex
 from typing import TYPE_CHECKING, override
 from urllib.parse import quote
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
-from vekna.folio.shell import ShellResult, shell
+from vekna.folio.shell import shell
 
+from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Thread
+from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -88,26 +88,9 @@ _DISCUSSIONS: TypeAdapter[list[_Discussion]] = TypeAdapter(list[_Discussion])
 _STATUSES: TypeAdapter[list[_Status]] = TypeAdapter(list[_Status])
 
 
-def _quoted(value: str) -> str:
-    return shlex.quote(value)
-
-
-def _said(result: ShellResult) -> str:
-    parts = (result.stdout.strip(), result.stderr.strip())
-    return "\n".join(part for part in parts if part) or f"exit code {result.exit_code}"
-
-
-async def _asked(command: str, complaint: str) -> str:
-    result = await shell(command, stream=False)
-    if result.exit_code:
-        msg = f"{complaint}: {_said(result)}"
-        raise ForgeError(msg)
-    return result.stdout
-
-
 def _api(path: str, *flags: str) -> str:
     extra = "".join(f" {flag}" for flag in flags)
-    return f"glab api {_quoted(path)}{extra}"
+    return f"glab api {quoted(path)}{extra}"
 
 
 def _pull(found: _MergeRequest) -> PullRequest:
@@ -152,7 +135,7 @@ def _thread(found: _Discussion) -> Thread | None:
 
 
 async def _refs(number: int) -> _DiffRefs:
-    seen = await _asked(
+    seen = await asked(
         _api(f"projects/:id/merge_requests/{number}"),
         "glab could not read the merge request",
     )
@@ -163,10 +146,55 @@ async def _refs(number: int) -> _DiffRefs:
         raise ForgeError(msg) from error
 
 
+# Read once for a whole review rather than once per item: every anchored
+# discussion on one merge request carries the same refs. None where no item
+# wants an anchor, and where glab would not say — an item then goes up as a
+# plain note, which is the same bargain a refused anchor makes.
+async def _anchor(number: int, findings: Sequence[Finding]) -> _DiffRefs | None:
+    if all(finding.line is None for finding in findings):
+        return None
+    try:
+        return await _refs(number)
+    except ForgeError:
+        return None
+
+
+# A line outside the diff is refused — then the item goes on as a plain note,
+# as it does for an item about the change as a whole. What comes back is what
+# stopped it, or nothing.
+async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
+    if finding.line is not None and refs is not None:
+        anchored = await shell(
+            _api(
+                f"projects/:id/merge_requests/{number}/discussions",
+                "-X POST",
+                f"-f body={quoted(finding.body)}",
+                "-f 'position[position_type]=text'",
+                f"-f 'position[base_sha]={refs.base_sha}'",
+                f"-f 'position[head_sha]={refs.head_sha}'",
+                f"-f 'position[start_sha]={refs.start_sha}'",
+                f"-f position[new_path]={quoted(finding.path)}",
+                f"-f position[old_path]={quoted(finding.path)}",
+                f"-F 'position[new_line]={finding.line}'",
+            ),
+            stream=False,
+        )
+        if anchored.exit_code == 0:
+            return ""
+    try:
+        await asked(
+            f"glab mr note {number} -m {quoted(finding.body)}",
+            f"could not comment on !{number}",
+        )
+    except ForgeError as error:
+        return str(error)
+    return ""
+
+
 class GitlabForge(ForgeProtocol):
     @override
     async def pulls(self) -> list[PullRequest]:
-        listed = await _asked(_api(_LIST), "glab could not list your merge requests")
+        listed = await asked(_api(_LIST), "glab could not list your merge requests")
         try:
             return [_pull(found) for found in _MERGE_REQUESTS.validate_json(listed)]
         except ValidationError as error:
@@ -175,7 +203,7 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def labels(self, number: int) -> list[str]:
-        seen = await _asked(
+        seen = await asked(
             _api(f"projects/:id/merge_requests/{number}"),
             "glab could not read the labels",
         )
@@ -189,17 +217,17 @@ class GitlabForge(ForgeProtocol):
     async def label(
         self, number: int, *, add: Sequence[str] = (), remove: Sequence[str] = ()
     ) -> None:
-        flags = [f"--label {_quoted(one)}" for one in add]
-        flags += [f"--unlabel {_quoted(one)}" for one in remove]
+        flags = [f"--label {quoted(one)}" for one in add]
+        flags += [f"--unlabel {quoted(one)}" for one in remove]
         if not flags:
             return
-        await _asked(
+        await asked(
             f"glab mr update {number} {' '.join(flags)}", f"could not label !{number}"
         )
 
     @override
     async def threads(self, number: int) -> list[Thread]:
-        answered = await _asked(
+        answered = await asked(
             _api(f"projects/:id/merge_requests/{number}/discussions?per_page={_PAGE}"),
             "glab could not read the discussions",
         )
@@ -212,18 +240,18 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def reply(self, number: int, thread: Thread, body: str) -> None:
-        await _asked(
+        await asked(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}/notes",
                 "-X POST",
-                f"-f body={_quoted(body)}",
+                f"-f body={quoted(body)}",
             ),
             f"could not reply on discussion {thread.id}",
         )
 
     @override
     async def resolve(self, number: int, thread: Thread) -> None:
-        await _asked(
+        await asked(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}",
                 "-X PUT",
@@ -237,7 +265,7 @@ class GitlabForge(ForgeProtocol):
     # line the GitHub board carries. A full page may be a short page.
     @override
     async def board(self, branch: str) -> Board:
-        answered = await _asked(
+        answered = await asked(
             _api(f"projects/:id/repository/commits/{branch}/statuses?per_page={_PAGE}"),
             "glab could not read the commit statuses",
         )
@@ -250,43 +278,26 @@ class GitlabForge(ForgeProtocol):
             checks=[_check(status) for status in found], truncated=len(found) >= _PAGE
         )
 
-    # A diff-anchored discussion needs the merge request's own diff refs, and
-    # a line outside the diff is refused — then the item goes on as a plain
-    # note, as it does for an item about the change as a whole.
+    # One read of the diff refs for the whole review, and one pass down the
+    # items.
     @override
-    async def comment(self, number: int, finding: Finding) -> None:
-        if finding.line is not None:
-            refs = await _refs(number)
-            anchored = await shell(
-                _api(
-                    f"projects/:id/merge_requests/{number}/discussions",
-                    "-X POST",
-                    f"-f body={_quoted(finding.body)}",
-                    "-f 'position[position_type]=text'",
-                    f"-f 'position[base_sha]={refs.base_sha}'",
-                    f"-f 'position[head_sha]={refs.head_sha}'",
-                    f"-f 'position[start_sha]={refs.start_sha}'",
-                    f"-f position[new_path]={_quoted(finding.path)}",
-                    f"-f position[old_path]={_quoted(finding.path)}",
-                    f"-F 'position[new_line]={finding.line}'",
-                ),
-                stream=False,
-            )
-            if anchored.exit_code == 0:
-                return
-        await _asked(
-            f"glab mr note {number} -m {_quoted(finding.body)}",
-            f"could not comment on !{number}",
-        )
+    async def comment(self, number: int, findings: Sequence[Finding]) -> Posted:
+        refs = await _anchor(number, findings)
+        posted = 0
+        for finding in findings:
+            if stopped := await _one(number, finding, refs=refs):
+                return Posted(count=posted, stopped=stopped)
+            posted += 1
+        return Posted(count=posted)
 
     @override
     async def issue(self, title: str, body: str) -> str:
-        made = await _asked(
+        made = await asked(
             _api(
                 "projects/:id/issues",
                 "-X POST",
-                f"-f title={_quoted(title)}",
-                f"-f description={_quoted(body)}",
+                f"-f title={quoted(title)}",
+                f"-f description={quoted(body)}",
             ),
             "could not open the issue",
         )
@@ -300,13 +311,13 @@ class GitlabForge(ForgeProtocol):
     # duplicate name, and a label that exists is not a failure of the ritual.
     @override
     async def ensure_label(self, spec: LabelSpec) -> None:
-        colour = f"-f color={_quoted(f'#{spec.color}')}"
-        description = f"-f description={_quoted(spec.description)}"
+        colour = f"-f color={quoted(f'#{spec.color}')}"
+        description = f"-f description={quoted(spec.description)}"
         made = await shell(
             _api(
                 "projects/:id/labels",
                 "-X POST",
-                f"-f name={_quoted(spec.name)}",
+                f"-f name={quoted(spec.name)}",
                 colour,
                 description,
             ),
@@ -314,7 +325,7 @@ class GitlabForge(ForgeProtocol):
         )
         if made.exit_code == 0:
             return
-        await _asked(
+        await asked(
             _api(
                 f"projects/:id/labels/{quote(spec.name, safe='')}",
                 "-X PUT",

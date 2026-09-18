@@ -10,7 +10,10 @@ The steps are the sweep's, in ``cabinet.gates.ritual.vekna.sweep``, shared
 with ``refresh``; this module is the ritual itself and the surface vekna
 sweeps. Every step of the sweep is exported, not only the ones this ritual
 walks, so the graph ``vekna rituals show`` draws is whole whichever facades a
-project loads.
+project loads. That list is the same list ``refresh`` carries, and it stays
+copied rather than shared: vekna registers what it finds in the namespace of
+the module a project names, so a project naming this facade alone would get a
+graph that stops at the first step of a module it did not name.
 """
 
 from vekna.lexicon import Transition, goto, ritual
@@ -35,11 +38,8 @@ from cabinet.gates.ritual.vekna.sweep import (
     sync_branch,
     take_pass,
 )
-from cabinet.inits.services import wire
 from cabinet.pacts.pulls import Run, Sweep
 from cabinet.pacts.services import services
-
-wire()
 
 # The same backstop `refresh` has: the walk is the same length, the loops
 # the same shape.

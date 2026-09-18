@@ -13,12 +13,13 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
-    from cabinet.pacts.project import Project, State
+    from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Board, PullRequest, Run
+    from cabinet.pacts.repairs import Attempt, Ruling
     from cabinet.pacts.reviews import Picking
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
-    from cabinet.pacts.threads import Thread, TriageItem
+    from cabinet.pacts.threads import Finding, Thread, TriageItem
 
 
 class PullsProtocol(Protocol):
@@ -74,7 +75,17 @@ class PromptsProtocol(Protocol):
     ) -> str: ...
 
 
+class RepairsProtocol(Protocol):
+    # What one round of a repair loop comes to: green, given up on, or one
+    # more attempt with the asking already written.
+    def ruling(self, attempt: Attempt) -> Ruling: ...
+
+
 class ReportProtocol(Protocol):
+    # The review's items as they go on the pull request, each headed with the
+    # review's own title.
+    def findings(self, project: Project, found: list[Finding]) -> list[Finding]: ...
+
     def sweep(self, run: Run) -> str: ...
 
     def review(self, picking: Picking) -> str: ...
@@ -95,6 +106,9 @@ class ServicesProtocol(Protocol):
     def prompts(self) -> PromptsProtocol: ...
 
     @property
+    def repairs(self) -> RepairsProtocol: ...
+
+    @property
     def report(self) -> ReportProtocol: ...
 
     # What the repository standing at the cwd says about itself.
@@ -107,11 +121,6 @@ class ServicesProtocol(Protocol):
     def tasks(self, project: Project) -> TasksProtocol: ...
 
     def agent(self, project: Project) -> AgentProtocol: ...
-
-    # The checkpoint pair for one ritual: what goes on and what comes off.
-    def checkpoint(
-        self, project: Project, ritual: str, state: State
-    ) -> tuple[str, str]: ...
 
 
 class ServicesUnboundError(RitualError):

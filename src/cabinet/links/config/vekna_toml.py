@@ -32,11 +32,20 @@ def read_project(start: Path) -> Project:
     raise ConfigError(msg)
 
 
+# Reading the file is inside the contract, not before it: a `.vekna.toml`
+# with a syntax error in it, or one that will not open, is a configuration
+# failure like any other and the cast is owed the file's name either way.
 def _read(named: Path) -> Project:
-    with named.open("rb") as handle:
-        data = tomllib.load(handle)
     try:
+        with named.open("rb") as handle:
+            data = tomllib.load(handle)
         return _VeknaToml.model_validate(data).cabinet
+    except tomllib.TOMLDecodeError as error:
+        msg = f"{named}: {error}"
+        raise ConfigError(msg) from error
+    except OSError as error:
+        msg = f"{named} could not be read: {error}"
+        raise ConfigError(msg) from error
     except ValidationError as error:
         msg = f"{named}: [cabinet] {error}"
         raise ConfigError(msg) from error

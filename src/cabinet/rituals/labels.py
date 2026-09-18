@@ -9,10 +9,7 @@ ritual itself and the surface vekna sweeps.
 from vekna.lexicon import NoComponents, Transition, goto, ritual
 
 from cabinet.gates.ritual.vekna.labels import conjure
-from cabinet.inits.services import wire
 from cabinet.pacts.services import services
-
-wire()
 
 
 @ritual("labels")

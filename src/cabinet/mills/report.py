@@ -1,12 +1,14 @@
-"""What the morning reads."""
+"""What the morning reads, on the terminal and on the pull request."""
 
 from collections import Counter
 from itertools import starmap
 from typing import TYPE_CHECKING, override
 
 from cabinet.pacts.services import ReportProtocol
+from cabinet.pacts.threads import Finding
 
 if TYPE_CHECKING:
+    from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Checked, Run
     from cabinet.pacts.reviews import Picking
     from cabinet.pacts.threads import TriageItem
@@ -23,9 +25,23 @@ _TOLD = {
     "elsewhere": "checked out elsewhere",
     "unread": "the forge would not say what is open",
     "nothing": "the reading found nothing",
+    "stopped": "stopped the cast",
 }
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")
+
+
+# What the thread asked and what the reading would do about it, in that
+# order: this is read on a terminal by somebody deciding what to do with it,
+# and the verdict alone does not say what it is a verdict on. Written here and
+# nowhere else because the agent that acts on the triage is handed these same
+# lines with your answer under each — what you decided about and what it is
+# told you decided about have to be the same text.
+def triage_line(index: int, item: TriageItem) -> str:
+    return (
+        f"{index}. [{item.priority}/{item.action}] {item.where} — {item.raised}\n"
+        f"   -> {item.what}"
+    )
 
 
 def _line(row: Checked) -> str:
@@ -40,6 +56,22 @@ def _line(row: Checked) -> str:
 
 
 class Report(ReportProtocol):
+    # The heading is for whoever opens the pull request and finds a comment on
+    # their line: it says which review said it, so the night's items can be
+    # told from a colleague's by eye. Nothing reads it back — `review` triages
+    # every unresolved thread whoever wrote it — so it is a courtesy to a
+    # reader and not a marker anything matches on.
+    @override
+    def findings(self, project: Project, found: list[Finding]) -> list[Finding]:
+        return [
+            Finding(
+                path=one.path,
+                line=one.line,
+                body=f"## {project.review_title}\n\n{one.body}",
+            )
+            for one in found
+        ]
+
     @override
     def sweep(self, run: Run) -> str:
         lines = [f"{run.mode} — {len(run.checked)} checked", ""]
@@ -78,12 +110,6 @@ class Report(ReportProtocol):
         shown = starmap(self.shown, enumerate(items, start=1))
         return [f"{len(items)} outstanding — {counted}", "", *shown]
 
-    # What the thread asked and what the reading would do about it, in that
-    # order: this is read on a terminal by somebody deciding what to do with
-    # it, and the verdict alone does not say what it is a verdict on.
     @override
     def shown(self, index: int, item: TriageItem) -> str:
-        return (
-            f"{index}. [{item.priority}/{item.action}] {item.where} — {item.raised}\n"
-            f"   -> {item.what}"
-        )
+        return triage_line(index, item)

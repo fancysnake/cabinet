@@ -79,3 +79,12 @@ class Finding(BaseModel):
 
 class Findings(BaseModel):
     items: list[Finding]
+
+
+# What came of posting one review: how many items went up, and what stopped
+# the posting where something did. A posting that got partway is a thing to
+# act on rather than a thing to unwind — the comments are up, and nothing can
+# take them down again.
+class Posted(BaseModel):
+    count: int
+    stopped: str = ""

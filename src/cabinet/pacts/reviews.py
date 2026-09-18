@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
+from cabinet.pacts.budgets import Budgeted
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Bound, PullRequest
 from cabinet.pacts.threads import Answer, TriageItem
@@ -20,7 +21,7 @@ class Review(BaseModel):
     batch: Batch = 7
 
 
-Outcome = Literal["shipped", "declined", "elsewhere", "unread", "nothing"]
+Outcome = Literal["shipped", "declined", "elsewhere", "unread", "nothing", "stopped"]
 
 
 # One branch's ending, in the words of the step that ended it. A branch with
@@ -43,19 +44,21 @@ class Picking(BaseModel):
     reviewed: list[Reviewed] = []
     stopped: str = ""
 
+    # `None` means "whatever this one had", the same as every other payload's
+    # builder: an empty string is a value, and passing one clears the field.
     def but(
         self,
         *,
         queue: list[PullRequest] | None = None,
         reviewed: list[Reviewed] | None = None,
-        stopped: str = "",
+        stopped: str | None = None,
     ) -> Picking:
         update: dict[str, list[PullRequest] | list[Reviewed] | str] = {}
         if queue is not None:
             update["queue"] = queue
         if reviewed is not None:
             update["reviewed"] = reviewed
-        if stopped:
+        if stopped is not None:
             update["stopped"] = stopped
         return self.model_copy(update=update)
 
@@ -119,9 +122,14 @@ class Answering(BaseModel):
     threads: list[str]
 
 
-class Landing(BaseModel):
+# Budgeted like every other repair loop: the attempts are counted per step,
+# and a task going green on its own hands the count back.
+class Landing(Budgeted):
     branch: Branch
-    tries: int = 0
     # The task that broke last time, where the runner named one. Empty is the
     # whole gate, which is what runs first and what has the last word.
     gate: str = ""
+
+    def but(self, *, gate: str) -> Landing:
+        update: dict[str, str] = {"gate": gate}
+        return self.model_copy(update=update)

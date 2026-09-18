@@ -1,7 +1,8 @@
 """Where the layers meet: one object holding every service a step reaches.
 
-Bound into the pacts slot by `wire()`, which `cabinet.rituals` calls when it
-is imported — the one moment vekna gives a tome before any step runs.
+Bound into the pacts slot by `wire()`, which `cabinet.rituals` calls once as
+it is imported, from `cabinet.rituals.wiring` — the one moment vekna gives a
+tome before any step runs.
 """
 
 from functools import cached_property
@@ -16,6 +17,7 @@ from cabinet.links.scm.git import GitScm
 from cabinet.links.tasks.mise import MiseTasks
 from cabinet.mills.prompts import Prompts
 from cabinet.mills.pulls import Pulls
+from cabinet.mills.repairs import Repairs
 from cabinet.mills.report import Report
 from cabinet.mills.verdicts import Verdicts
 from cabinet.pacts.services import ServicesProtocol, bind
@@ -23,7 +25,7 @@ from cabinet.pacts.services import ServicesProtocol, bind
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
-    from cabinet.pacts.project import Project, State
+    from cabinet.pacts.project import Project
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import TasksProtocol
 
@@ -43,6 +45,11 @@ class Services(ServicesProtocol):
     @override
     def prompts(self) -> Prompts:
         return Prompts()
+
+    @cached_property
+    @override
+    def repairs(self) -> Repairs:
+        return Repairs(self.prompts, self.verdicts)
 
     @cached_property
     @override
@@ -73,20 +80,6 @@ class Services(ServicesProtocol):
     @override
     def agent(self, project: Project) -> AgentProtocol:
         return ClaudeAgent(project)
-
-    # A ritual's checkpoint is one claim at a time: `started` means the ritual
-    # may have changed this branch and has not finished, `done` that it ended
-    # clean. Adding one takes the other off in the same call, so a pull
-    # request never wears both halves of a pair.
-    @override
-    def checkpoint(
-        self, project: Project, ritual: str, state: State
-    ) -> tuple[str, str]:
-        other: State = "started" if state == "done" else "done"
-        return (
-            project.labels.checkpoint(ritual, state),
-            project.labels.checkpoint(ritual, other),
-        )
 
 
 def wire() -> None:

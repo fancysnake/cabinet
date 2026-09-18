@@ -72,21 +72,22 @@ all. A verdict a step already gave up on once is not paid for twice — the next
 branch whose gate says the same thing stands down without spending its budget.
 """
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from vekna.folio.flow import decide
 from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
 
+from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.pulls import Board, Closed, Report, Run, Work, joined
+from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Finding, Findings
 
 if TYPE_CHECKING:
-    from cabinet.pacts.project import State
-    from cabinet.pacts.tasks import Ran
+    from cabinet.pacts.project import Project, State
 
 
 # Ask the forge what is open, and queue what the night will take.
@@ -147,19 +148,12 @@ async def sync_branch(work: Work) -> Transition:
     return goto(merge_base, work)
 
 
-# Best-effort and never fatal: a checkpoint is a board marker, and losing one
-# is not worth abandoning a merge that is about to happen. What the forge made
-# of it comes back as the caller's note instead.
+# Which pass is running is which ritual's checkpoint this is: the two share
+# every step, and the board tells them apart.
 async def _mark(work: Work, state: State) -> str:
-    project = work.run.project
-    add, remove = services().checkpoint(project, work.run.mode, state)
-    try:
-        await services().forge(project).label(
-            work.pr.number, add=[add], remove=[remove]
-        )
-    except ForgeError as error:
-        return f"could not mark {add}: {error}"
-    return ""
+    return await mark(
+        work.run.project, number=work.pr.number, ritual=work.run.mode, state=state
+    )
 
 
 # Merge the base in, and say whether it brought anything with it.
@@ -223,7 +217,11 @@ async def resolve_conflicts(work: Work) -> Transition:
     return goto(resolve_conflicts, work.but(note="").charged(resolve_conflicts.name))
 
 
-_DECLINED = "was not tried again, as you decided"
+# A branch this run has stopped paying for, carrying whatever the round
+# learned into the run's memory: the next branch broken the same way stands
+# down without spending a budget of its own.
+def _gave_up(work: Work, reason: str, seen: list[str]) -> Work:
+    return work.stopped_by(reason).but(run=work.run.but(seen=seen))
 
 
 # Spending the agent's time is the operator's call where there is one: an
@@ -232,9 +230,7 @@ _DECLINED = "was not tried again, as you decided"
 async def _worth_another(work: Work, what: str) -> bool:
     if not work.run.attended:
         return True
-    spent = work.spent(resolve_conflicts.name) + work.spent(gate_check.name)
-    spent += work.spent(close_gap.name)
-    return await decide(f"{what} on {work.pr.branch} (attempt {spent + 1})?")
+    return await decide(f"{what} on {work.pr.branch} (attempt {work.attempts() + 1})?")
 
 
 # What CI says about the branch as it stands, or None where the forge would
@@ -267,41 +263,39 @@ async def take_pass(work: Work) -> Transition:
 @step
 async def gate_check(work: Work) -> Transition:
     project = work.run.project
-    verdicts = services().verdicts
     # The task that broke last time round, where the runner named one: an
     # agent working on one linter is judged by that linter, not by the whole
     # chain in front of it.
     gate = work.gate or project.gate
     ran = await services().tasks(project).run(gate)
-    if ran.exit_code == 0:
+    ruling = services().repairs.ruling(
+        Attempt(
+            project=project,
+            ran=ran,
+            gate=gate,
+            whole=project.gate,
+            spent=work.spent(gate_check.name),
+            bound=work.run.bound,
+            seen=work.run.seen,
+        )
+    )
+    if isinstance(ruling, Fixed):
         # A task passing on its own is not the gate passing — it is the reason
         # to spend the gate. The whole chain runs once more.
-        if gate != project.gate:
+        if not ruling.whole:
             return goto(gate_check, work.but(gate=""))
         return goto(finish_merge, work.but(gate="").cleared(gate_check.name))
-    said_now = verdicts.verdict(ran)
-    # Asked before the first repair and not after, so this reads "the branch
-    # arrived broken the same way", never "the agent failed to fix it twice".
-    if not work.spent(gate_check.name) and verdicts.already_seen(
-        said_now, work.run.seen
-    ):
-        reason = f"`{gate}` is red as it already was:\n{said_now}"
-        return goto(stand_down, work.stopped_by(reason))
-    # Given up on by the budget or by the operator: either way the verdict is
-    # one this run will not pay for again, so it is remembered.
-    if work.exhausted(gate_check.name) or not await _worth_another(
-        work, f"repair `{gate}`"
-    ):
-        left = "is still red" if work.exhausted(gate_check.name) else _DECLINED
-        seen = work.run.but(seen=[*work.run.seen, said_now])
-        reason = f"`{gate}` {left}:\n{said_now}"
-        return goto(stand_down, work.stopped_by(reason).but(run=seen))
-    prompt = services().prompts.fix_gates(project, verdicts.said(ran), gate=gate)
+    if isinstance(ruling, Stalled):
+        return goto(stand_down, _gave_up(work, ruling.reason, ruling.seen))
+    # The budget had its say; the operator gets the last one, and a verdict
+    # nobody will pay for again is remembered either way.
+    if not await _worth_another(work, f"repair `{gate}`"):
+        return goto(stand_down, _gave_up(work, ruling.declined, ruling.seen))
     fallen = (
         await services()
         .agent(project)
         .ask(
-            prompt,
+            ruling.asking,
             role="writer",
             key=f"gates-{work.pr.number}",
             attended=work.run.attended,
@@ -309,8 +303,7 @@ async def gate_check(work: Work) -> Transition:
     )
     if fallen:
         return goto(report, work.abandoned(fallen.reason))
-    narrowed = work.but(gate=verdicts.narrowed(ran))
-    return goto(gate_check, narrowed.charged(gate_check.name))
+    return goto(gate_check, work.but(gate=ruling.next_gate).charged(gate_check.name))
 
 
 # Close an open merge and commit whatever the repairs left behind.
@@ -355,56 +348,34 @@ async def check_ci(work: Work) -> Transition:
 @step
 async def close_gap(work: Work) -> Transition:
     project = work.run.project
-    verdicts = services().verdicts
     # The first measurement is the whole thing, because it is the one that
     # decides whether there is a gap at all. What a repair round re-runs is
     # the fast half, or the single task that broke.
     gate = work.gate or project.coverage
     measured = await services().tasks(project).run(gate)
-    output = verdicts.coverage_report(measured)
-    missing = verdicts.uncovered(output)
-    if not missing and measured.exit_code == 0:
-        # Anything but the full measurement is a reason to spend the full
-        # measurement, not a branch that is covered.
-        if gate != project.coverage:
-            return goto(close_gap, work.but(gate=""))
-        # Only where tests were actually written: most branches pass here
-        # first time, and a commit rite that never commits is noise.
-        if work.spent(close_gap.name):
-            try:
-                await services().scm(project).commit(
-                    "test: cover the lines this branch changes"
-                )
-            except ScmError as error:
-                note = f"could not commit the tests: {error}"
-                return goto(set_aside, work.but(note=note))
-        return goto(push_work, work.but(gate="").cleared(close_gap.name))
-    said_now = verdicts.verdict(measured)
-    repair = _repair(work, gate=gate, measured=measured, output=output, missing=missing)
-    # Against what the run knew on the way in, never `repair.run`: that one
-    # has this verdict in it already and would recognise nothing but itself.
-    seen_already = (
-        not missing
-        and not work.spent(close_gap.name)
-        and verdicts.already_seen(said_now, work.run.seen)
+    ruling = services().repairs.ruling(
+        Attempt(
+            project=project,
+            ran=measured,
+            gate=gate,
+            whole=project.coverage,
+            spent=work.spent(close_gap.name),
+            bound=work.run.bound,
+            seen=work.run.seen,
+            covering=True,
+        )
     )
-    # Given up on by memory, by the budget or by the operator, in that order:
-    # the operator is only asked where the other two had no say.
-    stalled = seen_already or work.exhausted(close_gap.name)
-    if stalled or not await _worth_another(work, f"work on `{gate}`"):
-        if seen_already:
-            reason = f"`{gate}` failed as it already did:\n{said_now}"
-            run = work.run
-        else:
-            left = repair.left if work.exhausted(close_gap.name) else _DECLINED
-            reason = f"`{gate}` {left}:\n{said_now}"
-            run = repair.run
-        return goto(stand_down, work.stopped_by(reason).but(run=run))
+    if isinstance(ruling, Fixed):
+        return await _covered(work, whole=ruling.whole)
+    if isinstance(ruling, Stalled):
+        return goto(stand_down, _gave_up(work, ruling.reason, ruling.seen))
+    if not await _worth_another(work, f"work on `{gate}`"):
+        return goto(stand_down, _gave_up(work, ruling.declined, ruling.seen))
     fallen = (
         await services()
         .agent(project)
         .ask(
-            repair.asking,
+            ruling.asking,
             role="writer",
             key=f"cover-{work.pr.number}",
             attended=work.run.attended,
@@ -412,48 +383,26 @@ async def close_gap(work: Work) -> Transition:
     )
     if fallen:
         return goto(report, work.abandoned(fallen.reason))
-    return goto(close_gap, work.but(gate=repair.next_gate).charged(close_gap.name))
+    return goto(close_gap, work.but(gate=ruling.next_gate).charged(close_gap.name))
 
 
-class _Repair(NamedTuple):
-    left: str
-    asking: str
-    run: Run
-    next_gate: str
-
-
-# Two different jobs down one budget, because they are the same step going
-# round: lines left uncovered are written up as tests, and a suite that will
-# not pass at all is repaired like any other red gate. Only a red suite is
-# worth remembering across the night: what lines a branch left uncovered is
-# that branch's own business, and two of them missing lines in the same file
-# look identical from here.
-def _repair(
-    work: Work, *, gate: str, measured: Ran, output: str, missing: bool
-) -> _Repair:
-    project = work.run.project
-    verdicts = services().verdicts
-    if missing:
-        # Lines are re-measured without the slow suites: what an agent writes
-        # here is a test, and the fast suite is the one that runs it.
-        return _Repair(
-            left="still reports missing lines",
-            asking=services().prompts.cover_gap(
-                project, output, partial=gate != project.coverage
-            ),
-            run=work.run,
-            next_gate=project.fast_coverage,
-        )
-    # A suite that will not run is repaired against the task that would not
-    # run, where the runner named one.
-    return _Repair(
-        left="is still red",
-        asking=services().prompts.fix_gates(
-            project, verdicts.said(measured), gate=gate
-        ),
-        run=work.run.but(seen=[*work.run.seen, verdicts.verdict(measured)]),
-        next_gate=verdicts.narrowed(measured) or project.fast_coverage,
-    )
+# Nothing is left uncovered, on whichever measurement said so.
+async def _covered(work: Work, *, whole: bool) -> Transition:
+    # Anything but the full measurement is a reason to spend the full
+    # measurement, not a branch that is covered.
+    if not whole:
+        return goto(close_gap, work.but(gate=""))
+    # Only where tests were actually written: most branches pass here first
+    # time, and a commit rite that never commits is noise.
+    if work.spent(close_gap.name):
+        try:
+            await services().scm(work.run.project).commit(
+                "test: cover the lines this branch changes"
+            )
+        except ScmError as error:
+            note = f"could not commit the tests: {error}"
+            return goto(set_aside, work.but(note=note))
+    return goto(push_work, work.but(gate="").cleared(close_gap.name))
 
 
 # Not fatal, and not `set_aside`: a push that will not go through costs the
@@ -516,18 +465,28 @@ async def quality_review(work: Work) -> Transition:
         return goto(report, work.abandoned(read.reason))
     if isinstance(read, Misread):
         return goto(set_aside, work.but(note=read.reason))
-    # Every item opens with the review's title, so it can be told from anyone
-    # else's comment — and answered by `review` as one.
-    try:
-        for finding in read.items:
-            body = f"## {project.review_title}\n\n{finding.body}"
-            await forge.comment(
-                number, Finding(path=finding.path, line=finding.line, body=body)
-            )
-        await forge.label(number, add=[project.labels.reviewed])
-    except ForgeError as error:
-        return goto(set_aside, work.but(note=f"the review did not all go up: {error}"))
+    findings = services().report.findings(project, read.items)
+    if note := await _put_up(project, number, findings):
+        return goto(set_aside, work.but(note=note))
     return goto(finish_pr, _ended(work))
+
+
+# A posting that got partway still earns the label: what is up cannot be taken
+# down, and an unlabelled branch is one the next night reviews again, saying
+# all of it a second time. Only a posting that got nowhere is left unlabelled
+# — an empty review is labelled, for the reason above `quality_review`.
+# Put every item up, label the branch, and say what did not happen.
+async def _put_up(project: Project, number: int, findings: list[Finding]) -> str:
+    forge = services().forge(project)
+    posted = await forge.comment(number, findings)
+    if posted.count or not posted.stopped:
+        try:
+            await forge.label(number, add=[project.labels.reviewed])
+        except ForgeError as error:
+            return str(error)
+    if not posted.stopped:
+        return ""
+    return f"{posted.count} of {len(findings)} review items went up: {posted.stopped}"
 
 
 # Write the branch's row into the run, and go on to the next one.

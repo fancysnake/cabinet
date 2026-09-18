@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from cabinet.inits.services import Services
-from cabinet.pacts.project import Project
+from cabinet.pacts.project import Labels, Project
 from cabinet.pacts.pulls import PullRequest, Run, Work
 from cabinet.pacts.reviews import Branch, Picking
 from cabinet.pacts.services import bind
@@ -14,9 +14,11 @@ from cabinet.pacts.services import bind
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from cabinet.pacts.project import State
+
 # The same rows the real forge would list, in gh's own spelling.
 LIST = (
-    "gh pr list --author @me --state open "
+    "gh pr list --author @me --state open --limit 100 "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
 )
 STATUS = "git status --porcelain"
@@ -31,11 +33,9 @@ THREADS = "slug=*gh api graphql*-F number=7"
 _NUMBER = 7
 
 
-def checkpoint(ritual: str, state: str) -> str:
-    other = "started" if state == "done" else "done"
-    return (
-        f"gh pr edit 7 --add-label v:{ritual}:{state} --remove-label v:{ritual}:{other}"
-    )
+def checkpoint(ritual: str, state: State) -> str:
+    add, remove = Labels().pair(ritual, state)
+    return f"gh pr edit 7 --add-label {add} --remove-label {remove}"
 
 
 def board(name: str = "feature") -> str:

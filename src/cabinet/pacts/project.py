@@ -4,7 +4,7 @@ Read from the `[cabinet]` section of the repository's `.vekna.toml`, validated
 at the boundary so a typo in a task name dies before a branch is checked out.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 from vekna.lexicon import RitualError
@@ -26,8 +26,11 @@ class LabelSpec(BaseModel):
     description: str
 
 
-# The rituals that mark checkpoints, and so the ones whose markers are made.
-_MARKED = ("refresh", "cover", "review")
+# The rituals that mark checkpoints: the type a marking call takes, and the
+# set whose labels `labels` conjures. Spelled once, so a ritual that marks
+# cannot be one the forge has no labels for.
+Marked = Literal["refresh", "cover", "review"]
+_MARKED: tuple[Marked, ...] = get_args(Marked)
 
 
 class Labels(BaseModel):
@@ -43,8 +46,16 @@ class Labels(BaseModel):
     # The prefix a ritual's checkpoints wear: `v:refresh:started`.
     marker: str = "v"
 
-    def checkpoint(self, ritual: str, state: State) -> str:
+    def checkpoint(self, ritual: Marked, state: State) -> str:
         return f"{self.marker}:{ritual}:{state}"
+
+    # A ritual's checkpoint is one claim at a time: `started` means the ritual
+    # may have changed this branch and has not finished, `done` that it ended
+    # clean. What goes on and what comes off, in that order, so a pull request
+    # never wears both halves of a pair.
+    def pair(self, ritual: Marked, state: State) -> tuple[str, str]:
+        other: State = "started" if state == "done" else "done"
+        return (self.checkpoint(ritual, state), self.checkpoint(ritual, other))
 
     # Every label the rituals read or write, with what it means, for the forge.
     def conjured(self) -> list[LabelSpec]:

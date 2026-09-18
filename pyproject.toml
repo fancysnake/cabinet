@@ -132,6 +132,22 @@ forbidden_modules = [
     "cabinet.specs",
 ]
 
+# The ritual facades are the tome's own surface: they import the layers, and
+# nothing in the layers may import back.
+[[tool.importlinter.contracts]]
+name = "rituals"
+type = "forbidden"
+source_modules = [
+    "cabinet.gates",
+    "cabinet.links",
+    "cabinet.inits",
+    "cabinet.mills",
+    "cabinet.pacts",
+    "cabinet.specs",
+    "cabinet.edges",
+]
+forbidden_modules = ["cabinet.rituals"]
+
 [[tool.importlinter.contracts]]
 name = "inside-gates"
 type = "independence"

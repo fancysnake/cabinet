@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
+from cabinet.pacts.budgets import Budgeted
 from cabinet.pacts.project import Project
 
 # A bound counts attempts at one step, so zero would mean a step that may never
@@ -22,6 +23,9 @@ class Sweep(BaseModel):
 # Which pass a cast is. The two share every step that takes a branch and writes
 # a row; they part at the gate — the fast pass merges and makes the gate green,
 # the slow one measures coverage and writes the tests.
+# A narrowing of `Marked`: a pass is also the name of the checkpoint it marks,
+# so every member here has to be one of those. Python cannot say "a subset of"
+# in a type, so what holds it is a test.
 Mode = Literal["refresh", "cover"]
 
 
@@ -124,12 +128,16 @@ class Run(BaseModel):
         return self.but(checked=[*self.checked, row])
 
 
+# Every field a step may route forward, in one annotation, so the copy that
+# carries them can be one method.
+type _Update = dict[str, Run | dict[str, int] | bool | str]
+
+
 # `budgets` dies with this payload, which is what "a branch change clears all
 # budgets" means — a fresh Work is built per pull request and inherits nothing.
-class Work(BaseModel):
+class Work(Budgeted):
     run: Run
     pr: PullRequest
-    budgets: dict[str, int] = {}
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by
@@ -147,9 +155,11 @@ class Work(BaseModel):
     # This branch will not be made green tonight, and is being read anyway.
     blocked: bool = False
 
-    # The fields a step routes forward on its way through a branch. The flags
-    # each have a builder of their own below, named for the decision they
-    # record rather than the field they set.
+    # The fields a step routes forward on its way through a branch, with
+    # `None` meaning "whatever this one had". The flags each have a builder of
+    # their own below, named for the decision they record rather than the
+    # field they set — and every one of them, this included, copies through
+    # `_copied`.
     def but(
         self,
         *,
@@ -158,7 +168,7 @@ class Work(BaseModel):
         gate: str | None = None,
         note: str | None = None,
     ) -> Work:
-        update: dict[str, Run | dict[str, int] | str] = {}
+        update: _Update = {}
         if run is not None:
             update["run"] = run
         if budgets is not None:
@@ -167,49 +177,39 @@ class Work(BaseModel):
             update["gate"] = gate
         if note is not None:
             update["note"] = note
-        return self.model_copy(update=update)
+        return self._copied(update)
 
     # The merge brought nothing in, or it did.
     def graded(self, *, unchanged: bool) -> Work:
-        return self._flagged({"unchanged": unchanged})
+        return self._copied({"unchanged": unchanged})
 
     # The merge stopped, and this is what git said about it.
     def merging_on(self, note: str) -> Work:
-        return self._flagged({"merging": True, "note": note})
+        return self._copied({"merging": True, "note": note})
 
     def merged(self) -> Work:
-        return self._flagged({"merging": False})
+        return self._copied({"merging": False})
 
     # The step that gives up on the branch says why, once.
     def stopped_by(self, reason: str) -> Work:
-        return self._flagged({"reason": reason})
+        return self._copied({"reason": reason})
 
     # The worktree is released and the branch is read anyway.
     def standing_down(self, note: str) -> Work:
-        return self._flagged({"blocked": True, "note": note})
+        return self._copied({"blocked": True, "note": note})
 
-    # Typed on the way in: a bare literal handed to `model_copy` is read as
-    # `dict[str, Any]`, which the checker here refuses.
-    def _flagged(self, update: dict[str, bool | str]) -> Work:
+    # The one way a `Work` is copied. Typed on the way in: a bare literal
+    # handed to `model_copy` is read as `dict[str, Any]`, which the checker
+    # here refuses.
+    def _copied(self, update: _Update) -> Work:
         return self.model_copy(update=update)
 
     # --- budgets ---------------------------------------------------------
 
-    def spent(self, name: str) -> int:
-        return self.budgets.get(name, 0)
-
+    # The counting is `Budgeted`'s, shared with every other loop; what a
+    # branch adds is the bound, which lives on the run.
     def exhausted(self, name: str) -> bool:
         return self.spent(name) >= self.run.bound
-
-    def charged(self, name: str) -> Work:
-        return self.but(budgets={**self.budgets, name: self.spent(name) + 1})
-
-    # A step that goes green hands its budget back, so a step reached a second
-    # time on the same branch starts over rather than inheriting what the
-    # first pass spent.
-    def cleared(self, name: str) -> Work:
-        kept = {step: count for step, count in self.budgets.items() if step != name}
-        return self.but(budgets=kept)
 
     # --- endings ---------------------------------------------------------
 

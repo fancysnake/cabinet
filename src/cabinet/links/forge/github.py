@@ -1,6 +1,5 @@
 """GitHub through `gh`."""
 
-import shlex
 from typing import TYPE_CHECKING, override
 
 from pydantic import (
@@ -11,11 +10,12 @@ from pydantic import (
     TypeAdapter,
     ValidationError,
 )
-from vekna.folio.shell import ShellResult, shell
+from vekna.folio.shell import shell
 
+from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Thread
+from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -24,8 +24,11 @@ if TYPE_CHECKING:
 
 # `labels` rides along so the wait label can be read without a call per pull
 # request: the listing is the only place every open branch is in hand at once.
+# `--limit` because gh's own default is thirty, and a pull request that falls
+# off the end of the listing is one no ritual ever sees. A hundred, which is
+# what the GitLab adapter pages at.
 _LIST = (
-    "gh pr list --author @me --state open "
+    "gh pr list --author @me --state open --limit 100 "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
 )
 
@@ -128,35 +131,20 @@ class _ThreadNodes(BaseModel):
     nodes: list[_Thread] = []
 
 
+# Required, with no default standing in for a path that is not there: gh
+# exits 0 on a `pullRequest: null` answer, which carries no GraphQL error, and
+# a default would read that as a pull request with nothing raised on it — so
+# the review would post as though the threads had never been written. An
+# answer this cannot find the threads in is an answer this cannot read.
 class _Threads(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     threads: _ThreadNodes = Field(
-        default=_ThreadNodes(),
-        validation_alias=AliasPath(
-            "data", "repository", "pullRequest", "reviewThreads"
-        ),
+        validation_alias=AliasPath("data", "repository", "pullRequest", "reviewThreads")
     )
 
 
 _PULLS: TypeAdapter[list[_Pull]] = TypeAdapter(list[_Pull])
-
-
-def _quoted(value: str) -> str:
-    return shlex.quote(value)
-
-
-def _said(result: ShellResult) -> str:
-    parts = (result.stdout.strip(), result.stderr.strip())
-    return "\n".join(part for part in parts if part) or f"exit code {result.exit_code}"
-
-
-async def _asked(command: str, complaint: str) -> str:
-    result = await shell(command, stream=False)
-    if result.exit_code:
-        msg = f"{complaint}: {_said(result)}"
-        raise ForgeError(msg)
-    return result.stdout
 
 
 # `gh` knows which repository this is, but graphql variables are not a REST
@@ -166,7 +154,7 @@ def _graphql(query: str, *variables: str) -> str:
     extra = "".join(f" {part}" for part in variables)
     return (
         'slug="$(gh repo view --json nameWithOwner -q .nameWithOwner)" && '
-        f"gh api graphql -f query={_quoted(query)}"
+        f"gh api graphql -f query={quoted(query)}"
         f' -f owner="${{slug%/*}}" -f repo="${{slug#*/}}"{extra}'
     )
 
@@ -186,6 +174,48 @@ def _pull(found: _Pull) -> PullRequest:
 def _check(found: _Check) -> Check:
     passed = None if found.conclusion is None else found.conclusion == _PASSED
     return Check(name=found.name, passed=passed, title=found.title or "")
+
+
+# Asked once for a whole review rather than once per item: every anchored
+# comment on one pull request is anchored to the same head. Empty where no
+# item wants an anchor, and where gh would not say — an item then goes up
+# plainly, which is the same bargain a refused anchor makes.
+async def _head(number: int, findings: Sequence[Finding]) -> str:
+    if all(finding.line is None for finding in findings):
+        return ""
+    try:
+        head = await asked(
+            f"gh pr view {number} --json headRefOid -q .headRefOid",
+            "gh could not read the head commit",
+        )
+    except ForgeError:
+        return ""
+    return head.strip()
+
+
+# The line has to be one this pull request's diff touches, or the API answers
+# 422. When it does, and for an item about the change as a whole, the item
+# goes on as a plain comment: losing the anchor is fine, losing the item is
+# not. What comes back is what stopped it, or nothing.
+async def _one(number: int, finding: Finding, *, head: str) -> str:
+    if finding.line is not None and head:
+        anchored = await shell(
+            f"gh api repos/{{owner}}/{{repo}}/pulls/{number}/comments"
+            f" -f commit_id={quoted(head)}"
+            f" -f path={quoted(finding.path)} -F line={finding.line}"
+            f" -f side=RIGHT -f body={quoted(finding.body)}",
+            stream=False,
+        )
+        if anchored.exit_code == 0:
+            return ""
+    try:
+        await asked(
+            f"gh pr comment {number} --body {quoted(finding.body)}",
+            f"could not comment on #{number}",
+        )
+    except ForgeError as error:
+        return str(error)
+    return ""
 
 
 def _thread(found: _Thread) -> Thread:
@@ -208,7 +238,7 @@ def _thread(found: _Thread) -> Thread:
 class GithubForge(ForgeProtocol):
     @override
     async def pulls(self) -> list[PullRequest]:
-        listed = await _asked(_LIST, "gh could not list your pull requests")
+        listed = await asked(_LIST, "gh could not list your pull requests")
         try:
             return [_pull(found) for found in _PULLS.validate_json(listed)]
         except ValidationError as error:
@@ -217,7 +247,7 @@ class GithubForge(ForgeProtocol):
 
     @override
     async def labels(self, number: int) -> list[str]:
-        seen = await _asked(
+        seen = await asked(
             f"gh pr view {number} --json labels", "gh could not read the labels"
         )
         try:
@@ -232,17 +262,17 @@ class GithubForge(ForgeProtocol):
     async def label(
         self, number: int, *, add: Sequence[str] = (), remove: Sequence[str] = ()
     ) -> None:
-        flags = [f"--add-label {_quoted(one)}" for one in add]
-        flags += [f"--remove-label {_quoted(one)}" for one in remove]
+        flags = [f"--add-label {quoted(one)}" for one in add]
+        flags += [f"--remove-label {quoted(one)}" for one in remove]
         if not flags:
             return
-        await _asked(
+        await asked(
             f"gh pr edit {number} {' '.join(flags)}", f"could not label #{number}"
         )
 
     @override
     async def threads(self, number: int) -> list[Thread]:
-        answered = await _asked(
+        answered = await asked(
             _graphql(_THREADS, f"-F number={number}"), "gh could not read the threads"
         )
         try:
@@ -260,24 +290,24 @@ class GithubForge(ForgeProtocol):
             msg = f"thread {thread.id} has no comment to reply under"
             raise ForgeError(msg)
         first = thread.comments[0].id
-        await _asked(
+        await asked(
             f"gh api repos/{{owner}}/{{repo}}/pulls/{number}/comments/{first}/replies"
-            f" -f body={_quoted(body)}",
+            f" -f body={quoted(body)}",
             f"could not reply on thread {thread.id}",
         )
 
     @override
     async def resolve(self, number: int, thread: Thread) -> None:
-        await _asked(
-            _graphql(_RESOLVE, f"-f id={_quoted(thread.id)}"),
+        await asked(
+            _graphql(_RESOLVE, f"-f id={quoted(thread.id)}"),
             f"could not resolve thread {thread.id}",
         )
 
     @override
     async def board(self, branch: str) -> Board:
         path = _BOARD.format(branch=branch)
-        answered = await _asked(
-            f"gh api {_quoted(path)}", "gh could not read the check board"
+        answered = await asked(
+            f"gh api {quoted(path)}", "gh could not read the check board"
         )
         try:
             found = _Board.model_validate_json(answered)
@@ -289,35 +319,21 @@ class GithubForge(ForgeProtocol):
             truncated=len(found.check_runs) < found.total_count,
         )
 
-    # The line has to be one this pull request's diff touches, or the API
-    # answers 422. When it does, and for an item about the change as a whole,
-    # the item goes on as a plain comment: losing the anchor is fine, losing
-    # the item is not.
+    # One head commit for the whole review, and one pass down the items.
     @override
-    async def comment(self, number: int, finding: Finding) -> None:
-        if finding.line is not None:
-            head = await _asked(
-                f"gh pr view {number} --json headRefOid -q .headRefOid",
-                "gh could not read the head commit",
-            )
-            anchored = await shell(
-                f"gh api repos/{{owner}}/{{repo}}/pulls/{number}/comments"
-                f" -f commit_id={_quoted(head.strip())}"
-                f" -f path={_quoted(finding.path)} -F line={finding.line}"
-                f" -f side=RIGHT -f body={_quoted(finding.body)}",
-                stream=False,
-            )
-            if anchored.exit_code == 0:
-                return
-        await _asked(
-            f"gh pr comment {number} --body {_quoted(finding.body)}",
-            f"could not comment on #{number}",
-        )
+    async def comment(self, number: int, findings: Sequence[Finding]) -> Posted:
+        head = await _head(number, findings)
+        posted = 0
+        for finding in findings:
+            if stopped := await _one(number, finding, head=head):
+                return Posted(count=posted, stopped=stopped)
+            posted += 1
+        return Posted(count=posted)
 
     @override
     async def issue(self, title: str, body: str) -> str:
-        made = await _asked(
-            f"gh issue create --title {_quoted(title)} --body {_quoted(body)}",
+        made = await asked(
+            f"gh issue create --title {quoted(title)} --body {quoted(body)}",
             "could not open the issue",
         )
         return made.strip()
@@ -326,8 +342,8 @@ class GithubForge(ForgeProtocol):
     # which is what makes the ritual safe to cast again.
     @override
     async def ensure_label(self, spec: LabelSpec) -> None:
-        await _asked(
-            f"gh label create {_quoted(spec.name)} --color {_quoted(spec.color)}"
-            f" --description {_quoted(spec.description)} --force",
+        await asked(
+            f"gh label create {quoted(spec.name)} --color {quoted(spec.color)}"
+            f" --description {quoted(spec.description)} --force",
             f"could not create the label {spec.name}",
         )

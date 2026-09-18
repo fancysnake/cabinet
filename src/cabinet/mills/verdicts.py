@@ -103,7 +103,10 @@ class Verdicts(VerdictsProtocol):
     # report never got printed does the trimmed log stand in for it.
     @override
     def coverage_report(self, ran: Ran) -> str:
-        _, banner, rest = ran.stdout.partition(_BANNER)
+        # Stripped before it is read, like every other reader here: a colour
+        # code landing inside "Missing lines" would read a branch that left
+        # lines uncovered as a branch that covered them, and push it.
+        _, banner, rest = _plain(ran.stdout).partition(_BANNER)
         return banner + rest if banner else self.said(ran)
 
     # Read from the report because the exit code does not carry it: the task

@@ -220,6 +220,19 @@ class TestReading:
 
         assert trial.walk(unmerged, _Ask()) == done(_Files(files=["a.py", "b.py"]))
 
+    # `--name-only` leaves a space in a path unquoted, so splitting on
+    # whitespace would hand the resolver two files that do not exist.
+    @staticmethod
+    def test_a_path_with_a_space_is_one_path(trial: Trial) -> None:
+        trial.shell.replies(
+            when="git diff --name-only --diff-filter=U",
+            stdout="docs/release notes.md\na.py\n",
+        )
+
+        assert trial.walk(unmerged, _Ask()) == done(
+            _Files(files=["docs/release notes.md", "a.py"])
+        )
+
     @staticmethod
     def test_merge_hands_back_what_git_said(trial: Trial) -> None:
         trial.shell.replies(

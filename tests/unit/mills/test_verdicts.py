@@ -162,6 +162,17 @@ class TestCoverageReport:
 
         assert _VERDICTS.coverage_report(ran) == "no coverage data\nboom"
 
+    # A colour code inside "Missing lines" would read an uncovered branch as
+    # covered, and the branch would be pushed with the gap still in it.
+    @staticmethod
+    def test_colour_is_stripped_before_the_work_list_is_read() -> None:
+        coloured = _REPORT.replace("Missing lines", "\x1b[31mMissing\x1b[39m lines")
+
+        report = _VERDICTS.coverage_report(_ran(stdout=coloured))
+
+        assert report == _REPORT
+        assert _VERDICTS.uncovered(report)
+
 
 class TestNarrowed:
     @staticmethod

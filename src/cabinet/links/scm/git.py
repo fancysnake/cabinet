@@ -40,6 +40,10 @@ _HELPER = {
 }
 
 
+# A near-copy of what the forge adapters share through
+# `links/forge/asking.py`, and it stays a copy: `inside-links` holds the
+# adapters apart, so nothing in `scm` may import from `forge`. What differs
+# anyway is the error each raises and what each hands back.
 def _quoted(value: str) -> str:
     return shlex.quote(value)
 
@@ -149,7 +153,10 @@ class GitScm(ScmProtocol):
             "could not read the index",
             stream=False,
         )
-        return ran.stdout.split()
+        # By line, not by whitespace: `--name-only` leaves a space in a path
+        # unquoted, and splitting on it hands the resolver two files that do
+        # not exist instead of the one that does.
+        return ran.stdout.splitlines()
 
     @override
     async def continue_merge(self) -> None:

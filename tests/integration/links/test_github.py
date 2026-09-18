@@ -11,7 +11,7 @@ from vekna.lexicon import Transition, done, step
 from cabinet.links.forge.github import GithubForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Thread
+from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
 if TYPE_CHECKING:
     from vekna.trial import Trial
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 _FORGE = GithubForge()
 
 _LIST = (
-    "gh pr list --author @me --state open "
+    "gh pr list --author @me --state open --limit 100 "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
 )
 _BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100'"
@@ -105,14 +105,24 @@ async def board(_: _Ask) -> Transition:
 
 @step
 async def anchored(ask: _Ask) -> Transition:
-    await _FORGE.comment(ask.number, Finding(path="src/thing.py", line=12, body="hm"))
-    return done()
+    findings = [Finding(path="src/thing.py", line=12, body="hm")]
+    return done(await _FORGE.comment(ask.number, findings))
 
 
 @step
 async def general(ask: _Ask) -> Transition:
-    await _FORGE.comment(ask.number, Finding(path="", body="hm"))
-    return done()
+    return done(await _FORGE.comment(ask.number, [Finding(path="", body="hm")]))
+
+
+# Two anchored items in one review, which is what the head commit is read
+# once for.
+@step
+async def several(ask: _Ask) -> Transition:
+    findings = [
+        Finding(path="src/thing.py", line=12, body="one"),
+        Finding(path="src/other.py", line=3, body="two"),
+    ]
+    return done(await _FORGE.comment(ask.number, findings))
 
 
 @step
@@ -262,6 +272,19 @@ class TestThreads:
         with pytest.raises(ForgeError, match="threads this could not read"):
             trial.walk(threads, _Ask())
 
+    # gh exits 0 on this and the answer carries no GraphQL error, so the only
+    # thing standing between it and a review posted over everything already
+    # raised is that the threads have no default to fall back on.
+    @staticmethod
+    def test_an_answer_with_no_pull_request_in_it_is_not_no_threads(
+        trial: Trial,
+    ) -> None:
+        answer = {"data": {"repository": {"pullRequest": None}}}
+        trial.shell.replies(when="slug=*gh api graphql*", stdout=json.dumps(answer))
+
+        with pytest.raises(ForgeError, match="threads this could not read"):
+            trial.walk(threads, _Ask())
+
     @staticmethod
     def test_a_reply_goes_under_the_first_comment(trial: Trial) -> None:
         trial.shell.replies(when="gh api repos/*")
@@ -351,8 +374,7 @@ class TestComment:
         trial.shell.replies(when="gh pr view 7 --json headRefOid*", stdout="abc123\n")
         trial.shell.replies(when="gh api repos/*")
 
-        trial.walk(anchored, _Ask())
-
+        assert trial.walk(anchored, _Ask()) == done(Posted(count=1))
         assert trial.shell.commands == [
             "gh pr view 7 --json headRefOid -q .headRefOid",
             (
@@ -375,16 +397,51 @@ class TestComment:
     def test_a_general_item_is_a_plain_comment(trial: Trial) -> None:
         trial.shell.replies(when="gh pr comment 7*")
 
-        trial.walk(general, _Ask())
-
+        assert trial.walk(general, _Ask()) == done(Posted(count=1))
         assert trial.shell.commands == ["gh pr comment 7 --body hm"]
 
+    # The head commit is the same for every item, so it is asked for once.
     @staticmethod
-    def test_a_comment_gh_refuses(trial: Trial) -> None:
-        trial.shell.replies(when="gh pr comment 7*", exit_code=1, stderr="403")
+    def test_a_whole_review_costs_one_head_read(trial: Trial) -> None:
+        trial.shell.replies(when="gh pr view 7 --json headRefOid*", stdout="abc123\n")
+        trial.shell.replies(when="gh api repos/*", always=True)
 
-        with pytest.raises(ForgeError, match="could not comment on #7"):
-            trial.walk(general, _Ask())
+        assert trial.walk(several, _Ask()) == done(Posted(count=2))
+        head, first, second = trial.shell.commands
+        assert head == "gh pr view 7 --json headRefOid -q .headRefOid"
+        assert first.endswith("-f body=one")
+        assert second.endswith("-f body=two")
+
+    # Nothing raises: what is already up cannot be taken down, so how far it
+    # got is the answer and the caller decides about the rest.
+    @staticmethod
+    def test_an_item_gh_refuses_stops_the_posting_and_says_how_far(
+        trial: Trial,
+    ) -> None:
+        trial.shell.replies(when="gh pr view 7 --json headRefOid*", stdout="abc123\n")
+        trial.shell.replies(
+            when="gh api repos/*", exit_code=1, stderr="422", always=True
+        )
+        trial.shell.replies(when="gh pr comment 7 --body one")
+        trial.shell.replies(
+            when="gh pr comment 7 --body two", exit_code=1, stderr="403"
+        )
+
+        assert trial.walk(several, _Ask()) == done(
+            Posted(count=1, stopped="could not comment on #7: 403")
+        )
+
+    # The anchor is what a head read buys, and losing it is not losing the
+    # item: every one of them goes up plainly instead.
+    @staticmethod
+    def test_a_head_gh_will_not_give_costs_the_anchor_only(trial: Trial) -> None:
+        trial.shell.replies(
+            when="gh pr view 7 --json headRefOid*", exit_code=1, stderr="404"
+        )
+        trial.shell.replies(when="gh pr comment 7*")
+
+        assert trial.walk(anchored, _Ask()) == done(Posted(count=1))
+        assert trial.shell.commands[-1] == "gh pr comment 7 --body hm"
 
 
 class TestIssue:

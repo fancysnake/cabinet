@@ -6,7 +6,10 @@ on:
     branches: ["main"]
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}
+  # The pull request's own number, so two of them sharing a branch name — two
+  # forks both on `main` — cannot cancel each other. A push to a branch has no
+  # pull request in its event, and the run id is unique, so nothing cancels it.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:

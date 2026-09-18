@@ -64,6 +64,24 @@ class TestReadProject:
         with pytest.raises(ConfigError, match=r"(?s)\.vekna\.toml: \[cabinet\].*gates"):
             read_project(tmp_path)
 
+    # A syntax error is a configuration failure like any other: the cast is
+    # owed the file's name, not a raw TOMLDecodeError out of startup.
+    @staticmethod
+    def test_a_file_that_will_not_parse_dies_at_the_boundary(tmp_path: Path) -> None:
+        (tmp_path / ".vekna.toml").write_text('[cabinet]\ngate = "unclosed\n')
+
+        with pytest.raises(ConfigError, match=r"\.vekna\.toml: "):
+            read_project(tmp_path)
+
+    @staticmethod
+    def test_a_file_that_will_not_open_dies_at_the_boundary(tmp_path: Path) -> None:
+        named = tmp_path / ".vekna.toml"
+        named.write_text(_SECTION)
+        named.chmod(0o000)
+
+        with pytest.raises(ConfigError, match=r"\.vekna\.toml could not be read"):
+            read_project(tmp_path)
+
     @staticmethod
     def test_no_file_anywhere_up(tmp_path: Path) -> None:
         with pytest.raises(ConfigError, match=r"no \.vekna\.toml found"):

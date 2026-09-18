@@ -22,11 +22,8 @@ from cabinet.gates.ritual.vekna.review import (
     settle,
     work,
 )
-from cabinet.inits.services import wire
 from cabinet.pacts.reviews import Picking, Review
 from cabinet.pacts.services import services
-
-wire()
 
 # The engine's backstop and nothing else: the repair loop is bounded by the
 # person sitting at it, and the branch loop by how many branches were reviewed

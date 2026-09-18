@@ -52,8 +52,10 @@ from typing import TYPE_CHECKING
 from vekna.folio.flow import decide
 from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
 
+from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.reviews import (
     Answering,
     Branch,
@@ -75,6 +77,13 @@ if TYPE_CHECKING:
 _THREAD = "review"
 
 
+# A branch's turn ending the whole cast. Nothing here raises: `recap` owes the
+# report however the cast ends, and it is `recap` that fails it afterwards.
+# The row says which branch was in flight, because the reason often does not.
+def _stopped(branch: Branch, reason: str) -> Transition:
+    return goto(recap, branch.rowed("stopped", reason).but(stopped=reason))
+
+
 # Ask the forge which of your branches carry a review, and queue them.
 @step
 async def queue_up(picking: Picking) -> Transition:
@@ -85,7 +94,9 @@ async def queue_up(picking: Picking) -> Transition:
         pulls = await services().forge(project).pulls()
         mine = await scm.here()
     except (ScmError, ForgeError) as error:
-        raise RitualError(str(error)) from error
+        # No branch has been taken yet, so there is no row to write — only the
+        # report, which is owed even when it says nothing.
+        return goto(recap, picking.but(stopped=str(error)))
     # Reviewed by the night and not yet answered: the reviewed label says a
     # review was posted, and whether it is still waiting is asked branch by
     # branch in `pick`. Never the base branch, whatever the forge says: this
@@ -134,10 +145,9 @@ async def pick(picking: Picking) -> Transition:
     try:
         dirty = await services().scm(branch.project).status()
     except ScmError as error:
-        raise RitualError(str(error)) from error
+        return _stopped(branch, str(error))
     if dirty:
-        msg = f"the worktree is not clean:\n{dirty}"
-        raise RitualError(msg)
+        return _stopped(branch, f"the worktree is not clean:\n{dirty}")
     return goto(look, branch)
 
 
@@ -160,10 +170,7 @@ async def look(branch: Branch) -> Transition:
 
 
 async def _unsettled(branch: Branch) -> list[Thread]:
-    try:
-        threads = await services().forge(branch.project).threads(branch.number)
-    except ForgeError as error:
-        raise RitualError(str(error)) from error
+    threads = await services().forge(branch.project).threads(branch.number)
     return [thread for thread in threads if not thread.resolved]
 
 
@@ -184,7 +191,11 @@ async def read(branch: Branch) -> Transition:
     # Read after the checkout, and again after every round: an item is
     # triaged against the code as it stands, and a thread the last round
     # settled is no longer open.
-    if not (threads := await _unsettled(branch)):
+    try:
+        threads = await _unsettled(branch)
+    except ForgeError as error:
+        return _stopped(branch, str(error))
+    if not threads:
         return _no_more(branch, "nothing is left open")
     batch = threads[: branch.batch]
     if len(batch) < len(threads):
@@ -198,7 +209,7 @@ async def read(branch: Branch) -> Transition:
         .ask_for(prompt, output=TriageNotes, role="reader", attended=True)
     )
     if isinstance(found, Fallen | Misread):
-        raise RitualError(found.reason)
+        return _stopped(branch, found.reason)
     # `pick` only got here on an unsettled thread, so an empty reading is the
     # reading disagreeing with the forge rather than a branch with nothing to
     # do.
@@ -234,7 +245,7 @@ async def work(instructed: Instructed) -> Transition:
     # The checkpoint goes on before the agent, not after: this is where the
     # branch starts changing, and a cast that dies here should leave the
     # branch wearing `started`.
-    if note := await _mark(branch, "started"):
+    if note := await _marked(branch, "started"):
         emit_delta(f"{branch.name}: {note}")
     # Straight in, with nothing asked: the triage was answered item by item a
     # step ago, so a question here is the cast asking whether you meant what
@@ -251,19 +262,16 @@ async def work(instructed: Instructed) -> Transition:
         )
     )
     if isinstance(came, Fallen | Misread):
-        raise RitualError(came.reason)
+        return _stopped(branch, came.reason)
     answering = Answering(branch=branch, items=came.items, threads=instructed.threads)
     return goto(answer, answering)
 
 
-async def _mark(branch: Branch, state: State) -> str:
-    project = branch.project
-    add, remove = services().checkpoint(project, "review", state)
-    try:
-        await services().forge(project).label(branch.number, add=[add], remove=[remove])
-    except ForgeError as error:
-        return f"could not mark {add}: {error}"
-    return ""
+# The ritual's own name, spelled once for both the steps that mark it.
+async def _marked(branch: Branch, state: State) -> str:
+    return await mark(
+        branch.project, number=branch.number, ritual="review", state=state
+    )
 
 
 # An issue is opened before the reply that names it, and a thread is settled
@@ -296,7 +304,7 @@ async def answer(answering: Answering) -> Transition:
     try:
         settled = await _posted(answering)
     except ForgeError as error:
-        raise RitualError(str(error)) from error
+        return _stopped(answering.branch, str(error))
     # Round again rather than straight to the gate: what the forge still holds
     # open is the next batch, and `read` is what finds out there is none. A
     # round that settled nothing would read the same batch back, so it goes to
@@ -311,35 +319,41 @@ async def answer(answering: Answering) -> Transition:
 async def gates(landing: Landing) -> Transition:
     branch = landing.branch
     project = branch.project
-    verdicts = services().verdicts
     # The task that broke last time round, where the runner named one.
     gate = landing.gate or project.gate
     ran = await services().tasks(project).run(gate)
-    if not ran.exit_code:
+    # No memory across branches, unlike the sweeps: this cast takes one branch
+    # at a time with you at the terminal, and the bound is the whole of it.
+    ruling = services().repairs.ruling(
+        Attempt(
+            project=project,
+            ran=ran,
+            gate=gate,
+            whole=project.gate,
+            spent=landing.spent(gates.name),
+            bound=branch.bound,
+        )
+    )
+    if isinstance(ruling, Fixed):
         # A task passing on its own is the reason to spend the gate, not the
         # gate passing. What lands the branch is the whole chain going green.
-        if gate != project.gate:
-            return goto(gates, Landing(branch=branch, tries=landing.tries))
+        if not ruling.whole:
+            return goto(gates, landing.but(gate=""))
         return goto(land, branch)
     # The repair work is in the worktree and uncommitted, so there is no
     # moving on to the next branch from here.
-    if landing.tries >= branch.bound:
-        stopped = f"`{gate}` is still red after {landing.tries} attempts"
-        return goto(recap, branch.picking.but(stopped=stopped))
+    if isinstance(ruling, Stalled):
+        return _stopped(branch, ruling.reason)
     # Another agent attempt is normally yours to approve; here the triage was
     # the approval, and the bound is what holds the loop.
-    prompt = services().prompts.fix_gates(project, verdicts.said(ran), gate=gate)
     fallen = (
         await services()
         .agent(project)
-        .ask(prompt, role="writer", key=_THREAD, attended=True)
+        .ask(ruling.asking, role="writer", key=_THREAD, attended=True)
     )
     if fallen:
-        raise RitualError(fallen.reason)
-    return goto(
-        gates,
-        Landing(branch=branch, tries=landing.tries + 1, gate=verdicts.narrowed(ran)),
-    )
+        return _stopped(branch, fallen.reason)
+    return goto(gates, landing.but(gate=ruling.next_gate).charged(gates.name))
 
 
 @step
@@ -349,7 +363,7 @@ async def land(branch: Branch) -> Transition:
         await scm.commit("chore: act on the review triage")
         await scm.push(branch.name)
     except ScmError as error:
-        raise RitualError(str(error)) from error
+        return _stopped(branch, str(error))
     return goto(settle, branch)
 
 
@@ -365,15 +379,16 @@ async def settle(branch: Branch) -> Transition:
     elif left:
         note = f"{left} review threads are still open"
     else:
-        note = await _mark(branch, "done")
+        note = await _marked(branch, "done")
     if note:
         emit_delta(f"{branch.name}: {note}")
     return goto(pick, branch.rowed("shipped", note))
 
 
 # Every ending comes here, so the report is owed however the cast ends — the
-# same bargain the sweeps make, and the reason a red gate routes rather than
-# raises.
+# same bargain the sweeps make, and the reason nothing between `queue_up` and
+# `settle` raises: a step that gives up writes its reason into `stopped` and
+# routes, and the failing is done here, after the report has been said.
 # Say what each branch came to, and fail the cast where one stopped it.
 @step
 def recap(picking: Picking) -> Transition:

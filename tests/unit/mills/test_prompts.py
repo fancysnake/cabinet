@@ -108,8 +108,32 @@ class TestTriageWork:
     def test_each_item_carries_its_thread_and_your_answer() -> None:
         prompt = _PROMPTS.triage_work(7, [_ITEM], ["guard the empty case"])
 
-        assert "thread: T1\n   what I want: guard the empty case" in prompt
+        assert "thread: T1" in prompt
+        assert "what I want: guard the empty case" in prompt
         assert "you cannot reach\nthe forge" in prompt
+
+    # The prompt promises markers, so it has to emit them: the reading of a
+    # thread goes inside, and the answer that is an instruction stays out.
+    @staticmethod
+    def test_the_reading_is_fenced_and_your_answer_is_not() -> None:
+        prompt = _PROMPTS.triage_work(7, [_ITEM], ["guard the empty case"])
+        _, fenced, after = prompt.partition("--- BEGIN UNTRUSTED REVIEW DATA ---")
+        inside, _, outside = after.partition("--- END UNTRUSTED REVIEW DATA ---")
+
+        assert fenced
+        assert "add a guard" in inside
+        assert "thread: T1" in inside
+        assert "what I want: guard the empty case" not in inside
+        assert "what I want: guard the empty case" in outside
+
+    @staticmethod
+    def test_every_item_is_fenced_on_its_own() -> None:
+        items = [_ITEM, _ITEM.model_copy(update={"thread": "T2"})]
+
+        prompt = _PROMPTS.triage_work(7, items, ["fix it", "leave it"])
+
+        assert prompt.count("--- BEGIN UNTRUSTED REVIEW DATA ---") == len(items)
+        assert prompt.count("--- END UNTRUSTED REVIEW DATA ---") == len(items)
 
 
 class TestReview:

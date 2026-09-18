@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
     from cabinet.pacts.project import LabelSpec
     from cabinet.pacts.pulls import Board, PullRequest
-    from cabinet.pacts.threads import Finding, Thread
+    from cabinet.pacts.threads import Finding, Posted, Thread
 
 
 # The forge would not answer, or answered something unreadable. The message
@@ -41,10 +41,15 @@ class ForgeProtocol(Protocol):
     # What CI made of the branch as it stands now, not as the listing saw it.
     async def board(self, branch: str) -> Board: ...
 
-    # One inline comment anchored to the finding's line, or a plain comment on
-    # the pull request where the forge refuses the anchor: losing the anchor is
-    # fine, losing the item is not.
-    async def comment(self, number: int, finding: Finding) -> None: ...
+    # A whole review in one call, so an adapter resolves what it needs to
+    # anchor the items once instead of once per item. Each goes up anchored to
+    # its line, or plainly where the forge refuses the anchor: losing the
+    # anchor is fine, losing the item is not.
+    # The one call here that does not raise: it stops at the first item that
+    # will not go up at all and answers how far it got, because what is
+    # already posted cannot be taken down again and the caller has to decide
+    # about it rather than retry it.
+    async def comment(self, number: int, findings: Sequence[Finding]) -> Posted: ...
 
     # The new issue's URL.
     async def issue(self, title: str, body: str) -> str: ...

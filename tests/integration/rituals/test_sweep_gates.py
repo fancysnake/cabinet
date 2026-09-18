@@ -447,7 +447,7 @@ class TestCover:
         assert trial.walk(close_gap, seen) == goto(
             stand_down,
             seen.stopped_by(
-                "`mise run diff-cover` failed as it already did:\n1 failed in 2s"
+                "`mise run diff-cover` is red as it already was:\n1 failed in 2s"
             ),
         )
         assert not trial.coding.prompts

@@ -175,7 +175,7 @@ class TestQualityReview:
         assert "did not answer in the shape asked" in transition.payload.note
 
     @staticmethod
-    def test_a_comment_the_forge_refuses_sets_the_branch_aside(
+    def test_a_review_that_got_nowhere_is_not_labelled(
         trial: Trial, work: Work
     ) -> None:
         trial.shell.replies(when=LABELS, stdout=_labels())
@@ -185,8 +185,51 @@ class TestQualityReview:
 
         assert trial.walk(quality_review, work) == goto(
             set_aside,
-            work.but(note="the review did not all go up: could not comment on #7: 403"),
+            work.but(note="0 of 1 review items went up: could not comment on #7: 403"),
         )
+        # No label: the branch is read again tomorrow, which is the whole
+        # point of leaving it off.
+        assert "--add-label" not in " ".join(trial.shell.commands)
+
+    # The items are up and the label is not, so the next night reviews the
+    # branch again and says all of it twice. Nothing here can prevent that;
+    # what it can do is put the forge's complaint in front of the morning.
+    @staticmethod
+    def test_a_label_the_forge_refuses_sets_the_branch_aside(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=LABELS, stdout=_labels())
+        trial.shell.replies(when=THREADS, stdout=_NO_THREADS)
+        trial.coding.replies(Findings(items=[Finding(path="", body="hm")]))
+        trial.shell.replies(when="gh pr comment 7*")
+        trial.shell.replies(when="gh pr edit 7*", exit_code=1, stderr="no such label")
+
+        assert trial.walk(quality_review, work) == goto(
+            set_aside, work.but(note="could not label #7: no such label")
+        )
+
+    # What is up cannot be taken down, so the label goes on and the morning is
+    # told how far the posting got — the next night must not say it again.
+    @staticmethod
+    def test_a_review_that_got_partway_is_labelled_and_counted(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=LABELS, stdout=_labels())
+        trial.shell.replies(when=THREADS, stdout=_NO_THREADS)
+        trial.coding.replies(
+            Findings(items=[Finding(path="", body="one"), Finding(path="", body="two")])
+        )
+        trial.shell.replies(when="gh pr comment 7 --body '## Thermo*one'")
+        trial.shell.replies(
+            when="gh pr comment 7 --body '## Thermo*two'", exit_code=1, stderr="403"
+        )
+        trial.shell.replies(when="gh pr edit 7 --add-label pr::thermo")
+
+        assert trial.walk(quality_review, work) == goto(
+            set_aside,
+            work.but(note="1 of 2 review items went up: could not comment on #7: 403"),
+        )
+        assert trial.shell.commands[-1] == "gh pr edit 7 --add-label pr::thermo"
 
     @staticmethod
     def test_an_agent_that_dies_ends_the_run(trial: Trial, work: Work) -> None:

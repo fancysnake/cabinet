@@ -10,7 +10,7 @@ from vekna.lexicon import Transition, done, step
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Thread
+from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
 if TYPE_CHECKING:
     from vekna.trial import Trial
@@ -106,14 +106,24 @@ async def board(_: _Ask) -> Transition:
 
 @step
 async def anchored(ask: _Ask) -> Transition:
-    await _FORGE.comment(ask.number, Finding(path="src/thing.py", line=12, body="hm"))
-    return done()
+    findings = [Finding(path="src/thing.py", line=12, body="hm")]
+    return done(await _FORGE.comment(ask.number, findings))
 
 
 @step
 async def general(ask: _Ask) -> Transition:
-    await _FORGE.comment(ask.number, Finding(path="", body="hm"))
-    return done()
+    return done(await _FORGE.comment(ask.number, [Finding(path="", body="hm")]))
+
+
+# Two anchored items in one review, which is what the diff refs are read once
+# for.
+@step
+async def several(ask: _Ask) -> Transition:
+    findings = [
+        Finding(path="src/thing.py", line=12, body="one"),
+        Finding(path="src/other.py", line=3, body="two"),
+    ]
+    return done(await _FORGE.comment(ask.number, findings))
 
 
 @step
@@ -304,8 +314,7 @@ class TestComment:
         trial.shell.replies(when=_MR, stdout=json.dumps(refs))
         trial.shell.replies(when="glab api projects/:id/merge_requests/7/discussions*")
 
-        trial.walk(anchored, _Ask())
-
+        assert trial.walk(anchored, _Ask()) == done(Posted(count=1))
         assert trial.shell.commands[-1] == (
             "glab api projects/:id/merge_requests/7/discussions -X POST -f body=hm"
             " -f 'position[position_type]=text' -f 'position[base_sha]=b'"
@@ -333,16 +342,55 @@ class TestComment:
     def test_a_general_item_is_a_note(trial: Trial) -> None:
         trial.shell.replies(when="glab mr note 7*")
 
-        trial.walk(general, _Ask())
-
+        assert trial.walk(general, _Ask()) == done(Posted(count=1))
         assert trial.shell.commands == ["glab mr note 7 -m hm"]
 
+    # The refs are the same for every item, so they are read once.
     @staticmethod
-    def test_a_merge_request_that_will_not_parse(trial: Trial) -> None:
-        trial.shell.replies(when=_MR, stdout="{}")
+    def test_a_whole_review_costs_one_refs_read(trial: Trial) -> None:
+        refs = {"diff_refs": {"base_sha": "b", "head_sha": "h", "start_sha": "s"}}
+        trial.shell.replies(when=_MR, stdout=json.dumps(refs))
+        trial.shell.replies(
+            when="glab api projects/:id/merge_requests/7/discussions*", always=True
+        )
 
-        with pytest.raises(ForgeError, match="merge request this could not read"):
-            trial.walk(anchored, _Ask())
+        assert trial.walk(several, _Ask()) == done(Posted(count=2))
+        refs_read, first, second = trial.shell.commands
+        assert refs_read == _MR
+        assert first.endswith("-F 'position[new_line]=12'")
+        assert second.endswith("-F 'position[new_line]=3'")
+
+    # Nothing raises: what is already up cannot be taken down, so how far it
+    # got is the answer and the caller decides about the rest.
+    @staticmethod
+    def test_an_item_glab_refuses_stops_the_posting_and_says_how_far(
+        trial: Trial,
+    ) -> None:
+        refs = {"diff_refs": {"base_sha": "b", "head_sha": "h", "start_sha": "s"}}
+        trial.shell.replies(when=_MR, stdout=json.dumps(refs))
+        trial.shell.replies(
+            when="glab api projects/:id/merge_requests/7/discussions*",
+            exit_code=1,
+            stderr="400",
+            always=True,
+        )
+        trial.shell.replies(when="glab mr note 7 -m one")
+        trial.shell.replies(when="glab mr note 7 -m two", exit_code=1, stderr="403")
+
+        assert trial.walk(several, _Ask()) == done(
+            Posted(count=1, stopped="could not comment on !7: 403")
+        )
+
+    # The anchor is what the refs buy, and losing it is not losing the item.
+    @staticmethod
+    def test_a_merge_request_that_will_not_parse_costs_the_anchor_only(
+        trial: Trial,
+    ) -> None:
+        trial.shell.replies(when=_MR, stdout="{}")
+        trial.shell.replies(when="glab mr note 7*")
+
+        assert trial.walk(anchored, _Ask()) == done(Posted(count=1))
+        assert trial.shell.commands[-1] == "glab mr note 7 -m hm"
 
 
 class TestIssue:
