@@ -1,0 +1,13 @@
+{
+  "name": "release-bump",
+  "version": "0.1.0",
+  "description": "Cut a release: bump the version by semver from the changes since the last tag, compact the Unreleased changelog into tight entries, and bring docs and skills in line with the code.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/release-bump",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["release", "semver", "changelog"]
+}

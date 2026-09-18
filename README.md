@@ -192,6 +192,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 | plugin        | what it adds                                                          |
 | ------------- | --------------------------------------------------------------------- |
 | `issue-maker` | a skill that files or updates a GitHub issue: checks the task against the code, hunts duplicates, writes a feature-level description, sets labels, type, effort and priority |
+| `release-bump` | a skill that cuts a release: bumps the version by semver from the changes since the last tag, compacts the Unreleased changelog into lean entries, and brings docs and skills in line with the code |
 
 Add the marketplace once, then install what you want:
 

@@ -18,6 +18,18 @@
       "category": "productivity",
       "keywords": ["github", "issues", "backlog"],
       "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/issue-maker"
+    },
+    {
+      "name": "release-bump",
+      "description": "Cut a release: bump the version by semver from the changes since the last tag, compact the Unreleased changelog into tight entries, and bring docs and skills in line with the code.",
+      "author": {
+        "name": "Radosław Ganczarek",
+        "email": "radoslaw@ganczarek.in"
+      },
+      "source": "./plugins/release-bump",
+      "category": "productivity",
+      "keywords": ["release", "semver", "changelog"],
+      "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/release-bump"
     }
   ]
 }
