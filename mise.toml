@@ -42,6 +42,16 @@ run = "deptry src tests"
 description = "Run every hk linter on all files"
 run = "hk check --all"
 
+[tasks."site:dev"]
+description = "Serve the documentation site with live reload"
+run = "poetry install --with docs --quiet && mkdocs serve"
+
+# `--strict` is the whole check: it fails the build on a link to a page that is
+# not there, which is what rots first when a page is renamed.
+[tasks."site:build"]
+description = "Build the documentation site into site/"
+run = "poetry install --with docs --quiet && mkdocs build --strict"
+
 # `lint:py` comes from the shared config and cannot be appended to from here, so
 # `lint:deptry` hangs off `fullcheck` instead — which is the gate that matters.
 [tasks.fullcheck]
