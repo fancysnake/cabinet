@@ -24,11 +24,17 @@ description: >-
    - Bullet points, sections, emphasized open questions and decisions.
    - **Ask about conceptual ambiguities**, not implementation details.
 4. Discover the metadata the repo offers before setting any: labels
-   (`gh label list`), the organisation's issue types
-   (`gh api graphql -f query='{repository(owner:"O",name:"R"){issueTypes(first:25){nodes{name}}}}'`),
-   the project's fields (`gh project field-list`). Set what exists; report
-   what does not in one line; create nothing.
-5. Create or update the issue in the current repository.
+   (`gh label list`); issue types and issue fields, with each field's id and
+   options:
+   `gh api graphql -f query='{repository(owner:"O",name:"R"){issueTypes(first:25){nodes{name}} issueFields(first:25){nodes{... on IssueFieldSingleSelect{id name options{id name}} ... on IssueFieldNumber{id name} ... on IssueFieldText{id name}}}}}'`;
+   the fields of a Project the issue should join
+   (`gh project field-list <number> --owner O`, token scope `read:project`).
+   Set what exists; report what does not in one line; create nothing.
+5. Create or update the issue in the current repository. `gh issue create`
+   and `gh issue edit` take `--label` and `--type`; an issue field is set
+   through `issueFields` on the `createIssue` mutation, or `setIssueFieldValue`
+   afterwards; a Project field through `gh project item-edit` once the issue
+   is in the Project.
 6. Where the repo has them: label **backlog**; fields **effort** and
    **priority** (ask about priority); issue type by what the work is:
    - **feature** — new functionality the user can see: a page, option, or

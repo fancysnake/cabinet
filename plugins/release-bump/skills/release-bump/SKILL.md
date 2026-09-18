@@ -65,8 +65,8 @@ link block at the bottom: `[unreleased]` compares the new tag to `HEAD`,
 the new version gets its own compare or release link, matching the existing
 ones.
 
-Then compact every entry. Rules are deletions only; the worst case is an
-entry unchanged.
+Then compact every entry in the new section; released sections stay as
+they are. Rules are deletions only; the worst case is an entry unchanged.
 
 - Delete entries for **internal** changes unless the repo lists tooling in
   its changelog already.
