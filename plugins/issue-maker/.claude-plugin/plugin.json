@@ -1,0 +1,13 @@
+{
+  "name": "issue-maker",
+  "version": "0.1.0",
+  "description": "Create or update a GitHub issue for the current repo: validates the task against the code, searches for duplicates, writes a feature-level description, sets labels, type, effort and priority.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/issue-maker",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["github", "issues", "backlog"]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cabinet",
+  "description": "Radek's Claude Code plugins: GitHub issue filing and other repo rituals",
+  "owner": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "plugins": [
+    {
+      "name": "issue-maker",
+      "description": "Create or update a GitHub issue for the current repo: validates the task against the code, searches for duplicates, writes a feature-level description, sets labels, type, effort and priority.",
+      "author": {
+        "name": "Radosław Ganczarek",
+        "email": "radoslaw@ganczarek.in"
+      },
+      "source": "./plugins/issue-maker",
+      "category": "productivity",
+      "keywords": ["github", "issues", "backlog"],
+      "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/issue-maker"
+    }
+  ]
+}
