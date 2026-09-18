@@ -107,5 +107,7 @@ permission that commits, pushes, or talks to the forge.
   means `Project` + `README.md` `[cabinet]` block + `CHANGELOG.md`.
 - `CHANGELOG.md` is Keep a Changelog; user-visible changes go under
   `Unreleased`. The `release-bump` plugin skill cuts releases.
-- `pyproject.toml` version and every `plugin.json`/`marketplace.json`
-  version move together on release.
+- `pyproject.toml` carries the only version. Plugins under `plugins/` are
+  unversioned on purpose: a relative-path source in a git marketplace resolves
+  to the marketplace commit SHA, so an install tracks the commit and skills
+  never need a version bump.

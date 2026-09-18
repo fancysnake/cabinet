@@ -14,19 +14,23 @@ changelog, fixes the docs. Commits nothing and tags nothing unless asked.
 
 ## 1. Find the last release
 
-- Last tag: `git describe --tags --abbrev=0`. No tag → every commit counts,
-  and the bump is from the version the files already carry.
-- Version files: every file that carries the current version string
-  (`pyproject.toml`, `package.json`, `plugin.json`, `marketplace.json`,
-  `Cargo.toml`, `__init__.py`, …). `grep -rn "<current version>"` outside
-  lock files and caches. All of them get the same new version.
+- Last tag: `git describe --tags --abbrev=0`. No tag → every commit counts:
+  the log range is `HEAD` and the diff is against the empty tree,
+  `git diff $(git hash-object -t tree /dev/null) HEAD`.
+- The unit of release is one manifest: the one the request names, else the
+  repo root's (`pyproject.toml`, `package.json`, `Cargo.toml`, …). Its
+  version files are that manifest plus whatever mirrors its version (an
+  `__init__.py`, a `version.py`); all of them get the new version. Nothing
+  else changes: a plugin or package elsewhere in the repo is its own
+  release, and `CHANGELOG.md` is touched only in step 4.
 - Changelog: `CHANGELOG.md` in [Keep a Changelog] form. No changelog →
   say so and stop; do not invent one.
 
 ## 2. Read what changed
 
-`git log <tag>..HEAD` and `git diff <tag>..HEAD --stat`, then the diff of
-anything the log leaves unclear. Sort every change into one of:
+`git log <tag>..HEAD` and `git diff <tag>..HEAD --stat` (the no-tag range
+from step 1 otherwise), then the diff of anything the log leaves unclear.
+Sort every change into one of:
 
 | bucket | what it is |
 | --- | --- |
@@ -47,9 +51,6 @@ against the diff, it is often stale.
 - else any **fix** → patch (`X.Y.Z+1`)
 - only **internal** → patch, or ask whether a release is wanted at all
 
-Below `1.0.0` a break bumps minor and a feature bumps patch, unless the repo
-already tags breaks as minor for `0.x`; follow what the tag history shows.
-
 State the bump and its reason in one line before editing anything:
 `0.1.0 → 0.2.0: labels ritual is a new capability`. A break the diff hides
 (a renamed config key, a dropped default) is worth a second look at the diff,
@@ -64,9 +65,7 @@ link block at the bottom: `[unreleased]` compares the new tag to `HEAD`,
 the new version gets its own compare or release link, matching the existing
 ones.
 
-Then compact every entry. If the `writing-clearly-and-concisely` and
-`ultraphilosopher` skills are installed, load both first; the rules below
-are their cut for changelogs. Rules are deletions only; the worst case is an
+Then compact every entry. Rules are deletions only; the worst case is an
 entry unchanged.
 
 - Delete entries for **internal** changes unless the repo lists tooling in

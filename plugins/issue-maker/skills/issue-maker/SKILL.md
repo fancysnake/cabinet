@@ -23,8 +23,14 @@ description: >-
      "refactor the enrollment mill".
    - Bullet points, sections, emphasized open questions and decisions.
    - **Ask about conceptual ambiguities**, not implementation details.
-4. Create or update the issue in the current project.
-5. Label it **backlog** and set issue type to:
+4. Discover the metadata the repo offers before setting any: labels
+   (`gh label list`), the organisation's issue types
+   (`gh api graphql -f query='{repository(owner:"O",name:"R"){issueTypes(first:25){nodes{name}}}}'`),
+   the project's fields (`gh project field-list`). Set what exists; report
+   what does not in one line; create nothing.
+5. Create or update the issue in the current repository.
+6. Where the repo has them: label **backlog**; fields **effort** and
+   **priority** (ask about priority); issue type by what the work is:
    - **feature** — new functionality the user can see: a page, option, or
      capability.
    - **edit** — refactor or improvement to production code, no feature change.
@@ -32,4 +38,4 @@ description: >-
      tooling, tests, observability.
    - **spike** — investigation or experiment that might not work.
    - **bug** — doesn't behave as expected.
-6. Set the issue fields: **effort** and **priority** (ask about priority).
+   Types named differently → nearest match; none fits → ask.

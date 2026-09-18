@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-18
+
+### Added
+
+- The repository is a Claude Code plugin marketplace, `cabinet`: add it with
+  `claude plugin marketplace add fancysnake/cabinet`. Plugins live under
+  `plugins/` as skills only and carry no version; an install tracks the
+  marketplace commit.
+- `issue-maker` plugin: a skill that files or updates a GitHub issue, checking
+  the task against the code and hunting duplicates first.
+- `release-bump` plugin: a skill that cuts a release, bumping the version by
+  semver from the changes since the last tag and compacting the changelog.
+
 ## [0.1.0] - 2026-09-17
 
 ### Added
@@ -47,5 +60,6 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/fancysnake/cabinet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fancysnake/cabinet/releases/tag/v0.1.0

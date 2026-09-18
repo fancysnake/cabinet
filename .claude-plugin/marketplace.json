@@ -1,35 +1,12 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "cabinet",
-  "description": "Radek's Claude Code plugins: GitHub issue filing and other repo rituals",
+  "description": "Radek's Claude Code plugins: skills that file issues, cut releases, and run other repo rituals",
   "owner": {
     "name": "Radosław Ganczarek",
     "email": "radoslaw@ganczarek.in"
   },
   "plugins": [
-    {
-      "name": "issue-maker",
-      "description": "Create or update a GitHub issue for the current repo: validates the task against the code, searches for duplicates, writes a feature-level description, sets labels, type, effort and priority.",
-      "author": {
-        "name": "Radosław Ganczarek",
-        "email": "radoslaw@ganczarek.in"
-      },
-      "source": "./plugins/issue-maker",
-      "category": "productivity",
-      "keywords": ["github", "issues", "backlog"],
-      "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/issue-maker"
-    },
-    {
-      "name": "release-bump",
-      "description": "Cut a release: bump the version by semver from the changes since the last tag, compact the Unreleased changelog into tight entries, and bring docs and skills in line with the code.",
-      "author": {
-        "name": "Radosław Ganczarek",
-        "email": "radoslaw@ganczarek.in"
-      },
-      "source": "./plugins/release-bump",
-      "category": "productivity",
-      "keywords": ["release", "semver", "changelog"],
-      "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/release-bump"
-    }
+    { "name": "issue-maker", "source": "./plugins/issue-maker", "category": "productivity" },
+    { "name": "release-bump", "source": "./plugins/release-bump", "category": "productivity" }
   ]
 }
