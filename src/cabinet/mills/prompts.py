@@ -184,11 +184,17 @@ Anything else is refused without a prompt, so do not spend a turn on it.
 
 _OPEN = "--- BEGIN UNTRUSTED REVIEW DATA ---"
 _CLOSE = "--- END UNTRUSTED REVIEW DATA ---"
+_REMOVED = "[marker removed]"
 
 
 # The markers `_FENCE` promises. Every prompt that carries somebody else's
-# words puts them between these and nothing else between them.
+# words puts them between these and nothing else between them — so a marker
+# the words write themselves comes out first. Left in, it would close the
+# fence early and stand the rest of the comment where the operator's own
+# instruction goes.
 def _fence(text: str) -> str:
+    for marker in (_OPEN, _CLOSE):
+        text = text.replace(marker, _REMOVED)
     return f"{_OPEN}\n{text}\n{_CLOSE}"
 
 

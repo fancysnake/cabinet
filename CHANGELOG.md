@@ -11,13 +11,14 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 
-- Three rituals, cast through `[rituals] modules = ["cabinet.rituals"]`:
+- Four rituals, cast through `[rituals] modules = ["cabinet.rituals"]`:
   `refresh` (Transmutation) merges the base into every open pull request,
   makes the gate green, pushes and posts a quality review; `cover`
   (Abjuration) measures diff coverage where CI is unhappy and writes the
   missing tests; `review` (Divination) triages the review threads with you
-  at the terminal, answers them, and ships the branch. `--batch N` on
-  `review` reads, answers and settles the threads in rounds of N (default
+  at the terminal, answers them, and ships the branch; `labels`
+  (Conjuration) creates or refreshes every label the others use. `--batch N`
+  on `review` reads, answers and settles the threads in rounds of N (default
   7), and the gate runs once after the last round.
 - A `[cabinet]` section in the consuming repository's `.vekna.toml` for
   everything that used to be a constant: the gate and coverage tasks, base
@@ -31,8 +32,6 @@ and this project adheres to [Semantic Versioning].
 - `--attended true` on `refresh` and `cover`: the sweep asks before every
   repair attempt and its agents run in `auto` permission mode; `review` is
   always attended.
-- `labels` (Conjuration) creates or refreshes every label the rituals use on
-  either forge.
 - One facade per ritual under `cabinet.rituals`, so a project loads only the
   rituals it can run.
 - Pushes go over https with the forge CLI as the credential helper; an ssh

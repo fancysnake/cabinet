@@ -1,5 +1,6 @@
 """The `[cabinet]` section, found the way vekna finds its own."""
 
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -73,7 +74,11 @@ class TestReadProject:
         with pytest.raises(ConfigError, match=r"\.vekna\.toml: "):
             read_project(tmp_path)
 
+    # Root opens a file it has no permission bits for, so the error this
+    # waits on never comes and the assertion is about the runner, not the
+    # boundary.
     @staticmethod
+    @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the mode bits")
     def test_a_file_that_will_not_open_dies_at_the_boundary(tmp_path: Path) -> None:
         named = tmp_path / ".vekna.toml"
         named.write_text(_SECTION)

@@ -60,7 +60,7 @@ and `review` and never sees `cover`:
 modules = ["cabinet.rituals.refresh", "cabinet.rituals.review"]
 ```
 
-`modules = ["cabinet.rituals"]` loads all three.
+`modules = ["cabinet.rituals"]` loads all four.
 
 ## Install
 
