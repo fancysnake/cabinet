@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-18
+
+### Added
+
+- The manual at [cabinet.fancysnake.dev](https://cabinet.fancysnake.dev),
+  served locally by `mise run site:dev`.
+
 ## [0.2.0] - 2026-09-18
 
 ### Added
@@ -60,6 +67,7 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/fancysnake/cabinet/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/fancysnake/cabinet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/fancysnake/cabinet/releases/tag/v0.1.0
