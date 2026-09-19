@@ -1,0 +1,56 @@
+site_name: cabinet
+site_url: https://cabinet.fancysnake.dev
+site_description: Pull request maintenance rituals for GitHub and GitLab, and the Claude Code skills that keep a repository in order.
+repo_url: https://github.com/fancysnake/cabinet
+repo_name: fancysnake/cabinet
+copyright: MIT
+
+theme:
+  name: material
+  # Both schemes are defined in `docs/stylesheets/tower.css`. No `primary` or
+  # `accent` here on purpose: those generate their own rules, and two sources
+  # for one colour is one more than the number that can be right.
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: tower
+      toggle: {icon: material/candle, name: Up to the roof}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: tower-night
+      toggle: {icon: material/telescope, name: Back to the desk}
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/fancysnake/cabinet
+    - icon: fontawesome/solid/book
+      link: https://cabinet.fancysnake.dev
+      name: cabinet
+    - icon: fontawesome/solid/globe
+      link: https://fancysnake.dev
+      name: fancysnake.dev
+
+extra_css:
+  - stylesheets/tower.css
+
+markdown_extensions:
+  - admonition
+  - toc: {permalink: true}
+  - pymdownx.highlight: {anchor_linenums: true}
+  - pymdownx.superfences
+  - pymdownx.details
+
+nav:
+  - Start here:
+      - index.md
+      - rituals.md
+      - configuration.md
+  - Before you cast:
+      - agents.md
+  - Claude Code:
+      - plugins.md
+  - Contributing:
+      - architecture.md

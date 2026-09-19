@@ -1,9 +1,12 @@
 name: CI
 
+# Documentation-only changes run `site.yml` instead.
 on:
   pull_request:
+    paths-ignore: ["docs/**", "mkdocs.yml"]
   push:
     branches: ["main"]
+    paths-ignore: ["docs/**", "mkdocs.yml"]
 
 concurrency:
   # The pull request's own number, so two of them sharing a branch name — two

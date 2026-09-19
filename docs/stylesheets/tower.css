@@ -1,0 +1,149 @@
+/*
+ * Tower — a night's stargazing, read by lamplight.
+ *
+ * The page is moonlit paper, the chrome is the sky past the tower window in
+ * midnight indigo, and brass — the telescope's, the lamp's — is for anything
+ * that answers a cursor. Headings are anchored with a star. The light scheme
+ * is the desk with the lamp lit; the dark one is the roof with it out. Every
+ * pairing below clears WCAG AA against the surface it sits on, because a
+ * palette nobody can read is just a mood. Measured, not asserted: the
+ * tightest pairing is a code string at 5.0:1.
+ */
+
+:root {
+  --tower-paper: #f5f3fa;
+  --tower-vellum: #fbfaff;
+  --tower-ink: #1b1533;
+  --tower-indigo: #311b92;
+  --tower-indigo-lit: #4527a0;
+  --tower-indigo-deep: #1a0f5c;
+  --tower-midnight: #100a3d;
+  --tower-brass: #8a5a00;
+  --tower-starlight: #f0c674;
+}
+
+/* ---- Light: the desk, lamp lit ---- */
+
+[data-md-color-scheme="tower"] {
+  color-scheme: light;
+
+  --md-default-bg-color: var(--tower-paper);
+  --md-default-fg-color: var(--tower-ink);
+  --md-default-fg-color--light: #4a4560;
+  --md-default-fg-color--lighter: #77728c;
+  --md-default-fg-color--lightest: #d9d5e6;
+
+  --md-primary-fg-color: var(--tower-indigo);
+  --md-primary-fg-color--light: var(--tower-indigo-lit);
+  --md-primary-fg-color--dark: var(--tower-indigo-deep);
+  --md-primary-bg-color: var(--tower-vellum);
+  --md-primary-bg-color--light: #c9bdf0;
+
+  --md-accent-fg-color: var(--tower-brass);
+  --md-accent-fg-color--transparent: rgb(138 90 0 / 10%);
+
+  --md-typeset-a-color: var(--tower-indigo-lit);
+  --md-typeset-mark-color: rgb(240 198 116 / 35%);
+
+  --md-code-bg-color: #ebe8f3;
+  --md-code-fg-color: #251b47;
+
+  --md-footer-bg-color: var(--tower-indigo-deep);
+  --md-footer-bg-color--dark: var(--tower-midnight);
+}
+
+/* ---- Dark: the roof, lamp out ---- */
+
+[data-md-color-scheme="tower-night"] {
+  color-scheme: dark;
+
+  --md-default-bg-color: #0d0b1f;
+  --md-default-fg-color: #e6e2f5;
+  --md-default-fg-color--light: #b5afcf;
+  --md-default-fg-color--lighter: #7d7797;
+  --md-default-fg-color--lightest: #2c2745;
+
+  --md-primary-fg-color: var(--tower-indigo-deep);
+  --md-primary-fg-color--light: var(--tower-indigo);
+  --md-primary-fg-color--dark: var(--tower-midnight);
+  --md-primary-bg-color: #efeafc;
+  --md-primary-bg-color--light: #b5aee0;
+
+  --md-accent-fg-color: var(--tower-starlight);
+  --md-accent-fg-color--transparent: rgb(240 198 116 / 12%);
+
+  --md-typeset-a-color: #b8a6ff;
+  --md-typeset-mark-color: rgb(240 198 116 / 22%);
+
+  --md-code-bg-color: #15122b;
+  --md-code-fg-color: #ddd8f0;
+
+  --md-footer-bg-color: var(--tower-midnight);
+  --md-footer-bg-color--dark: #08061f;
+}
+
+/*
+ * Syntax highlighting, both schemes. Material ships a sensible default; what it
+ * does not do is agree with a palette it has never heard of, and a code block
+ * is most of what these pages are. Keywords take the page's own indigo, so the
+ * other two hues left — a deep teal and brass — stay worth noticing.
+ */
+
+[data-md-color-scheme="tower"] {
+  --md-code-hl-keyword-color: var(--tower-indigo-lit);
+  --md-code-hl-function-color: #1f5e9c;
+  --md-code-hl-string-color: #0b6e6e;
+  --md-code-hl-number-color: var(--tower-brass);
+  --md-code-hl-comment-color: #5f5a78;
+  --md-code-hl-name-color: #251b47;
+  --md-code-hl-operator-color: #5f5a78;
+  --md-code-hl-punctuation-color: #5f5a78;
+  --md-code-hl-constant-color: var(--tower-brass);
+  --md-code-hl-special-color: var(--tower-indigo-lit);
+}
+
+[data-md-color-scheme="tower-night"] {
+  --md-code-hl-keyword-color: #c3b1ff;
+  --md-code-hl-function-color: #7cc4f0;
+  --md-code-hl-string-color: #7fdbca;
+  --md-code-hl-number-color: var(--tower-starlight);
+  --md-code-hl-comment-color: #8a84a6;
+  --md-code-hl-name-color: #ddd8f0;
+  --md-code-hl-operator-color: #8a84a6;
+  --md-code-hl-punctuation-color: #8a84a6;
+  --md-code-hl-constant-color: var(--tower-starlight);
+  --md-code-hl-special-color: #c3b1ff;
+}
+
+/*
+ * The sky darkens toward the zenith: the header runs from indigo at the
+ * window's sill to midnight at its top, in both schemes.
+ */
+
+.md-header {
+  background-image: linear-gradient(
+    to top,
+    var(--md-primary-fg-color),
+    var(--md-primary-fg-color--dark)
+  );
+}
+
+/*
+ * A star on every heading anchor. `¶` is the web's own mark for "this piece of
+ * text"; this one only changes what it is drawn as.
+ */
+
+.md-typeset .headerlink::before {
+  content: "✦";
+}
+
+.md-typeset .headerlink {
+  font-size: 0.7em;
+}
+
+/* The rule under a page title, as a line ruled in ink rather than a border. */
+
+.md-typeset h1 {
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding-bottom: 0.3em;
+}
