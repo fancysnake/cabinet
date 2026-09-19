@@ -5,14 +5,11 @@ anywhere in the repository reads the same file vekna loaded the rituals from.
 """
 
 import tomllib
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
 from cabinet.pacts.project import ConfigError, Project
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _NAME = ".vekna.toml"
 

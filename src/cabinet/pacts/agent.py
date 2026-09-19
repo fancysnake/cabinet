@@ -1,6 +1,6 @@
 """Asking an agent, and how much it is allowed to touch."""
 
-from typing import Literal, Protocol
+from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
@@ -24,6 +24,9 @@ class Misread(BaseModel):
     reason: str
 
 
+OutputT = TypeVar("OutputT", bound=BaseModel)
+
+
 class AgentProtocol(Protocol):
     # Nothing reads what the agent said back: the call is judged by what it
     # left in the worktree. A key joins the call to a thread, so a retry meets
@@ -34,7 +37,7 @@ class AgentProtocol(Protocol):
         self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
     ) -> Fallen | None: ...
 
-    async def ask_for[OutputT: BaseModel](
+    async def ask_for(
         self,
         prompt: str,
         *,

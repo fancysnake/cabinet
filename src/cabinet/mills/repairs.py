@@ -6,13 +6,10 @@ in what they run and where they go next; the rule for choosing between the
 three does not, so it is written once here and the steps only route on it.
 """
 
-from typing import TYPE_CHECKING, override
+from typing_extensions import override
 
-from cabinet.pacts.repairs import Fixed, Repair, Ruling, Stalled
+from cabinet.pacts.repairs import Attempt, Fixed, Repair, Ruling, Stalled
 from cabinet.pacts.services import PromptsProtocol, RepairsProtocol, VerdictsProtocol
-
-if TYPE_CHECKING:
-    from cabinet.pacts.repairs import Attempt
 
 # What the report says where the attempt was the operator's to approve and
 # they said no.

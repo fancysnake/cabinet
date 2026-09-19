@@ -1,8 +1,7 @@
 """Taking a branch: listing, standing on it, merging the base in."""
 
-from typing import TYPE_CHECKING
-
 from vekna.lexicon import Goto, goto
+from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.sweep import (
     check_clean,
@@ -17,14 +16,10 @@ from cabinet.gates.ritual.vekna.sweep import (
     sync_branch,
     take_pass,
 )
+from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest, Run, Work
 from tests.conftest import LIST, STATUS, checkpoint, listing, row
 from tests.integration.rituals.falling import falling
-
-if TYPE_CHECKING:
-    from vekna.trial import Trial
-
-    from cabinet.pacts.project import Project
 
 _STARTED = checkpoint("refresh", "started")
 _UNMERGED = "git diff --name-only --diff-filter=U"

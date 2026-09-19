@@ -2,19 +2,16 @@
 
 import json
 import shlex
-from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import BaseModel
 from vekna.lexicon import Transition, done, step
+from vekna.trial import Trial
 
 from cabinet.links.forge.github import GithubForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
-
-if TYPE_CHECKING:
-    from vekna.trial import Trial
 
 _FORGE = GithubForge()
 

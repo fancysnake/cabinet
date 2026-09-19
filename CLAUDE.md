@@ -13,7 +13,7 @@ holds the user-facing docs; keep it in step with code and config changes.
 
 ## Commands
 
-Python 3.14 via mise; never call python tools directly, always `mise run`.
+Python 3.11 - 3.14 via mise; never call python tools directly, always `mise run`.
 `mise tasks` lists everything. Task definitions come from the shared
 `fancysnake/shared-configs` include in `mise.toml`, so `mise tasks info <task>`
 shows what one actually runs.

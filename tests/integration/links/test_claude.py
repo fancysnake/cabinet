@@ -1,18 +1,14 @@
 """How much an agent is allowed to reach, and what a failed call comes back as."""
 
-from typing import TYPE_CHECKING
-
 from pydantic import BaseModel
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import Transition, done, step
+from vekna.trial import Trial
 
 from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
 from cabinet.pacts.agent import Fallen, Misread, Role
 from cabinet.pacts.project import Project
 from cabinet.pacts.threads import TriageNotes
-
-if TYPE_CHECKING:
-    from vekna.trial import Trial
 
 _PROJECT = Project.model_validate(
     {"agent": {"may_run": ["mise run test:unit"], "max_turns": 30}}

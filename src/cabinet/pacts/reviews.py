@@ -1,6 +1,6 @@
 """What the review-answering cast carries from branch to branch."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field
 
@@ -52,7 +52,7 @@ class Picking(BaseModel):
         queue: list[PullRequest] | None = None,
         reviewed: list[Reviewed] | None = None,
         stopped: str | None = None,
-    ) -> Picking:
+    ) -> Self:
         update: dict[str, list[PullRequest] | list[Reviewed] | str] = {}
         if queue is not None:
             update["queue"] = queue
@@ -85,7 +85,7 @@ class Branch(BaseModel):
         return self.picking.batch
 
     # Another round posted and settled.
-    def taken(self, count: int) -> Branch:
+    def taken(self, count: int) -> Self:
         update: dict[str, int] = {"answered": self.answered + count}
         return self.model_copy(update=update)
 
@@ -130,6 +130,6 @@ class Landing(Budgeted):
     # whole gate, which is what runs first and what has the last word.
     gate: str = ""
 
-    def but(self, *, gate: str) -> Landing:
+    def but(self, *, gate: str) -> Self:
         update: dict[str, str] = {"gate": gate}
         return self.model_copy(update=update)

@@ -2,16 +2,14 @@
 
 from collections import Counter
 from itertools import starmap
-from typing import TYPE_CHECKING, override
 
+from typing_extensions import override
+
+from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import Checked, Run
+from cabinet.pacts.reviews import Picking
 from cabinet.pacts.services import ReportProtocol
-from cabinet.pacts.threads import Finding
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import Checked, Run
-    from cabinet.pacts.reviews import Picking
-    from cabinet.pacts.threads import TriageItem
+from cabinet.pacts.threads import Finding, TriageItem
 
 _OUTCOME = {
     "green": "green and reviewed",

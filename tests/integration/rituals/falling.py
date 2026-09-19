@@ -5,16 +5,12 @@ scripted, which is the test's mistake and not the agent's death — so a dead
 agent is a service double at the protocol boundary instead.
 """
 
-from typing import TYPE_CHECKING, override
-
-from pydantic import BaseModel
+from typing_extensions import override
 
 from cabinet.inits.services import Services
-from cabinet.pacts.agent import AgentProtocol, Fallen, Misread, Role
+from cabinet.pacts.agent import AgentProtocol, Fallen, Misread, OutputT, Role
+from cabinet.pacts.project import Project
 from cabinet.pacts.services import bind
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Project
 
 
 class FallingAgent(AgentProtocol):
@@ -25,7 +21,7 @@ class FallingAgent(AgentProtocol):
         return Fallen(reason="the agent stopped mid-flight: boom")
 
     @override
-    async def ask_for[OutputT: BaseModel](
+    async def ask_for(
         self,
         prompt: str,
         *,

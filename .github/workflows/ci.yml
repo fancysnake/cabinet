@@ -40,6 +40,13 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      # Overrides the pin in mise.toml, so one config file serves every leg.
+      MISE_PYTHON_VERSION: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -53,7 +60,9 @@ jobs:
       - run: mise exec -- coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
-        if: ${{ !cancelled() }}
+        # One report per commit is enough; the other legs only prove the suite
+        # passes on their interpreter.
+        if: ${{ !cancelled() && matrix.python-version == '3.11' }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml

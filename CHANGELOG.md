@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- Supports Python 3.11 through 3.14, where 3.14 alone was required before;
+  CI runs the suite on every one of them.
+
 ## [0.2.0] - 2026-09-18
 
 ### Added

@@ -1,8 +1,7 @@
 """The gates: where the fast pass and the slow one part."""
 
-from typing import TYPE_CHECKING
-
 from vekna.lexicon import goto
+from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.sweep import (
     check_ci,
@@ -21,9 +20,6 @@ from cabinet.pacts.pulls import Closed, Work
 from cabinet.specs import BUDGET
 from tests.conftest import board, commit
 from tests.integration.rituals.falling import falling
-
-if TYPE_CHECKING:
-    from vekna.trial import Trial
 
 _GATE = "CI=1 mise run pr-fix"
 _COVERAGE = "CI=1 mise run diff-cover"

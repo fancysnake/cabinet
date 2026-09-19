@@ -1,15 +1,13 @@
 """The forge: where the pull requests, their threads and their labels live."""
 
-from typing import TYPE_CHECKING, Protocol
+from collections.abc import Sequence
+from typing import Protocol
 
 from vekna.lexicon import RitualError
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from cabinet.pacts.project import LabelSpec
-    from cabinet.pacts.pulls import Board, PullRequest
-    from cabinet.pacts.threads import Finding, Posted, Thread
+from cabinet.pacts.project import LabelSpec
+from cabinet.pacts.pulls import Board, PullRequest
+from cabinet.pacts.threads import Finding, Posted, Thread
 
 
 # The forge would not answer, or answered something unreadable. The message

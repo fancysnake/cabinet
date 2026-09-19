@@ -1,6 +1,6 @@
 """What a sweep carries, branch by branch, and what it leaves behind."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field
 
@@ -112,7 +112,7 @@ class Run(BaseModel):
         checked: list[Checked] | None = None,
         stopped: str | None = None,
         seen: list[str] | None = None,
-    ) -> Run:
+    ) -> Self:
         update: dict[str, list[PullRequest] | list[Checked] | list[str] | str] = {}
         if queue is not None:
             update["queue"] = queue
@@ -124,13 +124,13 @@ class Run(BaseModel):
             update["seen"] = seen
         return self.model_copy(update=update)
 
-    def rowed(self, row: Checked) -> Run:
+    def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])
 
 
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
-type _Update = dict[str, Run | dict[str, int] | bool | str]
+_Update = dict[str, Run | dict[str, int] | bool | str]
 
 
 # `budgets` dies with this payload, which is what "a branch change clears all
@@ -167,7 +167,7 @@ class Work(Budgeted):
         budgets: dict[str, int] | None = None,
         gate: str | None = None,
         note: str | None = None,
-    ) -> Work:
+    ) -> Self:
         update: _Update = {}
         if run is not None:
             update["run"] = run
@@ -180,28 +180,28 @@ class Work(Budgeted):
         return self._copied(update)
 
     # The merge brought nothing in, or it did.
-    def graded(self, *, unchanged: bool) -> Work:
+    def graded(self, *, unchanged: bool) -> Self:
         return self._copied({"unchanged": unchanged})
 
     # The merge stopped, and this is what git said about it.
-    def merging_on(self, note: str) -> Work:
+    def merging_on(self, note: str) -> Self:
         return self._copied({"merging": True, "note": note})
 
-    def merged(self) -> Work:
+    def merged(self) -> Self:
         return self._copied({"merging": False})
 
     # The step that gives up on the branch says why, once.
-    def stopped_by(self, reason: str) -> Work:
+    def stopped_by(self, reason: str) -> Self:
         return self._copied({"reason": reason})
 
     # The worktree is released and the branch is read anyway.
-    def standing_down(self, note: str) -> Work:
+    def standing_down(self, note: str) -> Self:
         return self._copied({"blocked": True, "note": note})
 
     # The one way a `Work` is copied. Typed on the way in: a bare literal
     # handed to `model_copy` is read as `dict[str, Any]`, which the checker
     # here refuses.
-    def _copied(self, update: _Update) -> Work:
+    def _copied(self, update: _Update) -> Self:
         return self.model_copy(update=update)
 
     # --- budgets ---------------------------------------------------------
