@@ -24,7 +24,7 @@ class Misread(BaseModel):
     reason: str
 
 
-OutputT = TypeVar("OutputT", bound=BaseModel)
+_OutputT = TypeVar("_OutputT", bound=BaseModel)
 
 
 class AgentProtocol(Protocol):
@@ -41,8 +41,8 @@ class AgentProtocol(Protocol):
         self,
         prompt: str,
         *,
-        output: type[OutputT],
+        output: type[_OutputT],
         role: Role,
         key: str | None = None,
         attended: bool = False,
-    ) -> OutputT | Fallen | Misread: ...
+    ) -> _OutputT | Fallen | Misread: ...

@@ -14,6 +14,9 @@ holds the user-facing docs; keep it in step with code and config changes.
 ## Commands
 
 Python 3.11 - 3.14 via mise; never call python tools directly, always `mise run`.
+The local interpreter, mypy and pylint are pinned to the 3.11 floor on
+purpose — that is where a syntax or stdlib break shows first — and CI's test
+matrix covers the rest of the range.
 `mise tasks` lists everything. Task definitions come from the shared
 `fancysnake/shared-configs` include in `mise.toml`, so `mise tasks info <task>`
 shows what one actually runs.

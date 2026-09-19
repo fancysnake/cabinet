@@ -1,10 +1,13 @@
 """The worktree and the remote: what git is asked to do."""
 
-from typing import Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
 
 from vekna.lexicon import RitualError
 
-from cabinet.pacts.tasks import Ran
+if TYPE_CHECKING:
+    from cabinet.pacts.tasks import Ran
 
 
 # Git said no. The message names what was asked and what git said.

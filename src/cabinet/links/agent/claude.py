@@ -13,16 +13,18 @@ from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
 from claude_agent_sdk import ClaudeSDKError
+from pydantic import BaseModel
 from typing_extensions import override
 from vekna.folio.coding import CodingOpts, CodingOutputError, Session, coding
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import RitualError
 
-from cabinet.pacts.agent import AgentProtocol, Fallen, Misread, OutputT, Role
+from cabinet.pacts.agent import AgentProtocol, Fallen, Misread, Role
 from cabinet.pacts.project import Project
 
 _LOG = logging.getLogger(__name__)
 AnsweredT = TypeVar("AnsweredT")
+_OutputT = TypeVar("_OutputT", bound=BaseModel)
 
 # Read-only git: enough to see what the branch changed and why.
 _READER = [
@@ -116,11 +118,11 @@ class ClaudeAgent(AgentProtocol):
         self,
         prompt: str,
         *,
-        output: type[OutputT],
+        output: type[_OutputT],
         role: Role,
         key: str | None = None,
         attended: bool = False,
-    ) -> OutputT | Fallen | Misread:
+    ) -> _OutputT | Fallen | Misread:
         return await _guarded(
             lambda: coding(
                 prompt,

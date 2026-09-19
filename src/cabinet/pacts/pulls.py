@@ -1,6 +1,6 @@
 """What a sweep carries, branch by branch, and what it leaves behind."""
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, TypeAlias
 
 from pydantic import BaseModel, Field
 
@@ -130,7 +130,7 @@ class Run(BaseModel):
 
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
-_Update = dict[str, Run | dict[str, int] | bool | str]
+_Update: TypeAlias = dict[str, Run | dict[str, int] | bool | str]
 
 
 # `budgets` dies with this payload, which is what "a branch change clears all

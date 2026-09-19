@@ -6,19 +6,22 @@ the seam vekna itself uses for its foci: a slot filled once, at wiring, and
 read at call time. `inits` binds it; a step reads it; nothing else touches it.
 """
 
-from typing import Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
 
 from vekna.lexicon import RitualError
 
-from cabinet.pacts.agent import AgentProtocol
-from cabinet.pacts.forge import ForgeProtocol
-from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, PullRequest, Run
-from cabinet.pacts.repairs import Attempt, Ruling
-from cabinet.pacts.reviews import Picking
-from cabinet.pacts.scm import ScmProtocol
-from cabinet.pacts.tasks import Ran, TasksProtocol
-from cabinet.pacts.threads import Finding, Thread, TriageItem
+if TYPE_CHECKING:
+    from cabinet.pacts.agent import AgentProtocol
+    from cabinet.pacts.forge import ForgeProtocol
+    from cabinet.pacts.project import Project
+    from cabinet.pacts.pulls import Board, PullRequest, Run
+    from cabinet.pacts.repairs import Attempt, Ruling
+    from cabinet.pacts.reviews import Picking
+    from cabinet.pacts.scm import ScmProtocol
+    from cabinet.pacts.tasks import Ran, TasksProtocol
+    from cabinet.pacts.threads import Finding, Thread, TriageItem
 
 
 class PullsProtocol(Protocol):
