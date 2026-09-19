@@ -1,7 +1,6 @@
 """Running the repository's mise tasks."""
 
-from typing import override
-
+from typing_extensions import override
 from vekna.folio.shell import shell
 
 from cabinet.pacts.tasks import Ran, TasksProtocol

@@ -72,22 +72,18 @@ all. A verdict a step already gave up on once is not paid for twice — the next
 branch whose gate says the same thing stands down without spending its budget.
 """
 
-from typing import TYPE_CHECKING
-
 from vekna.folio.flow import decide
 from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
 
 from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.project import Project, State
 from cabinet.pacts.pulls import Board, Closed, Report, Run, Work, joined
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Finding, Findings
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Project, State
 
 
 # Ask the forge what is open, and queue what the night will take.

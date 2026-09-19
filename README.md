@@ -64,8 +64,8 @@ modules = ["cabinet.rituals.refresh", "cabinet.rituals.review"]
 
 ## Install
 
-cabinet is not on PyPI; it is installed straight from this repository. In the
-repository that wants the rituals:
+cabinet is not on PyPI; it is installed straight from this repository, and
+runs on Python 3.11 through 3.14. In the repository that wants the rituals:
 
 ```bash
 poetry add --group dev git+https://github.com/fancysnake/cabinet.git

@@ -1,10 +1,10 @@
 """Taking every reviewed branch in turn, answering it item by item, shipping it."""
 
 import json
-from typing import TYPE_CHECKING
 
 import pytest
 from vekna.lexicon import Goto, RitualError, Transition, done, goto
+from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.review import (
     answer,
@@ -19,6 +19,8 @@ from cabinet.gates.ritual.vekna.review import (
     settle,
     work,
 )
+from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.reviews import (
     Answering,
     Branch,
@@ -33,13 +35,6 @@ from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, Tria
 from cabinet.rituals.review import review
 from tests.conftest import HERE, LIST, STATUS, THREADS, checkpoint, commit, listing, row
 from tests.integration.rituals.falling import falling
-
-if TYPE_CHECKING:
-
-    from vekna.trial import Trial
-
-    from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import PullRequest
 
 _STARTED = checkpoint("review", "started")
 _DONE = checkpoint("review", "done")

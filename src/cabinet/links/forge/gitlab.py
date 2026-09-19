@@ -5,21 +5,18 @@ project the worktree's remote names — so a self-hosted instance needs nothing
 here, only `glab auth login --hostname`.
 """
 
-from typing import TYPE_CHECKING, override
+from collections.abc import Sequence
 from urllib.parse import quote
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
+from typing_extensions import override
 from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from cabinet.pacts.project import LabelSpec
 
 _PAGE = 100
 

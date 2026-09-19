@@ -1,19 +1,15 @@
 """What is said to git, and what is made of the answer."""
 
-from typing import TYPE_CHECKING
-
 import pytest
 from pydantic import BaseModel
 from vekna.lexicon import Transition, done, step
+from vekna.trial import Trial
 
 from cabinet.links.scm.git import GitScm
 from cabinet.links.tasks.mise import MiseTasks
 from cabinet.pacts.project import Project
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.tasks import Ran
-
-if TYPE_CHECKING:
-    from vekna.trial import Trial
 
 _SCM = GitScm(Project())
 _UNSIGNED = GitScm(Project(sign_commits=False))

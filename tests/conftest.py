@@ -1,20 +1,15 @@
 """What every ritual test starts from: the services wired, a project in hand."""
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from cabinet.inits.services import Services
-from cabinet.pacts.project import Labels, Project
+from cabinet.pacts.project import Labels, Project, State
 from cabinet.pacts.pulls import PullRequest, Run, Work
 from cabinet.pacts.reviews import Branch, Picking
 from cabinet.pacts.services import bind
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from cabinet.pacts.project import State
 
 # The same rows the real forge would list, in gh's own spelling.
 LIST = (

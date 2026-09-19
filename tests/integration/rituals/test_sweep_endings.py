@@ -1,10 +1,11 @@
 """How a branch ends, how the night ends, and a whole night at once."""
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 from vekna.lexicon import Goto, RitualError, done, goto
+from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.sweep import (
     finish_pr,
@@ -16,6 +17,7 @@ from cabinet.gates.ritual.vekna.sweep import (
     skip_pr,
     stand_down,
 )
+from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, Closed, Report, Run, Sweep, Work
 from cabinet.pacts.threads import Finding, Findings
 from cabinet.rituals.cover import cover
@@ -33,13 +35,6 @@ from tests.conftest import (
     row,
 )
 from tests.integration.rituals.falling import falling
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from vekna.trial import Trial
-
-    from cabinet.pacts.project import Project
 
 _DONE = checkpoint("refresh", "done")
 _COVER_DONE = checkpoint("cover", "done")

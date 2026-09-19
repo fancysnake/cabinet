@@ -1,14 +1,15 @@
 [project]
 name = "cabinet"
-version = "0.2.0"
+version = "0.3.0"
 description = "A vekna tome: pull request maintenance rituals for GitHub and GitLab"
 authors = [{ name = "Radosław Ganczarek", email = "radoslaw@ganczarek.in" }]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.14,<3.15"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "claude-agent-sdk (>=0.2,<1.0)",
     "pydantic (>=2.12.5,<3.0.0)",
+    "typing-extensions (>=4.4,<5.0)",
     "vekna[trial] (>=0.7.0,<1.0.0)",
 ]
 
@@ -46,7 +47,7 @@ dev = [
 line-length = 88
 preview = true
 skip-magic-trailing-comma = true
-target-version = ['py314']
+target-version = ['py311']
 
 # DEPTRY
 
@@ -186,7 +187,7 @@ implicit_reexport = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 pretty = true
-python_version = "3.14"
+python_version = "3.11"
 strict = true
 strict_equality = true
 strict_equality_for_none = true

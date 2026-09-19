@@ -1,5 +1,7 @@
 """The forge: where the pull requests, their threads and their labels live."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Protocol
 
 from vekna.lexicon import RitualError

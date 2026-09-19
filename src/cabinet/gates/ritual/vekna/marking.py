@@ -5,13 +5,9 @@ and where the pull request number comes from differ — so the call lives here
 and each step brings its own two.
 """
 
-from typing import TYPE_CHECKING
-
 from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.project import Marked, Project, State
 from cabinet.pacts.services import services
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Marked, Project, State
 
 
 # Best-effort and never fatal: a checkpoint is a board marker, and losing one

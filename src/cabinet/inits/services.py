@@ -7,7 +7,8 @@ tome before any step runs.
 
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, override
+
+from typing_extensions import override
 
 from cabinet.links.agent.claude import ClaudeAgent
 from cabinet.links.config.vekna_toml import read_project
@@ -20,14 +21,12 @@ from cabinet.mills.pulls import Pulls
 from cabinet.mills.repairs import Repairs
 from cabinet.mills.report import Report
 from cabinet.mills.verdicts import Verdicts
+from cabinet.pacts.agent import AgentProtocol
+from cabinet.pacts.forge import ForgeProtocol
+from cabinet.pacts.project import Project
+from cabinet.pacts.scm import ScmProtocol
 from cabinet.pacts.services import ServicesProtocol, bind
-
-if TYPE_CHECKING:
-    from cabinet.pacts.agent import AgentProtocol
-    from cabinet.pacts.forge import ForgeProtocol
-    from cabinet.pacts.project import Project
-    from cabinet.pacts.scm import ScmProtocol
-    from cabinet.pacts.tasks import TasksProtocol
+from cabinet.pacts.tasks import TasksProtocol
 
 
 class Services(ServicesProtocol):

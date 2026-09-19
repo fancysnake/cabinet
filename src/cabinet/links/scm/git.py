@@ -1,15 +1,13 @@
 """What the rituals say to git, and what they make of the answer."""
 
 import shlex
-from typing import TYPE_CHECKING, override
 
+from typing_extensions import override
 from vekna.folio.shell import ShellResult, shell
 
+from cabinet.pacts.project import Project
 from cabinet.pacts.scm import ScmError, ScmProtocol
 from cabinet.pacts.tasks import Ran
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Project
 
 # Porcelain because a step puts an `if` around it: empty output is a clean
 # worktree.

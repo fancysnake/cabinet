@@ -6,14 +6,12 @@ sweep, and every word said to the forge. An agent here cannot do those things
 turns trying.
 """
 
-from typing import TYPE_CHECKING, override
+from typing_extensions import override
 
 from cabinet.mills.report import triage_line
+from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Project
-    from cabinet.pacts.threads import Thread, TriageItem
+from cabinet.pacts.threads import Thread, TriageItem
 
 _RESOLVE = """\
 Resolve them. Read both sides before choosing one: the conflict is between work

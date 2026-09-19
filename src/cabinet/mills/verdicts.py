@@ -1,13 +1,12 @@
 """What a task's output is worth handing on, to an agent and to the morning."""
 
 import re
-from typing import TYPE_CHECKING, override
+
+from typing_extensions import override
 
 from cabinet.pacts.services import VerdictsProtocol
+from cabinet.pacts.tasks import Ran
 from cabinet.specs import BUDGET, VERDICT_LINES
-
-if TYPE_CHECKING:
-    from cabinet.pacts.tasks import Ran
 
 # diff-cover's report is self-delimiting — its own banner, then everything to
 # the end of the run — so the one reader of the report needs no budget.

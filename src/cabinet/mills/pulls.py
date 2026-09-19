@@ -1,14 +1,13 @@
 """Which pull requests the night takes, and what the check board says."""
 
 import re
-from typing import TYPE_CHECKING, override
 
+from typing_extensions import override
+
+from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.services import PullsProtocol
 from cabinet.specs import WHOLE
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import Board, Check, PullRequest
 
 # The patch check's own summary, which its check carries whether the check
 # went green or not: "96.84% of diff hit (target 96.00%)". That green is the
