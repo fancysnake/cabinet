@@ -1,7 +1,7 @@
 [tools]
 actionlint = "1.7.12"
 hk = "1.58.1"
-pipx = "1.17.2"
+pipx = "1.17.4"
 "pipx:poetry" = "2.4.3"
 pkl = "0.32.1"
 python = "3.14.7"
