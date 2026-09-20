@@ -47,14 +47,13 @@ than moving on: the repair work is sitting uncommitted in the worktree, and
 taking another branch would either commit it there or throw it away.
 """
 
-from typing import TYPE_CHECKING
-
 from vekna.folio.flow import decide
 from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
 
 from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.project import State
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.reviews import (
     Answering,
@@ -66,11 +65,7 @@ from cabinet.pacts.reviews import (
 )
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
-from cabinet.pacts.threads import Answered, TriageNotes
-
-if TYPE_CHECKING:
-    from cabinet.pacts.project import State
-    from cabinet.pacts.threads import Thread
+from cabinet.pacts.threads import Answered, Thread, TriageNotes
 
 # One thread for every agent call in the cast, so a later round meets an agent
 # that remembers writing the one before.

@@ -1,5 +1,7 @@
 """The worktree and the remote: what git is asked to do."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Protocol
 
 from vekna.lexicon import RitualError

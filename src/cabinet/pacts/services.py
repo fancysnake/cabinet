@@ -6,6 +6,8 @@ the seam vekna itself uses for its foci: a slot filled once, at wiring, and
 read at call time. `inits` binds it; a step reads it; nothing else touches it.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Protocol
 
 from vekna.lexicon import RitualError

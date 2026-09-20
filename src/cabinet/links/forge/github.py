@@ -1,6 +1,6 @@
 """GitHub through `gh`."""
 
-from typing import TYPE_CHECKING, override
+from collections.abc import Sequence
 
 from pydantic import (
     AliasPath,
@@ -10,17 +10,14 @@ from pydantic import (
     TypeAdapter,
     ValidationError,
 )
+from typing_extensions import override
 from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from cabinet.pacts.project import LabelSpec
 
 # `labels` rides along so the wait label can be read without a call per pull
 # request: the listing is the only place every open branch is in hand at once.

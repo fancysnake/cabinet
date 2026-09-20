@@ -1,17 +1,13 @@
 """Making the labels, on either forge, twice over."""
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 from vekna.lexicon import NoComponents, RitualError
+from vekna.trial import Trial
 
 from cabinet.pacts.project import Labelled
 from cabinet.rituals.labels import labels
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from vekna.trial import Trial
 
 _NAMES = [
     "pr::thermo",

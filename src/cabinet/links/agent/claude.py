@@ -9,22 +9,22 @@ built from the same project setting the prompt quotes.
 """
 
 import logging
-from typing import TYPE_CHECKING, override
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from claude_agent_sdk import ClaudeSDKError
 from pydantic import BaseModel
+from typing_extensions import override
 from vekna.folio.coding import CodingOpts, CodingOutputError, Session, coding
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import RitualError
 
 from cabinet.pacts.agent import AgentProtocol, Fallen, Misread, Role
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-
-    from cabinet.pacts.project import Project
+from cabinet.pacts.project import Project
 
 _LOG = logging.getLogger(__name__)
+AnsweredT = TypeVar("AnsweredT")
+_OutputT = TypeVar("_OutputT", bound=BaseModel)
 
 # Read-only git: enough to see what the branch changed and why.
 _READER = [
@@ -69,7 +69,7 @@ def _session(key: str | None) -> Session:
 # not at all, and it is answered differently: an agent whose JSON does not fit
 # the schema is a bad answer, not a dead CLI, and ending the whole night over
 # one would cost every pull request behind this one.
-async def _guarded[AnsweredT](
+async def _guarded(
     call: Callable[[], Awaitable[AnsweredT]],
 ) -> AnsweredT | Fallen | Misread:
     try:
@@ -114,15 +114,15 @@ class ClaudeAgent(AgentProtocol):
         return answered if isinstance(answered, Fallen) else None
 
     @override
-    async def ask_for[OutputT: BaseModel](
+    async def ask_for(
         self,
         prompt: str,
         *,
-        output: type[OutputT],
+        output: type[_OutputT],
         role: Role,
         key: str | None = None,
         attended: bool = False,
-    ) -> OutputT | Fallen | Misread:
+    ) -> _OutputT | Fallen | Misread:
         return await _guarded(
             lambda: coding(
                 prompt,

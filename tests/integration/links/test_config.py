@@ -1,15 +1,12 @@
 """The `[cabinet]` section, found the way vekna finds its own."""
 
 import os
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from cabinet.links.config.vekna_toml import read_project
 from cabinet.pacts.project import ConfigError, Project
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _SECTION = """\
 [rituals]

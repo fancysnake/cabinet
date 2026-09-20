@@ -1,19 +1,16 @@
 """What is said to glab, and what is made of the answer."""
 
 import json
-from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import BaseModel
 from vekna.lexicon import Transition, done, step
+from vekna.trial import Trial
 
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
-
-if TYPE_CHECKING:
-    from vekna.trial import Trial
 
 _FORGE = GitlabForge()
 

@@ -1,6 +1,6 @@
 """What vekna sweeps: one facade per ritual, and the services already bound."""
 
-from typing import TYPE_CHECKING
+from types import ModuleType
 
 from vekna.lexicon._pacts import Step
 
@@ -10,9 +10,6 @@ from cabinet.gates.ritual.vekna import sweep
 from cabinet.inits.services import Services
 from cabinet.pacts.services import services
 from cabinet.rituals import cover, labels, refresh, review
-
-if TYPE_CHECKING:
-    from types import ModuleType
 
 
 # What vekna registers is every `Step` it finds in the module's namespace, so
