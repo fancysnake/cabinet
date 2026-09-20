@@ -12,8 +12,8 @@ plugins live under `plugins/<name>/` as skills only, no Python. `docs/` is the
 manual, built by mkdocs-material into <https://cabinet.fancysnake.dev> by
 `.github/workflows/site.yml` on every push to `main`; README.md is the front
 door and points there. Keep both in step with code and config changes: a new
-page needs a `nav` entry in `mkdocs.yml`, and `site:build` runs `--strict`, so
-a broken internal link fails the build.
+page needs a `nav` entry in `mkdocs.yml`, and `strict: true` is set there, so
+a broken internal link fails both `site:build` and `site:dev`.
 
 ## Commands
 
@@ -31,7 +31,7 @@ mise run test:unit -- tests/unit/mills/test_pulls.py -k wanted   # one file / on
 mise run lint:py              # every linter (black, ruff, mypy, pylint, vulture, import-linter, codespell, taplo)
 mise run lint:mypy            # or lint:ruff, lint:import-linter, ... one at a time
 mise run lint:tingle          # advisory: suppression debt vs main; not in fullcheck
-mise run site:build           # the docs site, strict; site:dev serves it with live reload
+mise run site:build           # the docs site; site:dev serves it with live reload
 vekna rituals show refresh    # draw a ritual's step graph
 ```
 

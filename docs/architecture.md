@@ -60,3 +60,12 @@ vekna rituals show refresh
 
 mypy runs fully strict, ruff selects `ALL`, and tingle counts every
 suppression as debt against main. Fix the code rather than suppress.
+
+## This site
+
+`.github/workflows/site.yml` builds `docs/` on every pull request and
+publishes it on a push to `main`. `strict: true` in `mkdocs.yml` fails that
+build on a link to a page that is not there. Pages is sourced from the
+workflow rather than from a branch, so the custom domain is a repository
+setting — a `CNAME` file in `docs/` would be copied into the artifact and
+ignored.

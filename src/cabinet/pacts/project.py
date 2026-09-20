@@ -1,7 +1,8 @@
 """What one repository tells the rituals about itself.
 
 Read from the `[cabinet]` section of the repository's `.vekna.toml`, validated
-at the boundary so a typo in a task name dies before a branch is checked out.
+at the boundary so a misspelled key dies before a branch is checked out. The
+values are strings: a task name is only tested by running it.
 """
 
 from typing import Annotated, Literal, get_args

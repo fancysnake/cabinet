@@ -1,29 +1,10 @@
 ---
 name: Site
 
-# `ci.yml` ignores `docs/**` and `mkdocs.yml`, so a documentation-only change
-# runs none of the test matrix — and this is the workflow that change does run.
-#
-# `pyproject.toml` is in the list because it holds the `docs` dependency group,
-# and `mise.toml` because it holds `site:build`: a site can break without a
-# single page changing.
 on:
   pull_request:
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
-      - "pyproject.toml"
-      - "mise.toml"
-      - ".github/workflows/site.yml"
-
   push:
     branches: ["main"]
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
-      - "pyproject.toml"
-      - "mise.toml"
-      - ".github/workflows/site.yml"
 
 concurrency:
   group: site-${{ github.event.pull_request.number || github.run_id }}
@@ -41,8 +22,6 @@ jobs:
           persist-credentials: false
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
       - run: mise install
-      # Builds with `--strict`, so a link to a page that is not there fails
-      # here rather than being published.
       - run: mise run site:build
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
@@ -54,6 +33,12 @@ jobs:
     if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
+    # Its own group, because a deploy wants the opposite policy to a build: a
+    # publish cut off halfway leaves the site on the old commit, so two merges
+    # queue here rather than cancel each other.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

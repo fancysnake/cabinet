@@ -5,6 +5,10 @@ repo_url: https://github.com/fancysnake/cabinet
 repo_name: fancysnake/cabinet
 copyright: MIT
 
+# A link to a page that is not there is what rots first when a page is renamed,
+# and it fails `site:dev` as well as `site:build` from here.
+strict: true
+
 theme:
   name: material
   # Both schemes are defined in `docs/stylesheets/tower.css`. No `primary` or
@@ -19,7 +23,6 @@ theme:
       toggle: {icon: material/telescope, name: Back to the desk}
   features:
     - content.code.copy
-    - navigation.sections
     - navigation.top
 
 extra:
@@ -37,20 +40,15 @@ extra_css:
   - stylesheets/tower.css
 
 markdown_extensions:
-  - admonition
   - toc: {permalink: true}
-  - pymdownx.highlight: {anchor_linenums: true}
+  # superfences needs it; no page asks for line numbers.
+  - pymdownx.highlight
   - pymdownx.superfences
-  - pymdownx.details
 
 nav:
-  - Start here:
-      - index.md
-      - rituals.md
-      - configuration.md
-  - Before you cast:
-      - agents.md
-  - Claude Code:
-      - plugins.md
-  - Contributing:
-      - architecture.md
+  - index.md
+  - rituals.md
+  - configuration.md
+  - agents.md
+  - plugins.md
+  - architecture.md

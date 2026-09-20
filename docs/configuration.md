@@ -3,7 +3,9 @@
 The rituals read the `[cabinet]` section of the casting repository's
 `.vekna.toml`. Every key has the default shown; a missing `[cabinet]` section
 means all of them. A key that is not one of these is refused before anything
-is checked out, so a typo in a task name dies at the boundary.
+is checked out, so a misspelled key dies at the boundary. The values are not
+checked against anything: a task name that does not exist fails when the
+ritual runs it.
 
 ```toml
 [cabinet]

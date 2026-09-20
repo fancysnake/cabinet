@@ -93,13 +93,8 @@ sweep, and again after changing `[cabinet.labels]`.
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
 | `--bound N`  | all but `labels`    | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended true` | `refresh`, `cover` | somebody is at the terminal: ask before every repair attempt, run agents in `auto` mode |
+| `--attended true` | `refresh`, `cover` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
 | `--batch N`  | `review`            | how many open threads are read and answered in one round, default 7 |
-
-`--attended true` says somebody is at the terminal: the sweep asks before every
-repair attempt instead of letting the budget decide, and its agents run in
-Claude's `auto` permission mode rather than `dontAsk`. [Agents](agents.md) has
-what each mode allows.
 
 `--batch` keeps a review within reach: a forty-thread review is six triages
 you can hold in your head, and still one commit.
