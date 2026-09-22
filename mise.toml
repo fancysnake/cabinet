@@ -42,6 +42,16 @@ run = "deptry src tests"
 description = "Run every hk linter on all files"
 run = "hk check --all"
 
+# `--only docs` because mkdocs.yml declares no plugins: nothing here imports
+# `cabinet`, so the package and the dev group are not worth installing.
+[tasks."site:dev"]
+description = "Serve the documentation site with live reload"
+run = "poetry install --only docs --quiet && mkdocs serve"
+
+[tasks."site:build"]
+description = "Build the documentation site into site/"
+run = "poetry install --only docs --quiet && mkdocs build"
+
 # `lint:py` comes from the shared config and cannot be appended to from here, so
 # `lint:deptry` hangs off `fullcheck` instead — which is the gate that matters.
 [tasks.fullcheck]

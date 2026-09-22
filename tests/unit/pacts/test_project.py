@@ -1,12 +1,41 @@
 """What one repository tells the rituals, and the labels that follow from it."""
 
+import tomllib
+from pathlib import Path
 from typing import get_args
 
-from cabinet.pacts.project import Labels, Marked
+from pydantic import BaseModel
+
+from cabinet.pacts.project import Labels, Marked, Project
 from cabinet.pacts.pulls import Mode
 
 # A hex triplet without the hash, the way GitHub takes it.
 _HEX = 6
+
+_PAGE = Path(__file__).parents[3] / "docs" / "configuration.md"
+_FENCE = "```"
+
+
+class _Documented(BaseModel):
+    cabinet: Project
+
+
+# The first fenced block on the page is the `[cabinet]` section with every
+# default written out.
+def _shown() -> str:
+    lines = _PAGE.read_text(encoding="utf-8").splitlines()
+    opened = lines.index(f"{_FENCE}toml") + 1
+    return "\n".join(lines[opened : lines.index(_FENCE, opened)])
+
+
+# The page and `Project` are two spellings of one set of defaults, and only
+# prose asked them to agree. Parsing one into the other is what keeps them in
+# step: a default that moves, or a key the page invents, dies here rather than
+# in a cast — `extra="forbid"` is what refuses the invented one.
+class TestDocumented:
+    @staticmethod
+    def test_the_configuration_page_shows_the_defaults() -> None:
+        assert _Documented.model_validate(tomllib.loads(_shown())).cabinet == Project()
 
 
 # `Mode` says it is a narrowing of `Marked` and no type can hold it to that:

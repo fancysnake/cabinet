@@ -8,8 +8,12 @@ A [vekna](https://vekna.fancysnake.dev) **tome**: pull request maintenance
 rituals (`refresh`, `cover`, `review`, `labels`) packaged under `src/cabinet`
 and cast from other repositories via `vekna cast <ritual>`. The repo is also
 a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) whose
-plugins live under `plugins/<name>/` as skills only, no Python. README.md
-holds the user-facing docs; keep it in step with code and config changes.
+plugins live under `plugins/<name>/` as skills only, no Python. `docs/` is the
+manual, built by mkdocs-material into <https://cabinet.fancysnake.dev> by
+`.github/workflows/site.yml` on every push to `main`; README.md is the front
+door and points there. Keep both in step with code and config changes: a new
+page needs a `nav` entry in `mkdocs.yml`, and `strict: true` is set there, so
+a broken internal link fails both `site:build` and `site:dev`.
 
 ## Commands
 
@@ -30,6 +34,7 @@ mise run test:unit -- tests/unit/mills/test_pulls.py -k wanted   # one file / on
 mise run lint:py              # every linter (black, ruff, mypy, pylint, vulture, import-linter, codespell, taplo)
 mise run lint:mypy            # or lint:ruff, lint:import-linter, ... one at a time
 mise run lint:tingle          # advisory: suppression debt vs main; not in fullcheck
+mise run site:build           # the docs site; site:dev serves it with live reload
 vekna rituals show refresh    # draw a ritual's step graph
 ```
 
@@ -107,7 +112,7 @@ permission that commits, pushes, or talks to the forge.
 
 - `.vekna.toml`: this repo casting its rituals on itself; `[cabinet]` keys
   are validated by `pacts/project.py` (extra keys refused). A new setting
-  means `Project` + `README.md` `[cabinet]` block + `CHANGELOG.md`.
+  means `Project` + `docs/configuration.md` + `CHANGELOG.md`.
 - `CHANGELOG.md` is Keep a Changelog; user-visible changes go under
   `Unreleased`. The `release-bump` plugin skill cuts releases.
 - `pyproject.toml` carries the only version. Plugins under `plugins/` are
