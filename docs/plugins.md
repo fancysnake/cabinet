@@ -1,5 +1,3 @@
-| `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
-| `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 # Plugins
 
 The repository is also a Claude Code plugin marketplace, named `cabinet`. Its

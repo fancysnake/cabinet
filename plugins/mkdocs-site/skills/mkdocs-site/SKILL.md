@@ -14,6 +14,16 @@ description: >-
 One standard, extracted from the sites that already exist, applied to a
 repo that has none or to one that drifted. Commits nothing unless asked.
 
+Three files under `templates/` are the standard's shape; the steps below are
+what you do with them and the rules that decide each key. A rule that names
+a **legacy** form is the upgrade path for that key: found, change it.
+
+| template | copy to |
+| --- | --- |
+| `templates/mkdocs.yml` | `mkdocs.yml` at the repo root |
+| `templates/site.yml` | `.github/workflows/site.yml` |
+| `templates/theme.css` | `docs/stylesheets/<theme>.css`, with an own palette |
+
 ## 1. Read the repo
 
 Before editing, establish:
@@ -24,10 +34,12 @@ Before editing, establish:
   - **JS**, `package.json` with aube/node → a mise `pipx:` tool; nothing
     in `package.json`, the site is not a node dependency.
 
-  `mise.toml` holds the tasks in both. Absent → say so, do not add mise.
+  `mise.toml` holds the tasks in both. Absent → say so, do not add mise;
+  steps 6 and 7 say what such a repo gets instead.
 - **Existing site.** `mkdocs.yml`, `docs/`, a docs workflow under
-  `.github/workflows/`, `site/` in `.gitignore`. Present → this is an
-  upgrade (step 8); absent → a setup (steps 2–7).
+  `.github/workflows/`, `site/` in `.gitignore`. Present → you are diffing
+  the steps below against files that exist rather than writing them; the
+  standard is the same either way.
 - **Identity.** Name from the manifest; license from `LICENSE`; the site
   URL from the existing `site_url`, `docs/CNAME`, or the README's docs link.
   None of those and the owner's other repos follow `<repo>.<domain>` → use
@@ -38,87 +50,29 @@ Before editing, establish:
 
 ## 2. The config
 
-`mkdocs.yml` at the repo root, keys in this order. Comments in the file
-explain a choice that is not obvious; delete the ones below that are.
-
-```yaml
-site_name: <name>
-site_url: https://<name>.<domain>          # no trailing slash
-site_description: <one sentence, the README's tagline>
-repo_url: https://github.com/<owner>/<repo>
-repo_name: <owner>/<repo>
-copyright: <SPDX id of LICENSE>           # MIT, BSD-3-Clause, …
-
-# A link to a page that is not there is what rots first when a page is
-# renamed, and from here it fails `site:dev` as well as `site:build`.
-strict: true
-
-# Under strict a warning is a failure; anchors are how cross-references
-# between pages actually break, and MkDocs only logs them at info.
-validation:
-  anchors: warn
-
-theme:
-  name: material
-  logo: assets/logo.png
-  favicon: assets/favicon.png
-  palette:                                 # step 3
-    - media: "(prefers-color-scheme: light)"
-      scheme: <light scheme>
-      toggle: {icon: material/weather-night, name: Switch to dark mode}
-    - media: "(prefers-color-scheme: dark)"
-      scheme: <dark scheme>
-      toggle: {icon: material/weather-sunny, name: Switch to light mode}
-  features:
-    - content.code.copy
-    - navigation.top
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/<owner>/<repo>
-    - icon: fontawesome/brands/python              # only if on PyPI
-      link: https://pypi.org/project/<name>/
-    - icon: fontawesome/solid/globe
-      link: https://<domain>
-      name: <domain>
-
-extra_css:                                 # only with an own palette
-  - stylesheets/<theme>.css
-
-markdown_extensions:
-  - admonition
-  - toc: {permalink: true}
-  - pymdownx.highlight
-  - pymdownx.superfences
-  - pymdownx.details
-  # Shared prose lives in README.md and is included from there, so the two
-  # cannot drift. base_path is the repo root, which is where mkdocs runs.
-  - pymdownx.snippets: {base_path: ["."], check_paths: true}
-
-nav:
-  - index.md
-  - getting-started.md
-  - configuration.md
-  - architecture.md
-```
+Copy `templates/mkdocs.yml` to the repo root and fill the placeholders.
+Keys stay in the template's order. Keep a comment that explains a choice,
+delete one that states the obvious for this repo.
 
 What each block is for, and when it changes:
 
 | key | rule |
 | --- | --- |
-| `strict` | in the file, not on the command line: `mkdocs serve` then fails the same way |
+| `site_url` | `<repo>.<domain>`, the hostname from the repo name, not the package name; no trailing slash. Legacy: a trailing slash, drop it |
+| `repo_name`, `copyright` | both always. Legacy: either missing, add it |
+| `strict` | in the file, not on the command line: `mkdocs serve` then fails the same way. Legacy: `--strict` in a task or workflow, move it into the yaml and drop the flag |
+| `validation` | `{anchors: warn}` always. Legacy: no `validation:` key, add it |
 | `exclude_docs` | files kept in `docs/` for the author (a plan, a runbook) and out of the build; one directory tree, not two |
 | `theme.logo` / `favicon` | `docs/assets/logo.png` and `docs/assets/favicon.png`; no artwork → `theme.icon.logo: material/<icon>` instead |
-| `theme.features` | these two always; `navigation.sections` when `nav` has groups; `navigation.footer` for prev/next links; nothing else without a page that needs it |
+| `theme.features` | the template's two always; `navigation.sections` when `nav` has groups; `navigation.footer` for prev/next links; nothing else without a page that needs it |
 | `theme.custom_dir: overrides` | only for an `overrides/main.html` that fills `{% block announce %}` with a status banner |
 | `extra.social` | github, then PyPI if published, then the owner's site; the site's own URL is not a social link |
-| `markdown_extensions` | the five above always; `snippets` when a page includes another file; `attr_list`, `md_in_html`, `def_list`, `pymdownx.keys`, `pymdownx.tabbed: {alternate_style: true}`, `pymdownx.inlinehilite` only when a page uses the syntax; never `tables` or `fenced_code`, MkDocs enables those itself |
+| `markdown_extensions` | only what a page uses, plus the floor: `toc`, `pymdownx.superfences`, and `pymdownx.highlight`, which superfences needs. Every other one — `admonition`, `pymdownx.details`, `pymdownx.snippets`, `attr_list`, `md_in_html`, `def_list`, `pymdownx.keys`, `pymdownx.tabbed: {alternate_style: true}`, `pymdownx.inlinehilite` — goes in when a page uses its syntax and comes out with the last page that used it, the same deletion rule as `theme.features`. Never `tables` or `fenced_code`, MkDocs enables those itself |
 | `pymdownx.highlight` | add `anchor_linenums: true` only when a block uses `linenums` |
-| `plugins` | leave the key out; `search` is on by default and listing `plugins:` without it removes it. Adding a plugin means listing `search` too |
-| `nav` | paths only, titles come from each page's H1; a `Title: file.md` entry only when the two must differ. Every page listed. Six or more pages → groups, plus `navigation.sections`. A group with a landing page uses `<group>/index.md` and `navigation.indexes` |
+| `plugins` | leave the key out; `search` is on by default and listing `plugins:` without it removes it. Adding a plugin means listing `search` too. Legacy: `plugins: [search]` alone, delete the key |
+| `nav` | paths only, titles come from each page's H1; a `Title: file.md` entry only when the two must differ, so drop it where the title equals the H1. Every page listed. Seven flat entries is the most a sidebar reads well at; eight or more → groups, plus `navigation.sections`. A group with a landing page uses `<group>/index.md` and `navigation.indexes` |
 | `edit_uri` + `content.action.edit` | optional; add both or neither |
-| `docs_dir`, `theme.icon.repo` | never; both are the defaults |
+| `docs_dir`, `theme.icon.repo`, `tables` | never; all three are defaults. Legacy: present, delete |
 
 ## 3. The palette
 
@@ -127,32 +81,17 @@ Three forms, by how much of a look the project has. Do not mix them.
 | the project has | do |
 | --- | --- |
 | no colours of its own | `scheme: default` / `scheme: slate` with a named Material `primary` and `accent` on each; no CSS |
-| a palette (a brand colour, a logo) | own scheme names, see below |
+| a palette (a brand colour, a logo) | own scheme names, `templates/theme.css` |
 | `primary: custom` / `accent: custom` with `[data-md-color-primary="custom"]` CSS | legacy; migrate to own scheme names |
 
 An own palette is two schemes named for the theme (`tower` / `tower-night`,
 `eldritch` / `eldritch-dark`), no `primary` or `accent` in the yaml: those
 generate their own rules, and two sources for one colour is one more than
-the number that can be right. The stylesheet is `docs/stylesheets/<theme>.css`,
-named for the theme, not `extra.css`, and holds, in this order:
-
-1. A header comment: the metaphor in two lines, then the constraint: every
-   pairing clears WCAG AA against the surface it sits on, measured, with the
-   tightest ratio stated.
-2. `:root` with the named colours (`--<theme>-ink`, `--<theme>-paper`, …).
-3. `[data-md-color-scheme="<light>"]` and `[data-md-color-scheme="<dark>"]`,
-   each starting with `color-scheme: light|dark`, then the Material
-   variables: `--md-default-bg/fg-color` and its `--light/--lighter/--lightest`
-   steps, `--md-primary-fg-color` and `--light/--dark`, `--md-primary-bg-color`,
-   `--md-accent-fg-color` and `--transparent`, `--md-typeset-a-color`,
-   `--md-typeset-mark-color`, `--md-code-bg/fg-color`, `--md-footer-bg-color`
-   and `--dark`.
-4. The `--md-code-hl-*-color` set for both schemes; Material's default does
-   not agree with a palette it has never heard of, and a code block is most
-   of what these pages are.
-5. Small chrome, each with a one-line comment: a `.md-typeset .headerlink::before`
-   glyph, a ruled `h1` border, a header gradient. Nothing that restyles a
-   component wholesale.
+the number that can be right. `templates/theme.css` carries the order — the
+metaphor and the measured WCAG AA line, `:root`, a block per scheme, the
+`--md-code-hl-*` set for both, then small chrome. Legacy:
+`docs/assets/extra.css` or `docs/stylesheets/extra.css`, rename to
+`docs/stylesheets/<theme>.css` and update `extra_css`.
 
 Toggle icons and names follow the metaphor (`material/candle`, "Let the
 candles gutter"); the light scheme is listed first.
@@ -172,7 +111,9 @@ site where a README section would otherwise grow.
 | `architecture.md` | layout of the code, for contributors |
 | `changelog.md` | `--8<-- "CHANGELOG.md"` and nothing else, when the repo keeps one |
 
-Prose that also lives elsewhere is included, never copied:
+Prose that also lives elsewhere is included, never copied; a page found
+pasting README or CHANGELOG text becomes an include, markers added at the
+source.
 
 - README sections are fenced with `<!-- --8<-- [start:<name>] -->` /
   `<!-- --8<-- [end:<name>] -->` and pulled by `--8<-- "README.md:<name>"`.
@@ -180,15 +121,30 @@ Prose that also lives elsewhere is included, never copied:
 - An example config is included inside a code fence with its own path.
 - A page that names what the code exposes (a CLI reference, a settings
   table) gets a test that walks the code and the page and fails on a
-  difference; it runs in the code's CI and the site's, since either side
-  can be the one that drifts.
+  difference. It lives with the code's unit tests, beside the model or
+  command it guards, not under `docs/`, and it is one test named for the
+  claim it makes. The shape: read the page, cut the first fenced block of
+  the language in question, parse it, load it into the type the code
+  already has — a settings model that refuses unknown keys, the command
+  objects of the CLI — and assert it equals what the code defaults to or
+  exposes. Parsing one into the other is what keeps them in step; a
+  string comparison against the rendered page is not, it breaks on
+  whitespace and passes on a wrong default. No such type to parse into →
+  no guard: flag the page in the report instead of inventing one.
+
+  It runs in the code's CI. It runs in the site's workflow only when that
+  workflow has the `paths:` filter of step 7, since that is the case where
+  a docs-only change never reaches the code's CI.
 
 Assets in `docs/assets/`, stylesheets in `docs/stylesheets/`.
 
 ## 5. The dependency
 
 `mkdocs-material` alone; `mkdocs` comes with it, a separate pin is a
-second version to keep in step.
+second version to keep in step. Legacy: both pinned, or the dependency in
+the dev group — one optional `docs` group with `mkdocs-material`.
+`pip install mkdocs-material` in a workflow step is not a dependency
+declaration either; move it here.
 
 **Python** — one optional poetry group. Renovate bumps it with the rest of
 the lock file.
@@ -219,34 +175,11 @@ pipx = "<version>"
 "pipx:mkdocs-material" = { version = "<latest>", uvx = false, pipx_args = "--include-deps" }
 ```
 
-`pip install` in a workflow step is not a dependency declaration; move it
-to one of the above.
-
 ## 6. The tasks
 
-Two, named `site:*`. `site:serve` / `site:check`, `docs:serve` /
-`docs:build` and a bare `docs` are the older names.
-
-**Python** — each task installs first, because the enter hook's plain
-`poetry install` skips an optional group.
-
-```toml
-# `--only docs` because mkdocs.yml declares no plugins: nothing here imports
-# the package, so the package and the dev group are not worth installing.
-[tasks."site:dev"]
-description = "Serve the documentation site with live reload"
-run = "poetry install --only docs --quiet && mkdocs serve"
-
-[tasks."site:build"]
-description = "Build the documentation site into site/"
-run = "poetry install --only docs --quiet && mkdocs build"
-```
-
-`--with docs` instead of `--only docs` when a plugin imports the package
-(mkdocstrings and the like).
-
-**JS** — the tool is on the path once `mise install` has run, so the tasks
-are the bare commands.
+Two, named `site:*`. Legacy: `site:serve` / `site:check`, `docs:serve` /
+`docs:build`, a bare `docs` — rename, and update every reference (README,
+`CLAUDE.md`, the workflow).
 
 ```toml
 [tasks."site:dev"]
@@ -258,120 +191,80 @@ description = "Build the documentation site into site/"
 run = "mkdocs build"
 ```
 
-No `--strict` flag in either: it is in the file. No `--site-dir` variable:
-a workflow that wants the output elsewhere moves `site/` after. `/site`
-goes in `.gitignore`.
+**JS** takes those two as they stand: the tool is on the path once
+`mise install` has run.
+
+**Python** prefixes each `run` with `poetry install --only docs --quiet &&`,
+because the enter hook's plain `poetry install` skips an optional group, and
+carries the reason as a comment above the first task:
+
+```toml
+# `--only docs` because mkdocs.yml declares no plugins: nothing here imports
+# the package, so the package and the dev group are not worth installing.
+```
+
+`--with docs` instead of `--only docs` when a plugin does import the package
+(mkdocstrings and the like).
+
+**No `mise.toml`** — no tasks to add and none to invent a runner for. The
+two commands are `mkdocs serve` and `mkdocs build`, run after installing
+the docs group the repo now declares (`poetry install --only docs`, or the
+`[project.optional-dependencies]` equivalent); a JS repo without mise
+installs `mkdocs-material` the way it installs its other CLI tools. Name
+both commands in the README, since nothing else records them.
+
+No `--site-dir` variable: a workflow that wants the output elsewhere moves
+`site/` after. Legacy: `--site-dir ${SITE_DIR:-site}` in a task, plain
+`mkdocs build`. `/site` goes in `.gitignore`.
 
 ## 7. The workflow
 
-`.github/workflows/site.yml`, named `Site`. Copy this shape; it is the
-one every current site uses.
-
-```yaml
----
-name: Site
-
-on:
-  pull_request:
-  push:
-    branches: ["main"]
-
-concurrency:
-  group: site-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@<sha> # v7
-        with:
-          persist-credentials: false
-      - uses: jdx/mise-action@<sha> # v4
-      - run: mise install
-      - run: mise run site:build
-      - uses: actions/upload-pages-artifact@<sha> # v5
-        with:
-          path: site/
-
-  # Pages has no per-pull-request preview, so a pull request builds and stops
-  # there. The build is the review; the deploy waits for main.
-  deploy:
-    if: github.event_name == 'push'
-    needs: build
-    runs-on: ubuntu-latest
-    # Its own group, because a deploy wants the opposite policy to a build: a
-    # publish cut off halfway leaves the site on the old commit, so two merges
-    # queue here rather than cancel each other.
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      pages: write
-      id-token: write
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@<sha> # v5
-```
+Copy `templates/site.yml` to `.github/workflows/site.yml`; it is the shape
+every current site uses. Then:
 
 - Every action pinned to a commit SHA, the tag it was in a trailing
   comment. Take the SHAs from another workflow in the repo or from the
-  action's release page; never a bare `@v4`.
+  action's release page; never a bare `@v4`. Legacy: a tag, pin it.
 - `pages: write` and `id-token: write` on the deploy job only; the pull
-  request build must not hold them.
+  request build must not hold them. Legacy: either at workflow level, move
+  them down.
+- `cancel-in-progress: false` and the `pages` group on the deploy;
+  cancelling a publish halfway leaves the site on the old commit.
 - `mise install` is the whole toolchain in both stacks: the Python
   version and poetry, or node, aube and the `pipx:` tool. No
-  `setup-python`, no `setup-node`, no `pip install`.
+  `setup-python`, no `setup-node`, no `pip install`. Legacy: any of those
+  three, replaced by the dependency of step 5 plus `mise install` and
+  `mise run site:build`.
+- **No `mise.toml`** — the two mise steps become the stack's own setup:
+  `setup-python` plus `poetry install --only docs` (or the manifest's
+  optional-dependency equivalent), or `setup-node`, then `mkdocs build`.
+  Everything else in the template is unchanged, `pip install
+  mkdocs-material` as a step still is not a dependency declaration, and
+  the dependency still belongs in the manifest per step 5.
 - `paths:` filters on both triggers (`docs/**`, `mkdocs.yml`, the manifest,
   `mise.toml`, the workflow itself) only when the main CI workflow ignores
-  `docs/**`; then this is the workflow a docs-only change runs, and it also
-  runs any drift guard from step 4.
+  `docs/**`; then this is the workflow a docs-only change runs, and it is
+  also where step 4's drift guard has to run, since the code's CI no longer
+  sees the change. Without that filter, leave the guard to the code's CI.
 - A JS site that publishes the app beside the manual (a demo at
   `/demo/`) installs the node dependencies (`aube install`), builds the
   app with its base path set (`<APP>_BASE: /demo`), builds the docs, then
   moves the app build under `site/demo` before the upload step. The manual
   is still the artifact; the app is a directory in it.
-- `mkdocs gh-deploy` onto a `gh-pages` branch with `contents: write` is the
-  legacy route; migrate to the artifact deploy. `docs/CNAME` matters only
-  there: with `deploy-pages` the domain is set in the repository's Pages
-  settings and a CNAME file is inert, so do not add one.
+- `mkdocs gh-deploy` onto a `gh-pages` branch with `contents: write` and
+  `fetch-depth: 0` is the legacy route; migrate to the build and deploy
+  jobs of the template. `docs/CNAME` matters only there: with
+  `deploy-pages` the domain is set in the repository's Pages settings and
+  a CNAME file is inert, so do not add one.
 - The repository's Pages source must be "GitHub Actions"; say so in the
   report, it cannot be set from the repo.
 
 ## 8. Upgrading
 
-Diff the existing files against steps 2–7, then apply every row that
-matches. Keep what the table does not name: a comment that explains a
-choice, a page, a feature a page uses.
-
-| found | change to |
-| --- | --- |
-| `--strict` in a task or workflow, no `strict:` in the yaml | `strict: true` in the yaml, flag removed |
-| no `validation:` | `validation: {anchors: warn}` |
-| `site_url` with a trailing slash | without |
-| no `repo_name`, no `copyright` | add both |
-| `docs_dir: docs`, `theme.icon.repo`, `tables`, `plugins: [search]` alone | delete; defaults |
-| `primary: custom` / `accent: custom` | own scheme names and a `docs/stylesheets/<theme>.css` per step 3 |
-| `docs/assets/extra.css`, `docs/stylesheets/extra.css` | `docs/stylesheets/<theme>.css`, `extra_css` updated |
-| `Title: file.md` in `nav` where Title equals the page's H1 | `file.md` |
-| a page that pastes README or CHANGELOG text | a snippet include, markers in the source |
-| `mkdocs` and `mkdocs-material` both pinned, or in the dev group | one optional `docs` group with `mkdocs-material` |
-| `pip install mkdocs-material`, `setup-python`, `setup-node` in the workflow | dependency per step 5, `mise install`, `mise run site:build` |
-| `docs:serve` / `docs:build` / `docs` / `site:serve` / `site:check` tasks | `site:dev` / `site:build`; update every reference (README, CLAUDE.md, workflow) |
-| `--site-dir ${SITE_DIR:-site}` in a task | plain `mkdocs build`; the workflow moves `site/` if it must |
-| `gh-deploy`, `contents: write`, `fetch-depth: 0` | build + deploy jobs per step 7 |
-| actions pinned to a tag | commit SHA with the tag as comment |
-| `pages: write` at workflow level | on the deploy job |
-| `cancel-in-progress: true` on the deploy | `false`, own `pages` group |
-
-A feature or extension no page uses is a deletion; one a page uses stays
-even if the table above does not list it.
+An existing site is the same job: diff it against steps 2–7 and apply
+every rule, the legacy forms included. Keep what no rule names — a comment
+that explains a choice, a page, a feature or extension a page uses; one no
+page uses is a deletion.
 
 ## 9. Verify and report
 

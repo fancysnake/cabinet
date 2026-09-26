@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning].
 - The `mkdocs-site` plugin: a skill that sets up a MkDocs Material site or
   brings an existing `mkdocs.yml`, its tasks and its Pages workflow up to one
   standard.
+- The manual carries the changelog, included from this file.
 
 ## [0.3.1] - 2026-09-20
 
