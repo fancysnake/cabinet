@@ -9,6 +9,7 @@ you already have open.
 | -------------- | -------------- | ------------------------------------------------------------ |
 | `issue-maker`  | `issue-maker`  | files or updates a GitHub issue, checked against the code first |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
+| `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 
 Add the marketplace once, then install what you want:
 
@@ -16,6 +17,7 @@ Add the marketplace once, then install what you want:
 claude plugin marketplace add fancysnake/cabinet
 claude plugin install issue-maker@cabinet
 claude plugin install release-bump@cabinet
+claude plugin install mkdocs-site@cabinet
 ```
 
 Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
@@ -98,3 +100,44 @@ and tags nothing unless asked.
 
 Needs a `CHANGELOG.md` in Keep a Changelog form. Without one it says so and
 stops rather than inventing one.
+
+## mkdocs-site
+
+Sets up a documentation site on MkDocs Material, or brings an existing one
+up to one standard. It triggers on any ask to add docs, a manual or MkDocs
+to a repository, to review, upgrade or standardise a `mkdocs.yml`, or to
+publish docs to GitHub Pages. It commits nothing unless asked.
+
+The standard is the one the fancysnake sites converge on, and the skill
+carries it in full: a reference `mkdocs.yml` with every key explained,
+a palette rule, the pages a manual has, the dependency, the tasks and the
+Pages workflow.
+
+1. **Reads the repository**: the stack (Python with poetry, or JS with
+   aube and node; both are first class), whether a site exists, the name,
+   license and site URL, and the prose that already lives in the README,
+   the changelog or an example config.
+2. **Writes or diffs the config.** `strict: true` and anchor validation in
+   the file, so `mkdocs serve` fails the way the build does; the five
+   markdown extensions every site uses and none it does not; `nav` as bare
+   paths with titles from each page's H1; no `plugins` key unless one is
+   added.
+3. **Decides the palette** by what the project has: named Material colours
+   and no CSS when it has none of its own, or two schemes named for the
+   theme in `docs/stylesheets/<theme>.css` when it does, with the contrast
+   ratio measured and the syntax colours set. `primary: custom` is the
+   legacy form and gets migrated.
+4. **Lays out the pages** and includes rather than copies: README sections
+   through snippet markers, the changelog whole, an example config inside
+   its fence. A page that restates what the code exposes gets a drift test.
+5. **Declares the dependency, the tasks and the workflow**:
+   `mkdocs-material` as an optional poetry group in a Python repo or a mise
+   `pipx:` tool in a JS one, `site:dev` and `site:build` in both, and
+   a `Site` workflow that builds on every pull request and deploys from
+   `main` through the Pages artifact, actions pinned to a commit.
+6. **Upgrades by table**: each legacy form found (`--strict` on the command
+   line, `gh-deploy`, `docs:*` task names, `pip install` in CI, a pasted
+   README) is mapped to its standard form; what the table does not name is
+   kept.
+7. **Verifies** with the build task and reports one line per file, the
+   Pages setting to flip, and anything it had to assume.

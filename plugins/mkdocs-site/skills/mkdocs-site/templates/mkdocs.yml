@@ -1,0 +1,73 @@
+# The standard mkdocs.yml, keys in this order. Placeholders in <angles>.
+# Delete the comments below that state the obvious for your repo; keep the
+# ones that explain a choice.
+
+site_name: <name>
+site_url: https://<repo>.<domain>          # no trailing slash
+site_description: <one sentence, the README's tagline>
+repo_url: https://github.com/<owner>/<repo>
+repo_name: <owner>/<repo>
+copyright: <SPDX id of LICENSE>            # MIT, BSD-3-Clause, …
+
+# A link to a page that is not there is what rots first when a page is
+# renamed, and from here it fails `site:dev` as well as `site:build`.
+strict: true
+
+# Under strict a warning is a failure; anchors are how cross-references
+# between pages actually break, and MkDocs only logs them at info.
+validation:
+  anchors: warn
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: <light scheme>
+      toggle: {icon: material/weather-night, name: Switch to dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: <dark scheme>
+      toggle: {icon: material/weather-sunny, name: Switch to light mode}
+  features:
+    - content.code.copy
+    - navigation.top
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/<owner>/<repo>
+    - icon: fontawesome/brands/python            # only if on PyPI
+      link: https://pypi.org/project/<name>/
+    - icon: fontawesome/solid/globe
+      link: https://<domain>
+      name: <domain>
+
+extra_css:                                 # only with an own palette
+  - stylesheets/<theme>.css
+
+# Only what a page uses. These three are the floor: `toc` for the heading
+# anchors, `superfences` for code blocks, `highlight` because superfences
+# needs it. Uncomment one below when a page uses its syntax; delete it again
+# when the last page that used it goes.
+markdown_extensions:
+  - toc: {permalink: true}
+  - pymdownx.highlight
+  - pymdownx.superfences
+  # - admonition                # !!! note / !!! warning blocks
+  # - pymdownx.details          # ??? collapsible blocks
+  # - attr_list                 # {: .class } or {: #id } on an element
+  # - md_in_html                # markdown inside a <div>
+  # - def_list                  # term / definition lists
+  # - pymdownx.keys             # ++ctrl+c++
+  # - pymdownx.inlinehilite     # `#!python code` inline
+  # - pymdownx.tabbed: {alternate_style: true}
+  # Shared prose lives in README.md and is included from there, so the two
+  # cannot drift. base_path is the repo root, which is where mkdocs runs.
+  # - pymdownx.snippets: {base_path: ["."], check_paths: true}
+
+nav:
+  - index.md
+  - getting-started.md
+  - configuration.md
+  - architecture.md

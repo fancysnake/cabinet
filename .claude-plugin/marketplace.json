@@ -7,6 +7,7 @@
   },
   "plugins": [
     { "name": "issue-maker", "source": "./plugins/issue-maker", "category": "productivity" },
-    { "name": "release-bump", "source": "./plugins/release-bump", "category": "productivity" }
+    { "name": "release-bump", "source": "./plugins/release-bump", "category": "productivity" },
+    { "name": "mkdocs-site", "source": "./plugins/mkdocs-site", "category": "productivity" }
   ]
 }

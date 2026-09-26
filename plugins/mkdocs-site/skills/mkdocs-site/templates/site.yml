@@ -1,0 +1,53 @@
+---
+# The standard .github/workflows/site.yml. Pin every action to a commit SHA
+# with the tag in a trailing comment before committing it.
+
+name: Site
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: site-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@<sha> # v4
+      - run: mise install
+      - run: mise run site:build
+      - uses: actions/upload-pages-artifact@<sha> # v5
+        with:
+          path: site/
+
+  # Pages has no per-pull-request preview, so a pull request builds and stops
+  # there. The build is the review; the deploy waits for main.
+  deploy:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    # Its own group, because a deploy wants the opposite policy to a build: a
+    # publish cut off halfway leaves the site on the old commit, so two merges
+    # queue here rather than cancel each other.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@<sha> # v5

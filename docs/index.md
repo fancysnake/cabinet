@@ -43,6 +43,9 @@ Grouped by school, the way a spellbook is.
 - **`release-bump`** — cuts a release: the version by semver from what
   changed since the last tag, the changelog compacted, the docs and skills
   brought in line. Commits and tags nothing unless asked.
+- **`mkdocs-site`** — sets a repository's manual up on MkDocs Material, or
+  brings one that drifted back to the standard: the config, the palette, the
+  pages, the dependency, the tasks and the Pages workflow.
 
 [Plugins](plugins.md) has what each does, step by step.
 
@@ -84,6 +87,7 @@ Add the marketplace once, then install what you want:
 claude plugin marketplace add fancysnake/cabinet
 claude plugin install issue-maker@cabinet
 claude plugin install release-bump@cabinet
+claude plugin install mkdocs-site@cabinet
 ```
 
 ## Where to go next
@@ -96,3 +100,4 @@ claude plugin install release-bump@cabinet
   reading before the first unattended one.
 - [Plugins](plugins.md) — the skills, what triggers each, and what it needs.
 - [Architecture](architecture.md) — the layout, for anyone sending a patch.
+- [Changelog](changelog.md) — what each release changed.

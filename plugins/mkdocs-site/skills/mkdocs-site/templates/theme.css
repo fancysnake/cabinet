@@ -1,0 +1,94 @@
+/*
+ * <Theme> — the metaphor in two lines: what the page is, what the chrome is,
+ * what the accent is for.
+ *
+ * Every pairing below clears WCAG AA against the surface it sits on, because
+ * a palette nobody can read is just a mood. Measured, not asserted: the
+ * tightest pairing is <what> at <ratio>:1.
+ *
+ * Save as docs/stylesheets/<theme>.css, named for the theme, not extra.css,
+ * and list it under extra_css. The scheme names are the two in mkdocs.yml's
+ * palette; there is no `primary` or `accent` there.
+ */
+
+:root {
+  --<theme>-paper: #______;
+  --<theme>-ink: #______;
+  /* …one line per named colour of the palette, light and dark both. */
+}
+
+/* ---- Light ---- */
+
+[data-md-color-scheme="<light>"] {
+  color-scheme: light;
+
+  --md-default-bg-color: var(--<theme>-paper);
+  --md-default-fg-color: var(--<theme>-ink);
+  --md-default-fg-color--light: #______;
+  --md-default-fg-color--lighter: #______;
+  --md-default-fg-color--lightest: #______;
+
+  --md-primary-fg-color: #______;
+  --md-primary-fg-color--light: #______;
+  --md-primary-fg-color--dark: #______;
+  --md-primary-bg-color: #______;
+  --md-primary-bg-color--light: #______;
+
+  --md-accent-fg-color: #______;
+  --md-accent-fg-color--transparent: rgb(0 0 0 / 10%);
+
+  --md-typeset-a-color: #______;
+  --md-typeset-mark-color: rgb(0 0 0 / 35%);
+
+  --md-code-bg-color: #______;
+  --md-code-fg-color: #______;
+
+  --md-footer-bg-color: #______;
+  --md-footer-bg-color--dark: #______;
+}
+
+/* ---- Dark ---- */
+
+[data-md-color-scheme="<dark>"] {
+  color-scheme: dark;
+
+  /* The same variables again, the dark values. */
+}
+
+/*
+ * Syntax highlighting, both schemes. Material ships a sensible default; what
+ * it does not do is agree with a palette it has never heard of, and a code
+ * block is most of what these pages are.
+ */
+
+[data-md-color-scheme="<light>"] {
+  --md-code-hl-keyword-color: #______;
+  --md-code-hl-function-color: #______;
+  --md-code-hl-string-color: #______;
+  --md-code-hl-number-color: #______;
+  --md-code-hl-comment-color: #______;
+  --md-code-hl-name-color: #______;
+  --md-code-hl-operator-color: #______;
+  --md-code-hl-punctuation-color: #______;
+  --md-code-hl-constant-color: #______;
+  --md-code-hl-special-color: #______;
+}
+
+[data-md-color-scheme="<dark>"] {
+  /* The same ten again, the dark values. */
+}
+
+/*
+ * Small chrome below, each with a one-line comment saying what it is for.
+ * Nothing that restyles a component wholesale. What the existing sites carry:
+ * a header gradient, a glyph on the heading anchor, a ruled h1 border.
+ */
+
+.md-typeset .headerlink::before {
+  content: "<glyph>";
+}
+
+.md-typeset h1 {
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding-bottom: 0.3em;
+}
