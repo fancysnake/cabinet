@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- `hk.pkl` on hk 2: one top-level `steps` mapping feeds the implicit
+  `check`, `fix` and `pre-commit` hooks.
+
 ## [0.3.1] - 2026-09-20
 
 ### Added
