@@ -45,6 +45,9 @@ dev = [
 # static-site generator to run the tests.
 docs = ["mkdocs-material (>=9.6,<10.0)"]
 
+[tool.poetry.group.docs]
+optional = true
+
 # BLACK
 
 [tool.black]
