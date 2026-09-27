@@ -36,12 +36,14 @@ Grouped by school, the way a spellbook is.
   created where missing and refreshed where present. Cast it once before the
   first sweep, and again after changing `[cabinet.labels]`.
 
+<!-- --8<-- [start:cast] -->
 ```bash
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N] [--batch N]
 vekna cast labels
 ```
+<!-- --8<-- [end:cast] -->
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
 default 3. `--attended true` says somebody is at the terminal: the sweep asks
@@ -77,6 +79,7 @@ dev = ["cabinet @ git+https://github.com/fancysnake/cabinet.git@<tag-or-sha>"]
 and `poetry install` brings `vekna` and its `trial` extra with it. Then tell
 vekna where the rituals are and the rituals what the repository is:
 
+<!-- --8<-- [start:vekna-toml] -->
 ```toml
 # .vekna.toml
 [rituals]
@@ -86,6 +89,7 @@ modules = ["cabinet.rituals"]
 forge = "github"                      # or "gitlab"
 gate = "mise run pr-fix"
 ```
+<!-- --8<-- [end:vekna-toml] -->
 
 Every `[cabinet]` key has a default; the
 [configuration reference](https://cabinet.fancysnake.dev/configuration/)
@@ -104,6 +108,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 | `release-bump` | a skill that cuts a release                  |
 | `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
 
+<!-- --8<-- [start:plugins-install] -->
 Add the marketplace once, then install what you want:
 
 ```bash
@@ -113,6 +118,7 @@ claude plugin install issue-maker@cabinet
 
 Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
 `/plugin install issue-maker@cabinet`.
+<!-- --8<-- [end:plugins-install] -->
 
 What each skill does, step by step, is at
 [Plugins](https://cabinet.fancysnake.dev/plugins/).
@@ -125,10 +131,13 @@ enforced by import-linter; the
 
 ## Development
 
+<!-- --8<-- [start:development] -->
 ```bash
 mise run test:py       # the suite
 mise run lint:py       # every linter
 mise run fullcheck     # the gate before a commit
 mise run site:dev      # the docs site, with live reload
+mise run site:build    # the docs site, as the Pages workflow builds it
 vekna rituals show refresh
 ```
+<!-- --8<-- [end:development] -->

@@ -43,15 +43,9 @@ step is added to both.
 
 ## Development
 
-Python 3.14 via mise; `mise tasks` lists everything.
+Python 3.11 through 3.14 via mise; `mise tasks` lists everything.
 
-```bash
-mise run test:py       # the suite
-mise run lint:py       # every linter
-mise run fullcheck     # the gate before a commit
-mise run site:dev      # this site, with live reload
-vekna rituals show refresh
-```
+--8<-- "README.md:development"
 
 - `tests/unit/`: mills and pacts, plain pytest, no shell.
 - `tests/integration/`: vekna's `trial` fixture walks steps with a scripted

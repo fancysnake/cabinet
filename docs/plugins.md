@@ -11,17 +11,7 @@ you already have open.
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 
-Add the marketplace once, then install what you want:
-
-```bash
-claude plugin marketplace add fancysnake/cabinet
-claude plugin install issue-maker@cabinet
-claude plugin install release-bump@cabinet
-claude plugin install mkdocs-site@cabinet
-```
-
-Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
-`/plugin install issue-maker@cabinet`.
+--8<-- "README.md:plugins-install"
 
 The plugins are unversioned on purpose. A relative-path source in a git
 marketplace resolves to the marketplace commit, so an install tracks the
