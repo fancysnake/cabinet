@@ -194,24 +194,25 @@ run = "mkdocs build"
 **JS** takes those two as they stand: the tool is on the path once
 `mise install` has run.
 
-**Python** prefixes each `run` with `poetry install --only docs --quiet &&`,
-because the enter hook's plain `poetry install` skips an optional group, and
-carries the reason as a comment above the first task:
+**Python** prefixes each `run` with `poetry install --only docs --no-root
+--quiet &&`, because the enter hook's plain `poetry install` skips an
+optional group, and carries the reason as a comment above the first task:
 
 ```toml
-# `--only docs` because mkdocs.yml declares no plugins: nothing here imports
-# the package, so the package and the dev group are not worth installing.
+# `--only docs --no-root` because mkdocs.yml declares no plugins: nothing here
+# imports the package, so neither the package nor the dev group is worth
+# installing. `--only` alone still installs the root project.
 ```
 
-`--with docs` instead of `--only docs` when a plugin does import the package
-(mkdocstrings and the like).
+`--with docs` without `--no-root` when a plugin does import the package
+(mkdocstrings and the like): that build needs the root installed.
 
 **No `mise.toml`** — no tasks to add and none to invent a runner for. The
 two commands are `mkdocs serve` and `mkdocs build`, run after installing
-the docs group the repo now declares (`poetry install --only docs`, or the
-`[project.optional-dependencies]` equivalent); a JS repo without mise
-installs `mkdocs-material` the way it installs its other CLI tools. Name
-both commands in the README, since nothing else records them.
+the docs group the repo now declares (`poetry install --only docs
+--no-root`, or the `[project.optional-dependencies]` equivalent); a JS repo
+without mise installs `mkdocs-material` the way it installs its other CLI
+tools. Name both commands in the README, since nothing else records them.
 
 No `--site-dir` variable: a workflow that wants the output elsewhere moves
 `site/` after. Legacy: `--site-dir ${SITE_DIR:-site}` in a task, plain
@@ -236,7 +237,7 @@ every current site uses. Then:
   three, replaced by the dependency of step 5 plus `mise install` and
   `mise run site:build`.
 - **No `mise.toml`** — the two mise steps become the stack's own setup:
-  `setup-python` plus `poetry install --only docs` (or the manifest's
+  `setup-python` plus `poetry install --only docs --no-root` (or the manifest's
   optional-dependency equivalent), or `setup-node`, then `mkdocs build`.
   Everything else in the template is unchanged, `pip install
   mkdocs-material` as a step still is not a dependency declaration, and
