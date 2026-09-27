@@ -3,7 +3,7 @@
 # ones that explain a choice.
 
 site_name: <name>
-site_url: https://<repo>.<domain>          # no trailing slash
+site_url: <step 1's URL>                   # https://…, no trailing slash
 site_description: <one sentence, the README's tagline>
 repo_url: https://github.com/<owner>/<repo>
 repo_name: <owner>/<repo>

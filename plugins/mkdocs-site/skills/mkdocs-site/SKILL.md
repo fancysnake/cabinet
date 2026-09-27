@@ -58,7 +58,7 @@ What each block is for, and when it changes:
 
 | key | rule |
 | --- | --- |
-| `site_url` | `<repo>.<domain>`, the hostname from the repo name, not the package name; no trailing slash. Legacy: a trailing slash, drop it |
+| `site_url` | the URL step 1 established, whichever form it took; where that was the `<repo>.<domain>` convention the hostname comes from the repo name, not the package name. No trailing slash. Legacy: a trailing slash, drop it |
 | `repo_name`, `copyright` | both always. Legacy: either missing, add it |
 | `strict` | in the file, not on the command line: `mkdocs serve` then fails the same way. Legacy: `--strict` in a task or workflow, move it into the yaml and drop the flag |
 | `validation` | `{anchors: warn}` always. Legacy: no `validation:` key, add it |
