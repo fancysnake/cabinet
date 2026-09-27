@@ -81,14 +81,7 @@ vekna cast refresh
 
 ### The cabinet
 
-Add the marketplace once, then install what you want:
-
-```bash
-claude plugin marketplace add fancysnake/cabinet
-claude plugin install issue-maker@cabinet
-claude plugin install release-bump@cabinet
-claude plugin install mkdocs-site@cabinet
-```
+--8<-- "README.md:plugins-install"
 
 ## Where to go next
 
