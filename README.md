@@ -79,6 +79,7 @@ dev = ["cabinet @ git+https://github.com/fancysnake/cabinet.git@<tag-or-sha>"]
 and `poetry install` brings `vekna` and its `trial` extra with it. Then tell
 vekna where the rituals are and the rituals what the repository is:
 
+<!-- --8<-- [start:vekna-toml] -->
 ```toml
 # .vekna.toml
 [rituals]
@@ -88,6 +89,7 @@ modules = ["cabinet.rituals"]
 forge = "github"                      # or "gitlab"
 gate = "mise run pr-fix"
 ```
+<!-- --8<-- [end:vekna-toml] -->
 
 Every `[cabinet]` key has a default; the
 [configuration reference](https://cabinet.fancysnake.dev/configuration/)
@@ -112,8 +114,6 @@ Add the marketplace once, then install what you want:
 ```bash
 claude plugin marketplace add fancysnake/cabinet
 claude plugin install issue-maker@cabinet
-claude plugin install release-bump@cabinet
-claude plugin install mkdocs-site@cabinet
 ```
 
 Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then

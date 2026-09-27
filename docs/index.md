@@ -62,14 +62,7 @@ poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha
 
 Then a `.vekna.toml` names the rituals and tells them what the repository is:
 
-```toml
-[rituals]
-modules = ["cabinet.rituals"]
-
-[cabinet]
-forge = "github"
-gate = "mise run pr-fix"
-```
+--8<-- "README.md:vekna-toml"
 
 Every `[cabinet]` key has a default; [Configuration](configuration.md) lists
 them all. With that in place:
@@ -81,7 +74,8 @@ vekna cast refresh
 
 ### The cabinet
 
---8<-- "README.md:plugins-install"
+The skills come from the marketplace in this repository; [Plugins](plugins.md)
+has the two commands that add it and install a skill, and what each one does.
 
 ## Where to go next
 
