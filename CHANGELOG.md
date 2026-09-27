@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
+### Added
+
+- `mkdocs-site` plugin: a skill that sets up a MkDocs Material site, or
+  brings an existing `mkdocs.yml`, its tasks and its Pages workflow up to one
+  standard.
+- The manual carries this changelog at
+  [cabinet.fancysnake.dev/changelog](https://cabinet.fancysnake.dev/changelog/).
+
 ### Changed
 
-- `hk.pkl` on hk 2: one top-level `steps` mapping feeds the implicit
-  `check`, `fix` and `pre-commit` hooks.
+- The pre-commit hook, `hk.pkl`, targets hk 2.
 
 ## [0.3.1] - 2026-09-20
 
@@ -78,7 +87,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.3.1...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/fancysnake/cabinet/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/fancysnake/cabinet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/fancysnake/cabinet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/fancysnake/cabinet/compare/v0.1.0...v0.2.0

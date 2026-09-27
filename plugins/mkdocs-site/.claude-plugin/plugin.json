@@ -1,0 +1,12 @@
+{
+  "name": "mkdocs-site",
+  "description": "Set up or upgrade a project's MkDocs Material site to one standard: the mkdocs.yml, the palette, the pages, the dependency, the mise tasks and the Pages workflow.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/mkdocs-site",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["mkdocs", "material", "docs", "github-pages"]
+}

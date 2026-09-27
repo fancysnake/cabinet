@@ -9,6 +9,11 @@ copyright: MIT
 # and it fails `site:dev` as well as `site:build` from here.
 strict: true
 
+# Under strict a warning is a failure; anchors are how cross-references
+# between pages actually break, and MkDocs only logs them at info.
+validation:
+  anchors: warn
+
 theme:
   name: material
   logo: assets/logo.png
@@ -31,9 +36,6 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/fancysnake/cabinet
-    - icon: fontawesome/solid/book
-      link: https://cabinet.fancysnake.dev
-      name: cabinet
     - icon: fontawesome/solid/globe
       link: https://fancysnake.dev
       name: fancysnake.dev
@@ -46,6 +48,9 @@ markdown_extensions:
   # superfences needs it; no page asks for line numbers.
   - pymdownx.highlight
   - pymdownx.superfences
+  # CHANGELOG.md is the one the release cuts; the page includes it from the
+  # repo root, which is where mkdocs runs, so the two cannot drift.
+  - pymdownx.snippets: {base_path: ["."], check_paths: true}
 
 nav:
   - index.md
@@ -54,3 +59,4 @@ nav:
   - agents.md
   - plugins.md
   - architecture.md
+  - changelog.md

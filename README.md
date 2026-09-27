@@ -102,6 +102,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 | -------------- | -------------------------------------------- |
 | `issue-maker`  | a skill that files or updates a GitHub issue |
 | `release-bump` | a skill that cuts a release                  |
+| `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
 
 Add the marketplace once, then install what you want:
 
