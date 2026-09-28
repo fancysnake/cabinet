@@ -4,12 +4,7 @@ Four rituals, one facade each under `cabinet.rituals`. Two of them sweep every
 open pull request of yours; one works a single branch with you at the terminal;
 one prepares the ground for the other three.
 
-```bash
-vekna cast refresh [--bound N] [--attended true]
-vekna cast cover [--bound N] [--attended true]
-vekna cast review [--bound N] [--batch N]
-vekna cast labels
-```
+--8<-- "README.md:cast"
 
 ## refresh
 

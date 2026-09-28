@@ -12,18 +12,7 @@ you already have open.
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 | `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a change on staging |
 
-Add the marketplace once, then install what you want:
-
-```bash
-claude plugin marketplace add fancysnake/cabinet
-claude plugin install issue-maker@cabinet
-claude plugin install release-bump@cabinet
-claude plugin install mkdocs-site@cabinet
-claude plugin install smoke-test@cabinet
-```
-
-Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
-`/plugin install issue-maker@cabinet`.
+--8<-- "README.md:plugins-install"
 
 The plugins are unversioned on purpose. A relative-path source in a git
 marketplace resolves to the marketplace commit, so an install tracks the
