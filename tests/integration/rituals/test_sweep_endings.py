@@ -4,13 +4,11 @@ import json
 from pathlib import Path
 
 import pytest
-from vekna.lexicon import Goto, RitualError, done, goto
+from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.sweep import (
     finish_pr,
-    next_pr,
-    push_work,
     quality_review,
     report,
     set_aside,
@@ -19,6 +17,15 @@ from cabinet.gates.ritual.vekna.sweep import (
 )
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, Closed, Report, Run, Sweep, Work
+from cabinet.pacts.sweep import (
+    NextPr,
+    PushWork,
+    QualityReview,
+    Reporting,
+    SetAside,
+    SkipPr,
+    StandDown,
+)
 from cabinet.pacts.threads import Finding, Findings
 from cabinet.rituals.cover import cover
 from cabinet.rituals.refresh import refresh
@@ -75,8 +82,8 @@ class TestQualityReview:
     def test_a_branch_already_reviewed_is_left_alone(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=LABELS, stdout=_labels("pr::thermo"))
 
-        assert trial.walk(quality_review, work) == goto(
-            finish_pr, Closed(work=work, outcome="green")
+        assert trial.walk(quality_review, work.to(QualityReview)) == Closed(
+            work=work, outcome="green"
         )
         assert trial.shell.commands == [LABELS]
         assert not trial.coding.prompts
@@ -100,9 +107,9 @@ class TestQualityReview:
         trial.shell.replies(when="gh pr comment 7*")
         trial.shell.replies(when="gh pr edit 7 --add-label pr::thermo")
 
-        transition = trial.walk(quality_review, work)
+        transition = trial.walk(quality_review, work.to(QualityReview))
 
-        assert transition == goto(finish_pr, Closed(work=work, outcome="green"))
+        assert transition == Closed(work=work, outcome="green")
         assert "Thermo-nuclear code quality review" in trial.coding.prompts[0]
         assert "main...HEAD" in trial.coding.prompts[0]
         assert trial.shell.commands[-3].endswith(
@@ -125,8 +132,8 @@ class TestQualityReview:
         trial.coding.replies(Findings(items=[]))
         trial.shell.replies(when="gh pr edit 7 --add-label pr::thermo")
 
-        assert trial.walk(quality_review, work) == goto(
-            finish_pr, Closed(work=work, outcome="green")
+        assert trial.walk(quality_review, work.to(QualityReview)) == Closed(
+            work=work, outcome="green"
         )
 
     @staticmethod
@@ -139,8 +146,8 @@ class TestQualityReview:
         trial.shell.replies(when="gh pr edit 7 --add-label pr::thermo")
         blocked = work.stopped_by("red").standing_down("")
 
-        assert trial.walk(quality_review, blocked) == goto(
-            finish_pr, Closed(work=blocked, outcome="blocked")
+        assert trial.walk(quality_review, blocked.to(QualityReview)) == Closed(
+            work=blocked, outcome="blocked"
         )
         assert "already known not to be green" in trial.coding.prompts[0]
 
@@ -150,9 +157,9 @@ class TestQualityReview:
     ) -> None:
         trial.shell.replies(when=LABELS, exit_code=1, stderr="502")
 
-        assert trial.walk(quality_review, work) == goto(
-            set_aside, work.but(note="gh could not read the labels: 502")
-        )
+        assert trial.walk(quality_review, work.to(QualityReview)) == work.but(
+            note="gh could not read the labels: 502"
+        ).to(SetAside)
 
     @staticmethod
     def test_an_answer_in_the_wrong_shape_sets_the_branch_aside(
@@ -162,12 +169,10 @@ class TestQualityReview:
         trial.shell.replies(when=THREADS, stdout=_NO_THREADS)
         trial.coding.replies("no idea, sorry")
 
-        transition = trial.walk(quality_review, work)
+        transition = trial.walk(quality_review, work.to(QualityReview))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is set_aside
-        assert isinstance(transition.payload, Work)
-        assert "did not answer in the shape asked" in transition.payload.note
+        assert isinstance(transition, SetAside)
+        assert "did not answer in the shape asked" in transition.note
 
     @staticmethod
     def test_a_review_that_got_nowhere_is_not_labelled(
@@ -178,10 +183,9 @@ class TestQualityReview:
         trial.coding.replies(Findings(items=[Finding(path="", body="hm")]))
         trial.shell.replies(when="gh pr comment 7*", exit_code=1, stderr="403")
 
-        assert trial.walk(quality_review, work) == goto(
-            set_aside,
-            work.but(note="0 of 1 review items went up: could not comment on #7: 403"),
-        )
+        assert trial.walk(quality_review, work.to(QualityReview)) == work.but(
+            note="0 of 1 review items went up: could not comment on #7: 403"
+        ).to(SetAside)
         # No label: the branch is read again tomorrow, which is the whole
         # point of leaving it off.
         assert "--add-label" not in " ".join(trial.shell.commands)
@@ -199,9 +203,9 @@ class TestQualityReview:
         trial.shell.replies(when="gh pr comment 7*")
         trial.shell.replies(when="gh pr edit 7*", exit_code=1, stderr="no such label")
 
-        assert trial.walk(quality_review, work) == goto(
-            set_aside, work.but(note="could not label #7: no such label")
-        )
+        assert trial.walk(quality_review, work.to(QualityReview)) == work.but(
+            note="could not label #7: no such label"
+        ).to(SetAside)
 
     # What is up cannot be taken down, so the label goes on and the morning is
     # told how far the posting got — the next night must not say it again.
@@ -220,10 +224,9 @@ class TestQualityReview:
         )
         trial.shell.replies(when="gh pr edit 7 --add-label pr::thermo")
 
-        assert trial.walk(quality_review, work) == goto(
-            set_aside,
-            work.but(note="1 of 2 review items went up: could not comment on #7: 403"),
-        )
+        assert trial.walk(quality_review, work.to(QualityReview)) == work.but(
+            note="1 of 2 review items went up: could not comment on #7: 403"
+        ).to(SetAside)
         assert trial.shell.commands[-1] == "gh pr edit 7 --add-label pr::thermo"
 
     @staticmethod
@@ -232,9 +235,9 @@ class TestQualityReview:
         trial.shell.replies(when=LABELS, stdout=_labels())
         trial.shell.replies(when=THREADS, stdout=_NO_THREADS)
 
-        assert trial.walk(quality_review, work) == goto(
-            report, work.abandoned("the agent stopped mid-flight: boom")
-        )
+        assert trial.walk(quality_review, work.to(QualityReview)) == work.abandoned(
+            "the agent stopped mid-flight: boom"
+        ).to(Reporting)
 
 
 class TestFinishPr:
@@ -245,9 +248,9 @@ class TestFinishPr:
         trial.shell.replies(when="gh pr edit 7*")
         trial.shell.replies(when=_AHEAD, stdout="0\n")
 
-        assert trial.walk(finish_pr, Closed(work=work, outcome="green")) == goto(
-            next_pr, work.run.rowed(_GREEN_ROW)
-        )
+        assert trial.walk(
+            finish_pr, Closed(work=work, outcome="green")
+        ) == work.run.rowed(_GREEN_ROW).to(NextPr)
         assert trial.shell.commands == [_DONE, _AHEAD]
 
     @staticmethod
@@ -257,14 +260,11 @@ class TestFinishPr:
 
         transition = trial.walk(finish_pr, Closed(work=blocked, outcome="blocked"))
 
-        assert transition == goto(
-            next_pr,
-            blocked.run.rowed(
-                _GREEN_ROW.model_copy(
-                    update={"outcome": "blocked", "unpushed": None, "note": "red"}
-                )
-            ),
-        )
+        assert transition == blocked.run.rowed(
+            _GREEN_ROW.model_copy(
+                update={"outcome": "blocked", "unpushed": None, "note": "red"}
+            )
+        ).to(NextPr)
         assert trial.shell.commands == [_AHEAD]
 
     @staticmethod
@@ -276,19 +276,15 @@ class TestFinishPr:
 
         transition = trial.walk(finish_pr, Closed(work=work, outcome="green"))
 
-        assert transition == goto(
-            next_pr,
-            work.run.rowed(
-                _GREEN_ROW.model_copy(
-                    update={
-                        "note": (
-                            "could not mark v:refresh:done:"
-                            " could not label #7: no label"
-                        )
-                    }
-                )
-            ),
-        )
+        assert transition == work.run.rowed(
+            _GREEN_ROW.model_copy(
+                update={
+                    "note": (
+                        "could not mark v:refresh:done: could not label #7: no label"
+                    )
+                }
+            )
+        ).to(NextPr)
 
 
 class TestStandDown:
@@ -297,18 +293,17 @@ class TestStandDown:
         trial.shell.replies(when=_RELEASE, stdout="stashed\n")
         stopped = work.stopped_by("red")
 
-        assert trial.walk(stand_down, stopped) == goto(
-            push_work,
-            stopped.standing_down('stashed as "a pr sweep left feature unfinished"'),
-        )
+        assert trial.walk(stand_down, stopped.to(StandDown)) == stopped.standing_down(
+            'stashed as "a pr sweep left feature unfinished"'
+        ).to(PushWork)
 
     @staticmethod
     def test_a_worktree_that_will_not_release_says_so(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_RELEASE, exit_code=1, stderr="stuck")
 
-        assert trial.walk(stand_down, work) == goto(
-            push_work, work.standing_down("the worktree could not be released: stuck")
-        )
+        assert trial.walk(stand_down, work.to(StandDown)) == work.standing_down(
+            "the worktree could not be released: stuck"
+        ).to(PushWork)
 
 
 class TestSkipPr:
@@ -316,18 +311,15 @@ class TestSkipPr:
     def test_the_row_says_the_branch_was_left_alone(trial: Trial, work: Work) -> None:
         skipped = work.but(note="could not take feature: busy")
 
-        assert trial.walk(skip_pr, skipped) == goto(
-            next_pr,
-            work.run.rowed(
-                _GREEN_ROW.model_copy(
-                    update={
-                        "outcome": "skipped",
-                        "unpushed": None,
-                        "note": "could not take feature: busy",
-                    }
-                )
-            ),
-        )
+        assert trial.walk(skip_pr, skipped.to(SkipPr)) == work.run.rowed(
+            _GREEN_ROW.model_copy(
+                update={
+                    "outcome": "skipped",
+                    "unpushed": None,
+                    "note": "could not take feature: busy",
+                }
+            )
+        ).to(NextPr)
 
 
 class TestSetAside:
@@ -337,23 +329,20 @@ class TestSetAside:
         trial.shell.replies(when=_AHEAD, stdout="2\n")
         aside = work.stopped_by("red").but(note="gh died")
 
-        transition = trial.walk(set_aside, aside)
+        transition = trial.walk(set_aside, aside.to(SetAside))
 
-        assert transition == goto(
-            next_pr,
-            work.run.rowed(
-                _GREEN_ROW.model_copy(
-                    update={
-                        "outcome": "blocked",
-                        "unpushed": 2,
-                        "note": (
-                            "red; gh died;"
-                            ' stashed as "a pr sweep left feature unfinished"'
-                        ),
-                    }
-                )
-            ),
-        )
+        assert transition == work.run.rowed(
+            _GREEN_ROW.model_copy(
+                update={
+                    "outcome": "blocked",
+                    "unpushed": 2,
+                    "note": (
+                        "red; gh died;"
+                        ' stashed as "a pr sweep left feature unfinished"'
+                    ),
+                }
+            )
+        ).to(NextPr)
         assert trial.shell.commands[0].startswith("if git rev-parse")
         assert trial.shell.commands[1] == _AHEAD
 
@@ -365,7 +354,9 @@ class TestReport:
     ) -> None:
         run = Run(project=project, bound=3, checked=[_GREEN_ROW])
 
-        assert trial.walk(report, run) == done(Report(checked=[_GREEN_ROW]))
+        assert trial.walk(report, run.to(Reporting)) == Done(
+            Report(checked=[_GREEN_ROW])
+        )
 
     @staticmethod
     def test_a_stopped_run_is_said_before_it_fails(
@@ -374,7 +365,7 @@ class TestReport:
         run = Run(project=project, bound=3, stopped="gh died")
 
         with pytest.raises(RitualError, match="gh died"):
-            trial.walk(report, run)
+            trial.walk(report, run.to(Reporting))
 
         assert "the run failed: gh died" in trial.deltas[0]
 

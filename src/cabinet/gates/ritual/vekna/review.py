@@ -48,7 +48,7 @@ taking another branch would either commit it there or throw it away.
 """
 
 from vekna.folio.flow import decide
-from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
+from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
@@ -59,8 +59,15 @@ from cabinet.pacts.reviews import (
     Answering,
     Branch,
     Instructed,
+    Land,
     Landing,
+    Look,
+    Pick,
     Picking,
+    QueueUp,
+    Read,
+    Recap,
+    Settle,
     Triage,
 )
 from cabinet.pacts.scm import ScmError
@@ -75,13 +82,13 @@ _THREAD = "review"
 # A branch's turn ending the whole cast. Nothing here raises: `recap` owes the
 # report however the cast ends, and it is `recap` that fails it afterwards.
 # The row says which branch was in flight, because the reason often does not.
-def _stopped(branch: Branch, reason: str) -> Transition:
-    return goto(recap, branch.rowed("stopped", reason).but(stopped=reason))
+def _stopped(branch: Branch, reason: str) -> Recap:
+    return branch.rowed("stopped", reason).but(stopped=reason).to(Recap)
 
 
 # Ask the forge which of your branches carry a review, and queue them.
 @step
-async def queue_up(picking: Picking) -> Transition:
+async def queue_up(picking: QueueUp) -> Recap | Pick:
     project = picking.project
     scm = services().scm(project)
     try:
@@ -91,7 +98,7 @@ async def queue_up(picking: Picking) -> Transition:
     except (ScmError, ForgeError) as error:
         # No branch has been taken yet, so there is no row to write — only the
         # report, which is owed even when it says nothing.
-        return goto(recap, picking.but(stopped=str(error)))
+        return picking.but(stopped=str(error)).to(Recap)
     # Reviewed by the night and not yet answered: the reviewed label says a
     # review was posted, and whether it is still waiting is asked branch by
     # branch in `pick`. Never the base branch, whatever the forge says: this
@@ -106,7 +113,7 @@ async def queue_up(picking: Picking) -> Transition:
     ordered = [pull for pull in carrying if pull.branch == mine] + [
         pull for pull in carrying if pull.branch != mine
     ]
-    return goto(pick, picking.but(queue=ordered))
+    return picking.but(queue=ordered).to(Pick)
 
 
 # `None` where the forge would not say, which is not "nothing to do": `pick`
@@ -121,19 +128,19 @@ async def _open_threads(branch: Branch) -> int | None:
 
 # Take the next branch whose review is still waiting.
 @step
-async def pick(picking: Picking) -> Transition:
+async def pick(picking: Pick) -> Recap | Pick | Look:
     if not picking.queue:
-        return goto(recap, picking)
+        return picking.to(Recap)
     pull, *rest = picking.queue
     branch = Branch(
         picking=picking.but(queue=rest), name=pull.branch, number=pull.number
     )
     if (left := await _open_threads(branch)) is None:
         emit_delta(f"the forge would not say what is open on {branch.name}")
-        return goto(pick, branch.rowed("unread"))
+        return branch.rowed("unread").to(Pick)
     if not left:
         # The ordinary case, and the reason it earns no row.
-        return goto(pick, branch.picking)
+        return branch.picking.to(Pick)
     # Fatal, and before every checkout: `look` moves branches around and later
     # commits everything it finds, so work left in the tree would be committed
     # onto the branch it takes.
@@ -143,16 +150,16 @@ async def pick(picking: Picking) -> Transition:
         return _stopped(branch, str(error))
     if dirty:
         return _stopped(branch, f"the worktree is not clean:\n{dirty}")
-    return goto(look, branch)
+    return branch.to(Look)
 
 
 # Check the branch out.
 @step
-async def look(branch: Branch) -> Transition:
+async def look(branch: Look) -> Pick | Read:
     # Asked before the checkout: a `no` from the other side of the move leaves
     # you standing on a branch you did not ask for.
     if not await decide(f"read the review on {branch.name}?"):
-        return goto(pick, branch.rowed("declined"))
+        return branch.rowed("declined").to(Pick)
     # Not fatal, unlike every other command here: a checkout that will not go
     # through is another worktree standing on the branch, and there is a whole
     # list of other pull requests this could be reading instead.
@@ -160,8 +167,8 @@ async def look(branch: Branch) -> Transition:
         await services().scm(branch.project).checkout(branch.name)
     except ScmError as error:
         emit_delta(f"{branch.name} is checked out elsewhere: {error}")
-        return goto(pick, branch.rowed("elsewhere", str(error)))
-    return goto(read, branch)
+        return branch.rowed("elsewhere", str(error)).to(Pick)
+    return branch.to(Read)
 
 
 async def _unsettled(branch: Branch) -> list[Thread]:
@@ -173,16 +180,16 @@ async def _unsettled(branch: Branch) -> list[Thread]:
 # work of those rounds sitting in the worktree, and that goes to the gate
 # whatever the forge says about the rest; a branch nothing touched is left as
 # it was, and nothing is committed or labelled on it.
-def _no_more(branch: Branch, note: str) -> Transition:
+def _no_more(branch: Branch, note: str) -> Landing | Pick:
     emit_delta(f"{branch.name}: {note}")
     if branch.answered:
-        return goto(gates, Landing(branch=branch))
-    return goto(pick, branch.rowed("nothing", note))
+        return Landing(branch=branch)
+    return branch.rowed("nothing", note).to(Pick)
 
 
 # Read the next batch of open threads into a triage.
 @step
-async def read(branch: Branch) -> Transition:
+async def read(branch: Read) -> Recap | Landing | Pick | Triage:
     # Read after the checkout, and again after every round: an item is
     # triaged against the code as it stands, and a thread the last round
     # settled is no longer open.
@@ -212,12 +219,12 @@ async def read(branch: Branch) -> Transition:
         return _no_more(
             branch, "the reading found nothing, but the forge says otherwise"
         )
-    return goto(plan, Triage(branch=branch, items=found.items))
+    return Triage(branch=branch, items=found.items)
 
 
 # Put the triage on your terminal and take your answer to each item.
 @step
-async def plan(triage: Triage) -> Transition:
+async def plan(triage: Triage) -> Instructed:
     report = services().report
     emit_delta("\n".join(report.triage(triage.items)))
     told: list[str] = []
@@ -229,13 +236,13 @@ async def plan(triage: Triage) -> Transition:
         told.append(said or f"{item.action} it, as the reading says")
     prompt = services().prompts.triage_work(triage.branch.number, triage.items, told)
     threads = [item.thread for item in triage.items]
-    return goto(work, Instructed(branch=triage.branch, prompt=prompt, threads=threads))
+    return Instructed(branch=triage.branch, prompt=prompt, threads=threads)
 
 
 # The agent edits code and drafts every reply; it reaches the forge for
 # nothing, so what it hands back is posted by the step after this one.
 @step
-async def work(instructed: Instructed) -> Transition:
+async def work(instructed: Instructed) -> Recap | Answering:
     branch = instructed.branch
     # The checkpoint goes on before the agent, not after: this is where the
     # branch starts changing, and a cast that dies here should leave the
@@ -258,8 +265,7 @@ async def work(instructed: Instructed) -> Transition:
     )
     if isinstance(came, Fallen | Misread):
         return _stopped(branch, came.reason)
-    answering = Answering(branch=branch, items=came.items, threads=instructed.threads)
-    return goto(answer, answering)
+    return Answering(branch=branch, items=came.items, threads=instructed.threads)
 
 
 # The ritual's own name, spelled once for both the steps that mark it.
@@ -295,7 +301,7 @@ async def _posted(answering: Answering) -> int:
 # The forge writes, in one step of their own, apart from the agent's.
 # Open the issues, post the replies, settle the threads, go round again.
 @step
-async def answer(answering: Answering) -> Transition:
+async def answer(answering: Answering) -> Recap | Landing | Read:
     try:
         settled = await _posted(answering)
     except ForgeError as error:
@@ -305,13 +311,13 @@ async def answer(answering: Answering) -> Transition:
     # round that settled nothing would read the same batch back, so it goes to
     # the gate with whatever the agent did change.
     if not settled:
-        return goto(gates, Landing(branch=answering.branch))
-    return goto(read, answering.branch.taken(settled))
+        return Landing(branch=answering.branch)
+    return answering.branch.taken(settled).to(Read)
 
 
 # Run the gate, repairing it up to the bound.
 @step
-async def gates(landing: Landing) -> Transition:
+async def gates(landing: Landing) -> Landing | Land | Recap:
     branch = landing.branch
     project = branch.project
     # The task that broke last time round, where the runner named one.
@@ -333,8 +339,8 @@ async def gates(landing: Landing) -> Transition:
         # A task passing on its own is the reason to spend the gate, not the
         # gate passing. What lands the branch is the whole chain going green.
         if not ruling.whole:
-            return goto(gates, landing.but(gate=""))
-        return goto(land, branch)
+            return landing.but(gate="")
+        return branch.to(Land)
     # The repair work is in the worktree and uncommitted, so there is no
     # moving on to the next branch from here.
     if isinstance(ruling, Stalled):
@@ -348,18 +354,18 @@ async def gates(landing: Landing) -> Transition:
     )
     if fallen:
         return _stopped(branch, fallen.reason)
-    return goto(gates, landing.but(gate=ruling.next_gate).charged(gates.name))
+    return landing.but(gate=ruling.next_gate).charged(gates.name)
 
 
 @step
-async def land(branch: Branch) -> Transition:
+async def land(branch: Land) -> Recap | Settle:
     scm = services().scm(branch.project)
     try:
         await scm.commit("chore: act on the review triage")
         await scm.push(branch.name)
     except ScmError as error:
         return _stopped(branch, str(error))
-    return goto(settle, branch)
+    return branch.to(Settle)
 
 
 # The one place the branch is marked done, and it is a claim about the
@@ -367,7 +373,7 @@ async def land(branch: Branch) -> Transition:
 # Not fatal either way: the branch is shipped whatever the count says.
 # Mark the branch done where the forge says nothing is left open.
 @step
-async def settle(branch: Branch) -> Transition:
+async def settle(branch: Settle) -> Pick:
     left = await _open_threads(branch)
     if left is None:
         note = "the forge would not say what is left open"
@@ -377,7 +383,7 @@ async def settle(branch: Branch) -> Transition:
         note = await _marked(branch, "done")
     if note:
         emit_delta(f"{branch.name}: {note}")
-    return goto(pick, branch.rowed("shipped", note))
+    return branch.rowed("shipped", note).to(Pick)
 
 
 # Every ending comes here, so the report is owed however the cast ends — the
@@ -386,8 +392,8 @@ async def settle(branch: Branch) -> Transition:
 # routes, and the failing is done here, after the report has been said.
 # Say what each branch came to, and fail the cast where one stopped it.
 @step
-def recap(picking: Picking) -> Transition:
+def recap(picking: Recap) -> Done[Picking]:
     emit_delta(services().report.review(picking))
     if picking.stopped:
         raise RitualError(picking.stopped)
-    return done(picking)
+    return Done(picking.to(Picking))

@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from vekna.lexicon import Goto, RitualError, Transition, done, goto
+from vekna.lexicon import Done, RitualError, Transition
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.review import (
@@ -25,10 +25,17 @@ from cabinet.pacts.reviews import (
     Answering,
     Branch,
     Instructed,
+    Land,
     Landing,
+    Look,
+    Pick,
     Picking,
+    QueueUp,
+    Read,
+    Recap,
     Review,
     Reviewed,
+    Settle,
     Triage,
 )
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
@@ -76,10 +83,8 @@ def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
 # fails the cast there. What each of those steps owes is the reason, so that is
 # what comes back.
 def _gave_up(transition: Transition) -> str:
-    assert isinstance(transition, Goto)
-    assert transition.target is recap
-    assert isinstance(transition.payload, Picking)
-    return transition.payload.stopped
+    assert isinstance(transition, Recap)
+    return transition.stopped
 
 
 def _preflight(trial: Trial) -> None:
@@ -107,12 +112,10 @@ class TestQueueUp:
         )
         trial.shell.replies(when=HERE, stdout="feature-8\n")
 
-        transition = trial.walk(queue_up, Picking(project=project, bound=2))
+        transition = trial.walk(queue_up, Picking(project=project, bound=2).to(QueueUp))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is pick
-        assert isinstance(transition.payload, Picking)
-        assert [pull.number for pull in transition.payload.queue] == [8, 7]
+        assert isinstance(transition, Pick)
+        assert [pull.number for pull in transition.queue] == [8, 7]
 
     @staticmethod
     def test_a_forge_that_will_not_answer_ends_the_cast(
@@ -121,13 +124,12 @@ class TestQueueUp:
         _preflight(trial)
         trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
 
-        transition = trial.walk(queue_up, Picking(project=project, bound=2))
+        transition = trial.walk(queue_up, Picking(project=project, bound=2).to(QueueUp))
 
         assert "could not list" in _gave_up(transition)
         # No branch was taken, so there is no row to write — only the report.
-        assert isinstance(transition, Goto)
-        assert isinstance(transition.payload, Picking)
-        assert not transition.payload.reviewed
+        assert isinstance(transition, Recap)
+        assert not transition.reviewed
 
 
 class TestPick:
@@ -135,7 +137,7 @@ class TestPick:
     def test_an_empty_queue_is_the_recap(trial: Trial, project: Project) -> None:
         picking = Picking(project=project, bound=2)
 
-        assert trial.walk(pick, picking) == goto(recap, picking)
+        assert trial.walk(pick, picking.to(Pick)) == picking.to(Recap)
 
     @staticmethod
     def test_a_branch_with_an_open_thread_is_looked_at(
@@ -145,10 +147,11 @@ class TestPick:
         trial.shell.replies(when=STATUS)
 
         assert trial.walk(
-            pick, Picking(project=project, bound=2, queue=[pull])
-        ) == goto(
-            look,
-            Branch(picking=Picking(project=project, bound=2), name="feature", number=7),
+            pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
+        ) == Branch(
+            picking=Picking(project=project, bound=2), name="feature", number=7
+        ).to(
+            Look
         )
 
     @staticmethod
@@ -160,8 +163,8 @@ class TestPick:
         )
 
         assert trial.walk(
-            pick, Picking(project=project, bound=2, queue=[pull])
-        ) == goto(pick, Picking(project=project, bound=2))
+            pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
+        ) == Picking(project=project, bound=2).to(Pick)
 
     @staticmethod
     def test_a_forge_that_would_not_say_is_named(
@@ -169,16 +172,15 @@ class TestPick:
     ) -> None:
         trial.shell.replies(when=THREADS, exit_code=1)
 
-        transition = trial.walk(pick, Picking(project=project, bound=2, queue=[pull]))
-
-        assert transition == goto(
-            pick,
-            Picking(
-                project=project,
-                bound=2,
-                reviewed=[Reviewed(branch="feature", outcome="unread")],
-            ),
+        transition = trial.walk(
+            pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
         )
+
+        assert transition == Picking(
+            project=project,
+            bound=2,
+            reviewed=[Reviewed(branch="feature", outcome="unread")],
+        ).to(Pick)
         assert "would not say what is open on feature" in trial.deltas[0]
 
     @staticmethod
@@ -190,15 +192,14 @@ class TestPick:
         stopped = "the worktree is not clean:\nM a.py"
 
         assert trial.walk(
-            pick, Picking(project=project, bound=2, queue=[pull])
-        ) == goto(
-            recap,
-            Picking(
-                project=project,
-                bound=2,
-                reviewed=[Reviewed(branch="feature", outcome="stopped", note=stopped)],
-                stopped=stopped,
-            ),
+            pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
+        ) == Picking(
+            project=project,
+            bound=2,
+            reviewed=[Reviewed(branch="feature", outcome="stopped", note=stopped)],
+            stopped=stopped,
+        ).to(
+            Recap
         )
 
     @staticmethod
@@ -208,7 +209,9 @@ class TestPick:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(when=STATUS, exit_code=128, stderr="not a repo")
 
-        transition = trial.walk(pick, Picking(project=project, bound=2, queue=[pull]))
+        transition = trial.walk(
+            pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
+        )
 
         assert "git status failed" in _gave_up(transition)
 
@@ -218,7 +221,7 @@ class TestLook:
     def test_declining_takes_the_next_branch(trial: Trial, branch: Branch) -> None:
         trial.decide.answers(answer=False, when="read the review on feature?")
 
-        assert trial.walk(look, branch) == goto(pick, branch.rowed("declined"))
+        assert trial.walk(look, branch.to(Look)) == branch.rowed("declined").to(Pick)
         assert not trial.shell.commands
 
     @staticmethod
@@ -228,16 +231,16 @@ class TestLook:
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature", exit_code=1, stderr="busy")
 
-        assert trial.walk(look, branch) == goto(
-            pick, branch.rowed("elsewhere", "could not take feature: busy")
-        )
+        assert trial.walk(look, branch.to(Look)) == branch.rowed(
+            "elsewhere", "could not take feature: busy"
+        ).to(Pick)
 
     @staticmethod
     def test_a_checkout_that_went_through_is_read(trial: Trial, branch: Branch) -> None:
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
 
-        assert trial.walk(look, branch) == goto(read, branch)
+        assert trial.walk(look, branch.to(Look)) == branch.to(Read)
 
 
 class TestRead:
@@ -251,9 +254,9 @@ class TestRead:
         )
         trial.coding.replies(TriageNotes(items=[_ITEM]))
 
-        transition = trial.walk(read, branch)
+        transition = trial.walk(read, branch.to(Read))
 
-        assert transition == goto(plan, Triage(branch=branch, items=[_ITEM]))
+        assert transition == Triage(branch=branch, items=[_ITEM])
         prompt = trial.coding.prompts[0]
         assert "thread PRRT_1 (open)" in prompt
         assert "PRRT_2" not in prompt
@@ -277,7 +280,7 @@ class TestRead:
         )
         trial.coding.replies(TriageNotes(items=[_ITEM]))
 
-        trial.walk(read, branch)
+        trial.walk(read, branch.to(Read))
 
         prompt = trial.coding.prompts[0]
         assert "thread PRRT_1 (open)" in prompt
@@ -291,19 +294,18 @@ class TestRead:
     ) -> None:
         trial.shell.replies(when=THREADS, exit_code=1, stderr="502")
 
-        assert "could not read the threads" in _gave_up(trial.walk(read, branch))
+        assert "could not read the threads" in _gave_up(
+            trial.walk(read, branch.to(Read))
+        )
 
     @staticmethod
     def test_a_reading_that_found_nothing_is_said(trial: Trial, branch: Branch) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies(TriageNotes(items=[]))
 
-        assert trial.walk(read, branch) == goto(
-            pick,
-            branch.rowed(
-                "nothing", "the reading found nothing, but the forge says otherwise"
-            ),
-        )
+        assert trial.walk(read, branch.to(Read)) == branch.rowed(
+            "nothing", "the reading found nothing, but the forge says otherwise"
+        ).to(Pick)
 
     @staticmethod
     def test_nothing_left_open_on_an_untouched_branch_is_no_work(
@@ -313,9 +315,9 @@ class TestRead:
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
         )
 
-        assert trial.walk(read, branch) == goto(
-            pick, branch.rowed("nothing", "nothing is left open")
-        )
+        assert trial.walk(read, branch.to(Read)) == branch.rowed(
+            "nothing", "nothing is left open"
+        ).to(Pick)
         assert not trial.coding.prompts
 
     # The rounds before this one changed the worktree, so what they did goes
@@ -329,7 +331,7 @@ class TestRead:
         )
         taken = branch.taken(7)
 
-        assert trial.walk(read, taken) == goto(gates, Landing(branch=taken))
+        assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
         assert trial.deltas == ["feature: nothing is left open"]
 
     @staticmethod
@@ -340,7 +342,7 @@ class TestRead:
         trial.coding.replies(TriageNotes(items=[]))
         taken = branch.taken(7)
 
-        assert trial.walk(read, taken) == goto(gates, Landing(branch=taken))
+        assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
 
     @staticmethod
     def test_an_answer_in_the_wrong_shape_ends_the_cast(
@@ -349,7 +351,9 @@ class TestRead:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies("no idea, sorry")
 
-        assert "did not answer in the shape" in _gave_up(trial.walk(read, branch))
+        assert "did not answer in the shape" in _gave_up(
+            trial.walk(read, branch.to(Read))
+        )
 
 
 class TestPlan:
@@ -361,10 +365,8 @@ class TestPlan:
 
         transition = trial.walk(plan, Triage(branch=branch, items=[_ITEM, second]))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is work
-        assert isinstance(transition.payload, Instructed)
-        prompt = transition.payload.prompt
+        assert isinstance(transition, Instructed)
+        prompt = transition.prompt
         # Each item's reading is fenced and the answer to it is not, so the
         # `what I want` line sits after the closing marker.
         closed = "--- END UNTRUSTED REVIEW DATA ---"
@@ -375,7 +377,7 @@ class TestPlan:
             f"thread: PRRT_2\n{closed}\nwhat I want: file it, as the reading says"
             in (prompt)
         )
-        assert transition.payload.threads == ["PRRT_1", "PRRT_2"]
+        assert transition.threads == ["PRRT_1", "PRRT_2"]
         assert "2 outstanding — p1: 2, p2: 0, p3: 0, p4: 0" in trial.deltas[0]
 
 
@@ -391,8 +393,8 @@ class TestWork:
 
         transition = trial.walk(work, instructed)
 
-        assert transition == goto(
-            answer, Answering(branch=branch, items=answered.items, threads=["PRRT_1"])
+        assert transition == Answering(
+            branch=branch, items=answered.items, threads=["PRRT_1"]
         )
         assert trial.shell.commands == [_STARTED]
         assert trial.coding.prompts == ["the triage"]
@@ -431,7 +433,7 @@ class TestAnswer:
             threads=["PRRT_1"],
         )
 
-        assert trial.walk(answer, answering) == goto(read, branch.taken(1))
+        assert trial.walk(answer, answering) == branch.taken(1).to(Read)
         assert trial.shell.commands[1] == (
             "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies -f body=guarded"
         )
@@ -478,7 +480,7 @@ class TestAnswer:
         )
 
         # Nothing settled, so another round would read the same thread back.
-        assert trial.walk(answer, answering) == goto(gates, Landing(branch=branch))
+        assert trial.walk(answer, answering) == Landing(branch=branch)
         assert len(trial.shell.commands) == 1
         assert "a thread nobody triaged: PRRT_9" in trial.deltas[0]
 
@@ -500,7 +502,7 @@ class TestGates:
     def test_a_green_gate_lands(trial: Trial, branch: Branch) -> None:
         trial.shell.replies(when=_GATE)
 
-        assert trial.walk(gates, Landing(branch=branch)) == goto(land, branch)
+        assert trial.walk(gates, Landing(branch=branch)) == branch.to(Land)
 
     @staticmethod
     def test_a_green_narrow_task_spends_the_gate(trial: Trial, branch: Branch) -> None:
@@ -508,9 +510,7 @@ class TestGates:
 
         spent = Landing(branch=branch).charged(gates.name)
 
-        assert trial.walk(gates, spent.but(gate="mise run lint:mypy")) == goto(
-            gates, spent
-        )
+        assert trial.walk(gates, spent.but(gate="mise run lint:mypy")) == spent
 
     @staticmethod
     def test_a_red_gate_is_repaired_on_the_casts_thread(
@@ -524,9 +524,9 @@ class TestGates:
         )
         trial.coding.replies("fixed")
 
-        assert trial.walk(gates, Landing(branch=branch)) == goto(
-            gates, Landing(branch=branch, gate="mise run lint:ruff").charged(gates.name)
-        )
+        assert trial.walk(gates, Landing(branch=branch)) == Landing(
+            branch=branch, gate="mise run lint:ruff"
+        ).charged(gates.name)
         assert "E501 too long" in trial.coding.prompts[0]
 
     @staticmethod
@@ -547,9 +547,9 @@ class TestGates:
         spent = Landing(branch=branch).charged(gates.name).charged(gates.name)
         stopped = "`mise run pr-fix` is still red:\n1 failed"
 
-        assert trial.walk(gates, spent) == goto(
-            recap, branch.rowed("stopped", stopped).but(stopped=stopped)
-        )
+        assert trial.walk(gates, spent) == branch.rowed("stopped", stopped).but(
+            stopped=stopped
+        ).to(Recap)
         assert not trial.coding.prompts
 
 
@@ -559,7 +559,7 @@ class TestLand:
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature")
 
-        assert trial.walk(land, branch) == goto(settle, branch)
+        assert trial.walk(land, branch.to(Land)) == branch.to(Settle)
         assert trial.shell.commands == [
             commit("chore: act on the review triage"),
             "git push origin feature",
@@ -570,7 +570,9 @@ class TestLand:
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature", exit_code=1, stderr="no")
 
-        assert "could not push feature: no" in _gave_up(trial.walk(land, branch))
+        assert "could not push feature: no" in _gave_up(
+            trial.walk(land, branch.to(Land))
+        )
 
 
 class TestSettle:
@@ -581,25 +583,25 @@ class TestSettle:
         )
         trial.shell.replies(when="gh pr edit 7*")
 
-        assert trial.walk(settle, branch) == goto(pick, branch.rowed("shipped"))
+        assert trial.walk(settle, branch.to(Settle)) == branch.rowed("shipped").to(Pick)
         assert trial.shell.commands[1] == _DONE
 
     @staticmethod
     def test_threads_left_open_are_counted(trial: Trial, branch: Branch) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
 
-        assert trial.walk(settle, branch) == goto(
-            pick, branch.rowed("shipped", "1 review threads are still open")
-        )
+        assert trial.walk(settle, branch.to(Settle)) == branch.rowed(
+            "shipped", "1 review threads are still open"
+        ).to(Pick)
         assert len(trial.shell.commands) == 1
 
     @staticmethod
     def test_a_forge_that_would_not_say(trial: Trial, branch: Branch) -> None:
         trial.shell.replies(when=THREADS, exit_code=1)
 
-        assert trial.walk(settle, branch) == goto(
-            pick, branch.rowed("shipped", "the forge would not say what is left open")
-        )
+        assert trial.walk(settle, branch.to(Settle)) == branch.rowed(
+            "shipped", "the forge would not say what is left open"
+        ).to(Pick)
 
 
 class TestRecap:
@@ -611,14 +613,14 @@ class TestRecap:
             reviewed=[Reviewed(branch="feature", outcome="shipped")],
         )
 
-        assert trial.walk(recap, picking) == done(picking)
+        assert trial.walk(recap, picking.to(Recap)) == Done(picking)
 
     @staticmethod
     def test_a_stopped_cast_is_said_then_failed(trial: Trial, project: Project) -> None:
         picking = Picking(project=project, bound=2, stopped="red")
 
         with pytest.raises(RitualError, match="red"):
-            trial.walk(recap, picking)
+            trial.walk(recap, picking.to(Recap))
 
         assert "the cast stopped: red" in trial.deltas[0]
 

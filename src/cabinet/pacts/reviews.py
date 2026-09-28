@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import Budgeted
+from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Bound, PullRequest
 from cabinet.pacts.threads import Answer, TriageItem
@@ -36,7 +37,8 @@ class Reviewed(BaseModel):
 # What the cast is still to do and what it has done. Carried through every
 # step, because every ending goes round again — and the last one owes the
 # report.
-class Picking(BaseModel):
+# `BaseModel` beside `Hop` for ruff, as on `Run`.
+class Picking(Hop, BaseModel):
     project: Project
     bound: Bound
     batch: Batch = 7
@@ -63,7 +65,7 @@ class Picking(BaseModel):
         return self.model_copy(update=update)
 
 
-class Branch(BaseModel):
+class Branch(Hop):
     # The rest of the cast, riding along: a branch is taken off the queue when
     # it is picked, so what is here is what comes after this one.
     picking: Picking
@@ -133,3 +135,34 @@ class Landing(Budgeted):
     def but(self, *, gate: str) -> Self:
         update: dict[str, str] = {"gate": gate}
         return self.model_copy(update=update)
+
+
+# One class per step, named for it: a step is reached by returning its class.
+# `triage`, `instructed`, `answering` and `landing` above are already their
+# steps' own.
+class QueueUp(Picking):
+    pass
+
+
+class Pick(Picking):
+    pass
+
+
+class Recap(Picking):
+    pass
+
+
+class Look(Branch):
+    pass
+
+
+class Read(Branch):
+    pass
+
+
+class Land(Branch):
+    pass
+
+
+class Settle(Branch):
+    pass

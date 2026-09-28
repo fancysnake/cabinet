@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Self, TypeAlias
 from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import Budgeted
+from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 
 # A bound counts attempts at one step, so zero would mean a step that may never
@@ -89,7 +90,9 @@ def joined(*parts: str) -> str:
 
 
 # Every step carries this, because the report is owed however the cast ends.
-class Run(BaseModel):
+# `BaseModel` named again beside `Hop` so ruff still reads this as a pydantic
+# model, whose list defaults are copied per instance rather than shared.
+class Run(Hop, BaseModel):
     project: Project
     bound: int
     mode: Mode = "refresh"
@@ -135,7 +138,7 @@ _Update: TypeAlias = dict[str, Run | dict[str, int] | bool | str]
 
 # `budgets` dies with this payload, which is what "a branch change clears all
 # budgets" means — a fresh Work is built per pull request and inherits nothing.
-class Work(Budgeted):
+class Work(Budgeted, Hop):
     run: Run
     pr: PullRequest
     merging: bool = False

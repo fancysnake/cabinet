@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- Requires vekna 0.10. Every step returns the next step's payload and
+  declares its exits in its return annotation, so `vekna rituals show` draws
+  each ritual's graph from what mypy checked.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added

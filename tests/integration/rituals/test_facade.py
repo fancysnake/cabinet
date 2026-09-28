@@ -12,16 +12,15 @@ from cabinet.pacts.services import services
 from cabinet.rituals import cover, labels, refresh, review
 
 
-# What vekna registers is every `Step` it finds in the module's namespace, so
-# what a facade owes is every step of the module behind it. Read off that
-# module rather than off the facade's own `__all__`, which cannot catch a step
-# nobody imported.
+# A facade exports every step of the module behind it, so it names the whole
+# graph it casts. Read off that module rather than off the facade's own
+# `__all__`, which cannot catch a step nobody imported.
 def _steps(module: ModuleType) -> set[str]:
     return {name for name, found in vars(module).items() if isinstance(found, Step)}
 
 
-# A step is named after its function and a ritual after itself, so the names
-# vekna will register are exactly the names each facade exports.
+# A step is named after its function and a ritual after itself, so every name
+# a facade exports is the name of what it exports.
 class TestFacade:
     @staticmethod
     def test_refresh_exports_its_ritual_and_the_whole_sweep() -> None:
@@ -37,8 +36,8 @@ class TestFacade:
         assert set(cover.__all__) == _steps(sweep) | {"cover"}
         assert {one.name for one in exported} == set(cover.__all__)
 
-    # The two facades name the same step objects, so a project loading both
-    # registers each step once.
+    # The two facades name the same step objects, decorated once: a second
+    # step taking the same payload class would refuse to load.
     @staticmethod
     def test_the_two_sweeps_share_their_steps() -> None:
         assert refresh.list_prs is cover.list_prs

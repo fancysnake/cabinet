@@ -5,15 +5,12 @@
 The way *Purify Food and Drink* leaves what was there, only fit to use. The
 steps are the sweep's, in ``cabinet.gates.ritual.vekna.sweep``, shared with
 ``cover``; this module is the ritual itself and the surface vekna sweeps.
-Every step of the sweep is exported, not only the ones this ritual walks, so
-the graph ``vekna rituals show`` draws is whole whichever facades a project
-loads. That list is the same list ``cover`` carries, and it stays copied
-rather than shared: vekna registers what it finds in the namespace of the
-module a project names, so a project naming this facade alone would get a
-graph that stops at the first step of a module it did not name.
+vekna registers a step when it is decorated, so importing the sweep is what
+puts its graph in place; every step is exported, the same list ``cover``
+carries, so the facade names the whole graph it casts.
 """
 
-from vekna.lexicon import Transition, goto, ritual
+from vekna.lexicon import ritual
 
 from cabinet.gates.ritual.vekna.sweep import (
     check_ci,
@@ -35,8 +32,9 @@ from cabinet.gates.ritual.vekna.sweep import (
     sync_branch,
     take_pass,
 )
-from cabinet.pacts.pulls import Run, Sweep
+from cabinet.pacts.pulls import Sweep
 from cabinet.pacts.services import services
+from cabinet.pacts.sweep import ListPrs
 
 # The backstop, not the control — the per-step bounds are. Six pull requests
 # through ~9 steps each, with three repair loops that may each burn two turns
@@ -47,14 +45,13 @@ _MAX_STEPS = 240
 
 # Merge the base in, make the gate green, push, review.
 @ritual("refresh", max_steps=_MAX_STEPS)
-def refresh(components: Sweep) -> Transition:
-    run = Run(
+def refresh(components: Sweep) -> ListPrs:
+    return ListPrs(
         project=services().project(),
         bound=components.bound,
         mode="refresh",
         attended=components.attended,
     )
-    return goto(list_prs, run)
 
 
 __all__ = [

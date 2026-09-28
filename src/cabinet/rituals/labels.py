@@ -6,15 +6,16 @@ The step lives in ``cabinet.gates.ritual.vekna.labels``; this module is the
 ritual itself and the surface vekna sweeps.
 """
 
-from vekna.lexicon import NoComponents, Transition, goto, ritual
+from vekna.lexicon import NoComponents, ritual
 
 from cabinet.gates.ritual.vekna.labels import conjure
+from cabinet.pacts.project import Conjure
 from cabinet.pacts.services import services
 
 
 @ritual("labels")
-def labels(_: NoComponents) -> Transition:
-    return goto(conjure, services().project())
+def labels(_: NoComponents) -> Conjure:
+    return Conjure(project=services().project())
 
 
 __all__ = ["conjure", "labels"]
