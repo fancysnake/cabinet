@@ -10,6 +10,7 @@ you already have open.
 | `issue-maker`  | `issue-maker`  | files or updates a GitHub issue, checked against the code first |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
+| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a change on staging |
 
 Add the marketplace once, then install what you want:
 
@@ -18,6 +19,7 @@ claude plugin marketplace add fancysnake/cabinet
 claude plugin install issue-maker@cabinet
 claude plugin install release-bump@cabinet
 claude plugin install mkdocs-site@cabinet
+claude plugin install smoke-test@cabinet
 ```
 
 Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
@@ -141,3 +143,41 @@ Pages workflow.
    kept.
 7. **Verifies** with the build task and reports one line per file, the
    Pages setting to flip, and anything it had to assume.
+
+## smoke-test
+
+Writes the manual check for a change that is already on staging: the
+shortest path that proves it works, and the features it did not touch but
+could have broken. It triggers on any ask for what to click, how to check a
+change on staging, a smoke test, a quick QA pass or the minimal manual test
+before a merge or a release.
+
+It assumes the deploy already proved the obvious: migrations ran, the site
+loads, static files are there. None of that gets a step. The tester is the
+developer who wrote the change, so a step names the URL, the field and the
+row or message to look for, and skips the clicks in between. The whole path
+fits in fifteen minutes.
+
+1. **Reads the change** against `main` (or `HEAD~1` on `main`) and sorts
+   each file: web, command, data or plumbing. Plumbing gets no step unless
+   it changes what runs in production. It reads only enough surrounding code
+   to name the entry point.
+2. **Picks the surface.** The browser first: a URL, a form, a button, the
+   admin as the fastest look at a row. No web part means the management
+   command with its flags, or a `manage.py shell` one-liner and what it
+   prints when it works. Mail, files and jobs are checked where they land.
+3. **Writes the path**: one per changed behaviour, done once end to end,
+   with each guard the diff adds poked once rather than enumerated. Over
+   budget, guard pokes go first, then unlikely neighbours; the happy path
+   is never cut.
+4. **Adds the neighbours** by a table of what the change touched: a base
+   template means one other page that includes it, a model means a page
+   that lists it and its admin, a login change means the old flow and an
+   anonymous hit, a setting or middleware means one page unrelated to the
+   feature. One action each; the question is "still works".
+5. **Reports** a numbered path with a time estimate, the neighbours, and
+   what was skipped for the budget or for data staging does not have.
+
+"Works" means the page renders, the action lands, the row exists, the mail
+arrives. Pixels, copy and layout are not the point, and expected text is
+quoted only when the text is the feature.

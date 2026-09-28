@@ -1,0 +1,12 @@
+{
+  "name": "smoke-test",
+  "description": "Write the fifteen-minute manual check for a change on staging: the shortest path through the browser or a Django command that proves it works, plus the untouched neighbours it could have broken.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/smoke-test",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["qa", "manual-testing", "staging", "django"]
+}

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `smoke-test` plugin: a skill that writes the fifteen-minute manual check
+  for a change on staging, browser or Django command, plus the untouched
+  features it could have broken.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added
