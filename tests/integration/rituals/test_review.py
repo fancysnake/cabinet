@@ -443,7 +443,8 @@ class TestAnswer:
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(
-            when="gh issue create*", stdout="https://github.com/o/r/issues/9\n"
+            when="gh api repos/{owner}/{repo}/issues -X POST*",
+            stdout='{"number": 9, "html_url": "https://github.com/o/r/issues/9"}',
         )
         trial.shell.replies(when="gh api repos/*")
         trial.shell.replies(when="slug=*-f id=PRRT_1")
@@ -461,7 +462,9 @@ class TestAnswer:
 
         trial.walk(answer, answering)
 
-        assert trial.shell.commands[1] == "gh issue create --title guard --body later"
+        assert trial.shell.commands[1] == (
+            "gh api repos/{owner}/{repo}/issues -X POST -f title=guard -f body=later"
+        )
         assert trial.shell.commands[2].endswith(
             "-f body='filed\n\nFiled as https://github.com/o/r/issues/9'"
         )

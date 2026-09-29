@@ -29,9 +29,9 @@ Grouped by school, the way a spellbook is.
   triages them with you at the terminal, answers every one, makes the gate
   green and ships the branch. Discovering what was found, and settling it.
 - **`refine`** — the backlog, a page at a time. Takes your open issues that
-  lack a type or a size, and an agent gives each one a type and a size, splits
-  one too big for a pull request into an epic with sub-issues, and links the
-  related ones. You say yes to each page first.
+  lack a type or a size; an agent reads each one and says what it is, and the
+  ritual puts that on the forge: a type and a size, or an epic split into
+  sub-issues, and the links between them. You say yes to each page first.
 
 ### Conjuration
 
@@ -57,11 +57,11 @@ vekna cast labels:issue
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
 default 3. `--attended true` says somebody is at the terminal: the sweep asks
 before every repair attempt instead of letting the budget decide, and its
-agents run in Claude's `auto` permission mode. `review` and `refine` are
-always attended. `--batch` is how many open threads `review` reads and answers
-in one round before fetching what is still open, default 7: a forty-thread
-review is six triages you can hold in your head, and still one commit. On
-`refine` it is how many issues go on one page, default 7.
+agents run in Claude's `auto` permission mode. `review` is always attended, and
+`refine` asks you about every page. `--batch` is how many open threads `review`
+reads and answers in one round before fetching what is still open, default 7:
+a forty-thread review is six triages you can hold in your head, and still one
+commit. On `refine` it is how many issues go on one page, default 7.
 
 ## Install
 

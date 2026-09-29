@@ -1,11 +1,17 @@
-"""What the refinement cast carries from page to page."""
+"""What an issue is to the rituals, and what the refinement cast carries.
 
-from typing import Literal, Self
+The vocabulary lives here rather than with the repository's own configuration
+because it is not the repository's to choose: the `issues` skill the refiner
+reads names the same types, sizes and epic label, and a project that renamed
+them would be refined against words its agent has never heard.
+"""
+
+from typing import Literal, Self, get_args
 
 from pydantic import BaseModel
 
-from cabinet.pacts.project import Kind, Project, Size
-from cabinet.pacts.reviews import Batch
+from cabinet.pacts.budgets import BATCH, Batch
+from cabinet.pacts.project import LabelSpec, Project
 
 
 # One open issue as the forge lists it.
@@ -17,24 +23,111 @@ class Issue(BaseModel):
     labels: list[str] = []
 
 
+# Your open issues as the forge gave them, and whether it gave them all: a
+# listing that hit its cap hides the rest, and a hidden issue looks exactly
+# like a refined one.
+class Listing(BaseModel):
+    issues: list[Issue] = []
+    truncated: bool = False
+
+
+# An issue the ritual opened: the number to attach and report it by, and the
+# URL to name it by.
+class Opened(BaseModel):
+    number: int
+    url: str
+
+
+# What an issue is and how big, as refinement labels it. Bare names rather
+# than prefixed ones: these are the labels a backlog already wears, and
+# GitHub's issue types carry the same words.
+Kind = Literal["feature", "edit", "chore", "spike", "bug"]
+Size = Literal["S", "M", "L"]
+KINDS: tuple[Kind, ...] = get_args(Kind)
+SIZES: tuple[Size, ...] = get_args(Size)
+EPIC = "epic"
+
+# Every label refinement reads or writes, with what it means, for the forge.
+# Read by `labels:issue` to make them and by the prompt to say what they mean,
+# so the words the refiner is given and the words the forge holds are one list.
+ISSUE_LABELS = [
+    LabelSpec(
+        name="feature",
+        color="a2eeef",
+        description="New functionality the user can see: a page, option, capability",
+    ),
+    LabelSpec(
+        name="edit",
+        color="bfd4f2",
+        description="Refactor or improvement to production code, no feature change",
+    ),
+    LabelSpec(
+        name="chore",
+        color="ededed",
+        description="No production code: docs, CI, tooling, tests, repo hygiene",
+    ),
+    LabelSpec(
+        name="spike",
+        color="d4c5f9",
+        description="Investigation or experiment that might not work",
+    ),
+    LabelSpec(name="bug", color="d73a4a", description="Doesn't behave as expected"),
+    LabelSpec(name="S", color="c2e0c6", description="One module, one sitting"),
+    LabelSpec(
+        name="M",
+        color="7fcf8f",
+        description="Several modules, or one new adapter or page; one PR",
+    ),
+    LabelSpec(
+        name="L", color="2f9e44", description="Crosses layers; still one reviewable PR"
+    ),
+    LabelSpec(
+        name=EPIC,
+        color="5319e7",
+        description="Too big for one PR: split into sub-issues, carries no size",
+    ),
+]
+
+
 class Refine(BaseModel):
-    batch: Batch = 7
+    # How many unrefined issues go on one page.
+    batch: Batch = BATCH
 
 
-# What the refiner says it did to one issue. Read for the report and nothing
-# else: the labels, sub-issues and links are already on the forge by the time
-# this comes back.
+# One sub-issue the refiner would split an epic into, for the ritual to open.
+# Typed and sized in the same breath, so a part is never left behind unrefined.
+class Part(BaseModel):
+    title: str
+    body: str
+    kind: Kind
+    size: Size
+
+
+# What the refiner read one issue as. A reading and not a report: nothing here
+# has happened yet, and `pin` is what puts it on the forge.
 class RefinedItem(BaseModel):
     number: int
     kind: Kind
-    # None on an epic, which is sized by its sub-issues.
+    # The size to label it with. None on an epic, which is sized by its parts,
+    # and None where the refiner would not size it — an issue nobody could
+    # size is left unsized rather than guessed at.
     size: Size | None = None
+    # Too big for one pull request: the epic label goes on in place of a size.
     epic: bool = False
-    # The sub-issues opened under it.
-    created: list[int] = []
-    # The issues it now points at: blocked-by, sub-issue of, related.
-    linked: list[int] = []
+    # Sub-issues to open under it.
+    parts: list[Part] = []
+    # Open issues that are already parts of it, to attach rather than reopen.
+    children: list[int] = []
+    # Issues this one cannot start until they land.
+    blocked_by: list[int] = []
     note: str = ""
+
+    # The type, and then a size or the epic label: the labels this reading
+    # asks for and no others, so a label the refiner did not put on stays on.
+    def wanted(self) -> list[str]:
+        if self.epic:
+            return [self.kind, EPIC]
+        return [self.kind, *([self.size] if self.size is not None else [])]
 
 
 class Refined(BaseModel):
@@ -44,19 +137,25 @@ class Refined(BaseModel):
 Outcome = Literal["refined", "declined", "missed", "stopped"]
 
 
-# One issue's ending, and what the refiner said it did where it did anything.
+# One issue's ending: what was read of it, and the sub-issues the ritual
+# opened under it, which are numbers only the forge could say.
 class Refinement(BaseModel):
     number: int
     outcome: Outcome
     item: RefinedItem | None = None
+    opened: list[int] = []
 
 
 # What the cast is still to do and what it has done.
 class Refining(BaseModel):
     project: Project
-    batch: Batch = 7
+    batch: Batch = BATCH
     queue: list[Issue] = []
     refined: list[Refinement] = []
+    # The forge would not list every open issue of yours, so the queue is not
+    # the whole backlog. Said in the report, because a cast that cannot see an
+    # issue reads exactly like a cast that found nothing to do on it.
+    truncated: bool = False
     # Whether the refiner has been told to read the skill. Once a cast: every
     # page after the first continues the session that read it.
     briefed: bool = False
@@ -68,6 +167,7 @@ class Refining(BaseModel):
         *,
         queue: list[Issue] | None = None,
         refined: list[Refinement] | None = None,
+        truncated: bool | None = None,
         briefed: bool | None = None,
         stopped: str | None = None,
     ) -> Self:
@@ -76,6 +176,8 @@ class Refining(BaseModel):
             update["queue"] = queue
         if refined is not None:
             update["refined"] = refined
+        if truncated is not None:
+            update["truncated"] = truncated
         if briefed is not None:
             update["briefed"] = briefed
         if stopped is not None:
@@ -96,3 +198,10 @@ class Page(BaseModel):
         return self.refining.rowed(
             [Refinement(number=one.number, outcome=outcome) for one in self.issues]
         )
+
+
+# One page read, on its way to the forge: the readings the ritual is about to
+# put on, against the page they were asked about.
+class Pinning(BaseModel):
+    page: Page
+    items: list[RefinedItem]

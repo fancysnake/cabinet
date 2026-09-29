@@ -9,7 +9,7 @@ turns trying.
 from typing_extensions import override
 
 from cabinet.mills.report import triage_line
-from cabinet.pacts.issues import Issue
+from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
 from cabinet.pacts.threads import Thread, TriageItem
@@ -159,26 +159,43 @@ code on its own terms.
 """
 
 
-_REFINE = """\
-Refine every issue between the markers, and only those — plus the sub-issues
-you open under them. Read the code an issue is about before judging it: the
-size is what the change costs in this repository as it stands.
+# The vocabulary from the same list `labels:issue` makes on the forge, with
+# each label's own description: a sixth type added to `Kind` reaches the prompt
+# by itself rather than leaving this prose a version behind.
+def _meanings(*names: str) -> str:
+    described = {spec.name: spec.description for spec in ISSUE_LABELS}
+    return "\n".join(f"  - {name}: {described[name]}" for name in names)
 
-On the forge, for each issue:
 
-- one type label: feature, edit, chore, spike or bug
-- then one size label: S, M or L — or, where it will not fit one pull request,
-  the epic label instead of a size, with its sub-issues opened, labelled and
-  attached under it
-- the links the skill describes, to other open issues where they are real
+_REFINE = f"""\
+Read every issue between the markers, and only those. Read the code an issue is
+about before judging it: the size is what the change costs in this repository as
+it stands.
 
-Do not close, delete or retitle an issue, and do not remove a label you did
-not put on. You edit no files.
+You reach the forge for nothing and you edit no files. The ritual puts your
+reading on the forge as soon as you stop: it labels each issue, opens the
+sub-issues you asked for and labels those too, attaches them under their epic,
+and records what blocks what. So answer carefully — the answer is the action.
 
-Then answer one item per issue in `items`, carrying its number: the type and
-size you gave it (no size on an epic), the sub-issues you opened in `created`,
-the issues you linked it to in `linked`, and anything I should know in `note`
-— one sentence, read on a terminal.
+One item per issue in `items`, carrying its number:
+
+- `kind`, exactly one of:
+{_meanings(*KINDS)}
+- `size`, exactly one of:
+{_meanings(*SIZES)}
+- `epic: true` and no size instead, where it will not fit one pull request:
+{_meanings(EPIC)}
+  Then `parts`: one per sub-issue to open, each with a `title`, a `body`, and a
+  `kind` and `size` of its own, so no part is left behind unrefined. An open
+  issue that is already a part of it goes in `children` by number, rather than
+  being opened again.
+- `blocked_by`: the open issues this one cannot start until they land. Only
+  where the order is real; a wrong link is noise somebody has to undo.
+- no `size` and no `epic` where you could not size it, which is not the same
+  answer as an epic — then say in `note` what you would need to know.
+- `note`: anything I should know, in one sentence, read on a terminal. A
+  related issue worth naming belongs here too: the ritual writes labels and
+  links, never bodies.
 """
 
 
@@ -316,9 +333,9 @@ class Prompts(PromptsProtocol):
         opening = (
             "The next page of open issues, by the same skill and the same rules."
             if briefed
-            else f"Refine the open issues below: read {project.refine_skill} and"
-            " follow it. It says what each type and size means, when an issue is"
-            " an epic, and how issues are linked."
+            else "Say how each of the open issues below should be refined: read"
+            f" {project.refine_skill} and follow it. It says what each type and"
+            " size means, when an issue is an epic, and how issues are linked."
         )
         shown = _fence("\n\n".join(_issue(issue) for issue in issues))
         return f"{opening}\n\n{_FENCE}\n{_REFINE}\nThe issues:\n\n{shown}"

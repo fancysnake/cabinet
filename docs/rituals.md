@@ -86,20 +86,25 @@ type label or lack a size label without being an epic. They go in pages of
 
 1. The page is shown and you are asked about it. Saying no moves on to the
    next page rather than ending the cast.
-2. One agent refines the page: it reads the code each issue is about, puts a
-   type (`feature`, `edit`, `chore`, `spike`, `bug`) and a size (`S`, `M`, `L`)
-   on it, or `epic` in place of a size with sub-issues opened, labelled and
-   attached under it, and links the related issues it finds.
-3. The next page continues the same agent session, so the skill it follows is
+2. One agent reads the page: it reads the code each issue is about and says
+   what the issue is — a type (`feature`, `edit`, `chore`, `spike`, `bug`) and
+   a size (`S`, `M`, `L`), or `epic` in place of a size with the sub-issues it
+   should be split into, plus the open issues already part of it and the ones
+   blocking it. An issue it could not size is left unsized, which the report
+   tells apart from an epic.
+3. The ritual puts that on the forge: the labels, then each sub-issue opened,
+   labelled and attached under its epic, then the links.
+4. The next page continues the same agent session, so the skill it follows is
    read once per cast.
 
 The agent follows the skill at `refine_skill` (see
 [Configuration](configuration.md)): the `issues` skill from the
-[plugins](plugins.md). Unlike every other agent here, the refiner speaks to the
-forge. It does so about issues only, through `gh issue` and `gh api` (`glab`
-on GitLab), and it edits no files. The issue bodies reach it fenced as data,
-the same as review threads. The report says what each issue came to, from the
-agent's own account.
+[plugins](plugins.md). It reaches the forge for nothing and edits no files, as
+every other agent here — the writes are the ritual's, one step of their own.
+The issue bodies reach it fenced as data, the same as review threads. The
+report says what each issue came to, and says so when the forge would not list
+your whole backlog: past the listing's cap an issue is never swept, and it
+looks from here exactly like one nothing wanted doing to.
 
 ## labels:pr
 

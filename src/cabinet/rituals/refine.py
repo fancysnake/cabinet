@@ -9,7 +9,7 @@ surface vekna sweeps.
 
 from vekna.lexicon import Transition, goto, ritual
 
-from cabinet.gates.ritual.vekna.refine import gather, leaf, refine_page, tally
+from cabinet.gates.ritual.vekna.refine import gather, leaf, pin, refine_page, tally
 from cabinet.pacts.issues import Refine, Refining
 from cabinet.pacts.services import services
 
@@ -20,4 +20,4 @@ def refine(components: Refine) -> Transition:
     return goto(gather, refining)
 
 
-__all__ = ["gather", "leaf", "refine", "refine_page", "tally"]
+__all__ = ["gather", "leaf", "pin", "refine", "refine_page", "tally"]

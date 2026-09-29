@@ -5,7 +5,7 @@ from itertools import starmap
 
 from typing_extensions import override
 
-from cabinet.pacts.issues import Refinement, Refining
+from cabinet.pacts.issues import EPIC, Issue, RefinedItem, Refinement, Refining
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, Run
 from cabinet.pacts.reviews import Picking
@@ -40,16 +40,25 @@ def _numbers(numbers: list[int]) -> str:
     return " ".join(f"#{number}" for number in numbers)
 
 
-# What the refiner put on one issue, on one line: `#12 feature/M`, or an epic
-# with the sub-issues it opened, then what it was linked to and the note.
+# An epic carries no size because its parts carry it; an issue the refiner
+# would not size carries none either. Different answers, so the line says
+# which rather than reading one as the other.
+def _sized(item: RefinedItem) -> str:
+    if item.epic:
+        return EPIC
+    return item.size or "unsized"
+
+
+# What went on one issue, on one line: `#12 feature/M`, or an epic with the
+# sub-issues opened under it, then what it was linked to and the note.
 def _refined(row: Refinement) -> str:
     if (item := row.item) is None:
         return f"  #{row.number}: {_LEFT[row.outcome]}"
-    line = f"  #{row.number} {item.kind}/{item.size or 'epic'}"
-    if item.created:
-        line += f", opened {_numbers(item.created)}"
-    if item.linked:
-        line += f", linked {_numbers(item.linked)}"
+    line = f"  #{row.number} {item.kind}/{_sized(item)}"
+    if row.opened:
+        line += f", opened {_numbers(row.opened)}"
+    if linked := [*item.children, *item.blocked_by]:
+        line += f", linked {_numbers(linked)}"
     return line + (f" — {item.note}" if item.note else "")
 
 
@@ -124,12 +133,29 @@ class Report(ReportProtocol):
             lines += [f"not polled:     {left}"] if left else []
         return "\n".join(lines)
 
+    # The page as it is put to you, before anything is read or written: the
+    # same indent and the same `#n` as the rows that say what became of it, so
+    # what you said yes to and what came back of it read as one list.
+    @override
+    def page(self, issues: list[Issue]) -> str:
+        return "\n".join(f"  #{one.number} {one.title}" for one in issues)
+
     @override
     def refine(self, refining: Refining) -> str:
         lines = [f"refine — {len(refining.refined)} issues"]
         lines += [_refined(row) for row in refining.refined] or [
             "  (none wanted refining)"
         ]
+        # An issue the listing never reached looks exactly like one nothing
+        # wanted doing to, so the count above is a count of what was seen.
+        if refining.truncated:
+            lines += [
+                "",
+                (
+                    "the forge listed as many of your open issues as it gives at"
+                    " once: there are more, and this cast never saw them"
+                ),
+            ]
         if refining.stopped:
             lines += ["", f"the cast stopped: {refining.stopped}"]
             if left := refining.queue:

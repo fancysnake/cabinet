@@ -9,7 +9,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from cabinet.pacts.issues import Issue
+    from cabinet.pacts.issues import Listing, Opened
     from cabinet.pacts.project import LabelSpec
     from cabinet.pacts.pulls import Board, PullRequest
     from cabinet.pacts.threads import Finding, Posted, Thread
@@ -54,12 +54,26 @@ class ForgeProtocol(Protocol):
     # about it rather than retry it.
     async def comment(self, number: int, findings: Sequence[Finding]) -> Posted: ...
 
-    # The new issue's URL.
-    async def issue(self, title: str, body: str) -> str: ...
+    # The new issue, by the number the forge gave it.
+    async def issue(self, title: str, body: str) -> Opened: ...
 
     # Every open issue you opened or are assigned, each once, lowest number
-    # first.
-    async def issues(self) -> list[Issue]: ...
+    # first, and whether the forge would list them all.
+    async def issues(self) -> Listing: ...
+
+    # The same bargain as `label`, on an issue: an issue and a pull request are
+    # different things to both forges' clients, and only one command edits each.
+    async def label_issue(
+        self, number: int, *, add: Sequence[str] = (), remove: Sequence[str] = ()
+    ) -> None: ...
+
+    # `child` is a part of `epic` afterwards. By number on both forges, though
+    # neither relationship endpoint takes one: resolving a number to whatever
+    # the API wants is the adapter's business.
+    async def attach(self, epic: int, child: int) -> None: ...
+
+    # `number` cannot start until `blocker` lands.
+    async def blocks(self, number: int, blocker: int) -> None: ...
 
     # The label exists with this colour and description afterwards, whether or
     # not it did before.

@@ -23,15 +23,14 @@ fence, where an approved mistake cannot reach anything that matters.
 | reader   | `Read`, `Grep`, `Glob`, `git diff/log/show/status/blame`                |
 | writer   | reader + `Edit`, `Write`, `MultiEdit` + every prefix in `agent.may_run` |
 | resolver | writer + `git add` (staging is how a conflict is reported resolved)     |
-| refiner  | reader + `gh issue`, `gh api`, `gh repo view` (`glab issue`, `glab api` on GitLab); no edits |
 
-No agent commits, pushes, or runs a linter or a sweep, and only the refiner
-speaks to the forge: `refine` has it label, open and link issues itself,
-because sub-issues and blocked-by links are its judgement applied one call at
-a time. `gh api` reaches the whole API, so the refiner is always attended.
-Every other forge call is the ritual's own. The ritual does the rest itself
-through vekna's `shell` medium, and after every repair attempt it re-runs the
-task the runner named as broken and hands the agent the output.
+No role names a forge client, so no agent commits, pushes, runs a linter or a
+sweep, or says anything to the forge — not a label, not a comment, not an
+issue. Every forge call is the ritual's own, through vekna's `shell` medium in
+the `links` adapters, including `refine`'s labels, sub-issues and links: its
+agent reads the backlog and hands back what each issue is, and the ritual puts
+that on. The ritual does the rest itself too, and after every repair attempt it
+re-runs the task the runner named as broken and hands the agent the output.
 
 ## `may_run`
 

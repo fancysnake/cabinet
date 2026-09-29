@@ -1,13 +1,25 @@
-"""What a step is allowed to spend on one branch, counted per step.
+"""How much one turn of a loop may take, and what it has taken so far.
 
 Every repair loop counts the same way: a step may be retried up to the bound,
 going green hands the count back, and a payload that dies takes its counts
 with it. The rule lives here so the loops cannot drift into two dialects of it.
+The batch is the other half of the same question — how much of a queue one
+round takes — and it is here rather than in either domain's own pact because
+threads and issues both take their queues in rounds and neither owns the
+other's number.
 """
 
-from typing import Self
+from typing import Annotated, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+# How much one round takes before the next one asks what is left: open threads
+# for `review`, unrefined issues for `refine`. Forty at once is one reading
+# nobody holds in their head and one agent asked to do forty things before
+# anything lands. No ceiling: a batch bigger than the queue is the whole queue.
+Batch = Annotated[int, Field(ge=1)]
+# Spelled once, so the flag's default is one number and not four.
+BATCH = 7
 
 
 class Budgeted(BaseModel):

@@ -93,18 +93,18 @@ wraps `gates/ritual/vekna/refine.py`. `rituals/labels_pr.py` and
 `gates/ritual/vekna/labels.py`, each handing it its own label specs. A ritual's
 name is the `@ritual("...")` string, not the module: `labels:pr` is cast by
 that name. Step names are global across the package, so a new step must not
-reuse one (`recap` is review's; refine's is `tally`).
+reuse one (`recap` is review's; refine's are `tally` and `pin`).
 
 ### Who runs what
 
 Agents (`links/agent/claude.py`) run under `dontAsk` with per-role
-allowlists (reader / writer / resolver / refiner, plus
-`project.agent.may_run`). Every commit, push and task run, and every forge
-write but one, is the ritual's own, through vekna's `shell` medium in the
-`links` adapters. The exception is the refiner: `refine` has it label, open
-and link issues through `gh issue` / `gh api` (`glab` on GitLab), always
-attended, and it edits no files. Keep it to that: no new agent permission
-that commits, pushes, or talks to the forge about anything but issues.
+allowlists (reader / writer / resolver, plus `project.agent.may_run`). No role
+names a forge client: every commit, push, task run and forge write is the
+ritual's own, through vekna's `shell` medium in the `links` adapters. That
+includes `refine`'s labels, sub-issues and links — its agent reads the backlog
+and answers what each issue is, and `gates/ritual/vekna/refine.py:pin` puts it
+on. Keep it that way: no agent permission that commits, pushes, or talks to
+the forge.
 
 ## Tests
 

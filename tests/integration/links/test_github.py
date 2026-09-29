@@ -10,7 +10,7 @@ from vekna.trial import Trial
 
 from cabinet.links.forge.github import GithubForge
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.issues import Issue
+from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
@@ -57,10 +57,6 @@ class _Labels(BaseModel):
 
 class _Threads(BaseModel):
     threads: list[Thread]
-
-
-class _Made(BaseModel):
-    url: str
 
 
 @step
@@ -125,7 +121,25 @@ async def several(ask: _Ask) -> Transition:
 
 @step
 async def issue(_: _Ask) -> Transition:
-    return done(_Made(url=await _FORGE.issue("a title", "a body")))
+    return done(await _FORGE.issue("a title", "a body"))
+
+
+@step
+async def label_issue(ask: _Ask) -> Transition:
+    await _FORGE.label_issue(ask.number, add=["bug"], remove=["epic"])
+    return done()
+
+
+@step
+async def attach(ask: _Ask) -> Transition:
+    await _FORGE.attach(ask.number, 9)
+    return done()
+
+
+@step
+async def blocks(ask: _Ask) -> Transition:
+    await _FORGE.blocks(ask.number, 9)
+    return done()
 
 
 class TestPulls:
@@ -442,22 +456,91 @@ class TestComment:
         assert trial.shell.commands[-1] == "gh pr comment 7 --body hm"
 
 
+_OPENED = '{"number": 9, "html_url": "https://github.com/o/r/issues/9"}'
+_ID = "gh api repos/{owner}/{repo}/issues/9 --jq .id"
+
+
 class TestIssue:
     @staticmethod
-    def test_the_url_comes_back(trial: Trial) -> None:
-        trial.shell.replies(
-            when="gh issue create*", stdout="https://github.com/o/r/issues/9\n"
-        )
+    def test_the_number_and_the_url_come_back(trial: Trial) -> None:
+        trial.shell.replies(when="gh api repos*issues -X POST*", stdout=_OPENED)
 
         assert trial.walk(issue, _Ask()) == done(
-            _Made(url="https://github.com/o/r/issues/9")
+            Opened(number=9, url="https://github.com/o/r/issues/9")
         )
         assert trial.shell.commands == [
             (
-                f"gh issue create --title {shlex.quote('a title')}"
-                f" --body {shlex.quote('a body')}"
+                "gh api repos/{owner}/{repo}/issues -X POST"
+                f" -f title={shlex.quote('a title')}"
+                f" -f body={shlex.quote('a body')}"
             )
         ]
+
+    @staticmethod
+    def test_an_answer_without_a_number_will_not_do(trial: Trial) -> None:
+        trial.shell.replies(when="gh api repos*issues -X POST*", stdout="{}")
+
+        with pytest.raises(ForgeError, match="issue this could not read"):
+            trial.walk(issue, _Ask())
+
+
+class TestLabelIssue:
+    @staticmethod
+    def test_what_goes_on_and_what_comes_off_in_one_call(trial: Trial) -> None:
+        trial.shell.replies(when="gh issue edit*")
+
+        assert trial.walk(label_issue, _Ask()) == done()
+        assert trial.shell.commands == [
+            "gh issue edit 7 --add-label bug --remove-label epic"
+        ]
+
+    @staticmethod
+    def test_nothing_to_change_is_no_call(trial: Trial) -> None:
+        @step
+        async def nothing(ask: _Ask) -> Transition:
+            await _FORGE.label_issue(ask.number)
+            return done()
+
+        trial.walk(nothing, _Ask())
+
+        assert not trial.shell.commands
+
+
+class TestLinks:
+    @staticmethod
+    def test_a_sub_issue_is_attached_by_the_id_behind_its_number(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, stdout="1234\n")
+        trial.shell.replies(when="gh api repos*sub_issues*")
+
+        assert trial.walk(attach, _Ask()) == done()
+        assert trial.shell.commands == [
+            _ID,
+            (
+                "gh api repos/{owner}/{repo}/issues/7/sub_issues -X POST"
+                " -F sub_issue_id=1234"
+            ),
+        ]
+
+    @staticmethod
+    def test_blocked_by_takes_the_blocker_s_id(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, stdout="1234\n")
+        trial.shell.replies(when="gh api repos*blocked_by*")
+
+        assert trial.walk(blocks, _Ask()) == done()
+        assert trial.shell.commands == [
+            _ID,
+            (
+                "gh api repos/{owner}/{repo}/issues/7/dependencies/blocked_by"
+                " -X POST -F issue_id=1234"
+            ),
+        ]
+
+    @staticmethod
+    def test_a_number_with_no_id_behind_it_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, exit_code=1, stderr="Not Found")
+
+        with pytest.raises(ForgeError, match="could not read the id of #9"):
+            trial.walk(attach, _Ask())
 
 
 _AUTHORED = (
@@ -470,13 +553,9 @@ _ASSIGNED = (
 )
 
 
-class _Issues(BaseModel):
-    issues: list[Issue]
-
-
 @step
 async def issues(_: _Ask) -> Transition:
-    return done(_Issues(issues=await _FORGE.issues()))
+    return done(await _FORGE.issues())
 
 
 def _issue(number: int, **extra: object) -> dict[str, object]:
@@ -502,7 +581,7 @@ class TestIssues:
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4), _issue(2)]))
 
         assert trial.walk(issues, _Ask()) == done(
-            _Issues(
+            Listing(
                 issues=[
                     Issue(
                         number=2, title="issue 2", url="https://github.com/o/r/issues/2"
@@ -520,6 +599,21 @@ class TestIssues:
             )
         )
         assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
+
+    # A listing as long as the limit is a listing with no end in sight, and
+    # what is past it is never asked for.
+    @staticmethod
+    def test_a_listing_that_hit_the_limit_says_it_was_cut_short(trial: Trial) -> None:
+        rows = [_issue(number) for number in range(1, 201)]
+        trial.shell.replies(when=_AUTHORED, stdout=json.dumps(rows))
+        trial.shell.replies(when=_ASSIGNED, stdout="[]")
+
+        transition = trial.walk(issues, _Ask())
+
+        assert isinstance(transition, type(done()))
+        assert isinstance(transition.result, Listing)
+        assert transition.result.truncated
+        assert len(transition.result.issues) == len(rows)
 
     @staticmethod
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:

@@ -159,7 +159,9 @@ class TestRefine:
                 Refinement(
                     number=3,
                     outcome="refined",
-                    item=RefinedItem(number=3, kind="feature", size="M", linked=[4]),
+                    item=RefinedItem(
+                        number=3, kind="feature", size="M", blocked_by=[4]
+                    ),
                 ),
                 Refinement(
                     number=4,
@@ -168,9 +170,15 @@ class TestRefine:
                         number=4,
                         kind="edit",
                         epic=True,
-                        created=[10, 11],
+                        children=[12],
                         note="split by layer",
                     ),
+                    opened=[10, 11],
+                ),
+                Refinement(
+                    number=5,
+                    outcome="refined",
+                    item=RefinedItem(number=5, kind="spike", note="need the metrics"),
                 ),
                 Refinement(number=6, outcome="declined"),
                 Refinement(number=7, outcome="missed"),
@@ -178,11 +186,38 @@ class TestRefine:
         )
 
         assert _REPORT.refine(refining) == (
-            "refine — 4 issues\n"
+            "refine — 5 issues\n"
             "  #3 feature/M, linked #4\n"
-            "  #4 edit/epic, opened #10 #11 — split by layer\n"
+            "  #4 edit/epic, opened #10 #11, linked #12 — split by layer\n"
+            "  #5 spike/unsized — need the metrics\n"
             "  #6: left for later\n"
             "  #7: the refiner did not answer for it"
+        )
+
+    # The page you are asked about and the rows saying what became of it are
+    # written here, in one shape, so the two lists read as one.
+    @staticmethod
+    def test_the_page_is_offered_one_issue_a_line() -> None:
+        assert _REPORT.page([_ISSUE, _ISSUE.model_copy(update={"number": 6})]) == (
+            "  #5 t\n  #6 t"
+        )
+
+    @staticmethod
+    def test_an_empty_page_is_an_empty_listing() -> None:
+        assert not _REPORT.page([])
+
+    # An issue past the end of the listing reads like an issue nothing wanted
+    # doing to, so the count is said to be a count of what was seen.
+    @staticmethod
+    def test_a_backlog_the_forge_would_not_list_the_end_of_says_so() -> None:
+        refining = Refining(project=_PROJECT, truncated=True)
+
+        assert _REPORT.refine(refining) == (
+            "refine — 0 issues\n"
+            "  (none wanted refining)\n"
+            "\n"
+            "the forge listed as many of your open issues as it gives at once:"
+            " there are more, and this cast never saw them"
         )
 
     @staticmethod

@@ -66,6 +66,10 @@ the code it touches before judging.
      `gh label list`, `issueTypes` / `issueFields` over `gh api graphql`, and
      `gh project field-list`.
 
+   This step is the interactive path, where you run `gh` yourself. Under
+   cabinet's `refine` you reach no forge client at all: name the type, the size
+   and the links in your answer and the ritual puts on what it can.
+
 ## Links
 
 Link only real relationships. Each wrong link is noise that someone has to
@@ -96,3 +100,7 @@ For each issue, set one type, then one size or `epic`, then the links, and
 nothing else. Do not close, delete or retitle anything, and do not remove a
 label you did not add. Give a sub-issue you open a type and a size in the same
 breath, so it is not left behind unrefined.
+
+Under cabinet's `refine` ritual you only read: say what each issue is and what
+should be opened, labelled and linked, and the ritual makes every one of those
+calls itself.

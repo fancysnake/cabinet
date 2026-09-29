@@ -7,7 +7,7 @@ from vekna.trial import Trial
 
 from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
 from cabinet.pacts.agent import Fallen, Misread, Role
-from cabinet.pacts.project import Project
+from cabinet.pacts.project import Forge, Project
 from cabinet.pacts.threads import TriageNotes
 
 _PROJECT = Project.model_validate(
@@ -79,24 +79,18 @@ class TestAllowedTools:
     def test_a_writer_edits_and_runs_what_the_project_allows() -> None:
         assert allowed_tools("writer", _PROJECT) == _WRITER
 
+    # Whichever forge, and whatever the prompt is about: no role reaches a
+    # forge client at all, so nothing an agent runs can label, merge or write.
     @staticmethod
-    def test_a_refiner_reads_and_reaches_github_issues_but_edits_nothing() -> None:
-        assert allowed_tools("refiner", _PROJECT) == [
-            *_READER,
-            "Bash(gh issue:*)",
-            "Bash(gh api:*)",
-            "Bash(gh repo view:*)",
-        ]
+    def test_no_role_reaches_the_forge_on_either_forge() -> None:
+        forges: tuple[Forge, ...] = ("github", "gitlab")
+        roles: tuple[Role, ...] = ("reader", "writer", "resolver")
+        for forge in forges:
+            project = Project(forge=forge)
+            for role in roles:
+                allowed = allowed_tools(role, project)
 
-    @staticmethod
-    def test_on_gitlab_a_refiner_reaches_through_glab() -> None:
-        gitlab = Project(forge="gitlab")
-
-        assert allowed_tools("refiner", gitlab) == [
-            *_READER,
-            "Bash(glab issue:*)",
-            "Bash(glab api:*)",
-        ]
+                assert not [one for one in allowed if "gh " in one or "glab " in one]
 
     @staticmethod
     def test_a_resolver_may_also_stage() -> None:

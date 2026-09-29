@@ -6,10 +6,12 @@ import pytest
 from vekna.lexicon import Goto, RitualError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.refine import gather, leaf, refine_page, tally
+from cabinet.gates.ritual.vekna.refine import gather, leaf, pin, refine_page, tally
 from cabinet.pacts.issues import (
     Issue,
     Page,
+    Part,
+    Pinning,
     Refine,
     Refined,
     RefinedItem,
@@ -51,6 +53,10 @@ def _item(number: int) -> RefinedItem:
     return RefinedItem(number=number, kind="feature", size="S")
 
 
+def _labelled(number: int) -> str:
+    return f"gh issue edit {number} --add-label feature --add-label S"
+
+
 def _refined(*numbers: int) -> list[Refinement]:
     return [
         Refinement(number=number, outcome="refined", item=_item(number))
@@ -73,6 +79,25 @@ class TestGather:
         assert transition.target is leaf
         assert isinstance(transition.payload, Refining)
         assert [one.number for one in transition.payload.queue] == [2, 3]
+        assert not transition.payload.truncated
+
+    # A backlog the forge would not list the end of: the queue is what was
+    # seen, and the cast says so rather than reading it as the whole of it.
+    @staticmethod
+    def test_a_listing_cut_short_is_carried_into_the_report(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(
+            when=_AUTHORED,
+            stdout=json.dumps([_row(number) for number in range(1, 201)]),
+        )
+        trial.shell.replies(when=_ASSIGNED, stdout="[]")
+
+        transition = trial.walk(gather, Refining(project=project))
+
+        assert isinstance(transition, Goto)
+        assert isinstance(transition.payload, Refining)
+        assert transition.payload.truncated
 
     @staticmethod
     def test_a_forge_that_will_not_list_stops_the_cast_with_the_report(
@@ -113,24 +138,34 @@ class TestLeaf:
 
 class TestRefinePage:
     @staticmethod
-    def test_an_issue_the_agent_did_not_answer_for_is_named(
+    def test_the_reading_goes_to_the_forge_writes(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.coding.replies(Refined(items=[_item(1)]))
+        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+
+        transition = trial.walk(refine_page, page)
+
+        assert transition == Goto(
+            target=pin, payload=Pinning(page=page, items=[_item(1)])
+        )
+
+    # An issue the agent invented is not on the page, so nothing is put on it.
+    @staticmethod
+    def test_an_issue_that_was_never_on_the_page_is_dropped(
         trial: Trial, project: Project
     ) -> None:
         trial.coding.replies(Refined(items=[_item(1), _item(99)]))
-        page = Page(refining=Refining(project=project), issues=[_issue(1), _issue(2)])
+        page = Page(refining=Refining(project=project), issues=[_issue(1)])
 
         transition = trial.walk(refine_page, page)
 
         assert isinstance(transition, Goto)
-        assert transition.target is leaf
-        assert transition.payload == Refining(
-            project=project,
-            briefed=True,
-            refined=[*_refined(1), Refinement(number=2, outcome="missed")],
-        )
+        assert isinstance(transition.payload, Pinning)
+        assert transition.payload.items == [_item(1)]
 
     @staticmethod
-    def test_the_refiner_reaches_issues_and_is_attended(
+    def test_the_agent_only_reads_and_reaches_no_forge(
         trial: Trial, project: Project
     ) -> None:
         trial.coding.replies(Refined(items=[_item(1)]))
@@ -139,10 +174,12 @@ class TestRefinePage:
             refine_page, Page(refining=Refining(project=project), issues=[_issue(1)])
         )
 
+        allowed = trial.coding.calls[0].focus_options.allowed_tools
         options = str(trial.coding.calls[0].focus_options)
-        assert "Bash(gh issue:*)" in options
-        assert "Edit" not in options
-        assert "permission_mode='auto'" in options
+        assert not [one for one in allowed if "gh " in one or "glab " in one]
+        assert "Edit" not in allowed
+        assert "permission_mode='dontAsk'" in options
+        assert not trial.shell.commands
 
     @staticmethod
     def test_an_answer_out_of_shape_stops_the_cast_with_the_page_rowed(
@@ -160,6 +197,126 @@ class TestRefinePage:
         assert "shape" in transition.payload.stopped
 
 
+class TestPin:
+    @staticmethod
+    def test_the_labels_go_on_and_the_page_is_rowed(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when=_labelled(1))
+        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[_item(1)]))
+
+        assert isinstance(transition, Goto)
+        assert transition.target is leaf
+        assert transition.payload == Refining(
+            project=project, briefed=True, refined=_refined(1)
+        )
+        assert trial.shell.commands == [_labelled(1)]
+
+    # An epic wears the epic label in place of a size, and its parts are
+    # opened, labelled and attached — the numbers coming back from the forge.
+    @staticmethod
+    def test_an_epic_is_split_labelled_and_attached(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when="gh issue edit 1 --add-label edit --add-label epic")
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues -X POST*",
+            stdout='{"number": 10, "html_url": "https://github.com/o/r/issues/10"}',
+        )
+        trial.shell.replies(when=_labelled(10))
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues/10 --jq .id", stdout="99"
+        )
+        trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/1/sub_issues*")
+        item = RefinedItem(
+            number=1,
+            kind="edit",
+            epic=True,
+            parts=[Part(title="first half", body="why", kind="feature", size="S")],
+        )
+        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[item]))
+
+        assert isinstance(transition, Goto)
+        assert isinstance(transition.payload, Refining)
+        assert transition.payload.refined == [
+            Refinement(number=1, outcome="refined", item=item, opened=[10])
+        ]
+        assert trial.shell.commands[-1] == (
+            "gh api repos/{owner}/{repo}/issues/1/sub_issues -X POST -F sub_issue_id=99"
+        )
+
+    # An issue already part of the epic is attached rather than opened again,
+    # and what blocks this one is recorded the same way round.
+    @staticmethod
+    def test_existing_issues_are_attached_and_blockers_recorded(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when=_labelled(1))
+        trial.shell.replies(
+            when="gh api repos*issues/*--jq .id", stdout="99", always=True
+        )
+        trial.shell.replies(when="gh api repos*sub_issues*")
+        trial.shell.replies(when="gh api repos*blocked_by*")
+        item = RefinedItem(
+            number=1, kind="feature", size="S", children=[8], blocked_by=[9]
+        )
+        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[item]))
+
+        assert isinstance(transition, Goto)
+        assert transition.target is leaf
+        assert trial.shell.commands[2].endswith("sub_issues -X POST -F sub_issue_id=99")
+        assert trial.shell.commands[4].endswith("blocked_by -X POST -F issue_id=99")
+
+    @staticmethod
+    def test_an_issue_the_agent_did_not_answer_for_is_named(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when=_labelled(1))
+        page = Page(refining=Refining(project=project), issues=[_issue(1), _issue(2)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[_item(1)]))
+
+        assert isinstance(transition, Goto)
+        assert transition.target is leaf
+        assert transition.payload == Refining(
+            project=project,
+            briefed=True,
+            refined=[*_refined(1), Refinement(number=2, outcome="missed")],
+        )
+
+    # What is already on stays on: the issue in flight and everything behind
+    # it are named as half done, and the cast ends rather than labelling on.
+    @staticmethod
+    def test_a_forge_that_refuses_mid_page_stops_the_cast(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when=_labelled(1))
+        trial.shell.replies(when=_labelled(2), exit_code=1, stderr="no such label")
+        page = Page(
+            refining=Refining(project=project), issues=[_issue(1), _issue(2), _issue(3)]
+        )
+
+        transition = trial.walk(
+            pin, Pinning(page=page, items=[_item(1), _item(2), _item(3)])
+        )
+
+        assert isinstance(transition, Goto)
+        assert transition.target is tally
+        assert isinstance(transition.payload, Refining)
+        assert transition.payload.refined == [
+            *_refined(1),
+            Refinement(number=2, outcome="stopped"),
+            Refinement(number=3, outcome="stopped"),
+        ]
+        assert "no such label" in transition.payload.stopped
+
+
 class TestCast:
     # Three issues, a page of two: two pages, one session, the skill read once.
     @staticmethod
@@ -172,6 +329,7 @@ class TestCast:
         trial.decide.answers(answer=True, when="*refine these *", always=True)
         trial.coding.replies(Refined(items=[_item(1), _item(2)]))
         trial.coding.replies(Refined(items=[_item(3)]))
+        trial.shell.replies(when="gh issue edit*", always=True)
 
         result = trial.cast(refine, Refine(batch=2))
 
@@ -182,8 +340,10 @@ class TestCast:
             "gather",
             "leaf",
             "refine_page",
+            "pin",
             "leaf",
             "refine_page",
+            "pin",
             "leaf",
             "tally",
         ]

@@ -1,13 +1,11 @@
 """Asking Claude, with the reach each role is allowed and nothing more.
 
-Unattended, every call runs under `dontAsk`: a tool outside the allowlist is refused
-silently, so an unattended cast never hangs on a prompt and an agent never
-commits, pushes, runs a sweep, or speaks to the forge — whatever the prompt
-says. The one exception is the refiner, which speaks to the forge about
-issues and about nothing else. Attended, the mode is `auto`: the allowlist
-still approves what it names, and what is outside it is judged, with somebody
-there to be asked. The list is built from the same project setting the prompt
-quotes.
+Unattended, every call runs under `dontAsk`: a tool outside the allowlist is
+refused silently, so an unattended cast never hangs on a prompt and an agent
+never commits, pushes, runs a sweep, or speaks to the forge — whatever the
+prompt says. Attended, the mode is `auto`: the allowlist still approves what it
+names, and what is outside it is judged, with somebody there to be asked. The
+list is built from the same project setting the prompt quotes.
 """
 
 import logging
@@ -42,21 +40,12 @@ _READER = [
 _WRITER = ["Edit", "Write", "MultiEdit"]
 # Staging is the only thing the ritual reads to know a conflict is gone.
 _RESOLVER = ["Bash(git add:*)"]
-# Labelling, opening and linking issues. The API rather than a narrower verb
-# because sub-issues and blocked-by exist nowhere else in either CLI; the
-# repository lookup because a REST path needs the owner spelled out.
-_REFINER = {
-    "github": ["Bash(gh issue:*)", "Bash(gh api:*)", "Bash(gh repo view:*)"],
-    "gitlab": ["Bash(glab issue:*)", "Bash(glab api:*)"],
-}
 
 
 def allowed_tools(role: Role, project: Project) -> list[str]:
     tools = list(_READER)
     if role == "reader":
         return tools
-    if role == "refiner":
-        return tools + _REFINER[project.forge]
     tools += _WRITER
     tools += [f"Bash({prefix}:*)" for prefix in project.agent.may_run]
     if role == "resolver":

@@ -108,7 +108,13 @@ curl -fsSL -o ~/.claude/skills/issues/SKILL.md \
 ```
 
 Or point `refine_skill` at the copy the plugin install left, or at a skill of
-your own that names the same labels.
+your own that names the same labels. A repository that already carries the
+skill in its own tree can name that path instead, which is what this one does:
+
+```toml
+[cabinet]
+refine_skill = "plugins/issues/skills/issues/SKILL.md"
+```
 
 ## The remote
 

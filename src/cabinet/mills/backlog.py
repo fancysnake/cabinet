@@ -2,8 +2,7 @@
 
 from typing_extensions import override
 
-from cabinet.pacts.issues import Issue
-from cabinet.pacts.project import EPIC, KINDS, SIZES
+from cabinet.pacts.issues import EPIC, KINDS, SIZES, Issue
 from cabinet.pacts.services import BacklogProtocol
 
 
