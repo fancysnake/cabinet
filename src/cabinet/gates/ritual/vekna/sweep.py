@@ -73,75 +73,94 @@ branch whose gate says the same thing stands down without spending its budget.
 """
 
 from vekna.folio.flow import decide
-from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
+from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.project import Project, State
-from cabinet.pacts.pulls import Board, Closed, Report, Run, Work, joined
+from cabinet.pacts.pulls import Board, Closed, Report, Work, joined
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
+from cabinet.pacts.sweep import (
+    CheckCi,
+    CheckClean,
+    CloseGap,
+    FinishMerge,
+    GateCheck,
+    ListPrs,
+    MergeBase,
+    NextPr,
+    PushWork,
+    QualityReview,
+    Reporting,
+    ResolveConflicts,
+    SetAside,
+    SkipPr,
+    StandDown,
+    SyncBranch,
+    TakePass,
+)
 from cabinet.pacts.threads import Finding, Findings
 
 
 # Ask the forge what is open, and queue what the night will take.
 @step
-async def list_prs(run: Run) -> Transition:
+async def list_prs(run: ListPrs) -> Reporting | NextPr:
     # Before the first fetch: an ssh remote would ask for a passphrase on a
     # terminal no command under a cast has, and the answer is a config line.
     try:
         await services().scm(run.project).preflight()
         pulls = await services().forge(run.project).pulls()
     except (ScmError, ForgeError) as error:
-        return goto(report, run.but(stopped=str(error)))
-    return goto(next_pr, run.but(queue=services().pulls.wanted(pulls, run.project)))
+        return run.but(stopped=str(error)).to(Reporting)
+    return run.but(queue=services().pulls.wanted(pulls, run.project)).to(NextPr)
 
 
 @step
-def next_pr(run: Run) -> Transition:
+def next_pr(run: NextPr) -> Reporting | CheckClean:
     if not run.queue:
-        return goto(report, run)
+        return run.to(Reporting)
     pull, *rest = run.queue
     # A fresh Work per pull request, so no budget survives the branch change.
-    return goto(check_clean, Work(run=run.but(queue=rest), pr=pull))
+    return CheckClean(run=run.but(queue=rest), pr=pull)
 
 
 @step
-async def check_clean(work: Work) -> Transition:
+async def check_clean(work: CheckClean) -> Reporting | SyncBranch:
     try:
         dirty = await services().scm(work.run.project).status()
     except ScmError as error:
-        return goto(report, work.abandoned(str(error)))
+        return work.abandoned(str(error)).to(Reporting)
     if dirty:
         # Fatal by design: everything below this line moves branches around,
         # and doing that over someone's uncommitted work is how it gets lost.
-        return goto(report, work.abandoned(f"the worktree is not clean:\n{dirty}"))
-    return goto(sync_branch, work)
+        return work.abandoned(f"the worktree is not clean:\n{dirty}").to(Reporting)
+    return work.to(SyncBranch)
 
 
 # Update the base branch, then stand on the branch as the remote has it.
 @step
-async def sync_branch(work: Work) -> Transition:
+async def sync_branch(work: SyncBranch) -> Reporting | SkipPr | SetAside | MergeBase:
     scm = services().scm(work.run.project)
     pull = work.pr
     try:
         await scm.sync_base(pull.base)
     except ScmError as error:
-        return goto(report, work.abandoned(str(error)))
+        return work.abandoned(str(error)).to(Reporting)
     # On its own rather than chained to the rest, because the failures are
     # different answers: a checkout that will not go through is another
     # worktree standing on the branch, and that is nobody's fault.
     try:
         await scm.checkout(pull.branch)
     except ScmError as error:
-        return goto(skip_pr, work.but(note=str(error)))
+        return work.but(note=str(error)).to(SkipPr)
     try:
         await scm.catch_up(pull.branch)
     except ScmError as error:
-        return goto(set_aside, work.but(note=str(error)))
-    return goto(merge_base, work)
+        return work.but(note=str(error)).to(SetAside)
+    return work.to(MergeBase)
 
 
 # Which pass is running is which ritual's checkpoint this is: the two share
@@ -154,7 +173,7 @@ async def _mark(work: Work, state: State) -> str:
 
 # Merge the base in, and say whether it brought anything with it.
 @step
-async def merge_base(work: Work) -> Transition:
+async def merge_base(work: MergeBase) -> TakePass | ResolveConflicts:
     # The first step that changes the branch, so this is where the checkpoint
     # goes on: everything above only takes the branch.
     if note := await _mark(work, "started"):
@@ -165,33 +184,35 @@ async def merge_base(work: Work) -> Transition:
     contained = await scm.contains(work.pr.base)
     merged = await scm.merge(work.pr.base)
     if merged.exit_code == 0:
-        return goto(take_pass, work.graded(unchanged=contained))
+        return work.graded(unchanged=contained).to(TakePass)
     # The index is read once, by the step below. What this carries there is
     # why the merge failed, for the one case that is not a conflict at all.
     said = services().verdicts.said(merged)
-    return goto(resolve_conflicts, work.merging_on(f"git merge failed: {said}"))
+    return work.merging_on(f"git merge failed: {said}").to(ResolveConflicts)
 
 
 # Hand the conflicted files to an agent until the index comes back clean.
 @step
-async def resolve_conflicts(work: Work) -> Transition:
+async def resolve_conflicts(
+    work: ResolveConflicts,
+) -> SetAside | TakePass | StandDown | Reporting | ResolveConflicts:
     project = work.run.project
     try:
         unmerged = await services().scm(project).unmerged()
     except ScmError as error:
-        return goto(set_aside, work.but(note=str(error)))
+        return work.but(note=str(error)).to(SetAside)
     if not unmerged:
         # Nothing conflicted and nothing tried yet: the merge failed for a
         # reason no agent can fix, and the note says which.
         if not work.spent(resolve_conflicts.name):
-            return goto(set_aside, work.but(note=f"no conflicts: {work.note}"))
-        return goto(take_pass, work.but(note="").cleared(resolve_conflicts.name))
+            return work.but(note=f"no conflicts: {work.note}").to(SetAside)
+        return work.but(note="").cleared(resolve_conflicts.name).to(TakePass)
     # The budget's say or the operator's: the branch stands down either way.
     if work.exhausted(resolve_conflicts.name) or not await _worth_another(
         work, "resolve the conflicts"
     ):
         stopped = work.stopped_by("the merge conflicts were not resolved")
-        return goto(stand_down, stopped)
+        return stopped.to(StandDown)
     prompt = services().prompts.resolve(
         project, base=work.pr.base, branch=work.pr.branch, files="\n".join(unmerged)
     )
@@ -206,11 +227,11 @@ async def resolve_conflicts(work: Work) -> Transition:
         )
     )
     if fallen:
-        return goto(report, work.abandoned(fallen.reason))
+        return work.abandoned(fallen.reason).to(Reporting)
     # Back through this same step, which re-reads git rather than believing
     # the agent. The note goes now: past here the merge failing is just what a
     # conflict looks like, and the row is not to be told about it twice.
-    return goto(resolve_conflicts, work.but(note="").charged(resolve_conflicts.name))
+    return work.but(note="").charged(resolve_conflicts.name)
 
 
 # A branch this run has stopped paying for, carrying whatever the round
@@ -244,20 +265,22 @@ async def _board(work: Work) -> Board | None:
 # merge brought nothing in and CI's own gate jobs are green: that is the same
 # tree the server already ran the gate over.
 @step
-async def take_pass(work: Work) -> Transition:
+async def take_pass(work: TakePass) -> FinishMerge | GateCheck:
     if work.run.mode != "refresh":
-        return goto(finish_merge, work)
+        return work.to(FinishMerge)
     if work.unchanged:
         board = await _board(work)
         if board is not None and services().pulls.gates_green(board, work.run.project):
             note = "nothing to merge, and CI ran the gate green"
-            return goto(finish_merge, work.but(note=note))
-    return goto(gate_check, work)
+            return work.but(note=note).to(FinishMerge)
+    return work.to(GateCheck)
 
 
 # Run the gate, and repair it until it is green or the budget is gone.
 @step
-async def gate_check(work: Work) -> Transition:
+async def gate_check(
+    work: GateCheck,
+) -> GateCheck | FinishMerge | StandDown | Reporting:
     project = work.run.project
     # The task that broke last time round, where the runner named one: an
     # agent working on one linter is judged by that linter, not by the whole
@@ -279,14 +302,14 @@ async def gate_check(work: Work) -> Transition:
         # A task passing on its own is not the gate passing — it is the reason
         # to spend the gate. The whole chain runs once more.
         if not ruling.whole:
-            return goto(gate_check, work.but(gate=""))
-        return goto(finish_merge, work.but(gate="").cleared(gate_check.name))
+            return work.but(gate="")
+        return work.but(gate="").cleared(gate_check.name).to(FinishMerge)
     if isinstance(ruling, Stalled):
-        return goto(stand_down, _gave_up(work, ruling.reason, ruling.seen))
+        return _gave_up(work, ruling.reason, ruling.seen).to(StandDown)
     # The budget had its say; the operator gets the last one, and a verdict
     # nobody will pay for again is remembered either way.
     if not await _worth_another(work, f"repair `{gate}`"):
-        return goto(stand_down, _gave_up(work, ruling.declined, ruling.seen))
+        return _gave_up(work, ruling.declined, ruling.seen).to(StandDown)
     fallen = (
         await services()
         .agent(project)
@@ -298,33 +321,33 @@ async def gate_check(work: Work) -> Transition:
         )
     )
     if fallen:
-        return goto(report, work.abandoned(fallen.reason))
-    return goto(gate_check, work.but(gate=ruling.next_gate).charged(gate_check.name))
+        return work.abandoned(fallen.reason).to(Reporting)
+    return work.but(gate=ruling.next_gate).charged(gate_check.name)
 
 
 # Close an open merge and commit whatever the repairs left behind.
 @step
-async def finish_merge(work: Work) -> Transition:
+async def finish_merge(work: FinishMerge) -> SetAside | CheckCi | PushWork:
     scm = services().scm(work.run.project)
     if work.merging:
         try:
             await scm.continue_merge()
         except ScmError as error:
-            return goto(set_aside, work.but(note=str(error)))
+            return work.but(note=str(error)).to(SetAside)
     # A clean merge leaves the gate repairs uncommitted, and a merge the agent
     # committed itself leaves them behind too. Either way this is where they
     # land — and it is a no-op when there is nothing to land.
     try:
         await scm.commit(f"chore: merge {work.pr.base} and fix the gates")
     except ScmError as error:
-        return goto(set_aside, work.but(note=f"could not commit the merge: {error}"))
+        return work.but(note=f"could not commit the merge: {error}").to(SetAside)
     merged = work.merged()
     # Coverage runs on this side of the merge and the gate on the other: what
     # the gate repairs belongs in the merge commit above, while the tests the
     # slow pass writes are a commit of their own.
     if work.run.mode == "cover":
-        return goto(check_ci, merged)
-    return goto(push_work, merged)
+        return merged.to(CheckCi)
+    return merged.to(PushWork)
 
 
 # Asked of the pull request rather than measured here, because measuring is
@@ -333,16 +356,18 @@ async def finish_merge(work: Work) -> Transition:
 # run rather than the skip.
 # Ask CI whether this branch is worth the slow gate.
 @step
-async def check_ci(work: Work) -> Transition:
+async def check_ci(work: CheckCi) -> CloseGap | PushWork:
     board = await _board(work)
     if board is None or services().pulls.wants_cover(board, work.run.project):
-        return goto(close_gap, work)
-    return goto(push_work, work.but(note="coverage and the suite are green on CI"))
+        return work.to(CloseGap)
+    return work.but(note="coverage and the suite are green on CI").to(PushWork)
 
 
 # Close the coverage gap, repairing a red suite like any other gate.
 @step
-async def close_gap(work: Work) -> Transition:
+async def close_gap(
+    work: CloseGap,
+) -> CloseGap | SetAside | PushWork | StandDown | Reporting:
     project = work.run.project
     # The first measurement is the whole thing, because it is the one that
     # decides whether there is a gap at all. What a repair round re-runs is
@@ -364,9 +389,9 @@ async def close_gap(work: Work) -> Transition:
     if isinstance(ruling, Fixed):
         return await _covered(work, whole=ruling.whole)
     if isinstance(ruling, Stalled):
-        return goto(stand_down, _gave_up(work, ruling.reason, ruling.seen))
+        return _gave_up(work, ruling.reason, ruling.seen).to(StandDown)
     if not await _worth_another(work, f"work on `{gate}`"):
-        return goto(stand_down, _gave_up(work, ruling.declined, ruling.seen))
+        return _gave_up(work, ruling.declined, ruling.seen).to(StandDown)
     fallen = (
         await services()
         .agent(project)
@@ -378,16 +403,16 @@ async def close_gap(work: Work) -> Transition:
         )
     )
     if fallen:
-        return goto(report, work.abandoned(fallen.reason))
-    return goto(close_gap, work.but(gate=ruling.next_gate).charged(close_gap.name))
+        return work.abandoned(fallen.reason).to(Reporting)
+    return work.but(gate=ruling.next_gate).charged(close_gap.name)
 
 
 # Nothing is left uncovered, on whichever measurement said so.
-async def _covered(work: Work, *, whole: bool) -> Transition:
+async def _covered(work: Work, *, whole: bool) -> CloseGap | SetAside | PushWork:
     # Anything but the full measurement is a reason to spend the full
     # measurement, not a branch that is covered.
     if not whole:
-        return goto(close_gap, work.but(gate=""))
+        return work.but(gate="").to(CloseGap)
     # Only where tests were actually written: most branches pass here first
     # time, and a commit rite that never commits is noise.
     if work.spent(close_gap.name):
@@ -397,8 +422,8 @@ async def _covered(work: Work, *, whole: bool) -> Transition:
             )
         except ScmError as error:
             note = f"could not commit the tests: {error}"
-            return goto(set_aside, work.but(note=note))
-    return goto(push_work, work.but(gate="").cleared(close_gap.name))
+            return work.but(note=note).to(SetAside)
+    return work.but(gate="").cleared(close_gap.name).to(PushWork)
 
 
 # Not fatal, and not `set_aside`: a push that will not go through costs the
@@ -406,7 +431,7 @@ async def _covered(work: Work, *, whole: bool) -> Transition:
 # dropped for the night. What is left behind is said twice over: in this note,
 # and in the row's `unpushed`, counted off git at the end.
 @step
-async def push_work(work: Work) -> Transition:
+async def push_work(work: PushWork) -> Closed | QualityReview:
     try:
         await services().scm(work.run.project).push(work.pr.branch)
     except ScmError as error:
@@ -415,8 +440,8 @@ async def push_work(work: Work) -> Transition:
     # everything. A branch reaching the slow one already carries whatever
     # review it is going to get.
     if work.run.mode == "cover":
-        return goto(finish_pr, _ended(work))
-    return goto(quality_review, work)
+        return _ended(work)
+    return work.to(QualityReview)
 
 
 # What the review says is not the night's to have an opinion about — the
@@ -431,7 +456,7 @@ def _ended(work: Work) -> Closed:
 # out empty is yours to notice and ask for again by taking it off.
 # Post the review, unless the branch already carries the label.
 @step
-async def quality_review(work: Work) -> Transition:
+async def quality_review(work: QualityReview) -> Closed | SetAside | Reporting:
     project = work.run.project
     forge = services().forge(project)
     number = work.pr.number
@@ -439,10 +464,10 @@ async def quality_review(work: Work) -> Transition:
         labels = await forge.labels(number)
         # An earlier night's review, which is not this night's work to label.
         if project.labels.reviewed in labels:
-            return goto(finish_pr, _ended(work))
+            return _ended(work)
         threads = await forge.threads(number)
     except ForgeError as error:
-        return goto(set_aside, work.but(note=str(error)))
+        return work.but(note=str(error)).to(SetAside)
     prompt = services().prompts.review(
         project, base=work.pr.base, threads=threads, reason=work.reason
     )
@@ -458,13 +483,13 @@ async def quality_review(work: Work) -> Transition:
         )
     )
     if isinstance(read, Fallen):
-        return goto(report, work.abandoned(read.reason))
+        return work.abandoned(read.reason).to(Reporting)
     if isinstance(read, Misread):
-        return goto(set_aside, work.but(note=read.reason))
+        return work.but(note=read.reason).to(SetAside)
     findings = services().report.findings(project, read.items)
     if note := await _put_up(project, number, findings):
-        return goto(set_aside, work.but(note=note))
-    return goto(finish_pr, _ended(work))
+        return work.but(note=note).to(SetAside)
+    return _ended(work)
 
 
 # A posting that got partway still earns the label: what is up cannot be taken
@@ -487,7 +512,7 @@ async def _put_up(project: Project, number: int, findings: list[Finding]) -> str
 
 # Write the branch's row into the run, and go on to the next one.
 @step
-async def finish_pr(closed: Closed) -> Transition:
+async def finish_pr(closed: Closed) -> NextPr:
     work = closed.work
     # Only a green branch is done.
     marked = await _mark(work, "done") if closed.outcome == "green" else ""
@@ -498,7 +523,7 @@ async def finish_pr(closed: Closed) -> Transition:
         unpushed=await services().scm(work.run.project).ahead(work.pr.branch),
         note=work.telling(marked),
     )
-    return goto(next_pr, work.run.rowed(row))
+    return work.run.rowed(row).to(NextPr)
 
 
 # What comes back is this act's own bookkeeping and nothing else — the callers
@@ -515,8 +540,8 @@ async def _released(work: Work) -> str:
 # takes the same reading every other pull request gets. The worktree goes back
 # first: half a repair is not something to review.
 @step
-async def stand_down(work: Work) -> Transition:
-    return goto(push_work, work.standing_down(await _released(work)))
+async def stand_down(work: StandDown) -> PushWork:
+    return work.standing_down(await _released(work)).to(PushWork)
 
 
 # Nothing to release and nothing to count: this is only reached where the
@@ -524,14 +549,14 @@ async def stand_down(work: Work) -> Transition:
 # branch is exactly as its owner left it.
 # Leave the branch where it is, and say so in the report.
 @step
-def skip_pr(work: Work) -> Transition:
+def skip_pr(work: SkipPr) -> NextPr:
     row = work.checked("skipped", unpushed=None, note=work.telling())
-    return goto(next_pr, work.run.rowed(row))
+    return work.run.rowed(row).to(NextPr)
 
 
 # Give the worktree back and report the branch blocked.
 @step
-async def set_aside(work: Work) -> Transition:
+async def set_aside(work: SetAside) -> NextPr:
     # The worktree goes back before the count, not as an argument alongside
     # it: what is left to push is asked of a tree this step has finished with.
     released = await _released(work)
@@ -543,18 +568,18 @@ async def set_aside(work: Work) -> Transition:
         # it the first: the morning needs to hear the red gate.
         note=work.telling(released),
     )
-    return goto(next_pr, work.run.rowed(row))
+    return work.run.rowed(row).to(NextPr)
 
 
 # Nothing to await: this routes and renders. The summary is emitted before the
 # failure is raised, which is the whole reason every ending routes here rather
 # than raising where it happened.
 @step
-def report(run: Run) -> Transition:
+def report(run: Reporting) -> Done[Report]:
     emit_delta(services().report.sweep(run))
     if run.stopped:
         raise RitualError(run.stopped)
-    return done(
+    return Done(
         Report(
             checked=run.checked,
             not_reached=[pull.branch for pull in run.queue],

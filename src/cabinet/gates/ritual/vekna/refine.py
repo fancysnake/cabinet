@@ -20,7 +20,7 @@ the same as review threads.
 """
 
 from vekna.folio.flow import decide
-from vekna.lexicon import RitualError, Transition, done, emit_delta, goto, step
+from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
@@ -32,6 +32,7 @@ from cabinet.pacts.issues import (
     Refinement,
     Refining,
 )
+from cabinet.pacts.refine import Gather, Leaf, Tally
 from cabinet.pacts.services import services
 
 # One session for every page in the cast, so the skill is read once.
@@ -40,25 +41,21 @@ _THREAD = "refine"
 
 # Ask the forge for your open issues and queue the unrefined ones.
 @step
-async def gather(refining: Refining) -> Transition:
+async def gather(refining: Gather) -> Tally | Leaf:
     try:
         listed = await services().forge(refining.project).issues()
     except ForgeError as error:
-        return goto(tally, refining.but(stopped=str(error)))
-    return goto(
-        leaf,
-        refining.but(
-            queue=services().backlog.unrefined(listed.issues),
-            truncated=listed.truncated,
-        ),
-    )
+        return refining.but(stopped=str(error)).to(Tally)
+    return refining.but(
+        queue=services().backlog.unrefined(listed.issues), truncated=listed.truncated
+    ).to(Leaf)
 
 
 # Take the next page, if you say so.
 @step
-async def leaf(refining: Refining) -> Transition:
+async def leaf(refining: Leaf) -> Tally | Leaf | Page:
     if not refining.queue:
-        return goto(tally, refining)
+        return refining.to(Tally)
     batch = refining.batch
     page = Page(
         refining=refining.but(queue=refining.queue[batch:]),
@@ -66,13 +63,13 @@ async def leaf(refining: Refining) -> Transition:
     )
     shown = services().report.page(page.issues)
     if not await decide(f"{shown}\nrefine these {len(page.issues)}?"):
-        return goto(leaf, page.rowed("declined"))
-    return goto(refine_page, page)
+        return page.rowed("declined").to(Leaf)
+    return page
 
 
 # The agent reads the page and says what each issue is.
 @step
-async def refine_page(page: Page) -> Transition:
+async def refine_page(page: Page) -> Tally | Pinning:
     refining = page.refining
     project = refining.project
     prompt = services().prompts.refine(project, page.issues, briefed=refining.briefed)
@@ -82,12 +79,12 @@ async def refine_page(page: Page) -> Transition:
         .ask_for(prompt, output=Refined, role="reader", key=_THREAD)
     )
     if isinstance(said, Fallen | Misread):
-        return goto(tally, page.rowed("stopped").but(stopped=said.reason))
+        return page.rowed("stopped").but(stopped=said.reason).to(Tally)
     # By the page's numbers, not the answer's: an issue it made up is not on
     # the page to be pinned, and one it skipped is named as missed by `pin`.
     wanted = {one.number for one in page.issues}
     kept = [item for item in said.items if item.number in wanted]
-    return goto(pin, Pinning(page=page, items=kept))
+    return Pinning(page=page, items=kept)
 
 
 # The labels and links one reading asks for, in the order the skill puts them
@@ -138,18 +135,18 @@ async def _pinned(pinning: Pinning) -> tuple[list[Refinement], str]:
 # The forge writes, in one step of their own, apart from the agent's: the
 # labels, the sub-issues and the links the reading asked for.
 @step
-async def pin(pinning: Pinning) -> Transition:
+async def pin(pinning: Pinning) -> Tally | Leaf:
     rows, stopped = await _pinned(pinning)
     refining = pinning.page.refining.rowed(rows).but(briefed=True)
     if stopped:
-        return goto(tally, refining.but(stopped=stopped))
-    return goto(leaf, refining)
+        return refining.but(stopped=stopped).to(Tally)
+    return refining.to(Leaf)
 
 
 # Every ending comes here, so the report is owed however the cast ends.
 @step
-def tally(refining: Refining) -> Transition:
+def tally(refining: Tally) -> Done[Refining]:
     emit_delta(services().report.refine(refining))
     if refining.stopped:
         raise RitualError(refining.stopped)
-    return done(refining)
+    return Done(refining.to(Refining))

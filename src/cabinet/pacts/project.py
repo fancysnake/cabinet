@@ -147,7 +147,9 @@ class Project(BaseModel):
     agent: Agent = Agent()
 
 
-# What a label ritual is handed: which labels to make, and on which forge.
-class Conjuring(BaseModel):
+# `conjure`'s payload: which labels to make, and on which forge. Its own class
+# rather than the `Project` itself: a step owns the class it takes, and the
+# project is everybody's.
+class Conjure(BaseModel):
     project: Project
     specs: list[LabelSpec]

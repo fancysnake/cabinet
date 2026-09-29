@@ -6,12 +6,15 @@ reads names the same types, sizes and epic label, and a project that renamed
 them would be refined against words its agent has never heard.
 """
 
-from typing import Literal, Self, get_args
+from typing import Literal, Self, TypeVar, get_args
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import BATCH, Batch
+from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import LabelSpec, Project
+
+_RefiningT = TypeVar("_RefiningT", bound="Refining")
 
 
 # One open issue as the forge lists it.
@@ -147,11 +150,11 @@ class Refinement(BaseModel):
 
 
 # What the cast is still to do and what it has done.
-class Refining(BaseModel):
+class Refining(Hop):
     project: Project
     batch: Batch = BATCH
-    queue: list[Issue] = []
-    refined: list[Refinement] = []
+    queue: list[Issue] = Field(default_factory=list)
+    refined: list[Refinement] = Field(default_factory=list)
     # The forge would not list every open issue of yours, so the queue is not
     # the whole backlog. Said in the report, because a cast that cannot see an
     # issue reads exactly like a cast that found nothing to do on it.
@@ -160,6 +163,11 @@ class Refining(BaseModel):
     # page after the first continues the session that read it.
     briefed: bool = False
     stopped: str = ""
+
+    # The steps that gather, leaf and tally: `pacts/refine.py` names them. A
+    # page is read and pinned under classes of its own.
+    def to(self, kind: type[_RefiningT]) -> _RefiningT:
+        return self._rebuilt(kind)
 
     # `None` means "whatever this one had", as every other payload's builder.
     def but(

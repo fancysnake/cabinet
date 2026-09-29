@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from vekna.lexicon import Goto, RitualError
+from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.refine import gather, leaf, pin, refine_page, tally
@@ -19,6 +19,7 @@ from cabinet.pacts.issues import (
     Refining,
 )
 from cabinet.pacts.project import Project
+from cabinet.pacts.refine import Gather, Leaf, Tally
 from cabinet.rituals.refine import refine
 
 _AUTHORED = (
@@ -73,13 +74,11 @@ class TestGather:
         )
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
 
-        transition = trial.walk(gather, Refining(project=project))
+        transition = trial.walk(gather, Gather(project=project))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is leaf
-        assert isinstance(transition.payload, Refining)
-        assert [one.number for one in transition.payload.queue] == [2, 3]
-        assert not transition.payload.truncated
+        assert isinstance(transition, Leaf)
+        assert [one.number for one in transition.queue] == [2, 3]
+        assert not transition.truncated
 
     # A backlog the forge would not list the end of: the queue is what was
     # seen, and the cast says so rather than reading it as the whole of it.
@@ -93,11 +92,10 @@ class TestGather:
         )
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
 
-        transition = trial.walk(gather, Refining(project=project))
+        transition = trial.walk(gather, Gather(project=project))
 
-        assert isinstance(transition, Goto)
-        assert isinstance(transition.payload, Refining)
-        assert transition.payload.truncated
+        assert isinstance(transition, Leaf)
+        assert transition.truncated
 
     @staticmethod
     def test_a_forge_that_will_not_list_stops_the_cast_with_the_report(
@@ -105,12 +103,10 @@ class TestGather:
     ) -> None:
         trial.shell.replies(when=_AUTHORED, exit_code=1, stderr="not logged in")
 
-        transition = trial.walk(gather, Refining(project=project))
+        transition = trial.walk(gather, Gather(project=project))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is tally
-        assert isinstance(transition.payload, Refining)
-        assert "not logged in" in transition.payload.stopped
+        assert isinstance(transition, Tally)
+        assert "not logged in" in transition.stopped
 
 
 class TestLeaf:
@@ -119,15 +115,13 @@ class TestLeaf:
         trial: Trial, project: Project
     ) -> None:
         trial.decide.answers(answer=False, when="*refine these 2?")
-        refining = Refining(
+        refining = Leaf(
             project=project, batch=2, queue=[_issue(1), _issue(2), _issue(3)]
         )
 
         transition = trial.walk(leaf, refining)
 
-        assert isinstance(transition, Goto)
-        assert transition.target is leaf
-        assert transition.payload == refining.but(
+        assert transition == refining.but(
             queue=[_issue(3)],
             refined=[
                 Refinement(number=1, outcome="declined"),
@@ -146,9 +140,7 @@ class TestRefinePage:
 
         transition = trial.walk(refine_page, page)
 
-        assert transition == Goto(
-            target=pin, payload=Pinning(page=page, items=[_item(1)])
-        )
+        assert transition == Pinning(page=page, items=[_item(1)])
 
     # An issue the agent invented is not on the page, so nothing is put on it.
     @staticmethod
@@ -160,9 +152,8 @@ class TestRefinePage:
 
         transition = trial.walk(refine_page, page)
 
-        assert isinstance(transition, Goto)
-        assert isinstance(transition.payload, Pinning)
-        assert transition.payload.items == [_item(1)]
+        assert isinstance(transition, Pinning)
+        assert transition.items == [_item(1)]
 
     @staticmethod
     def test_the_agent_only_reads_and_reaches_no_forge(
@@ -190,11 +181,9 @@ class TestRefinePage:
 
         transition = trial.walk(refine_page, page)
 
-        assert isinstance(transition, Goto)
-        assert transition.target is tally
-        assert isinstance(transition.payload, Refining)
-        assert transition.payload.refined == [Refinement(number=1, outcome="stopped")]
-        assert "shape" in transition.payload.stopped
+        assert isinstance(transition, Tally)
+        assert transition.refined == [Refinement(number=1, outcome="stopped")]
+        assert "shape" in transition.stopped
 
 
 class TestPin:
@@ -207,11 +196,7 @@ class TestPin:
 
         transition = trial.walk(pin, Pinning(page=page, items=[_item(1)]))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is leaf
-        assert transition.payload == Refining(
-            project=project, briefed=True, refined=_refined(1)
-        )
+        assert transition == Leaf(project=project, briefed=True, refined=_refined(1))
         assert trial.shell.commands == [_labelled(1)]
 
     # An epic wears the epic label in place of a size, and its parts are
@@ -240,9 +225,8 @@ class TestPin:
 
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
-        assert isinstance(transition, Goto)
-        assert isinstance(transition.payload, Refining)
-        assert transition.payload.refined == [
+        assert isinstance(transition, Leaf)
+        assert transition.refined == [
             Refinement(number=1, outcome="refined", item=item, opened=[10])
         ]
         assert trial.shell.commands[-1] == (
@@ -268,8 +252,7 @@ class TestPin:
 
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is leaf
+        assert isinstance(transition, Leaf)
         assert trial.shell.commands[2].endswith("sub_issues -X POST -F sub_issue_id=99")
         assert trial.shell.commands[4].endswith("blocked_by -X POST -F issue_id=99")
 
@@ -282,9 +265,7 @@ class TestPin:
 
         transition = trial.walk(pin, Pinning(page=page, items=[_item(1)]))
 
-        assert isinstance(transition, Goto)
-        assert transition.target is leaf
-        assert transition.payload == Refining(
+        assert transition == Leaf(
             project=project,
             briefed=True,
             refined=[*_refined(1), Refinement(number=2, outcome="missed")],
@@ -306,15 +287,23 @@ class TestPin:
             pin, Pinning(page=page, items=[_item(1), _item(2), _item(3)])
         )
 
-        assert isinstance(transition, Goto)
-        assert transition.target is tally
-        assert isinstance(transition.payload, Refining)
-        assert transition.payload.refined == [
+        assert isinstance(transition, Tally)
+        assert transition.refined == [
             *_refined(1),
             Refinement(number=2, outcome="stopped"),
             Refinement(number=3, outcome="stopped"),
         ]
-        assert "no such label" in transition.payload.stopped
+        assert "no such label" in transition.stopped
+
+
+class TestTally:
+    # The cast hands back what it carried, under the carrier's own class
+    # rather than the step's.
+    @staticmethod
+    def test_the_result_is_the_carrier(trial: Trial, project: Project) -> None:
+        transition = trial.walk(tally, Tally(project=project, refined=_refined(1)))
+
+        assert transition == Done(Refining(project=project, refined=_refined(1)))
 
 
 class TestCast:

@@ -20,9 +20,6 @@ and this project adheres to [Semantic Versioning].
   `bug`, `S`, `M`, `L` and `epic` labels `refine` uses.
 - `issues` plugin: a skill for how issues are written, typed, sized and
   linked, which `refine` hands its agent.
-- `smoke-test` plugin: a skill that writes the fifteen-minute manual check
-  for a change where users meet it (staging, a production preview or the
-  installed CLI), plus the untouched features it could have broken.
 
 ### Changed
 
@@ -31,6 +28,21 @@ and this project adheres to [Semantic Versioning].
 ### Removed
 
 - `issue-maker` plugin, folded into `issues`.
+
+## [0.5.0] - 2026-09-29
+
+### Added
+
+- `smoke-test` plugin: a skill that writes the fifteen-minute manual check
+  for a change where users meet it (staging, a production preview or the
+  installed CLI), plus the untouched features it could have broken.
+
+### Changed
+
+- Requires vekna 0.10; `vekna rituals show` draws each ritual's graph from
+  the exits every step declares.
+- `review` ends with the rows it reviewed rather than the payload it carried
+  between branches, and a stopped review raises `RitualError`.
 
 ## [0.4.0] - 2026-09-27
 
@@ -112,7 +124,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/fancysnake/cabinet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fancysnake/cabinet/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/fancysnake/cabinet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/fancysnake/cabinet/compare/v0.2.0...v0.3.0
