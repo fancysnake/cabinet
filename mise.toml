@@ -1,8 +1,8 @@
 [tools]
 actionlint = "1.7.12"
 hk = "2.0.1"
-pipx = "1.17.4"
-"pipx:poetry" = "2.5.0"
+pipx = "1.17.5"
+"pipx:poetry" = "2.5.1"
 pkl = "0.32.1"
 python = "3.11.16"
 # actionlint hands every `run:` script to shellcheck.
@@ -21,9 +21,7 @@ SCRIPT_PATHS = ""
 TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml tingle.toml"
 
 [task_config]
-includes = [
-    "git::https://github.com/fancysnake/shared-configs.git//python.toml?ref=5da354f89c7e72d677e80326270aa8d8226ee76e",
-]
+includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"]
 
 [tasks.update]
 run = [
