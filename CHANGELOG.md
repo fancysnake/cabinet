@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning].
 ### Added
 
 - `smoke-test` plugin: a skill that writes the fifteen-minute manual check
-  for a Django change on staging, browser or management command, plus the
-  untouched features it could have broken.
+  for a change where users meet it (staging, a production preview or the
+  installed CLI), plus the untouched features it could have broken.
 
 ## [0.4.0] - 2026-09-27
 

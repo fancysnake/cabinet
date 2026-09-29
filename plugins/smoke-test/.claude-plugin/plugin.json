@@ -1,6 +1,6 @@
 {
   "name": "smoke-test",
-  "description": "Django: write the fifteen-minute manual check for a change on staging — the shortest path through the browser or a management command that proves it works, plus the untouched neighbours it could have broken. Reaches for the admin, manage.py, signals and migrations, so another stack gets the shape but not the nouns.",
+  "description": "Write the fifteen-minute manual check for a change where users meet it — staging or a production preview for a web app, the installed build for a CLI — plus the untouched neighbours it could have broken.",
   "author": {
     "name": "Radosław Ganczarek",
     "email": "radoslaw@ganczarek.in"
@@ -8,5 +8,5 @@
   "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/smoke-test",
   "repository": "https://github.com/fancysnake/cabinet",
   "license": "MIT",
-  "keywords": ["qa", "manual-testing", "staging", "django"]
+  "keywords": ["qa", "manual-testing", "staging", "cli", "web"]
 }

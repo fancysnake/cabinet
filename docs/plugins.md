@@ -10,7 +10,7 @@ you already have open.
 | `issue-maker`  | `issue-maker`  | files or updates a GitHub issue, checked against the code first |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
-| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a Django change on staging |
+| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
 
 --8<-- "README.md:plugins-install"
 
@@ -135,43 +135,44 @@ Pages workflow.
 
 ## smoke-test
 
-Writes the manual check for a Django change that is already on staging: the
-shortest path that proves it works, and the features it did not touch but
-could have broken. The stack is not incidental — the admin, `manage.py`,
-signals, migrations and management commands are what it reaches for. It
-triggers on any ask for what to click, how to check a change on staging, a
-smoke test, a quick QA pass or the minimal manual test before a merge or a
-release.
+Writes the manual check for a change, where users meet it: the shortest path
+that proves it works, and the features it did not touch but could have
+broken. One skill covers web apps and CLIs alike; only the target, the
+surface and a few neighbour rows differ. It triggers on any ask for what to
+click or run, how to check a change on staging, a smoke test, a quick QA
+pass or the minimal manual test before a merge or a release.
 
-It assumes the deploy already proved the obvious: migrations ran, the site
-loads, static files are there. None of that gets a step. The tester is the
-developer who wrote the change, so a step names the URL, the field and the
-row or message to look for, and skips the clicks in between. The whole path
-fits in fifteen minutes.
+The tester is the developer who wrote the change, so a step names the URL,
+the command, the field and the row, message or output line to look for, and
+skips the clicks in between. The whole path fits in fifteen minutes.
 
 1. **Reads the change** against the base the request names, else the ref the
-   last deploy went out on, else where the change left the base branch —
-   never `HEAD~1`, which on `main` hides everything but the tip of a
-   fast-forwarded branch. Then it sorts each file: web, command, data or
-   plumbing. Plumbing gets no step unless it changes what runs in
-   production. It reads only enough surrounding code to name the entry
-   point.
-2. **Picks the surface.** The browser first: a URL, a form, a button, the
-   admin as the fastest look at a row. No web part means the management
-   command with its flags, or a `manage.py shell` one-liner and what it
-   prints when it works. Mail, files and jobs are checked where they land.
-3. **Writes the path**: one per changed behaviour, done once end to end,
+   last deploy or release went out on, else where the change left the base
+   branch — never `HEAD~1`, which on `main` hides everything but the tip of
+   a fast-forwarded branch. Then it sorts each file: surface, jobs, data or
+   plumbing. Plumbing gets no step unless it changes what runs or ships.
+2. **Picks the target**, never the dev checkout. A deployed app means
+   staging, where the deploy already proved the obvious. A site with no
+   staging means the production build served locally. A CLI or package
+   means the build installed the way users install it, in a throwaway
+   environment, where missing package data and broken entry points show.
+3. **Picks the surface.** Web: a URL, a form, a button, the admin if the
+   framework has one. CLI: the command and its flags in a scratch fixture,
+   with what it prints and its exit code. Neither: a one-liner that runs the
+   code path. Side effects are checked where they land.
+4. **Writes the path**: one per changed behaviour, done once end to end,
    with each guard the diff adds poked once rather than enumerated. Over
    budget, guard pokes go first, then unlikely neighbours; the happy path
    is never cut.
-4. **Adds the neighbours** by a table of what the change touched: a base
-   template means one other page that includes it, a model means a page
-   that lists it and its admin, a login change means the old flow and an
-   anonymous hit, a setting or middleware means one page unrelated to the
-   feature. One action each; the question is "still works".
-5. **Reports** a numbered path with a time estimate, the neighbours, and
-   what was skipped for the budget or for data staging does not have.
+5. **Adds the neighbours** by a table of what the change touched: shared
+   rows (a model, a setting, a job, a dependency), web rows (a base
+   template, a route, permissions, a form) and CLI rows (the argument
+   parser, an output renderer, config loading, packaging). One action each;
+   the question is "still works".
+6. **Reports** a numbered path with a time estimate, the neighbours, and
+   what was skipped for the budget or for data the target does not have.
 
 "Works" means the page renders, the action lands, the row exists, the mail
-arrives. Pixels, copy and layout are not the point, and expected text is
-quoted only when the text is the feature.
+arrives, the command exits 0 and prints the line. Pixels, copy and layout
+are not the point, and expected text is quoted only when the text is the
+feature.
