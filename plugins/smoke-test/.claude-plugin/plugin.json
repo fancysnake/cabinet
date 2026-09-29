@@ -1,0 +1,12 @@
+{
+  "name": "smoke-test",
+  "description": "Write the fifteen-minute manual check for a change where users meet it — staging or a production preview for a web app, the installed build for a CLI — plus the untouched neighbours it could have broken.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/smoke-test",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["qa", "manual-testing", "staging", "cli", "web"]
+}

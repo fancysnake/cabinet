@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `smoke-test` plugin: a skill that writes the fifteen-minute manual check
+  for a change where users meet it (staging, a production preview or the
+  installed CLI), plus the untouched features it could have broken.
+
 ### Changed
 
 - Requires vekna 0.10. Every step returns the next step's payload and
