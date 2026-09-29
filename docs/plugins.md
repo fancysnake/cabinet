@@ -10,6 +10,7 @@ you already have open.
 | `issues`       | `issues`       | how issues are written, typed, sized and linked; what `refine` follows |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
+| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
 
 --8<-- "README.md:plugins-install"
 
@@ -129,3 +130,54 @@ Pages workflow.
    kept.
 7. **Verifies** with the build task and reports one line per file, the
    Pages setting to flip, and anything it had to assume.
+
+## smoke-test
+
+Writes the manual check for a change, where users meet it: the shortest path
+that proves it works, and the features it did not touch but could have
+broken. One skill covers web apps and CLIs alike; only the target, the
+surface and a few neighbour rows differ. It triggers on any ask for what to
+click or run, how to check a change on staging, a smoke test, a quick QA
+pass or the minimal manual test before a merge or a release.
+
+The tester is the developer who wrote the change, so a step names the URL,
+the command, the field and the row, message or output line to look for, and
+skips the clicks in between. The whole path fits in fifteen minutes.
+
+1. **Settles the kind** — web, CLI or package, or neither — and the target,
+   the surface and the neighbour rows all follow from it, asked once. Then
+   it reads the change against the base the request names, else the ref the
+   last deploy or release went out on, else where the change left the base
+   branch — never `HEAD~1`, which on `main` hides everything but the tip of
+   a fast-forwarded branch. Each file sorts into entry points, jobs, data or
+   plumbing. Plumbing gets no step unless it changes what runs or ships.
+2. **Picks the target**, never the dev checkout. A deployed web app means
+   staging, where the deploy already proved the obvious. One with no staging
+   means the production build served locally. A CLI or package means the
+   build installed the way users install it, in a throwaway environment,
+   where missing package data and broken entry points show. Setting that up
+   is step 0, which ends on its own acceptance line and counts against
+   neither the budget nor the one-minute rule: a build is machine wait, not
+   the tester's attention.
+3. **Picks the surface**, the medium the test is driven through. Web: a URL,
+   a form, a button, the admin if the framework has one. CLI: the command
+   and its flags in a scratch fixture, with what it prints and its exit
+   code. Neither: a one-liner that runs the code path. Side effects are
+   checked where they land, and nothing gets a step that the deploy or step
+   0 already proved.
+4. **Writes the path**: one per changed behaviour, done once end to end,
+   with each guard the diff adds poked once rather than enumerated. Over
+   budget, guard pokes go first, then unlikely neighbours; the happy path
+   is never cut. When the happy paths alone overflow it, the change is split
+   into two runs or called too broad, and `Skipped` names what got covered.
+5. **Adds the neighbours** by a table of what the change touched, grouped
+   into the rows that hold for any kind and the rows each kind adds. One
+   action each, or two where a row names a second; the question is "still
+   works".
+6. **Reports** a numbered path with a time estimate, the neighbours, and
+   what was skipped for the budget or for data the target does not have.
+
+"Works" means the page renders, the action lands, the row exists, the mail
+arrives, the command exits 0 and prints the line. Pixels, copy and layout
+are not the point, and expected text is quoted only when the text is the
+feature.

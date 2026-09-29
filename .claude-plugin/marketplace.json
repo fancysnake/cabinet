@@ -1,6 +1,6 @@
 {
   "name": "cabinet",
-  "description": "Radek's Claude Code plugins: skills that write and refine issues, cut releases, and run other repo rituals",
+  "description": "Radek's Claude Code plugins: skills that write and refine issues, cut releases, smoke-test a change, and run other repo rituals",
   "owner": {
     "name": "Radosław Ganczarek",
     "email": "radoslaw@ganczarek.in"
@@ -8,6 +8,7 @@
   "plugins": [
     { "name": "issues", "source": "./plugins/issues", "category": "productivity" },
     { "name": "release-bump", "source": "./plugins/release-bump", "category": "productivity" },
-    { "name": "mkdocs-site", "source": "./plugins/mkdocs-site", "category": "productivity" }
+    { "name": "mkdocs-site", "source": "./plugins/mkdocs-site", "category": "productivity" },
+    { "name": "smoke-test", "source": "./plugins/smoke-test", "category": "productivity" }
   ]
 }

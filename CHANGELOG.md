@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning].
   `bug`, `S`, `M`, `L` and `epic` labels `refine` uses.
 - `issues` plugin: a skill for how issues are written, typed, sized and
   linked, which `refine` hands its agent.
+- `smoke-test` plugin: a skill that writes the fifteen-minute manual check
+  for a change where users meet it (staging, a production preview or the
+  installed CLI), plus the untouched features it could have broken.
 
 ### Changed
 
