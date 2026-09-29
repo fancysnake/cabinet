@@ -1,6 +1,6 @@
 {
   "name": "smoke-test",
-  "description": "Write the fifteen-minute manual check for a change on staging: the shortest path through the browser or a Django command that proves it works, plus the untouched neighbours it could have broken.",
+  "description": "Django: write the fifteen-minute manual check for a change on staging — the shortest path through the browser or a management command that proves it works, plus the untouched neighbours it could have broken. Reaches for the admin, manage.py, signals and migrations, so another stack gets the shape but not the nouns.",
   "author": {
     "name": "Radosław Ganczarek",
     "email": "radoslaw@ganczarek.in"

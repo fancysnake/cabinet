@@ -10,7 +10,7 @@ you already have open.
 | `issue-maker`  | `issue-maker`  | files or updates a GitHub issue, checked against the code first |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
-| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a change on staging |
+| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a Django change on staging |
 
 --8<-- "README.md:plugins-install"
 
@@ -135,11 +135,13 @@ Pages workflow.
 
 ## smoke-test
 
-Writes the manual check for a change that is already on staging: the
+Writes the manual check for a Django change that is already on staging: the
 shortest path that proves it works, and the features it did not touch but
-could have broken. It triggers on any ask for what to click, how to check a
-change on staging, a smoke test, a quick QA pass or the minimal manual test
-before a merge or a release.
+could have broken. The stack is not incidental — the admin, `manage.py`,
+signals, migrations and management commands are what it reaches for. It
+triggers on any ask for what to click, how to check a change on staging, a
+smoke test, a quick QA pass or the minimal manual test before a merge or a
+release.
 
 It assumes the deploy already proved the obvious: migrations ran, the site
 loads, static files are there. None of that gets a step. The tester is the
@@ -147,10 +149,13 @@ developer who wrote the change, so a step names the URL, the field and the
 row or message to look for, and skips the clicks in between. The whole path
 fits in fifteen minutes.
 
-1. **Reads the change** against `main` (or `HEAD~1` on `main`) and sorts
-   each file: web, command, data or plumbing. Plumbing gets no step unless
-   it changes what runs in production. It reads only enough surrounding code
-   to name the entry point.
+1. **Reads the change** against the base the request names, else the ref the
+   last deploy went out on, else where the change left the base branch —
+   never `HEAD~1`, which on `main` hides everything but the tip of a
+   fast-forwarded branch. Then it sorts each file: web, command, data or
+   plumbing. Plumbing gets no step unless it changes what runs in
+   production. It reads only enough surrounding code to name the entry
+   point.
 2. **Picks the surface.** The browser first: a URL, a form, a button, the
    admin as the fastest look at a row. No web part means the management
    command with its flags, or a `manage.py shell` one-liner and what it

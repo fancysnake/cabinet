@@ -1,6 +1,6 @@
 {
   "name": "cabinet",
-  "description": "Radek's Claude Code plugins: skills that file issues, cut releases, smoke-test a change, and run other repo rituals",
+  "description": "Radek's Claude Code plugins: skills that file issues, cut releases, smoke-test a Django change, and run other repo rituals",
   "owner": {
     "name": "Radosław Ganczarek",
     "email": "radoslaw@ganczarek.in"
