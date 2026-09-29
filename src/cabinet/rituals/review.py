@@ -22,7 +22,8 @@ from cabinet.gates.ritual.vekna.review import (
     settle,
     work,
 )
-from cabinet.pacts.reviews import QueueUp, Review
+from cabinet.pacts.review import QueueUp
+from cabinet.pacts.reviews import Review
 from cabinet.pacts.services import services
 
 # The engine's backstop and nothing else: the repair loop is bounded by the

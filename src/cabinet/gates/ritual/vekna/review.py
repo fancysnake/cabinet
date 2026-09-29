@@ -55,19 +55,13 @@ from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.project import State
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
+from cabinet.pacts.review import Land, Look, Pick, QueueUp, Read, Recap, Settle
 from cabinet.pacts.reviews import (
     Answering,
     Branch,
     Instructed,
-    Land,
     Landing,
-    Look,
-    Pick,
-    Picking,
-    QueueUp,
-    Read,
-    Recap,
-    Settle,
+    Recapped,
     Triage,
 )
 from cabinet.pacts.scm import ScmError
@@ -392,8 +386,14 @@ async def settle(branch: Settle) -> Pick:
 # routes, and the failing is done here, after the report has been said.
 # Say what each branch came to, and fail the cast where one stopped it.
 @step
-def recap(picking: Recap) -> Done[Picking]:
+def recap(picking: Recap) -> Done[Recapped]:
     emit_delta(services().report.review(picking))
     if picking.stopped:
         raise RitualError(picking.stopped)
-    return Done(picking.to(Picking))
+    return Done(
+        Recapped(
+            reviewed=picking.reviewed,
+            not_polled=[pull.branch for pull in picking.queue],
+            failed=picking.stopped,
+        )
+    )

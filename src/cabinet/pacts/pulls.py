@@ -1,6 +1,6 @@
 """What a sweep carries, branch by branch, and what it leaves behind."""
 
-from typing import Annotated, Literal, Self, TypeAlias
+from typing import Annotated, Literal, Self, TypeAlias, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,9 @@ from cabinet.pacts.project import Project
 # A bound counts attempts at one step, so zero would mean a step that may never
 # be tried at all; past five a repair loop has stopped being a repair loop.
 Bound = Annotated[int, Field(ge=1, le=5)]
+
+_RunT = TypeVar("_RunT", bound="Run")
+_WorkT = TypeVar("_WorkT", bound="Work")
 
 
 class Sweep(BaseModel):
@@ -90,20 +93,23 @@ def joined(*parts: str) -> str:
 
 
 # Every step carries this, because the report is owed however the cast ends.
-# `BaseModel` named again beside `Hop` so ruff still reads this as a pydantic
-# model, whose list defaults are copied per instance rather than shared.
-class Run(Hop, BaseModel):
+class Run(Hop):
     project: Project
     bound: int
     mode: Mode = "refresh"
     attended: bool = False
-    queue: list[PullRequest] = []
-    checked: list[Checked] = []
+    queue: list[PullRequest] = Field(default_factory=list)
+    checked: list[Checked] = Field(default_factory=list)
     stopped: str = ""
     # Every verdict a gate on this run has given up on, carried across branches
     # so the next one can recognise it: a night where the same thing is broken
     # everywhere should pay for that answer once, not once per pull request.
-    seen: list[str] = []
+    seen: list[str] = Field(default_factory=list)
+
+    # The run's own steps and no others: `pacts/sweep.py` names one class per
+    # step, and the ones that take a branch are `Work`'s, not these.
+    def to(self, kind: type[_RunT]) -> _RunT:
+        return self._rebuilt(kind)
 
     # Every step routes state forward by building the next payload from the
     # last, and `model_copy` takes an untyped mapping — so the field list is
@@ -157,6 +163,11 @@ class Work(Budgeted, Hop):
     reason: str = ""
     # This branch will not be made green tonight, and is being read anyway.
     blocked: bool = False
+
+    # The steps that take a branch, and no others: ending a branch means
+    # routing the `Run` this carries, which has a `to` of its own.
+    def to(self, kind: type[_WorkT]) -> _WorkT:
+        return self._rebuilt(kind)
 
     # The fields a step routes forward on its way through a branch, with
     # `None` meaning "whatever this one had". The flags each have a builder of

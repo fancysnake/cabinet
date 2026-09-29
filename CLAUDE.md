@@ -85,11 +85,13 @@ call discards the previous `Services` caches).
 A step returns the next step's payload, or `Done(result)`, and its return
 annotation lists every exit; vekna routes by the payload's exact class, so each
 class belongs to one step. Every step has a class named for it that adds no
-fields: `pacts/sweep.py` (`SetAside(Work)`, …) and the tail of
-`pacts/reviews.py` (`Pick(Picking)`, `Read(Branch)`, …). The carriers `Run`,
-`Work`, `Picking` and `Branch` are `Hop`s (`pacts/hops.py`), and
-`payload.to(NextStep)` is the one way across. A new step gets a new class; mypy
-checks every `return` against the annotation.
+fields, in a module of its own per ritual: `pacts/sweep.py` (`SetAside(Work)`,
+…) and `pacts/review.py` (`Pick(Picking)`, `Read(Branch)`, …), beside the
+carriers they rebuild in `pacts/pulls.py` and `pacts/reviews.py`. The carriers
+`Run`, `Work`, `Picking` and `Branch` are `Hop`s (`pacts/hops.py`), and
+`payload.to(NextStep)` — declared per carrier, bound to that carrier's own
+steps — is the one way across. A new step gets a new class; mypy checks every
+`return` against the annotation.
 
 ### Facades
 

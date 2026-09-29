@@ -21,21 +21,16 @@ from cabinet.gates.ritual.vekna.review import (
 )
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.review import Land, Look, Pick, QueueUp, Read, Recap, Settle
 from cabinet.pacts.reviews import (
     Answering,
     Branch,
     Instructed,
-    Land,
     Landing,
-    Look,
-    Pick,
     Picking,
-    QueueUp,
-    Read,
-    Recap,
+    Recapped,
     Review,
     Reviewed,
-    Settle,
     Triage,
 )
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
@@ -613,7 +608,9 @@ class TestRecap:
             reviewed=[Reviewed(branch="feature", outcome="shipped")],
         )
 
-        assert trial.walk(recap, picking.to(Recap)) == Done(picking)
+        assert trial.walk(recap, picking.to(Recap)) == Done(
+            Recapped(reviewed=[Reviewed(branch="feature", outcome="shipped")])
+        )
 
     @staticmethod
     def test_a_stopped_cast_is_said_then_failed(trial: Trial, project: Project) -> None:
@@ -658,10 +655,8 @@ class TestWholeCast:
 
         result = trial.cast(review, Review(bound=2))
 
-        assert result == Picking(
-            project=Picking.model_validate({"project": {}, "bound": 2}).project,
-            bound=2,
-            reviewed=[Reviewed(branch="feature", outcome="shipped")],
+        assert result == Recapped(
+            reviewed=[Reviewed(branch="feature", outcome="shipped")]
         )
         assert trial.steps == [
             "queue_up",

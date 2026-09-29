@@ -2,7 +2,8 @@
 
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Closed, PullRequest, Run, Work
-from cabinet.pacts.reviews import Branch, Picking, Read, Recap, Triage
+from cabinet.pacts.review import Read, Recap
+from cabinet.pacts.reviews import Branch, Picking, Triage
 from cabinet.pacts.sweep import CheckClean, NextPr, PushWork, SetAside
 
 _PULL = PullRequest(
