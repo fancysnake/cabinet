@@ -7,7 +7,7 @@ steps live in ``cabinet.gates.ritual.vekna.review``; this module is the ritual
 itself and the surface vekna sweeps.
 """
 
-from vekna.lexicon import Transition, goto, ritual
+from vekna.lexicon import ritual
 
 from cabinet.gates.ritual.vekna.review import (
     answer,
@@ -22,7 +22,8 @@ from cabinet.gates.ritual.vekna.review import (
     settle,
     work,
 )
-from cabinet.pacts.reviews import Picking, Review
+from cabinet.pacts.review import QueueUp
+from cabinet.pacts.reviews import Review
 from cabinet.pacts.services import services
 
 # The engine's backstop and nothing else: the repair loop is bounded by the
@@ -32,11 +33,10 @@ _MAX_STEPS = 400
 
 
 @ritual("review", max_steps=_MAX_STEPS)
-def review(components: Review) -> Transition:
-    picking = Picking(
+def review(components: Review) -> QueueUp:
+    return QueueUp(
         project=services().project(), bound=components.bound, batch=components.batch
     )
-    return goto(queue_up, picking)
 
 
 __all__ = [

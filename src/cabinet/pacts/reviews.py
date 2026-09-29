@@ -1,10 +1,11 @@
 """What the review-answering cast carries from branch to branch."""
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, TypeVar
 
 from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import Budgeted
+from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Bound, PullRequest
 from cabinet.pacts.threads import Answer, TriageItem
@@ -14,6 +15,9 @@ from cabinet.pacts.threads import Answer, TriageItem
 # in their head and one agent asked to fix forty things before anything is
 # posted. No ceiling: a batch bigger than the review is the whole review.
 Batch = Annotated[int, Field(ge=1)]
+
+_PickingT = TypeVar("_PickingT", bound="Picking")
+_BranchT = TypeVar("_BranchT", bound="Branch")
 
 
 class Review(BaseModel):
@@ -36,13 +40,18 @@ class Reviewed(BaseModel):
 # What the cast is still to do and what it has done. Carried through every
 # step, because every ending goes round again — and the last one owes the
 # report.
-class Picking(BaseModel):
+class Picking(Hop):
     project: Project
     bound: Bound
     batch: Batch = 7
-    queue: list[PullRequest] = []
-    reviewed: list[Reviewed] = []
+    queue: list[PullRequest] = Field(default_factory=list)
+    reviewed: list[Reviewed] = Field(default_factory=list)
     stopped: str = ""
+
+    # The steps that pick and recap, and no others: the steps that work one
+    # branch are `Branch`'s.
+    def to(self, kind: type[_PickingT]) -> _PickingT:
+        return self._rebuilt(kind)
 
     # `None` means "whatever this one had", the same as every other payload's
     # builder: an empty string is a value, and passing one clears the field.
@@ -63,7 +72,7 @@ class Picking(BaseModel):
         return self.model_copy(update=update)
 
 
-class Branch(BaseModel):
+class Branch(Hop):
     # The rest of the cast, riding along: a branch is taken off the queue when
     # it is picked, so what is here is what comes after this one.
     picking: Picking
@@ -75,6 +84,11 @@ class Branch(BaseModel):
     # nothing has touched, which is the only one that can still be walked
     # away from without a commit.
     answered: int = 0
+
+    # One branch's own steps: what comes after this branch is the `Picking`
+    # this rides on, which routes itself.
+    def to(self, kind: type[_BranchT]) -> _BranchT:
+        return self._rebuilt(kind)
 
     @property
     def bound(self) -> int:
@@ -133,3 +147,13 @@ class Landing(Budgeted):
     def but(self, *, gate: str) -> Self:
         update: dict[str, str] = {"gate": gate}
         return self.model_copy(update=update)
+
+
+# What the cast came to, branch by branch: what the ritual hands back, which is
+# the rows and nothing of what it took to collect them.
+class Recapped(BaseModel):
+    reviewed: list[Reviewed] = []
+    # Branches the forge was never asked about, which only a cast that stopped
+    # leaves behind.
+    not_polled: list[str] = []
+    failed: str = ""

@@ -10,7 +10,7 @@ mills/     pure logic: which pull requests, what a task said, what the agent is 
 links/     adapters: forge/github, forge/gitlab, scm/git, tasks/mise, agent/claude, config
 gates/     the @ritual and @step bodies, reaching everything through pacts
 inits/     the one place the adapters are chosen and bound
-rituals/   what vekna sweeps: one module per ritual, re-exporting its steps
+rituals/   what vekna loads: one module per ritual, re-exporting its steps
 ```
 
 | layer      | may import                                                     |
@@ -25,8 +25,8 @@ rituals/   what vekna sweeps: one module per ritual, re-exporting its steps
 
 ## The services seam
 
-vekna discovers steps by sweeping a module and routes by reference, so nothing
-constructs a step and nothing can inject into one. Every step reaches its
+vekna registers a step when it is decorated and routes by payload class, so
+nothing constructs a step and nothing can inject into one. Every step reaches its
 collaborators through `services()` in `pacts/services.py`: a single slot
 filled once by `bind()`. Importing `cabinet.rituals` wires it, exactly once,
 before any facade body runs.
@@ -34,12 +34,21 @@ before any facade body runs.
 `Services.project()` reads `[cabinet]` from `.vekna.toml` at the current
 directory; `forge()` picks GitHub or GitLab from `project.forge`.
 
+## Payloads are the graph
+
+A step returns the next step's payload, or `Done(result)`, and its return
+annotation names every exit. vekna routes by the payload's exact class, so
+every step has a class of its own, named for it and adding no fields:
+`SetAside(Work)` in `pacts/sweep.py`, `Pick(Picking)` in `pacts/review.py`.
+`payload.to(NextStep)` rebuilds one as another — one `to` per carrier, taking
+only that carrier's own steps — and mypy checks every `return` against the
+annotation.
+
 ## Facades
 
 `rituals/refresh.py` and `rituals/cover.py` both wrap the shared sweep steps
-and each re-export the full step list, deliberately copied, because vekna
-registers only what it finds in the named module's namespace. A new sweep
-step is added to both.
+and each re-export the full step list, so importing either registers the whole
+graph. A new sweep step is added to both.
 
 ## Development
 
@@ -50,7 +59,7 @@ Python 3.11 through 3.14 via mise; `mise tasks` lists everything.
 - `tests/unit/`: mills and pacts, plain pytest, no shell.
 - `tests/integration/`: vekna's `trial` fixture walks steps with a scripted
   shell and an agent double. A test asserts on transitions:
-  `trial.walk(step, payload) == goto(next, payload)`.
+  `trial.walk(step, work.to(Step)) == work.to(Next)`.
 
 mypy runs fully strict, ruff selects `ALL`, and tingle counts every
 suppression as debt against main. Fix the code rather than suppress.

@@ -142,3 +142,9 @@ class Project(BaseModel):
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()
+
+
+# `conjure`'s payload. A wrapper rather than the `Project` itself: a step owns
+# the class it takes, and the project is everybody's.
+class Conjure(BaseModel):
+    project: Project

@@ -69,7 +69,7 @@ moving modules.
 
 ### The services seam
 
-vekna discovers steps by sweeping a module and routes by reference, so
+vekna registers a step when it is decorated and routes by payload class, so
 nothing constructs a step and nothing can inject into one. Every step reaches
 its collaborators through `services()` in `pacts/services.py`: a single slot
 filled once by `bind()`. `rituals/__init__.py` imports `rituals/wiring.py`,
@@ -80,12 +80,25 @@ call discards the previous `Services` caches).
 `Services.project()` reads `[cabinet]` from `.vekna.toml` at `Path.cwd()`;
 `forge()` picks GitHub or GitLab from `project.forge`.
 
+### Payloads are the graph
+
+A step returns the next step's payload, or `Done(result)`, and its return
+annotation lists every exit; vekna routes by the payload's exact class, so each
+class belongs to one step. Every step has a class named for it that adds no
+fields, in a module of its own per ritual: `pacts/sweep.py` (`SetAside(Work)`,
+…) and `pacts/review.py` (`Pick(Picking)`, `Read(Branch)`, …), beside the
+carriers they rebuild in `pacts/pulls.py` and `pacts/reviews.py`. The carriers
+`Run`, `Work`, `Picking` and `Branch` are `Hop`s (`pacts/hops.py`), and
+`payload.to(NextStep)` — declared per carrier, bound to that carrier's own
+steps — is the one way across. A new step gets a new class; mypy checks every
+`return` against the annotation.
+
 ### Facades
 
 `rituals/refresh.py` and `rituals/cover.py` both wrap the shared sweep steps
-in `gates/ritual/vekna/sweep.py` and each re-export the **full** step list,
-deliberately copied, because vekna registers only what it finds in the named
-module's namespace. A new sweep step must be added to both `__all__` lists.
+in `gates/ritual/vekna/sweep.py` and each re-export the **full** step list, so
+importing either registers the whole graph. A new sweep step must be added to
+both `__all__` lists (`test_facade.py` checks).
 `rituals/review.py` wraps `gates/ritual/vekna/review.py`; `rituals/labels.py`
 wraps `gates/ritual/vekna/labels.py`.
 
@@ -106,7 +119,8 @@ permission that commits, pushes, or talks to the forge.
   `project`, `pull`, `work`, `branch`, `here` fixtures and the `gh`/`git`
   command strings steps are expected to issue. `falling.py` swaps in an agent
   that dies, for the abort paths.
-- A test asserts on transitions: `trial.walk(step, payload) == goto(next, payload)`.
+- A test asserts on transitions: `trial.walk(step, work.to(Step)) == work.to(Next)`,
+  or `== Done(result)`.
 
 ## Config that is code
 
