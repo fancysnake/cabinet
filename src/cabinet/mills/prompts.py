@@ -9,6 +9,7 @@ turns trying.
 from typing_extensions import override
 
 from cabinet.mills.report import triage_line
+from cabinet.pacts.issues import Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
 from cabinet.pacts.threads import Thread, TriageItem
@@ -158,6 +159,29 @@ code on its own terms.
 """
 
 
+_REFINE = """\
+Refine every issue between the markers, and only those — plus the sub-issues
+you open under them. Read the code an issue is about before judging it: the
+size is what the change costs in this repository as it stands.
+
+On the forge, for each issue:
+
+- one type label: feature, edit, chore, spike or bug
+- then one size label: S, M or L — or, where it will not fit one pull request,
+  the epic label instead of a size, with its sub-issues opened, labelled and
+  attached under it
+- the links the skill describes, to other open issues where they are real
+
+Do not close, delete or retitle an issue, and do not remove a label you did
+not put on. You edit no files.
+
+Then answer one item per issue in `items`, carrying its number: the type and
+size you gave it (no size on an epic), the sub-issues you opened in `created`,
+the issues you linked it to in `linked`, and anything I should know in `note`
+— one sentence, read on a terminal.
+"""
+
+
 # What the agent may run itself, from the same list the allowlist is built
 # from — so the prompt never promises a command the SDK then refuses.
 def _may_run(project: Project) -> str:
@@ -208,6 +232,11 @@ def _fenced(threads: list[Thread]) -> str:
 def _item(index: int, item: TriageItem, answer: str) -> str:
     read = f"{triage_line(index, item)}\n   thread: {item.thread}"
     return f"{_fence(read)}\nwhat I want: {answer}"
+
+
+def _issue(issue: Issue) -> str:
+    worn = ", ".join(issue.labels) or "none"
+    return f"issue #{issue.number}: {issue.title}\nlabels: {worn}\n\n{issue.body}"
 
 
 def _thread(thread: Thread) -> str:
@@ -279,3 +308,17 @@ class Prompts(PromptsProtocol):
             f"The review threads already on the pull request:\n\n{_FENCE}\n"
             f"{_fenced(threads)}"
         )
+
+    # The skill is named on the first page only: every page after it continues
+    # the session that read it, and reading it again is turns spent on nothing.
+    @override
+    def refine(self, project: Project, issues: list[Issue], *, briefed: bool) -> str:
+        opening = (
+            "The next page of open issues, by the same skill and the same rules."
+            if briefed
+            else f"Refine the open issues below: read {project.refine_skill} and"
+            " follow it. It says what each type and size means, when an issue is"
+            " an epic, and how issues are linked."
+        )
+        shown = _fence("\n\n".join(_issue(issue) for issue in issues))
+        return f"{opening}\n\n{_FENCE}\n{_REFINE}\nThe issues:\n\n{shown}"

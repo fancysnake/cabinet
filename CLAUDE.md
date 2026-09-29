@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A [vekna](https://vekna.fancysnake.dev) **tome**: pull request maintenance
-rituals (`refresh`, `cover`, `review`, `labels`) packaged under `src/cabinet`
-and cast from other repositories via `vekna cast <ritual>`. The repo is also
-a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) whose
+A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
+maintenance rituals (`refresh`, `cover`, `review`, `refine`, `labels:pr`,
+`labels:issue`) packaged under `src/cabinet` and cast from other
+repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
+marketplace (`.claude-plugin/marketplace.json`) whose
 plugins live under `plugins/<name>/` as skills only, no Python. `docs/` is the
 manual, built by mkdocs-material into <https://cabinet.fancysnake.dev> by
 `.github/workflows/site.yml` on every push to `main`; README.md is the front
@@ -60,9 +61,9 @@ moving modules.
 | ---------- | ------------------------------------------------------------- | ------------------------ |
 | `pacts/`   | pydantic payloads, `Project` config, protocols (forge/scm/tasks/agent/services) | nothing internal |
 | `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`)       | pacts                    |
-| `mills/`   | pure logic: `Pulls`, `Verdicts`, `Prompts`, `Repairs`, `Report` | pacts, specs           |
+| `mills/`   | pure logic: `Pulls`, `Backlog`, `Verdicts`, `Prompts`, `Repairs`, `Report` | pacts, specs           |
 | `links/`   | adapters: `forge/{github,gitlab}`, `scm/git`, `tasks/mise`, `agent/claude`, `config/vekna_toml` | pacts only; `links/*` subpackages independent of each other |
-| `gates/`   | `@step` bodies (`gates/ritual/vekna/{sweep,review,labels,marking}.py`) | pacts only            |
+| `gates/`   | `@step` bodies (`gates/ritual/vekna/{sweep,review,refine,labels,marking}.py`) | pacts only            |
 | `inits/`   | `Services` binds concrete adapters, `wire()`                   | everything               |
 | `rituals/` | one facade per ritual: the `@ritual` entrypoint + re-exported steps | layers; nothing imports it back |
 | `edges/`   | reserved, empty, excluded from coverage                        | nothing                  |
@@ -86,16 +87,24 @@ call discards the previous `Services` caches).
 in `gates/ritual/vekna/sweep.py` and each re-export the **full** step list,
 deliberately copied, because vekna registers only what it finds in the named
 module's namespace. A new sweep step must be added to both `__all__` lists.
-`rituals/review.py` wraps `gates/ritual/vekna/review.py`; `rituals/labels.py`
-wraps `gates/ritual/vekna/labels.py`.
+`rituals/review.py` wraps `gates/ritual/vekna/review.py`; `rituals/refine.py`
+wraps `gates/ritual/vekna/refine.py`. `rituals/labels_pr.py` and
+`rituals/labels_issue.py` share the one `conjure` step in
+`gates/ritual/vekna/labels.py`, each handing it its own label specs. A ritual's
+name is the `@ritual("...")` string, not the module: `labels:pr` is cast by
+that name. Step names are global across the package, so a new step must not
+reuse one (`recap` is review's; refine's is `tally`).
 
 ### Who runs what
 
 Agents (`links/agent/claude.py`) run under `dontAsk` with per-role
-allowlists (reader / writer / resolver, plus `project.agent.may_run`). Every
-commit, push, task run and forge write is the ritual's own, through vekna's
-`shell` medium in the `links` adapters. Keep it that way: no new agent
-permission that commits, pushes, or talks to the forge.
+allowlists (reader / writer / resolver / refiner, plus
+`project.agent.may_run`). Every commit, push and task run, and every forge
+write but one, is the ritual's own, through vekna's `shell` medium in the
+`links` adapters. The exception is the refiner: `refine` has it label, open
+and link issues through `gh issue` / `gh api` (`glab` on GitLab), always
+attended, and it edits no files. Keep it to that: no new agent permission
+that commits, pushes, or talks to the forge about anything but issues.
 
 ## Tests
 

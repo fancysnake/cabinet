@@ -1,4 +1,4 @@
-"""Making the labels, on either forge, twice over."""
+"""Making the pull request labels, on either forge, twice over."""
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from vekna.lexicon import NoComponents, RitualError
 from vekna.trial import Trial
 
 from cabinet.pacts.project import Labelled
-from cabinet.rituals.labels import labels
+from cabinet.rituals.labels_pr import labels_pr
 
 _NAMES = [
     "pr::thermo",
@@ -21,13 +21,13 @@ _NAMES = [
 ]
 
 
-class TestLabels:
+class TestLabelsPr:
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_every_label_is_made_with_force(trial: Trial) -> None:
         trial.shell.replies(when="gh label create*", always=True)
 
-        result = trial.cast(labels, NoComponents())
+        result = trial.cast(labels_pr, NoComponents())
 
         assert result == Labelled(names=_NAMES)
         assert trial.steps == ["conjure"]
@@ -45,7 +45,7 @@ class TestLabels:
         trial.shell.replies(when="glab api projects/:id/labels -X POST*", always=True)
         trial.shell.replies(when="glab api projects/:id/labels/* -X PUT*")
 
-        result = trial.cast(labels, NoComponents())
+        result = trial.cast(labels_pr, NoComponents())
 
         assert result == Labelled(names=_NAMES)
         assert trial.shell.commands[0] == (
@@ -65,4 +65,4 @@ class TestLabels:
         trial.shell.replies(when="gh label create*", exit_code=1, stderr="403")
 
         with pytest.raises(RitualError, match="could not create the label pr::thermo"):
-            trial.cast(labels, NoComponents())
+            trial.cast(labels_pr, NoComponents())

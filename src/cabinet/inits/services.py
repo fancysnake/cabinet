@@ -16,6 +16,7 @@ from cabinet.links.forge.github import GithubForge
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.links.scm.git import GitScm
 from cabinet.links.tasks.mise import MiseTasks
+from cabinet.mills.backlog import Backlog
 from cabinet.mills.prompts import Prompts
 from cabinet.mills.pulls import Pulls
 from cabinet.mills.repairs import Repairs
@@ -34,6 +35,11 @@ class Services(ServicesProtocol):
     @override
     def pulls(self) -> Pulls:
         return Pulls()
+
+    @cached_property
+    @override
+    def backlog(self) -> Backlog:
+        return Backlog()
 
     @cached_property
     @override

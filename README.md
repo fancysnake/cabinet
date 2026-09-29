@@ -28,30 +28,40 @@ Grouped by school, the way a spellbook is.
 - **`review`** — the morning after. Reads the review threads the night left,
   triages them with you at the terminal, answers every one, makes the gate
   green and ships the branch. Discovering what was found, and settling it.
+- **`refine`** — the backlog, a page at a time. Takes your open issues that
+  lack a type or a size, and an agent gives each one a type and a size, splits
+  one too big for a pull request into an epic with sub-issues, and links the
+  related ones. You say yes to each page first.
 
 ### Conjuration
 
-- **`labels`** — makes every label the other rituals read and write: the
-  reviewed and wait labels and each ritual's `started`/`done` checkpoints,
-  created where missing and refreshed where present. Cast it once before the
-  first sweep, and again after changing `[cabinet.labels]`.
+- **`labels:pr`** — makes every label the pull request rituals read and
+  write: the reviewed and wait labels and each ritual's `started`/`done`
+  checkpoints, created where missing and refreshed where present. Cast it once
+  before the first sweep, and again after changing `[cabinet.labels]`.
+- **`labels:issue`** — makes the labels `refine` puts on issues: the types
+  (`feature`, `edit`, `chore`, `spike`, `bug`), the sizes (`S`, `M`, `L`) and
+  `epic`. Cast it once before the first `refine`.
 
 <!-- --8<-- [start:cast] -->
 ```bash
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N] [--batch N]
-vekna cast labels
+vekna cast refine [--batch N]
+vekna cast labels:pr
+vekna cast labels:issue
 ```
 <!-- --8<-- [end:cast] -->
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
 default 3. `--attended true` says somebody is at the terminal: the sweep asks
 before every repair attempt instead of letting the budget decide, and its
-agents run in Claude's `auto` permission mode. `review` is always
-attended. `--batch` is how many open threads `review` reads and answers in one
-round before fetching what is still open, default 7: a forty-thread review is
-six triages you can hold in your head, and still one commit.
+agents run in Claude's `auto` permission mode. `review` and `refine` are
+always attended. `--batch` is how many open threads `review` reads and answers
+in one round before fetching what is still open, default 7: a forty-thread
+review is six triages you can hold in your head, and still one commit. On
+`refine` it is how many issues go on one page, default 7.
 
 ## Install
 
@@ -104,7 +114,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 
 | plugin         | what it adds                                 |
 | -------------- | -------------------------------------------- |
-| `issue-maker`  | a skill that files or updates a GitHub issue |
+| `issues`       | a skill for writing, typing, sizing and linking issues |
 | `release-bump` | a skill that cuts a release                  |
 | `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
 
@@ -113,11 +123,11 @@ Add the marketplace once, then install what you want:
 
 ```bash
 claude plugin marketplace add fancysnake/cabinet
-claude plugin install issue-maker@cabinet
+claude plugin install issues@cabinet
 ```
 
 Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
-`/plugin install issue-maker@cabinet`.
+`/plugin install issues@cabinet`.
 <!-- --8<-- [end:plugins-install] -->
 
 What each skill does, step by step, is at

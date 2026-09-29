@@ -9,6 +9,7 @@ from vekna.trial import Trial
 
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.issues import Issue
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
@@ -414,3 +415,68 @@ class TestIssue:
 
         with pytest.raises(ForgeError, match="issue this could not read"):
             trial.walk(issue, _Ask())
+
+
+_AUTHORED = (
+    "glab api 'projects/:id/issues?state=opened&scope=created_by_me&per_page=100'"
+)
+_ASSIGNED = (
+    "glab api 'projects/:id/issues?state=opened&scope=assigned_to_me&per_page=100'"
+)
+
+
+class _Issues(BaseModel):
+    issues: list[Issue]
+
+
+@step
+async def issues(_: _Ask) -> Transition:
+    return done(_Issues(issues=await _FORGE.issues()))
+
+
+def _listed(iid: int, **extra: object) -> dict[str, object]:
+    return {
+        "iid": iid,
+        "title": f"issue {iid}",
+        "web_url": f"https://gitlab.example/o/r/-/issues/{iid}",
+        "description": None,
+        "labels": [],
+        **extra,
+    }
+
+
+class TestIssues:
+    @staticmethod
+    def test_created_and_assigned_are_merged_once_each_lowest_first(
+        trial: Trial,
+    ) -> None:
+        nine = _listed(9, description="why", labels=["S"])
+        trial.shell.replies(when=_AUTHORED, stdout=json.dumps([nine]))
+        trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([nine, _listed(2)]))
+
+        assert trial.walk(issues, _Ask()) == done(
+            _Issues(
+                issues=[
+                    Issue(
+                        number=2,
+                        title="issue 2",
+                        url="https://gitlab.example/o/r/-/issues/2",
+                    ),
+                    Issue(
+                        number=9,
+                        title="issue 9",
+                        url="https://gitlab.example/o/r/-/issues/9",
+                        body="why",
+                        labels=["S"],
+                    ),
+                ]
+            )
+        )
+        assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
+
+    @staticmethod
+    def test_a_listing_that_will_not_parse(trial: Trial) -> None:
+        trial.shell.replies(when=_AUTHORED, stdout="[{}]")
+
+        with pytest.raises(ForgeError, match="issues this could not read"):
+            trial.walk(issues, _Ask())

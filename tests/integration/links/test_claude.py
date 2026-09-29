@@ -80,6 +80,25 @@ class TestAllowedTools:
         assert allowed_tools("writer", _PROJECT) == _WRITER
 
     @staticmethod
+    def test_a_refiner_reads_and_reaches_github_issues_but_edits_nothing() -> None:
+        assert allowed_tools("refiner", _PROJECT) == [
+            *_READER,
+            "Bash(gh issue:*)",
+            "Bash(gh api:*)",
+            "Bash(gh repo view:*)",
+        ]
+
+    @staticmethod
+    def test_on_gitlab_a_refiner_reaches_through_glab() -> None:
+        gitlab = Project(forge="gitlab")
+
+        assert allowed_tools("refiner", gitlab) == [
+            *_READER,
+            "Bash(glab issue:*)",
+            "Bash(glab api:*)",
+        ]
+
+    @staticmethod
     def test_a_resolver_may_also_stage() -> None:
         assert allowed_tools("resolver", _PROJECT) == [*_WRITER, "Bash(git add:*)"]
 

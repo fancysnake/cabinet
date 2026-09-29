@@ -1,8 +1,9 @@
 # Rituals
 
-Four rituals, one facade each under `cabinet.rituals`. Two of them sweep every
+Six rituals, one facade each under `cabinet.rituals`. Two of them sweep every
 open pull request of yours; one works a single branch with you at the terminal;
-one prepares the ground for the other three.
+one refines your open issues with you at the terminal; two prepare the ground
+by making the labels the others wear.
 
 --8<-- "README.md:cast"
 
@@ -76,27 +77,57 @@ A gate that will not go green ends the cast rather than moving on, because the
 repair work is sitting uncommitted in the worktree. Discovering what was
 found, and settling it.
 
-## labels
+## refine
 
-*Conjuration.* Makes every label the other rituals read and write, created
-where missing and refreshed where present: the reviewed and wait labels and
-each ritual's `started`/`done` checkpoints. Cast it once before the first
+*Divination.* The backlog, a page at a time, with you at the terminal. The
+candidates are your open issues, opened by you or assigned to you, that lack a
+type label or lack a size label without being an epic. They go in pages of
+`--batch`, lowest number first:
+
+1. The page is shown and you are asked about it. Saying no moves on to the
+   next page rather than ending the cast.
+2. One agent refines the page: it reads the code each issue is about, puts a
+   type (`feature`, `edit`, `chore`, `spike`, `bug`) and a size (`S`, `M`, `L`)
+   on it, or `epic` in place of a size with sub-issues opened, labelled and
+   attached under it, and links the related issues it finds.
+3. The next page continues the same agent session, so the skill it follows is
+   read once per cast.
+
+The agent follows the skill at `refine_skill` (see
+[Configuration](configuration.md)): the `issues` skill from the
+[plugins](plugins.md). Unlike every other agent here, the refiner speaks to the
+forge. It does so about issues only, through `gh issue` and `gh api` (`glab`
+on GitLab), and it edits no files. The issue bodies reach it fenced as data,
+the same as review threads. The report says what each issue came to, from the
+agent's own account.
+
+## labels:pr
+
+*Conjuration.* Makes every label the pull request rituals read and write,
+created where missing and refreshed where present: the reviewed and wait labels
+and each ritual's `started`/`done` checkpoints. Cast it once before the first
 sweep, and again after changing `[cabinet.labels]`.
+
+## labels:issue
+
+*Conjuration.* Makes the labels `refine` puts on issues: the five types, the
+three sizes and `epic`. Cast it once before the first `refine`. The names are
+fixed, because the `issues` skill names them too.
 
 ## Flags
 
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
-| `--bound N`  | all but `labels`    | how many times one step may be retried on one branch, 1 to 5, default 3 |
+| `--bound N`  | the sweeps, `review` | how many times one step may be retried on one branch, 1 to 5, default 3 |
 | `--attended true` | `refresh`, `cover` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
-| `--batch N`  | `review`            | how many open threads are read and answered in one round, default 7 |
+| `--batch N`  | `review`, `refine`  | `review`: how many open threads are read and answered in one round. `refine`: how many issues go on one page. Default 7 |
 
 `--batch` keeps a review within reach: a forty-thread review is six triages
 you can hold in your head, and still one commit.
 
 ## Checkpoints
 
-Every ritual but `labels` marks the branch it works. `v:refresh:started` goes on when
+`refresh`, `cover` and `review` mark the branch they work. `v:refresh:started` goes on when
 `refresh` begins and may have changed the branch; `v:refresh:done` replaces it
 when the ritual ends clean. The two halves of a pair are never worn together,
 so a label is a true claim about the branch at any moment. The prefix is
@@ -113,4 +144,4 @@ repository with no coverage task casts `refresh` and `review` and never sees
 modules = ["cabinet.rituals.refresh", "cabinet.rituals.review"]
 ```
 
-`modules = ["cabinet.rituals"]` loads all four.
+`modules = ["cabinet.rituals"]` loads all six.

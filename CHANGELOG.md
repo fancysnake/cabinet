@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `refine` ritual: your open issues that lack a type or a size, a page of
+  `--batch` at a time, each page asked about first. One agent session per
+  cast types and sizes them, splits one too big for a pull request into an
+  epic with sub-issues, and links related issues, following the skill at the
+  new `refine_skill` setting. Its agent, the new `refiner` role, is the one
+  that speaks to the forge, about issues only.
+- `labels:issue` ritual: makes the `feature`, `edit`, `chore`, `spike`,
+  `bug`, `S`, `M`, `L` and `epic` labels `refine` uses.
+- `issues` plugin: a skill for how issues are written, typed, sized and
+  linked, which `refine` hands its agent.
+
+### Changed
+
+- **Breaking:** the `labels` ritual is now `labels:pr`; cast it by that name.
+
+### Removed
+
+- `issue-maker` plugin, folded into `issues`.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added

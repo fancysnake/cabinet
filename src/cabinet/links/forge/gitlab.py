@@ -14,6 +14,7 @@ from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.issues import Issue
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
@@ -83,6 +84,18 @@ class _Issue(BaseModel):
 _MERGE_REQUESTS: TypeAdapter[list[_MergeRequest]] = TypeAdapter(list[_MergeRequest])
 _DISCUSSIONS: TypeAdapter[list[_Discussion]] = TypeAdapter(list[_Discussion])
 _STATUSES: TypeAdapter[list[_Status]] = TypeAdapter(list[_Status])
+
+
+class _Listed(BaseModel):
+    iid: int
+    title: str
+    web_url: str
+    # Null on an issue opened without one.
+    description: str | None = None
+    labels: list[str] = []
+
+
+_LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
 
 
 def _api(path: str, *flags: str) -> str:
@@ -303,6 +316,33 @@ class GitlabForge(ForgeProtocol):
         except ValidationError as error:
             msg = f"glab returned an issue this could not read: {error}"
             raise ForgeError(msg) from error
+
+    @override
+    async def issues(self) -> list[Issue]:
+        found: dict[int, Issue] = {}
+        for scope in ("created_by_me", "assigned_to_me"):
+            listed = await asked(
+                _api(
+                    f"projects/:id/issues?state=opened&scope={scope}&per_page={_PAGE}"
+                ),
+                "glab could not list your issues",
+            )
+            try:
+                rows = _LISTED.validate_json(listed)
+            except ValidationError as error:
+                msg = f"glab returned issues this could not read: {error}"
+                raise ForgeError(msg) from error
+            found |= {
+                row.iid: Issue(
+                    number=row.iid,
+                    title=row.title,
+                    url=row.web_url,
+                    body=row.description or "",
+                    labels=row.labels,
+                )
+                for row in rows
+            }
+        return [found[number] for number in sorted(found)]
 
     # Created, or updated where it is already there: the API refuses a
     # duplicate name, and a label that exists is not a failure of the ritual.

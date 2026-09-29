@@ -1,0 +1,30 @@
+"""Which issues still want refining."""
+
+import pytest
+
+from cabinet.mills.backlog import Backlog
+from cabinet.pacts.issues import Issue
+
+
+def _issue(*labels: str) -> Issue:
+    return Issue(number=1, title="t", url="https://example.test/1", labels=list(labels))
+
+
+class TestUnrefined:
+    @staticmethod
+    @pytest.mark.parametrize(
+        "labels", [(), ("feature",), ("M",), ("epic",), ("backlog", "P1")]
+    )
+    def test_missing_a_type_or_a_size_is_unrefined(labels: tuple[str, ...]) -> None:
+        issue = _issue(*labels)
+
+        assert Backlog().unrefined([issue]) == [issue]
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "labels", [("feature", "M"), ("bug", "S", "backlog"), ("chore", "epic")]
+    )
+    def test_a_type_and_a_size_or_the_epic_label_is_refined(
+        labels: tuple[str, ...],
+    ) -> None:
+        assert Backlog().unrefined([_issue(*labels)]) == []

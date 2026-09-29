@@ -1,6 +1,7 @@
 """What the morning reads."""
 
 from cabinet.mills.report import Report
+from cabinet.pacts.issues import Issue, RefinedItem, Refinement, Refining
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, PullRequest, Run
 from cabinet.pacts.reviews import Picking, Reviewed
@@ -144,3 +145,65 @@ class TestFindings:
         headed = _REPORT.findings(project, [Finding(path="", body="hm")])
 
         assert headed[0].body == "## Night review\n\nhm"
+
+
+_ISSUE = Issue(number=5, title="t", url="https://example.test/5")
+
+
+class TestRefine:
+    @staticmethod
+    def test_every_ending_gets_its_line() -> None:
+        refining = Refining(
+            project=_PROJECT,
+            refined=[
+                Refinement(
+                    number=3,
+                    outcome="refined",
+                    item=RefinedItem(number=3, kind="feature", size="M", linked=[4]),
+                ),
+                Refinement(
+                    number=4,
+                    outcome="refined",
+                    item=RefinedItem(
+                        number=4,
+                        kind="edit",
+                        epic=True,
+                        created=[10, 11],
+                        note="split by layer",
+                    ),
+                ),
+                Refinement(number=6, outcome="declined"),
+                Refinement(number=7, outcome="missed"),
+            ],
+        )
+
+        assert _REPORT.refine(refining) == (
+            "refine — 4 issues\n"
+            "  #3 feature/M, linked #4\n"
+            "  #4 edit/epic, opened #10 #11 — split by layer\n"
+            "  #6: left for later\n"
+            "  #7: the refiner did not answer for it"
+        )
+
+    @staticmethod
+    def test_nothing_to_refine_says_so() -> None:
+        assert _REPORT.refine(Refining(project=_PROJECT)) == (
+            "refine — 0 issues\n  (none wanted refining)"
+        )
+
+    @staticmethod
+    def test_a_stopped_cast_names_the_reason_and_what_was_never_reached() -> None:
+        refining = Refining(
+            project=_PROJECT,
+            queue=[_ISSUE],
+            refined=[Refinement(number=2, outcome="stopped")],
+            stopped="the agent stopped mid-flight",
+        )
+
+        assert _REPORT.refine(refining) == (
+            "refine — 1 issues\n"
+            "  #2: in flight when the cast stopped; it may be half done\n"
+            "\n"
+            "the cast stopped: the agent stopped mid-flight\n"
+            "not reached:    #5"
+        )

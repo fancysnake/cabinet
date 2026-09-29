@@ -28,7 +28,7 @@ class LabelSpec(BaseModel):
 
 
 # The rituals that mark checkpoints: the type a marking call takes, and the
-# set whose labels `labels` conjures. Spelled once, so a ritual that marks
+# set whose labels `labels:pr` conjures. Spelled once, so a ritual that marks
 # cannot be one the forge has no labels for.
 Marked = Literal["refresh", "cover", "review"]
 _MARKED: tuple[Marked, ...] = get_args(Marked)
@@ -88,7 +88,57 @@ class Labels(BaseModel):
         return named
 
 
-# What `labels` leaves behind: every label it made or refreshed.
+# What an issue is and how big, as refinement labels it. Bare names rather
+# than prefixed ones: these are the labels a backlog already wears, and
+# GitHub's issue types carry the same words.
+Kind = Literal["feature", "edit", "chore", "spike", "bug"]
+Size = Literal["S", "M", "L"]
+KINDS: tuple[Kind, ...] = get_args(Kind)
+SIZES: tuple[Size, ...] = get_args(Size)
+EPIC = "epic"
+
+# Every label refinement reads or writes, with what it means, for the forge.
+# Not configurable: the `issues` skill the refiner reads names them too.
+ISSUE_LABELS = [
+    LabelSpec(
+        name="feature",
+        color="a2eeef",
+        description="New functionality the user can see: a page, option, capability",
+    ),
+    LabelSpec(
+        name="edit",
+        color="bfd4f2",
+        description="Refactor or improvement to production code, no feature change",
+    ),
+    LabelSpec(
+        name="chore",
+        color="ededed",
+        description="No production code: docs, CI, tooling, tests, repo hygiene",
+    ),
+    LabelSpec(
+        name="spike",
+        color="d4c5f9",
+        description="Investigation or experiment that might not work",
+    ),
+    LabelSpec(name="bug", color="d73a4a", description="Doesn't behave as expected"),
+    LabelSpec(name="S", color="c2e0c6", description="One module, one sitting"),
+    LabelSpec(
+        name="M",
+        color="7fcf8f",
+        description="Several modules, or one new adapter or page; one PR",
+    ),
+    LabelSpec(
+        name="L", color="2f9e44", description="Crosses layers; still one reviewable PR"
+    ),
+    LabelSpec(
+        name=EPIC,
+        color="5319e7",
+        description="Too big for one PR: split into sub-issues, carries no size",
+    ),
+]
+
+
+# What a label ritual leaves behind: every label it made or refreshed.
 class Labelled(BaseModel):
     names: list[str]
 
@@ -139,6 +189,15 @@ class Project(BaseModel):
     sign_commits: bool = True
     review_skill: str = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
     review_title: str = "Thermo-nuclear code quality review"
+    # The skill file `refine` has the agent read once, at the top of its
+    # session: what the types and sizes mean and how issues are linked.
+    refine_skill: str = "~/.claude/skills/issues/SKILL.md"
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()
+
+
+# What a label ritual is handed: which labels to make, and on which forge.
+class Conjuring(BaseModel):
+    project: Project
+    specs: list[LabelSpec]

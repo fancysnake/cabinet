@@ -15,6 +15,7 @@ from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.issues import Issue
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
@@ -53,6 +54,13 @@ mutation($id: ID!) {
   resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }"""
 
 _PASSED = "success"
+
+# Asked twice, once per way an issue can be yours: gh takes one of `--author`
+# and `--assignee` per listing and ANDs them when given both.
+_ISSUES = (
+    "gh issue list {who} @me --state open --limit 200 "
+    "--json number,title,url,body,labels"
+)
 
 
 class _Label(BaseModel):
@@ -141,7 +149,16 @@ class _Threads(BaseModel):
     )
 
 
+class _Issue(BaseModel):
+    number: int
+    title: str
+    url: str
+    body: str = ""
+    labels: list[_Label] = []
+
+
 _PULLS: TypeAdapter[list[_Pull]] = TypeAdapter(list[_Pull])
+_ISSUE_LIST: TypeAdapter[list[_Issue]] = TypeAdapter(list[_Issue])
 
 
 # `gh` knows which repository this is, but graphql variables are not a REST
@@ -334,6 +351,30 @@ class GithubForge(ForgeProtocol):
             "could not open the issue",
         )
         return made.strip()
+
+    @override
+    async def issues(self) -> list[Issue]:
+        found: dict[int, Issue] = {}
+        for who in ("--author", "--assignee"):
+            listed = await asked(
+                _ISSUES.format(who=who), "gh could not list your issues"
+            )
+            try:
+                rows = _ISSUE_LIST.validate_json(listed)
+            except ValidationError as error:
+                msg = f"gh returned issues this could not read: {error}"
+                raise ForgeError(msg) from error
+            found |= {
+                row.number: Issue(
+                    number=row.number,
+                    title=row.title,
+                    url=row.url,
+                    body=row.body,
+                    labels=[label.name for label in row.labels],
+                )
+                for row in rows
+            }
+        return [found[number] for number in sorted(found)]
 
     # `--force` updates a label that is already there instead of refusing it,
     # which is what makes the ritual safe to cast again.
