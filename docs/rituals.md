@@ -93,7 +93,9 @@ type label or lack a size label without being an epic. They go in pages of
    blocking it. An issue it could not size is left unsized, which the report
    tells apart from an epic.
 3. The ritual puts that on the forge: the labels, then each sub-issue opened,
-   labelled and attached under its epic, then the links.
+   labelled and attached under its epic, then the links. A forge that refuses
+   stops the cast; the report names the issue in flight and any sub-issue
+   already opened for it, which may be attached to nothing.
 4. The next page continues the same agent session, so the skill it follows is
    read once per cast.
 

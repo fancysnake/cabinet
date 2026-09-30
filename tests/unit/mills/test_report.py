@@ -242,3 +242,20 @@ class TestRefine:
             "the cast stopped: the agent stopped mid-flight\n"
             "not reached:    #5"
         )
+
+    # A sub-issue opened before the forge refused is attached to nothing, so
+    # the row it was opened for is the only place it is named.
+    @staticmethod
+    def test_a_stopped_row_names_the_sub_issues_it_opened() -> None:
+        refining = Refining(
+            project=_PROJECT,
+            refined=[Refinement(number=2, outcome="stopped", opened=[10])],
+            stopped="attach refused",
+        )
+
+        assert _REPORT.refine(refining) == (
+            "refine — 1 issues\n"
+            "  #2: in flight when the cast stopped; it may be half done, opened #10\n"
+            "\n"
+            "the cast stopped: attach refused"
+        )

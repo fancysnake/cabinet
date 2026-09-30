@@ -90,25 +90,25 @@ async def refine_page(page: Page) -> Tally | Pinning:
 # The labels and links one reading asks for, in the order the skill puts them
 # on: the issue's own labels, then the parts it is split into — each opened,
 # labelled and attached — then the open issues already under it, then what
-# blocks it. Answers with the sub-issues opened, which only the forge knows.
-async def _put(forge: ForgeProtocol, item: RefinedItem) -> list[int]:
+# blocks it. Each sub-issue goes into `opened` the moment the forge opens it,
+# so one the forge fails on afterwards is still named rather than orphaned.
+async def _put(forge: ForgeProtocol, item: RefinedItem, opened: list[int]) -> None:
     await forge.label_issue(item.number, add=item.wanted())
-    opened: list[int] = []
     for part in item.parts:
         made = await forge.issue(part.title, part.body)
+        opened.append(made.number)
         await forge.label_issue(made.number, add=[part.kind, part.size])
         await forge.attach(item.number, made.number)
-        opened.append(made.number)
     for child in item.children:
         await forge.attach(item.number, child)
     for blocker in item.blocked_by:
         await forge.blocks(item.number, blocker)
-    return opened
 
 
 # One page's rows, and what stopped the cast where something did. A forge that
 # refuses mid-page stops it: what is already on is on, the issue in flight is
-# named as half done, and so is everything after it that was never reached.
+# named as half done, with the sub-issues it already opened, and so is
+# everything after it that was never reached.
 async def _pinned(pinning: Pinning) -> tuple[list[Refinement], str]:
     page = pinning.page
     forge = services().forge(page.refining.project)
@@ -118,12 +118,14 @@ async def _pinned(pinning: Pinning) -> tuple[list[Refinement], str]:
         if (item := items.get(one.number)) is None:
             rows.append(Refinement(number=one.number, outcome="missed"))
             continue
+        opened: list[int] = []
         try:
-            opened = await _put(forge, item)
+            await _put(forge, item, opened)
         except ForgeError as error:
-            left = page.issues[index:]
+            rows.append(Refinement(number=one.number, outcome="stopped", opened=opened))
             rows += [
-                Refinement(number=other.number, outcome="stopped") for other in left
+                Refinement(number=other.number, outcome="stopped")
+                for other in page.issues[index + 1 :]
             ]
             return rows, str(error)
         rows.append(

@@ -295,6 +295,43 @@ class TestPin:
         ]
         assert "no such label" in transition.stopped
 
+    # A sub-issue the forge opened but would not attach points to nothing, so
+    # the row the cast stopped on carries its number.
+    @staticmethod
+    def test_a_sub_issue_opened_before_the_attach_fails_is_kept(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when="gh issue edit 1 --add-label edit --add-label epic")
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues -X POST*",
+            stdout='{"number": 10, "html_url": "https://github.com/o/r/issues/10"}',
+        )
+        trial.shell.replies(when=_labelled(10))
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues/10 --jq .id", stdout="99"
+        )
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues/1/sub_issues*",
+            exit_code=1,
+            stderr="attach refused",
+        )
+        item = RefinedItem(
+            number=1,
+            kind="edit",
+            epic=True,
+            parts=[Part(title="first half", body="why", kind="feature", size="S")],
+        )
+        page = Page(refining=Refining(project=project), issues=[_issue(1), _issue(2)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[item, _item(2)]))
+
+        assert isinstance(transition, Tally)
+        assert transition.refined == [
+            Refinement(number=1, outcome="stopped", opened=[10]),
+            Refinement(number=2, outcome="stopped"),
+        ]
+        assert "attach refused" in transition.stopped
+
 
 class TestTally:
     # The cast hands back what it carried, under the carrier's own class

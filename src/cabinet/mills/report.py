@@ -50,13 +50,13 @@ def _sized(item: RefinedItem) -> str:
 
 
 # What went on one issue, on one line: `#12 feature/M`, or an epic with the
-# sub-issues opened under it, then what it was linked to and the note.
+# sub-issues opened under it, then what it was linked to and the note. A row
+# the cast stopped on still names what it opened: nothing else points to those.
 def _refined(row: Refinement) -> str:
+    opened = f", opened {_numbers(row.opened)}" if row.opened else ""
     if (item := row.item) is None:
-        return f"  #{row.number}: {_LEFT[row.outcome]}"
-    line = f"  #{row.number} {item.kind}/{_sized(item)}"
-    if row.opened:
-        line += f", opened {_numbers(row.opened)}"
+        return f"  #{row.number}: {_LEFT[row.outcome]}{opened}"
+    line = f"  #{row.number} {item.kind}/{_sized(item)}{opened}"
     if linked := [*item.children, *item.blocked_by]:
         line += f", linked {_numbers(linked)}"
     return line + (f" — {item.note}" if item.note else "")
