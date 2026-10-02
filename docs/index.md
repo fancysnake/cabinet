@@ -5,10 +5,11 @@ the instruments are kept, and it is the body of people who do the work of
 keeping a house in order. This repository is both.
 
 **The tome** is a set of [vekna](https://vekna.fancysnake.dev) rituals for
-pull request maintenance, installed as a package and cast from any repository
-on GitHub or GitLab, hosted or self-hosted. A pull request left open overnight
-drifts: the base moves under it, CI goes red, a reviewer's questions sit
-unanswered. The rituals do those chores, and each one is an ordinary program
+pull request and issue maintenance, installed as a package and cast from any
+repository on GitHub or GitLab, hosted or self-hosted. A pull request left open
+overnight drifts: the base moves under it, CI goes red, a reviewer's questions
+sit unanswered. A backlog drifts too: issues pile up untyped, unsized and
+unlinked. The rituals do those chores, and each one is an ordinary program
 whose loop, branches and stopping condition are code you can read. The agent
 is handed one bounded piece of work at a time.
 

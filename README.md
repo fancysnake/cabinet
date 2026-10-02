@@ -1,7 +1,7 @@
 # cabinet
 
-A [vekna](https://vekna.fancysnake.dev) **tome**: pull request maintenance
-rituals, installed as a package and cast from any repository on GitHub or
+A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
+maintenance rituals, installed as a package and cast from any repository on GitHub or
 GitLab (hosted or self-hosted).
 
 Documentation is at [cabinet.fancysnake.dev](https://cabinet.fancysnake.dev).

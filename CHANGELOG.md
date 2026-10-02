@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-02
+
 ### Added
 
 - `refine` ritual: your open issues that lack a type or a size, a page of
   `--batch` at a time, each page asked about first. One agent session per cast
-  reads them and says what each is — a type and a size, or an epic with the
-  sub-issues to split it into, plus what is part of it and what blocks it —
-  following the skill at the new `refine_skill` setting; the ritual puts that
+  says what each is — a type and a size, or an epic with the sub-issues to
+  split it into, plus what is part of it and what blocks it — following the
+  skill at the `refine_skill` setting; the ritual puts that
   on the forge. The report says when the forge would not list your whole
   backlog.
 - `labels:issue` ritual: makes the `feature`, `edit`, `chore`, `spike`,
@@ -23,7 +25,7 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
-- **Breaking:** the `labels` ritual is now `labels:pr`; cast it by that name.
+- **Breaking:** the `labels` ritual is `labels:pr`; cast it by that name.
 
 ### Removed
 
@@ -124,7 +126,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/fancysnake/cabinet/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/fancysnake/cabinet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fancysnake/cabinet/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/fancysnake/cabinet/compare/v0.3.0...v0.3.1
