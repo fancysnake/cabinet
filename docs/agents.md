@@ -24,10 +24,13 @@ fence, where an approved mistake cannot reach anything that matters.
 | writer   | reader + `Edit`, `Write`, `MultiEdit` + every prefix in `agent.may_run` |
 | resolver | writer + `git add` (staging is how a conflict is reported resolved)     |
 
-No agent commits, pushes, runs a linter or a sweep, or speaks to the forge.
-The ritual does all of that itself through vekna's `shell` medium, and after
-every repair attempt it re-runs the task the runner named as broken and hands
-the agent the output.
+No role names a forge client, so no agent commits, pushes, runs a linter or a
+sweep, or says anything to the forge — not a label, not a comment, not an
+issue. Every forge call is the ritual's own, through vekna's `shell` medium in
+the `links` adapters, including `identify`'s labels, sub-issues and links: its
+agent reads the backlog and hands back what each issue is, and the ritual puts
+that on. The ritual does the rest itself too, and after every repair attempt it
+re-runs the task the runner named as broken and hands the agent the output.
 
 ## `may_run`
 

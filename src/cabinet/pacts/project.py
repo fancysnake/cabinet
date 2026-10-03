@@ -28,7 +28,7 @@ class LabelSpec(BaseModel):
 
 
 # The rituals that mark checkpoints: the type a marking call takes, and the
-# set whose labels `labels` conjures. Spelled once, so a ritual that marks
+# set whose labels `labels:pr` conjures. Spelled once, so a ritual that marks
 # cannot be one the forge has no labels for.
 Marked = Literal["refresh", "cover", "review"]
 _MARKED: tuple[Marked, ...] = get_args(Marked)
@@ -88,7 +88,7 @@ class Labels(BaseModel):
         return named
 
 
-# What `labels` leaves behind: every label it made or refreshed.
+# What a label ritual leaves behind: every label it made or refreshed.
 class Labelled(BaseModel):
     names: list[str]
 
@@ -139,12 +139,17 @@ class Project(BaseModel):
     sign_commits: bool = True
     review_skill: str = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
     review_title: str = "Thermo-nuclear code quality review"
+    # The skill file `identify` has the agent read once, at the top of its
+    # session: what the types and sizes mean and how issues are linked.
+    identify_skill: str = "~/.claude/skills/issues/SKILL.md"
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()
 
 
-# `conjure`'s payload. A wrapper rather than the `Project` itself: a step owns
-# the class it takes, and the project is everybody's.
+# `conjure`'s payload: which labels to make, and on which forge. Its own class
+# rather than the `Project` itself: a step owns the class it takes, and the
+# project is everybody's.
 class Conjure(BaseModel):
     project: Project
+    specs: list[LabelSpec]

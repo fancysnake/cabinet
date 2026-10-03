@@ -15,6 +15,7 @@ from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
@@ -53,6 +54,25 @@ mutation($id: ID!) {
   resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }"""
 
 _PASSED = "success"
+
+# Where a listing of issues stops. Twice what the GitLab adapter pages at,
+# because gh takes a limit rather than a page size and the endpoint behind it
+# allows more — but a cap is a cap, so a listing that comes back this long is
+# reported as truncated rather than taken for the whole backlog.
+_ISSUE_PAGE = 200
+
+# Asked twice, once per way an issue can be yours: gh takes one of `--author`
+# and `--assignee` per listing and ANDs them when given both.
+_ISSUES = (
+    f"gh issue list {{who}} @me --state open --limit {_ISSUE_PAGE} "
+    "--json number,title,url,body,labels"
+)
+
+# A relationship endpoint takes the issue's database id, which is not the
+# number anything else here names an issue by.
+_ID = "repos/{{owner}}/{{repo}}/issues/{number} --jq .id"
+_SUB_ISSUES = "repos/{{owner}}/{{repo}}/issues/{epic}/sub_issues"
+_BLOCKED_BY = "repos/{{owner}}/{{repo}}/issues/{number}/dependencies/blocked_by"
 
 
 class _Label(BaseModel):
@@ -141,7 +161,22 @@ class _Threads(BaseModel):
     )
 
 
+class _Issue(BaseModel):
+    number: int
+    title: str
+    url: str
+    body: str = ""
+    labels: list[_Label] = []
+
+
+# The REST answer to opening one, which spells its URL the API's way.
+class _Opened(BaseModel):
+    number: int
+    html_url: str
+
+
 _PULLS: TypeAdapter[list[_Pull]] = TypeAdapter(list[_Pull])
+_ISSUE_LIST: TypeAdapter[list[_Issue]] = TypeAdapter(list[_Issue])
 
 
 # `gh` knows which repository this is, but graphql variables are not a REST
@@ -213,6 +248,16 @@ async def _one(number: int, finding: Finding, *, head: str) -> str:
     except ForgeError as error:
         return str(error)
     return ""
+
+
+# One extra call per relationship, and there is no avoiding it: the listing
+# carries numbers, the endpoints take ids, and nothing maps one to the other
+# but asking.
+async def _id(number: int) -> str:
+    said = await asked(
+        f"gh api {_ID.format(number=number)}", f"could not read the id of #{number}"
+    )
+    return said.strip()
 
 
 def _thread(found: _Thread) -> Thread:
@@ -327,13 +372,80 @@ class GithubForge(ForgeProtocol):
             posted += 1
         return Posted(count=posted)
 
+    # The API rather than `gh issue create`, which prints a URL and nothing
+    # else: the number is what attaches the issue under its epic and names it
+    # in the report, and reading it back out of the URL would be guessing.
     @override
-    async def issue(self, title: str, body: str) -> str:
+    async def issue(self, title: str, body: str) -> Opened:
         made = await asked(
-            f"gh issue create --title {quoted(title)} --body {quoted(body)}",
+            "gh api repos/{owner}/{repo}/issues -X POST"
+            f" -f title={quoted(title)} -f body={quoted(body)}",
             "could not open the issue",
         )
-        return made.strip()
+        try:
+            opened = _Opened.model_validate_json(made)
+        except ValidationError as error:
+            msg = f"gh returned an issue this could not read: {error}"
+            raise ForgeError(msg) from error
+        return Opened(number=opened.number, url=opened.html_url)
+
+    @override
+    async def issues(self) -> Listing:
+        found: dict[int, Issue] = {}
+        truncated = False
+        for who in ("--author", "--assignee"):
+            listed = await asked(
+                _ISSUES.format(who=who), "gh could not list your issues"
+            )
+            try:
+                rows = _ISSUE_LIST.validate_json(listed)
+            except ValidationError as error:
+                msg = f"gh returned issues this could not read: {error}"
+                raise ForgeError(msg) from error
+            # A full listing may be a full backlog, and there is no total to
+            # compare against: either way the rest of it is unaccounted for.
+            truncated = truncated or len(rows) >= _ISSUE_PAGE
+            found |= {
+                row.number: Issue(
+                    number=row.number,
+                    title=row.title,
+                    url=row.url,
+                    body=row.body,
+                    labels=[label.name for label in row.labels],
+                )
+                for row in rows
+            }
+        return Listing(
+            issues=[found[number] for number in sorted(found)], truncated=truncated
+        )
+
+    @override
+    async def label_issue(
+        self, number: int, *, add: Sequence[str] = (), remove: Sequence[str] = ()
+    ) -> None:
+        flags = [f"--add-label {quoted(one)}" for one in add]
+        flags += [f"--remove-label {quoted(one)}" for one in remove]
+        if not flags:
+            return
+        await asked(
+            f"gh issue edit {number} {' '.join(flags)}", f"could not label #{number}"
+        )
+
+    @override
+    async def attach(self, epic: int, child: int) -> None:
+        await asked(
+            f"gh api {_SUB_ISSUES.format(epic=epic)} -X POST"
+            f" -F sub_issue_id={await _id(child)}",
+            f"could not attach #{child} under #{epic}",
+        )
+
+    @override
+    async def blocks(self, number: int, blocker: int) -> None:
+        await asked(
+            f"gh api {_BLOCKED_BY.format(number=number)} -X POST"
+            f" -F issue_id={await _id(blocker)}",
+            f"could not say #{number} is blocked by #{blocker}",
+        )
 
     # `--force` updates a label that is already there instead of refusing it,
     # which is what makes the ritual safe to cast again.

@@ -1,11 +1,11 @@
 """Asking Claude, with the reach each role is allowed and nothing more.
 
-Unattended, every call runs under `dontAsk`: a tool outside the allowlist is refused
-silently, so an unattended cast never hangs on a prompt and an agent never
-commits, pushes, runs a sweep, or speaks to the forge — whatever the prompt
-says. Attended, the mode is `auto`: the allowlist still approves what it names,
-and what is outside it is judged, with somebody there to be asked. The list is
-built from the same project setting the prompt quotes.
+Unattended, every call runs under `dontAsk`: a tool outside the allowlist is
+refused silently, so an unattended cast never hangs on a prompt and an agent
+never commits, pushes, runs a sweep, or speaks to the forge — whatever the
+prompt says. Attended, the mode is `auto`: the allowlist still approves what it
+names, and what is outside it is judged, with somebody there to be asked. The
+list is built from the same project setting the prompt quotes.
 """
 
 import logging

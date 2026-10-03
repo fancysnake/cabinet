@@ -7,7 +7,7 @@ you already have open.
 
 | plugin         | skill          | what it does                                                 |
 | -------------- | -------------- | ------------------------------------------------------------ |
-| `issue-maker`  | `issue-maker`  | files or updates a GitHub issue, checked against the code first |
+| `issues`       | `issues`       | how issues are written, typed, sized and linked; what `identify` follows |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 | `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
@@ -19,40 +19,38 @@ marketplace resolves to the marketplace commit, so an install tracks the
 commit and a skill never needs a version bump of its own. `claude plugin
 marketplace update cabinet` brings the newest.
 
-## issue-maker
+## issues
 
-Files or updates a GitHub issue in the current repository. It triggers on
-"make an issue for this", "put that in the backlog", or any ask to file, open,
-raise or write an issue or ticket about work that is not being done now.
+What an issue is in this repository: how one is written, which type and size
+it gets, when it becomes an epic, and how issues are linked. Knowledge only:
+it triggers on "make an issue for this", "put that in the backlog", any ask to
+file, open, raise or write an issue or ticket, and any ask to refine, type,
+size, split or link the backlog. The [`identify`](rituals.md#identify) ritual has
+its agent read it too, from `identify_skill`.
 
-What it does before touching the forge:
-
-1. **Checks the task against the code.** A feature the code already has is
-   dropped; one it half has comes back as a question about which parts are
-   still wanted.
-2. **Hunts duplicates** by keyword in the open issues, and asks what to do
-   when it finds something close.
-3. **Writes at feature level.** The issue may sit for months while the
-   repository moves, so it names what gets added, fixed or changed in terms
-   that survive a refactor: "needs a Trello API adapter", not a file path.
-   Open questions and decisions are emphasised, and conceptual ambiguities
-   are asked about; implementation details are not.
-4. **Discovers the metadata the repository offers** and sets only what
-   exists: labels, issue types, issue fields, the fields of a Project the
-   issue should join. What is missing is reported in one line; nothing is
+1. **Types**: `feature` for something a user can see, `edit` for a refactor
+   with no feature change, `chore` for docs, CI, tooling and tests, `spike`
+   for an experiment that might not work, `bug` for behaviour that is wrong.
+   Each is a label, and also a GitHub issue type where the repository has
+   them.
+2. **Sizes**: `S` is one module in a single sitting, `M` is several modules
+   or one new adapter or page, `L` crosses layers but is still one reviewable
+   pull request. Anything bigger is an **epic**: the `epic` label in place of
+   a size, split into sub-issues that are each typed, sized and attached under
+   it.
+3. **Writing one**: the task is checked against the code first, duplicates are
+   searched for by keyword, and the issue is written at feature level so it
+   survives the repository moving on. Conceptual ambiguities are asked about;
+   implementation details are not. `backlog`, a priority and any issue or
+   Project fields are set where the repository has them, and nothing is
    created.
+4. **Links**: sub-issue for a part of an epic, blocked-by only when the order
+   is real, a `Related: #n` line otherwise. A likely duplicate is named in a
+   comment, never closed. On GitLab, whose epics are Premium, parts are linked
+   and named in the body.
 
-Where the repository has them, the issue gets the `backlog` label, an
-`effort` and a `priority` field (priority is asked about), and an issue type
-by what the work is: `feature` for something a user can see, `edit` for a
-refactor with no feature change, `chore` for docs, CI, tooling and tests,
-`spike` for an experiment that might not work, `bug` for behaviour that is
-wrong. Types named differently get the nearest match.
-
-Updating an existing issue loads it and uses it as the base; a contradiction
-between what it says and what you asked is a question, not a guess.
-
-Needs `gh` logged in. Setting Project fields needs the `project` token scope.
+`vekna cast labels:identify` makes the type, size and epic labels. Needs `gh`
+(or `glab`) logged in; setting Project fields needs the `project` token scope.
 
 ## release-bump
 

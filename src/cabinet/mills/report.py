@@ -5,6 +5,13 @@ from itertools import starmap
 
 from typing_extensions import override
 
+from cabinet.pacts.issues import (
+    EPIC,
+    Identification,
+    IdentifiedItem,
+    Identifying,
+    Issue,
+)
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, Run
 from cabinet.pacts.reviews import Picking
@@ -27,6 +34,38 @@ _TOLD = {
 }
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")
+
+_LEFT = {
+    "declined": "left for later",
+    "missed": "the agent did not answer for it",
+    "stopped": "in flight when the cast stopped; it may be half done",
+}
+
+
+def _numbers(numbers: list[int]) -> str:
+    return " ".join(f"#{number}" for number in numbers)
+
+
+# An epic carries no size because its parts carry it; an issue the agent
+# would not size carries none either. Different answers, so the line says
+# which rather than reading one as the other.
+def _sized(item: IdentifiedItem) -> str:
+    if item.epic:
+        return EPIC
+    return item.size or "unsized"
+
+
+# What went on one issue, on one line: `#12 feature/M`, or an epic with the
+# sub-issues opened under it, then what it was linked to and the note. A row
+# the cast stopped on still names what it opened: nothing else points to those.
+def _identified(row: Identification) -> str:
+    opened = f", opened {_numbers(row.opened)}" if row.opened else ""
+    if (item := row.item) is None:
+        return f"  #{row.number}: {_LEFT[row.outcome]}{opened}"
+    line = f"  #{row.number} {item.kind}/{_sized(item)}{opened}"
+    if linked := [*item.children, *item.blocked_by]:
+        line += f", linked {_numbers(linked)}"
+    return line + (f" — {item.note}" if item.note else "")
 
 
 # What the thread asked and what the reading would do about it, in that
@@ -98,6 +137,35 @@ class Report(ReportProtocol):
             left = ", ".join(pull.branch for pull in picking.queue)
             lines += ["", f"the cast stopped: {picking.stopped}"]
             lines += [f"not polled:     {left}"] if left else []
+        return "\n".join(lines)
+
+    # The page as it is put to you, before anything is read or written: the
+    # same indent and the same `#n` as the rows that say what became of it, so
+    # what you said yes to and what came back of it read as one list.
+    @override
+    def page(self, issues: list[Issue]) -> str:
+        return "\n".join(f"  #{one.number} {one.title}" for one in issues)
+
+    @override
+    def identify(self, identifying: Identifying) -> str:
+        lines = [f"identify — {len(identifying.identified)} issues"]
+        lines += [_identified(row) for row in identifying.identified] or [
+            "  (none wanted identifying)"
+        ]
+        # An issue the listing never reached looks exactly like one nothing
+        # wanted doing to, so the count above is a count of what was seen.
+        if identifying.truncated:
+            lines += [
+                "",
+                (
+                    "the forge listed as many of your open issues as it gives at"
+                    " once: there are more, and this cast never saw them"
+                ),
+            ]
+        if identifying.stopped:
+            lines += ["", f"the cast stopped: {identifying.stopped}"]
+            if left := identifying.queue:
+                lines += [f"not reached:    {_numbers([one.number for one in left])}"]
         return "\n".join(lines)
 
     # The whole triage, headed by a tally, for the terminal.

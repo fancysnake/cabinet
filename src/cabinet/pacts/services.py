@@ -15,6 +15,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
+    from cabinet.pacts.issues import Identifying, Issue
     from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Board, PullRequest, Run
     from cabinet.pacts.repairs import Attempt, Ruling
@@ -35,6 +36,11 @@ class PullsProtocol(Protocol):
 
     # False unless the board positively says the gate jobs are green.
     def gates_green(self, board: Board, project: Project) -> bool: ...
+
+
+class BacklogProtocol(Protocol):
+    # The issues without a type, or without a size unless they are an epic.
+    def unidentified(self, issues: list[Issue]) -> list[Issue]: ...
 
 
 class VerdictsProtocol(Protocol):
@@ -76,6 +82,10 @@ class PromptsProtocol(Protocol):
         self, project: Project, *, base: str, threads: list[Thread], reason: str
     ) -> str: ...
 
+    def identify(
+        self, project: Project, issues: list[Issue], *, briefed: bool
+    ) -> str: ...
+
 
 class RepairsProtocol(Protocol):
     # What one round of a repair loop comes to: green, given up on, or one
@@ -92,6 +102,11 @@ class ReportProtocol(Protocol):
 
     def review(self, picking: Picking) -> str: ...
 
+    # The page `identify` asks you about, before it is identified.
+    def page(self, issues: list[Issue]) -> str: ...
+
+    def identify(self, identifying: Identifying) -> str: ...
+
     def triage(self, items: list[TriageItem]) -> list[str]: ...
 
     def shown(self, index: int, item: TriageItem) -> str: ...
@@ -100,6 +115,9 @@ class ReportProtocol(Protocol):
 class ServicesProtocol(Protocol):
     @property
     def pulls(self) -> PullsProtocol: ...
+
+    @property
+    def backlog(self) -> BacklogProtocol: ...
 
     @property
     def verdicts(self) -> VerdictsProtocol: ...

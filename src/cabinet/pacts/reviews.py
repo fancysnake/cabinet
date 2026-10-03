@@ -1,20 +1,14 @@
 """What the review-answering cast carries from branch to branch."""
 
-from typing import Annotated, Literal, Self, TypeVar
+from typing import Literal, Self, TypeVar
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import Budgeted
+from cabinet.pacts.budgets import BATCH, Batch, Budgeted
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Bound, PullRequest
 from cabinet.pacts.threads import Answer, TriageItem
-
-# How many open threads one round reads, answers and settles before the next
-# round fetches what is left. Forty threads at once is one triage nobody holds
-# in their head and one agent asked to fix forty things before anything is
-# posted. No ceiling: a batch bigger than the review is the whole review.
-Batch = Annotated[int, Field(ge=1)]
 
 _PickingT = TypeVar("_PickingT", bound="Picking")
 _BranchT = TypeVar("_BranchT", bound="Branch")
@@ -22,7 +16,9 @@ _BranchT = TypeVar("_BranchT", bound="Branch")
 
 class Review(BaseModel):
     bound: Bound = 3
-    batch: Batch = 7
+    # How many open threads one round reads, answers and settles before the
+    # next round fetches what the forge still holds open.
+    batch: Batch = BATCH
 
 
 Outcome = Literal["shipped", "declined", "elsewhere", "unread", "nothing", "stopped"]
@@ -43,7 +39,7 @@ class Reviewed(BaseModel):
 class Picking(Hop):
     project: Project
     bound: Bound
-    batch: Batch = 7
+    batch: Batch = BATCH
     queue: list[PullRequest] = Field(default_factory=list)
     reviewed: list[Reviewed] = Field(default_factory=list)
     stopped: str = ""

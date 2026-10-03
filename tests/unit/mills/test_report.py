@@ -1,6 +1,7 @@
 """What the morning reads."""
 
 from cabinet.mills.report import Report
+from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, PullRequest, Run
 from cabinet.pacts.reviews import Picking, Reviewed
@@ -144,3 +145,119 @@ class TestFindings:
         headed = _REPORT.findings(project, [Finding(path="", body="hm")])
 
         assert headed[0].body == "## Night review\n\nhm"
+
+
+_ISSUE = Issue(number=5, title="t", url="https://example.test/5")
+
+
+class TestIdentify:
+    @staticmethod
+    def test_every_ending_gets_its_line() -> None:
+        identifying = Identifying(
+            project=_PROJECT,
+            identified=[
+                Identification(
+                    number=3,
+                    outcome="identified",
+                    item=IdentifiedItem(
+                        number=3, kind="feature", size="M", blocked_by=[4]
+                    ),
+                ),
+                Identification(
+                    number=4,
+                    outcome="identified",
+                    item=IdentifiedItem(
+                        number=4,
+                        kind="edit",
+                        epic=True,
+                        children=[12],
+                        note="split by layer",
+                    ),
+                    opened=[10, 11],
+                ),
+                Identification(
+                    number=5,
+                    outcome="identified",
+                    item=IdentifiedItem(
+                        number=5, kind="spike", note="need the metrics"
+                    ),
+                ),
+                Identification(number=6, outcome="declined"),
+                Identification(number=7, outcome="missed"),
+            ],
+        )
+
+        assert _REPORT.identify(identifying) == (
+            "identify — 5 issues\n"
+            "  #3 feature/M, linked #4\n"
+            "  #4 edit/epic, opened #10 #11, linked #12 — split by layer\n"
+            "  #5 spike/unsized — need the metrics\n"
+            "  #6: left for later\n"
+            "  #7: the agent did not answer for it"
+        )
+
+    # The page you are asked about and the rows saying what became of it are
+    # written here, in one shape, so the two lists read as one.
+    @staticmethod
+    def test_the_page_is_offered_one_issue_a_line() -> None:
+        assert _REPORT.page([_ISSUE, _ISSUE.model_copy(update={"number": 6})]) == (
+            "  #5 t\n  #6 t"
+        )
+
+    @staticmethod
+    def test_an_empty_page_is_an_empty_listing() -> None:
+        assert not _REPORT.page([])
+
+    # An issue past the end of the listing reads like an issue nothing wanted
+    # doing to, so the count is said to be a count of what was seen.
+    @staticmethod
+    def test_a_backlog_the_forge_would_not_list_the_end_of_says_so() -> None:
+        identifying = Identifying(project=_PROJECT, truncated=True)
+
+        assert _REPORT.identify(identifying) == (
+            "identify — 0 issues\n"
+            "  (none wanted identifying)\n"
+            "\n"
+            "the forge listed as many of your open issues as it gives at once:"
+            " there are more, and this cast never saw them"
+        )
+
+    @staticmethod
+    def test_nothing_to_identify_says_so() -> None:
+        assert _REPORT.identify(Identifying(project=_PROJECT)) == (
+            "identify — 0 issues\n  (none wanted identifying)"
+        )
+
+    @staticmethod
+    def test_a_stopped_cast_names_the_reason_and_what_was_never_reached() -> None:
+        identifying = Identifying(
+            project=_PROJECT,
+            queue=[_ISSUE],
+            identified=[Identification(number=2, outcome="stopped")],
+            stopped="the agent stopped mid-flight",
+        )
+
+        assert _REPORT.identify(identifying) == (
+            "identify — 1 issues\n"
+            "  #2: in flight when the cast stopped; it may be half done\n"
+            "\n"
+            "the cast stopped: the agent stopped mid-flight\n"
+            "not reached:    #5"
+        )
+
+    # A sub-issue opened before the forge refused is attached to nothing, so
+    # the row it was opened for is the only place it is named.
+    @staticmethod
+    def test_a_stopped_row_names_the_sub_issues_it_opened() -> None:
+        identifying = Identifying(
+            project=_PROJECT,
+            identified=[Identification(number=2, outcome="stopped", opened=[10])],
+            stopped="attach refused",
+        )
+
+        assert _REPORT.identify(identifying) == (
+            "identify — 1 issues\n"
+            "  #2: in flight when the cast stopped; it may be half done, opened #10\n"
+            "\n"
+            "the cast stopped: attach refused"
+        )

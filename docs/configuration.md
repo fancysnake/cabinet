@@ -18,6 +18,7 @@ fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
 review_skill = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
 review_title = "Thermo-nuclear code quality review"
+identify_skill = "~/.claude/skills/issues/SKILL.md"
 
 [cabinet.labels]
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
@@ -49,6 +50,7 @@ may_run = []                          # command prefixes an agent may run itself
 | `sign_commits`  | `false` commits with `commit.gpgsign=false`, for casts nobody can unlock a key for |
 | `review_skill`  | the skill file `refresh` reviews with; see [the review skill](#the-review-skill) |
 | `review_title`  | the heading its review comments open with                                   |
+| `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
 
 ### `[cabinet.labels]`
 
@@ -92,6 +94,27 @@ curl -fsSL -o ~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md \
 
 Or point `review_skill` at any other skill file and `review_title` at the
 heading its comments should open with.
+
+## The issues skill
+
+`identify` has its agent read the `issues` skill, which lives in this
+repository's [plugins](plugins.md). Put a copy where `identify_skill` points
+before the first cast:
+
+```bash
+mkdir -p ~/.claude/skills/issues
+curl -fsSL -o ~/.claude/skills/issues/SKILL.md \
+  https://raw.githubusercontent.com/fancysnake/cabinet/refs/heads/main/plugins/issues/skills/issues/SKILL.md
+```
+
+Or point `identify_skill` at the copy the plugin install left, or at a skill of
+your own that names the same labels. A repository that already carries the
+skill in its own tree can name that path instead, which is what this one does:
+
+```toml
+[cabinet]
+identify_skill = "plugins/issues/skills/issues/SKILL.md"
+```
 
 ## The remote
 

@@ -40,7 +40,7 @@ class TestDocumented:
 
 # `Mode` says it is a narrowing of `Marked` and no type can hold it to that:
 # a pass is also the name of the checkpoint it marks, so a pass whose name is
-# not in `Marked` would mark a label `labels` never made.
+# not in `Marked` would mark a label `labels:pr` never made.
 class TestMarked:
     @staticmethod
     def test_every_pass_is_a_ritual_that_marks() -> None:

@@ -1,7 +1,7 @@
 # cabinet
 
-A [vekna](https://vekna.fancysnake.dev) **tome**: pull request maintenance
-rituals, installed as a package and cast from any repository on GitHub or
+A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
+maintenance rituals, installed as a package and cast from any repository on GitHub or
 GitLab (hosted or self-hosted).
 
 Documentation is at [cabinet.fancysnake.dev](https://cabinet.fancysnake.dev).
@@ -28,30 +28,46 @@ Grouped by school, the way a spellbook is.
 - **`review`** — the morning after. Reads the review threads the night left,
   triages them with you at the terminal, answers every one, makes the gate
   green and ships the branch. Discovering what was found, and settling it.
+- **`identify`** — the backlog, a page at a time. Takes your open issues that
+  lack a type or a size; an agent reads each one and says what it is, and the
+  ritual puts that on the forge: a type and a size, or an epic split into
+  sub-issues, and the links between them. You say yes to each page first.
 
 ### Conjuration
 
-- **`labels`** — makes every label the other rituals read and write: the
-  reviewed and wait labels and each ritual's `started`/`done` checkpoints,
-  created where missing and refreshed where present. Cast it once before the
-  first sweep, and again after changing `[cabinet.labels]`.
+- **`labels`** — makes every label cabinet uses: what `labels:pr` and
+  `labels:identify` make, in one cast. Cast it once to set a project up.
+- **`labels:pr`** — makes every label the pull request rituals read and
+  write: the reviewed and wait labels and each ritual's `started`/`done`
+  checkpoints, created where missing and refreshed where present. Cast it
+  again after changing `[cabinet.labels]`.
+- **`labels:identify`** — makes the labels `identify` puts on issues: the types
+  (`feature`, `edit`, `chore`, `spike`, `bug`), the sizes (`S`, `M`, `L`) and
+  `epic`.
+
+Every label ritual creates what is missing and refreshes what is there, so
+casting one twice is as safe as once.
 
 <!-- --8<-- [start:cast] -->
 ```bash
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N] [--batch N]
+vekna cast identify [--batch N]
 vekna cast labels
+vekna cast labels:pr
+vekna cast labels:identify
 ```
 <!-- --8<-- [end:cast] -->
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
 default 3. `--attended true` says somebody is at the terminal: the sweep asks
 before every repair attempt instead of letting the budget decide, and its
-agents run in Claude's `auto` permission mode. `review` is always
-attended. `--batch` is how many open threads `review` reads and answers in one
-round before fetching what is still open, default 7: a forty-thread review is
-six triages you can hold in your head, and still one commit.
+agents run in Claude's `auto` permission mode. `review` is always attended, and
+`identify` asks you about every page. `--batch` is how many open threads `review`
+reads and answers in one round before fetching what is still open, default 7:
+a forty-thread review is six triages you can hold in your head, and still one
+commit. On `identify` it is how many issues go on one page, default 7.
 
 ## Install
 
@@ -104,7 +120,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 
 | plugin         | what it adds                                 |
 | -------------- | -------------------------------------------- |
-| `issue-maker`  | a skill that files or updates a GitHub issue |
+| `issues`       | a skill for writing, typing, sizing and linking issues |
 | `release-bump` | a skill that cuts a release                  |
 | `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
 | `smoke-test`   | a skill that writes the fifteen-minute manual check for a web or CLI change |
@@ -114,11 +130,11 @@ Add the marketplace once, then install what you want:
 
 ```bash
 claude plugin marketplace add fancysnake/cabinet
-claude plugin install issue-maker@cabinet
+claude plugin install issues@cabinet
 ```
 
 Or from inside a session: `/plugin marketplace add fancysnake/cabinet`, then
-`/plugin install issue-maker@cabinet`.
+`/plugin install issues@cabinet`.
 <!-- --8<-- [end:plugins-install] -->
 
 What each skill does, step by step, is at

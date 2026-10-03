@@ -9,6 +9,7 @@ turns trying.
 from typing_extensions import override
 
 from cabinet.mills.report import triage_line
+from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
 from cabinet.pacts.threads import Thread, TriageItem
@@ -158,6 +159,46 @@ code on its own terms.
 """
 
 
+# The vocabulary from the same list `labels:identify` makes on the forge, with
+# each label's own description: a sixth type added to `Kind` reaches the prompt
+# by itself rather than leaving this prose a version behind.
+def _meanings(*names: str) -> str:
+    described = {spec.name: spec.description for spec in ISSUE_LABELS}
+    return "\n".join(f"  - {name}: {described[name]}" for name in names)
+
+
+_IDENTIFY = f"""\
+Read every issue between the markers, and only those. Read the code an issue is
+about before judging it: the size is what the change costs in this repository as
+it stands.
+
+You reach the forge for nothing and you edit no files. The ritual puts your
+reading on the forge as soon as you stop: it labels each issue, opens the
+sub-issues you asked for and labels those too, attaches them under their epic,
+and records what blocks what. So answer carefully — the answer is the action.
+
+One item per issue in `items`, carrying its number:
+
+- `kind`, exactly one of:
+{_meanings(*KINDS)}
+- `size`, exactly one of:
+{_meanings(*SIZES)}
+- `epic: true` and no size instead, where it will not fit one pull request:
+{_meanings(EPIC)}
+  Then `parts`: one per sub-issue to open, each with a `title`, a `body`, and a
+  `kind` and `size` of its own, so no part is left behind unidentified. An open
+  issue that is already a part of it goes in `children` by number, rather than
+  being opened again.
+- `blocked_by`: the open issues this one cannot start until they land. Only
+  where the order is real; a wrong link is noise somebody has to undo.
+- no `size` and no `epic` where you could not size it, which is not the same
+  answer as an epic — then say in `note` what you would need to know.
+- `note`: anything I should know, in one sentence, read on a terminal. A
+  related issue worth naming belongs here too: the ritual writes labels and
+  links, never bodies.
+"""
+
+
 # What the agent may run itself, from the same list the allowlist is built
 # from — so the prompt never promises a command the SDK then refuses.
 def _may_run(project: Project) -> str:
@@ -208,6 +249,11 @@ def _fenced(threads: list[Thread]) -> str:
 def _item(index: int, item: TriageItem, answer: str) -> str:
     read = f"{triage_line(index, item)}\n   thread: {item.thread}"
     return f"{_fence(read)}\nwhat I want: {answer}"
+
+
+def _issue(issue: Issue) -> str:
+    worn = ", ".join(issue.labels) or "none"
+    return f"issue #{issue.number}: {issue.title}\nlabels: {worn}\n\n{issue.body}"
 
 
 def _thread(thread: Thread) -> str:
@@ -279,3 +325,17 @@ class Prompts(PromptsProtocol):
             f"The review threads already on the pull request:\n\n{_FENCE}\n"
             f"{_fenced(threads)}"
         )
+
+    # The skill is named on the first page only: every page after it continues
+    # the session that read it, and reading it again is turns spent on nothing.
+    @override
+    def identify(self, project: Project, issues: list[Issue], *, briefed: bool) -> str:
+        opening = (
+            "The next page of open issues, by the same skill and the same rules."
+            if briefed
+            else "Say how each of the open issues below should be identified: read"
+            f" {project.identify_skill} and follow it. It says what each type and"
+            " size means, when an issue is an epic, and how issues are linked."
+        )
+        shown = _fence("\n\n".join(_issue(issue) for issue in issues))
+        return f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\nThe issues:\n\n{shown}"

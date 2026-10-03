@@ -1,7 +1,7 @@
 [project]
 name = "cabinet"
-version = "0.5.0"
-description = "A vekna tome: pull request maintenance rituals for GitHub and GitLab"
+version = "1.0.0"
+description = "A vekna tome: pull request and issue maintenance rituals for GitHub and GitLab"
 authors = [{ name = "Radosław Ganczarek", email = "radoslaw@ganczarek.in" }]
 license = "MIT"
 readme = "README.md"

@@ -5,10 +5,11 @@ the instruments are kept, and it is the body of people who do the work of
 keeping a house in order. This repository is both.
 
 **The tome** is a set of [vekna](https://vekna.fancysnake.dev) rituals for
-pull request maintenance, installed as a package and cast from any repository
-on GitHub or GitLab, hosted or self-hosted. A pull request left open overnight
-drifts: the base moves under it, CI goes red, a reviewer's questions sit
-unanswered. The rituals do those chores, and each one is an ordinary program
+pull request and issue maintenance, installed as a package and cast from any
+repository on GitHub or GitLab, hosted or self-hosted. A pull request left open
+overnight drifts: the base moves under it, CI goes red, a reviewer's questions
+sit unanswered. A backlog drifts too: issues pile up untyped, unsized and
+unlinked. The rituals do those chores, and each one is an ordinary program
 whose loop, branches and stopping condition are code you can read. The agent
 is handed one bounded piece of work at a time.
 
@@ -30,16 +31,20 @@ Grouped by school, the way a spellbook is.
 - **`review`** (Divination) — the morning after. Reads the review threads the
   night left, triages them with you at the terminal, answers every one, makes
   the gate green and ships the branch.
-- **`labels`** (Conjuration) — makes every label the other rituals read and
-  write. Cast it once before the first sweep.
+- **`identify`** (Divination) — your open issues, a page at a time: each gets a
+  type and a size, one too big becomes an epic with sub-issues, related ones
+  get linked.
+- **`labels`** (Conjuration) — makes every label the pull request rituals and
+  `identify` wear; cast it once to set a project up. **`labels:pr`** and
+  **`labels:identify`** make one half each.
 
 [Rituals](rituals.md) has each one in full, with its flags.
 
 ## The skills
 
-- **`issue-maker`** — files or updates a GitHub issue, checked against the
-  code and the open issues first, written at a level that survives the
-  repository moving on.
+- **`issues`** — how issues are written, typed, sized and linked: files or
+  updates an issue checked against the code and the open issues first, and is
+  the knowledge `identify` hands its agent.
 - **`release-bump`** — cuts a release: the version by semver from what
   changed since the last tag, the changelog compacted, the docs and skills
   brought in line. Commits and tags nothing unless asked.

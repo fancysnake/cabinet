@@ -1,6 +1,6 @@
 site_name: cabinet
 site_url: https://cabinet.fancysnake.dev
-site_description: Pull request maintenance rituals for GitHub and GitLab, and the Claude Code skills that keep a repository in order.
+site_description: Pull request and issue maintenance rituals for GitHub and GitLab, and the Claude Code skills that keep a repository in order.
 repo_url: https://github.com/fancysnake/cabinet
 repo_name: fancysnake/cabinet
 copyright: MIT

@@ -1,0 +1,12 @@
+{
+  "name": "issues",
+  "description": "How issues are written, typed, sized and linked: file or update an issue, or refine the backlog into typed, sized issues and epics with sub-issues. The knowledge cabinet's identify ritual hands its agent.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/issues",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["github", "gitlab", "issues", "backlog", "refinement"]
+}

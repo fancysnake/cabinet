@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A [vekna](https://vekna.fancysnake.dev) **tome**: pull request maintenance
-rituals (`refresh`, `cover`, `review`, `labels`) packaged under `src/cabinet`
-and cast from other repositories via `vekna cast <ritual>`. The repo is also
-a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) whose
+A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
+maintenance rituals (`refresh`, `cover`, `review`, `identify`, `labels`, `labels:pr`,
+`labels:identify`) packaged under `src/cabinet` and cast from other
+repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
+marketplace (`.claude-plugin/marketplace.json`) whose
 plugins live under `plugins/<name>/` as skills only, no Python. `docs/` is the
 manual, built by mkdocs-material into <https://cabinet.fancysnake.dev> by
 `.github/workflows/site.yml` on every push to `main`; README.md is the front
@@ -60,9 +61,9 @@ moving modules.
 | ---------- | ------------------------------------------------------------- | ------------------------ |
 | `pacts/`   | pydantic payloads, `Project` config, protocols (forge/scm/tasks/agent/services) | nothing internal |
 | `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`)       | pacts                    |
-| `mills/`   | pure logic: `Pulls`, `Verdicts`, `Prompts`, `Repairs`, `Report` | pacts, specs           |
+| `mills/`   | pure logic: `Pulls`, `Backlog`, `Verdicts`, `Prompts`, `Repairs`, `Report` | pacts, specs           |
 | `links/`   | adapters: `forge/{github,gitlab}`, `scm/git`, `tasks/mise`, `agent/claude`, `config/vekna_toml` | pacts only; `links/*` subpackages independent of each other |
-| `gates/`   | `@step` bodies (`gates/ritual/vekna/{sweep,review,labels,marking}.py`) | pacts only            |
+| `gates/`   | `@step` bodies (`gates/ritual/vekna/{sweep,review,identify,labels,marking}.py`) | pacts only            |
 | `inits/`   | `Services` binds concrete adapters, `wire()`                   | everything               |
 | `rituals/` | one facade per ritual: the `@ritual` entrypoint + re-exported steps | layers; nothing imports it back |
 | `edges/`   | reserved, empty, excluded from coverage                        | nothing                  |
@@ -86,9 +87,10 @@ A step returns the next step's payload, or `Done(result)`, and its return
 annotation lists every exit; vekna routes by the payload's exact class, so each
 class belongs to one step. Every step has a class named for it that adds no
 fields, in a module of its own per ritual: `pacts/sweep.py` (`SetAside(Work)`,
-…) and `pacts/review.py` (`Pick(Picking)`, `Read(Branch)`, …), beside the
-carriers they rebuild in `pacts/pulls.py` and `pacts/reviews.py`. The carriers
-`Run`, `Work`, `Picking` and `Branch` are `Hop`s (`pacts/hops.py`), and
+…), `pacts/review.py` (`Pick(Picking)`, `Read(Branch)`, …) and
+`pacts/identify.py` (`Leaf(Identifying)`, …), beside the carriers they rebuild in
+`pacts/pulls.py`, `pacts/reviews.py` and `pacts/issues.py`. The carriers
+`Run`, `Work`, `Picking`, `Branch` and `Identifying` are `Hop`s (`pacts/hops.py`), and
 `payload.to(NextStep)` — declared per carrier, bound to that carrier's own
 steps — is the one way across. A new step gets a new class; mypy checks every
 `return` against the annotation.
@@ -99,16 +101,25 @@ steps — is the one way across. A new step gets a new class; mypy checks every
 in `gates/ritual/vekna/sweep.py` and each re-export the **full** step list, so
 importing either registers the whole graph. A new sweep step must be added to
 both `__all__` lists (`test_facade.py` checks).
-`rituals/review.py` wraps `gates/ritual/vekna/review.py`; `rituals/labels.py`
-wraps `gates/ritual/vekna/labels.py`.
+`rituals/review.py` wraps `gates/ritual/vekna/review.py`; `rituals/identify.py`
+wraps `gates/ritual/vekna/identify.py`. `rituals/labels.py`, `rituals/labels_pr.py` and
+`rituals/labels_identify.py` share the one `conjure` step in
+`gates/ritual/vekna/labels.py`, each handing it its own label specs. A ritual's
+name is the `@ritual("...")` string, not the module: `labels:pr` is cast by
+that name. A ritual is named for a D&D spell, and its facade's docstring opens
+with that spell's school (`identify` is Divination). Step names are global across the package, so a new step must not
+reuse one (`recap` is review's; identify's are `tally` and `pin`).
 
 ### Who runs what
 
 Agents (`links/agent/claude.py`) run under `dontAsk` with per-role
-allowlists (reader / writer / resolver, plus `project.agent.may_run`). Every
-commit, push, task run and forge write is the ritual's own, through vekna's
-`shell` medium in the `links` adapters. Keep it that way: no new agent
-permission that commits, pushes, or talks to the forge.
+allowlists (reader / writer / resolver, plus `project.agent.may_run`). No role
+names a forge client: every commit, push, task run and forge write is the
+ritual's own, through vekna's `shell` medium in the `links` adapters. That
+includes `identify`'s labels, sub-issues and links — its agent reads the backlog
+and answers what each issue is, and `gates/ritual/vekna/identify.py:pin` puts it
+on. Keep it that way: no agent permission that commits, pushes, or talks to
+the forge.
 
 ## Tests
 

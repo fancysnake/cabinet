@@ -9,6 +9,7 @@ from vekna.trial import Trial
 
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
@@ -57,10 +58,6 @@ class _Labels(BaseModel):
 
 class _Threads(BaseModel):
     threads: list[Thread]
-
-
-class _Made(BaseModel):
-    url: str
 
 
 @step
@@ -125,7 +122,25 @@ async def several(ask: _Ask) -> Transition:
 
 @step
 async def issue(_: _Ask) -> Transition:
-    return done(_Made(url=await _FORGE.issue("a title", "a body")))
+    return done(await _FORGE.issue("a title", "a body"))
+
+
+@step
+async def label_issue(ask: _Ask) -> Transition:
+    await _FORGE.label_issue(ask.number, add=["bug"], remove=["epic"])
+    return done()
+
+
+@step
+async def attach(ask: _Ask) -> Transition:
+    await _FORGE.attach(ask.number, 9)
+    return done()
+
+
+@step
+async def blocks(ask: _Ask) -> Transition:
+    await _FORGE.blocks(ask.number, 9)
+    return done()
 
 
 class TestPulls:
@@ -390,16 +405,20 @@ class TestComment:
         assert trial.shell.commands[-1] == "glab mr note 7 -m hm"
 
 
+_PROJECT = "glab api projects/:id"
+_LINKS = "glab api projects/:id/issues/7/links"
+
+
 class TestIssue:
     @staticmethod
-    def test_the_url_is_read_off_the_answer(trial: Trial) -> None:
+    def test_the_number_and_the_url_are_read_off_the_answer(trial: Trial) -> None:
         trial.shell.replies(
-            when="glab api projects/:id/issues*",
-            stdout='{"web_url": "https://gitlab.example/o/r/-/issues/9"}',
+            when="glab api projects/:id/issues -X POST*",
+            stdout='{"iid": 9, "web_url": "https://gitlab.example/o/r/-/issues/9"}',
         )
 
         assert trial.walk(issue, _Ask()) == done(
-            _Made(url="https://gitlab.example/o/r/-/issues/9")
+            Opened(number=9, url="https://gitlab.example/o/r/-/issues/9")
         )
         assert trial.shell.commands == [
             (
@@ -410,7 +429,142 @@ class TestIssue:
 
     @staticmethod
     def test_an_answer_without_a_url(trial: Trial) -> None:
-        trial.shell.replies(when="glab api projects/:id/issues*", stdout="{}")
+        trial.shell.replies(when="glab api projects/:id/issues -X POST*", stdout="{}")
 
         with pytest.raises(ForgeError, match="issue this could not read"):
             trial.walk(issue, _Ask())
+
+
+class TestLabelIssue:
+    @staticmethod
+    def test_what_goes_on_and_what_comes_off_in_one_call(trial: Trial) -> None:
+        trial.shell.replies(when="glab issue update*")
+
+        assert trial.walk(label_issue, _Ask()) == done()
+        assert trial.shell.commands == [
+            "glab issue update 7 --label bug --unlabel epic"
+        ]
+
+    @staticmethod
+    def test_nothing_to_change_is_no_call(trial: Trial) -> None:
+        @step
+        async def nothing(ask: _Ask) -> Transition:
+            await _FORGE.label_issue(ask.number)
+            return done()
+
+        trial.walk(nothing, _Ask())
+
+        assert not trial.shell.commands
+
+
+class TestLinks:
+    @staticmethod
+    def test_a_sub_issue_is_a_relation_with_the_project_spelled_out(
+        trial: Trial,
+    ) -> None:
+        trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
+        trial.shell.replies(when=f"{_LINKS}*")
+
+        assert trial.walk(attach, _Ask()) == done()
+        assert trial.shell.commands == [
+            _PROJECT,
+            (
+                f"{_LINKS} -X POST -F target_project_id=42 -F target_issue_iid=9"
+                " -f link_type=relates_to"
+            ),
+        ]
+
+    @staticmethod
+    def test_blocked_by_is_the_same_endpoint_with_its_own_link_type(
+        trial: Trial,
+    ) -> None:
+        trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
+        trial.shell.replies(when=f"{_LINKS}*")
+
+        assert trial.walk(blocks, _Ask()) == done()
+        assert trial.shell.commands[-1] == (
+            f"{_LINKS} -X POST -F target_project_id=42 -F target_issue_iid=9"
+            " -f link_type=is_blocked_by"
+        )
+
+    @staticmethod
+    def test_a_project_that_will_not_say_its_id_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_PROJECT, stdout="{}")
+
+        with pytest.raises(ForgeError, match="project this could not read"):
+            trial.walk(attach, _Ask())
+
+
+_AUTHORED = (
+    "glab api 'projects/:id/issues?state=opened&scope=created_by_me&per_page=100'"
+)
+_ASSIGNED = (
+    "glab api 'projects/:id/issues?state=opened&scope=assigned_to_me&per_page=100'"
+)
+
+
+@step
+async def issues(_: _Ask) -> Transition:
+    return done(await _FORGE.issues())
+
+
+def _listed(iid: int, **extra: object) -> dict[str, object]:
+    return {
+        "iid": iid,
+        "title": f"issue {iid}",
+        "web_url": f"https://gitlab.example/o/r/-/issues/{iid}",
+        "description": None,
+        "labels": [],
+        **extra,
+    }
+
+
+class TestIssues:
+    @staticmethod
+    def test_created_and_assigned_are_merged_once_each_lowest_first(
+        trial: Trial,
+    ) -> None:
+        nine = _listed(9, description="why", labels=["S"])
+        trial.shell.replies(when=_AUTHORED, stdout=json.dumps([nine]))
+        trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([nine, _listed(2)]))
+
+        assert trial.walk(issues, _Ask()) == done(
+            Listing(
+                issues=[
+                    Issue(
+                        number=2,
+                        title="issue 2",
+                        url="https://gitlab.example/o/r/-/issues/2",
+                    ),
+                    Issue(
+                        number=9,
+                        title="issue 9",
+                        url="https://gitlab.example/o/r/-/issues/9",
+                        body="why",
+                        labels=["S"],
+                    ),
+                ]
+            )
+        )
+        assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
+
+    # A full page may be a short page, as it is for the board.
+    @staticmethod
+    def test_a_full_page_says_the_listing_was_cut_short(trial: Trial) -> None:
+        trial.shell.replies(
+            when=_AUTHORED, stdout=json.dumps([_listed(iid) for iid in range(1, 101)])
+        )
+        trial.shell.replies(when=_ASSIGNED, stdout="[]")
+
+        transition = trial.walk(issues, _Ask())
+
+        assert isinstance(transition, type(done()))
+        assert isinstance(transition.result, Listing)
+        assert transition.result.truncated
+
+    @staticmethod
+    def test_a_listing_that_will_not_parse(trial: Trial) -> None:
+        trial.shell.replies(when=_AUTHORED, stdout="[{}]")
+
+        with pytest.raises(ForgeError, match="issues this could not read"):
+            trial.walk(issues, _Ask())

@@ -14,6 +14,7 @@ from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
@@ -77,12 +78,31 @@ class _Status(BaseModel):
 
 
 class _Issue(BaseModel):
+    iid: int
     web_url: str
+
+
+# `:id` stands for this project everywhere in a path, but a link's target
+# project is a field rather than a path, and a field is not substituted.
+class _Project(BaseModel):
+    id: int
 
 
 _MERGE_REQUESTS: TypeAdapter[list[_MergeRequest]] = TypeAdapter(list[_MergeRequest])
 _DISCUSSIONS: TypeAdapter[list[_Discussion]] = TypeAdapter(list[_Discussion])
 _STATUSES: TypeAdapter[list[_Status]] = TypeAdapter(list[_Status])
+
+
+class _Listed(BaseModel):
+    iid: int
+    title: str
+    web_url: str
+    # Null on an issue opened without one.
+    description: str | None = None
+    labels: list[str] = []
+
+
+_LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
 
 
 def _api(path: str, *flags: str) -> str:
@@ -128,6 +148,31 @@ def _thread(found: _Discussion) -> Thread | None:
             Comment(id=str(note.id), author=note.author.username, body=note.body)
             for note in found.notes
         ],
+    )
+
+
+async def _project_id() -> int:
+    seen = await asked(_api("projects/:id"), "glab could not read the project")
+    try:
+        return _Project.model_validate_json(seen).id
+    except ValidationError as error:
+        msg = f"glab returned a project this could not read: {error}"
+        raise ForgeError(msg) from error
+
+
+# Both relationships are the one endpoint with a different `link_type`, and
+# both want the target project spelled out even when it is this one.
+async def _link(number: int, other: int, kind: str, complaint: str) -> None:
+    project = await _project_id()
+    await asked(
+        _api(
+            f"projects/:id/issues/{number}/links",
+            "-X POST",
+            f"-F target_project_id={project}",
+            f"-F target_issue_iid={other}",
+            f"-f link_type={kind}",
+        ),
+        complaint,
     )
 
 
@@ -288,7 +333,7 @@ class GitlabForge(ForgeProtocol):
         return Posted(count=posted)
 
     @override
-    async def issue(self, title: str, body: str) -> str:
+    async def issue(self, title: str, body: str) -> Opened:
         made = await asked(
             _api(
                 "projects/:id/issues",
@@ -299,10 +344,74 @@ class GitlabForge(ForgeProtocol):
             "could not open the issue",
         )
         try:
-            return _Issue.model_validate_json(made).web_url
+            opened = _Issue.model_validate_json(made)
         except ValidationError as error:
             msg = f"glab returned an issue this could not read: {error}"
             raise ForgeError(msg) from error
+        return Opened(number=opened.iid, url=opened.web_url)
+
+    @override
+    async def issues(self) -> Listing:
+        found: dict[int, Issue] = {}
+        truncated = False
+        for scope in ("created_by_me", "assigned_to_me"):
+            listed = await asked(
+                _api(
+                    f"projects/:id/issues?state=opened&scope={scope}&per_page={_PAGE}"
+                ),
+                "glab could not list your issues",
+            )
+            try:
+                rows = _LISTED.validate_json(listed)
+            except ValidationError as error:
+                msg = f"glab returned issues this could not read: {error}"
+                raise ForgeError(msg) from error
+            # A full page may be a short page, as it is for the board: what is
+            # past it is not asked for, so the cast never sees it.
+            truncated = truncated or len(rows) >= _PAGE
+            found |= {
+                row.iid: Issue(
+                    number=row.iid,
+                    title=row.title,
+                    url=row.web_url,
+                    body=row.description or "",
+                    labels=row.labels,
+                )
+                for row in rows
+            }
+        return Listing(
+            issues=[found[number] for number in sorted(found)], truncated=truncated
+        )
+
+    @override
+    async def label_issue(
+        self, number: int, *, add: Sequence[str] = (), remove: Sequence[str] = ()
+    ) -> None:
+        flags = [f"--label {quoted(one)}" for one in add]
+        flags += [f"--unlabel {quoted(one)}" for one in remove]
+        if not flags:
+            return
+        await asked(
+            f"glab issue update {number} {' '.join(flags)}",
+            f"could not label #{number}",
+        )
+
+    # `relates_to` and not a parent link: epics and child items are Premium,
+    # and a relation is what every tier has.
+    @override
+    async def attach(self, epic: int, child: int) -> None:
+        await _link(
+            epic, child, "relates_to", f"could not attach #{child} under #{epic}"
+        )
+
+    @override
+    async def blocks(self, number: int, blocker: int) -> None:
+        await _link(
+            number,
+            blocker,
+            "is_blocked_by",
+            f"could not say #{number} is blocked by #{blocker}",
+        )
 
     # Created, or updated where it is already there: the API refuses a
     # duplicate name, and a label that exists is not a failure of the ritual.

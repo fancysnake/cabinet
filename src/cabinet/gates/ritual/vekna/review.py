@@ -284,8 +284,8 @@ async def _posted(answering: Answering) -> int:
             continue
         reply = item.reply
         if item.issue is not None:
-            url = await forge.issue(item.issue.title, item.issue.body)
-            reply = f"{reply}\n\nFiled as {url}"
+            opened = await forge.issue(item.issue.title, item.issue.body)
+            reply = f"{reply}\n\nFiled as {opened.url}"
         await forge.reply(branch.number, threads[item.thread], reply)
         await forge.resolve(branch.number, threads[item.thread])
         settled += 1
