@@ -23,21 +23,26 @@ asked. The deny list holds in both.
 
 ## Roles
 
-| role     | may use                                                         |
-| -------- | --------------------------------------------------------------- |
-| reader   | `Read`, `Grep`, `Glob`, `Bash`                                  |
-| writer   | reader + `Edit`, `Write`, `MultiEdit`                           |
-| resolver | writer, told to stage what it resolves with `git add`           |
+| role   | may use                               |
+| ------ | ------------------------------------- |
+| reader | `Read`, `Grep`, `Glob`, `Bash`        |
+| writer | reader + `Edit`, `Write`, `MultiEdit` |
+
+A reader is not given the edit tools, but it is not read-only: its shell
+writes. The role says what the call is for; the sandbox is the boundary.
 
 ## Denied to every role
 
-| prefix                                               | why                                                    |
-| ---------------------------------------------------- | ------------------------------------------------------ |
-| the project's `gate`, `coverage`, `fast_coverage`    | the ritual runs them itself the moment the agent stops |
-| `git commit`, `git push`                             | the commits and the push are the ritual's              |
-| `git rebase`, `git merge`, `git reset`, `git switch` | they move the branch the ritual reads                  |
-| `gh`, `glab`                                         | every forge write is the ritual's                      |
-| every prefix in `agent.may_not_run`                  | the project's own slow tasks                           |
+| prefix                                                              | why                                                    |
+| ------------------------------------------------------------------- | ------------------------------------------------------ |
+| the project's `gate`, `coverage`, `fast_coverage`                   | the ritual runs them itself the moment the agent stops |
+| `git commit`, `git push`, `git cherry-pick`, `git revert`, `git am` | the commits and the push are the ritual's              |
+| `git rebase`, `git merge`, `git reset`, `git switch`, `git stash`   | they move the branch or the work the ritual reads      |
+| `gh`, `glab`                                                        | every forge write is the ritual's                      |
+| every prefix in `agent.may_not_run`                                 | the project's own slow tasks                           |
+
+`git checkout` and `git restore` are not on it: an agent resolving a
+conflict takes a side with `--ours` or `--theirs`.
 
 So no agent commits, pushes, runs a sweep, or says anything to the forge:
 not a label, not a comment, not an issue. Every forge call is the ritual's

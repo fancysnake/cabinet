@@ -121,13 +121,20 @@ class Agent(BaseModel):
 
 # What only the ritual does: committing, pushing, moving the branch it reads,
 # and speaking to the forge. Both forges' clients, whichever this one is.
+# It turns away wasted time and honest mistakes, not every command that could
+# do these: `git checkout` and `git restore` stay off it, because an agent
+# resolving a conflict takes a side with `--ours` or `--theirs`.
 _RITUALS_OWN = (
     "git commit",
     "git push",
+    "git cherry-pick",
+    "git revert",
+    "git am",
     "git rebase",
     "git merge",
     "git reset",
     "git switch",
+    "git stash",
     "gh",
     "glab",
 )
@@ -163,12 +170,10 @@ class Project(BaseModel):
     # soon as the agent stops, and the writes that are the ritual's alone. One
     # list, so what the prompt names and what the SDK denies cannot drift.
     def forbidden(self) -> list[str]:
-        named = [self.gate, self.coverage, self.fast_coverage]
-        listed: list[str] = []
-        for prefix in (*named, *_RITUALS_OWN, *self.agent.may_not_run):
-            if prefix not in listed:
-                listed.append(prefix)
-        return listed
+        named = (self.gate, self.coverage, self.fast_coverage)
+        # A value spelled out: with none, or `None`, its values type as `Any`.
+        listed = (*named, *_RITUALS_OWN, *self.agent.may_not_run)
+        return list(dict.fromkeys(listed, True))
 
 
 # `conjure`'s payload: which labels to make, and on which forge. Its own class

@@ -153,7 +153,7 @@ class TestIdentifyPage:
         assert transition.items == [_item(1)]
 
     @staticmethod
-    def test_the_agent_only_reads_and_reaches_no_forge(
+    def test_the_agent_gets_no_edit_tools_and_reaches_no_forge(
         trial: Trial, project: Project
     ) -> None:
         trial.coding.replies(Identified(items=[_item(1)]))

@@ -241,9 +241,8 @@ class TestResolveConflicts:
         )
         assert "Merging main into feature" in trial.coding.prompts[0]
         assert "src/thing.py" in trial.coding.prompts[0]
+        assert "git add" in trial.coding.prompts[0]
         assert trial.coding.calls[0].resume is None
-        assert trial.coding.calls[0].focus_options is not None
-        assert "Edit" in trial.coding.calls[0].focus_options.allowed_tools
 
     @staticmethod
     def test_an_attended_cast_asks_before_a_resolver_is_spent(

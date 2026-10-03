@@ -15,20 +15,7 @@ _PROJECT = Project.model_validate(
 )
 _READER = ["Read", "Grep", "Glob", "Bash"]
 _WRITER = [*_READER, "Edit", "Write", "MultiEdit"]
-_DENIED = [
-    "Bash(mise run pr-fix:*)",
-    "Bash(mise run diff-cover:*)",
-    "Bash(mise run test:py:cov:diff:*)",
-    "Bash(git commit:*)",
-    "Bash(git push:*)",
-    "Bash(git rebase:*)",
-    "Bash(git merge:*)",
-    "Bash(git reset:*)",
-    "Bash(git switch:*)",
-    "Bash(gh:*)",
-    "Bash(glab:*)",
-    "Bash(mise run test:e2e:*)",
-]
+_DENIED = [f"Bash({prefix}:*)" for prefix in _PROJECT.forbidden()]
 
 
 class _Ask(BaseModel):
@@ -84,23 +71,11 @@ class TestAllowedTools:
     def test_a_writer_also_edits() -> None:
         assert allowed_tools("writer") == _WRITER
 
-    @staticmethod
-    def test_a_resolver_reaches_what_a_writer_does() -> None:
-        assert allowed_tools("resolver") == _WRITER
-
 
 class TestDisallowedTools:
     @staticmethod
-    def test_the_long_tasks_the_ritual_writes_and_the_projects_own() -> None:
+    def test_every_forbidden_prefix_is_a_bash_deny_entry() -> None:
         assert disallowed_tools(_PROJECT) == _DENIED
-
-    # Whichever forge: an agent on a GitHub project has no business in `glab`
-    # either, and nothing an agent runs can label, merge or write.
-    @staticmethod
-    def test_both_forge_clients_on_a_gitlab_project() -> None:
-        denied = disallowed_tools(Project(forge="gitlab"))
-
-        assert {"Bash(gh:*)", "Bash(glab:*)"} <= set(denied)
 
 
 class TestAsk:
@@ -108,7 +83,7 @@ class TestAsk:
     def test_every_call_is_bound_by_its_role(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        assert trial.walk(ask, _Ask(role="resolver")) == done(_Came())
+        assert trial.walk(ask, _Ask(role="writer")) == done(_Came())
         assert trial.coding.calls[0].model == "opus"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",

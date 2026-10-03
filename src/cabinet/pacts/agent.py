@@ -4,12 +4,11 @@ from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-# What an agent may reach. Every role has a shell and none runs what
+# What an agent is meant to do. Every role has a shell and none runs what
 # `Project.forbidden()` names: the long tasks, a commit, a push, the forge.
-# `reader` reads the code. `writer` edits it too. `resolver` is a writer told
-# to stage what it resolves, because staging is the only thing the ritual
-# reads to know a conflict is gone.
-Role = Literal["reader", "writer", "resolver"]
+# A `reader` is not given the edit tools, and is not read-only either: its
+# shell writes. A `writer` edits.
+Role = Literal["reader", "writer"]
 
 
 # The agent died mid-flight — a spent token budget, a killed CLI. This ends the
