@@ -112,14 +112,20 @@ reuse one (`recap` is review's; identify's are `tally` and `pin`).
 
 ### Who runs what
 
-Agents (`links/agent/claude.py`) run under `dontAsk` with per-role
-allowlists (reader / writer / resolver, plus `project.agent.may_run`). No role
-names a forge client: every commit, push, task run and forge write is the
-ritual's own, through vekna's `shell` medium in the `links` adapters. That
-includes `identify`'s labels, sub-issues and links — its agent reads the backlog
-and answers what each issue is, and `gates/ritual/vekna/identify.py:pin` puts it
-on. Keep it that way: no agent permission that commits, pushes, or talks to
-the forge.
+Agents (`links/agent/claude.py`) run under `dontAsk` with plain `Bash` for
+every role (reader / writer) and a deny list built from
+`Project.forbidden()`: the project's gate and coverage commands,
+`_RITUALS_OWN` in `pacts/project.py`, and `project.agent.may_not_run`. The
+prompt quotes the same list. Prefix matching
+guards against wasted time and honest mistakes (`sh -c` gets round it); the
+sandbox every cast runs in is the boundary. Every commit, push, long task run
+and forge write is the ritual's own, through vekna's `shell` medium in the
+`links` adapters. That includes `identify`'s labels, sub-issues and links — its
+agent reads the backlog and answers what each issue is, and
+`gates/ritual/vekna/identify.py:pin` puts it on. Keep it that way: anything
+that commits, pushes, moves the branch or talks to the forge goes on the deny
+list. `git checkout` and `git restore` are the exception: a conflict is
+resolved with `--ours`/`--theirs`.
 
 ## Tests
 

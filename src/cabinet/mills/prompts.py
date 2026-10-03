@@ -199,25 +199,21 @@ One item per issue in `items`, carrying its number:
 """
 
 
-# What the agent may run itself, from the same list the allowlist is built
-# from — so the prompt never promises a command the SDK then refuses.
-def _may_run(project: Project) -> str:
-    if not project.agent.may_run:
-        return """\
-You cannot run the project's tasks — no linters, no tests, no sweeps. Read the
-output below, fix what it names, and stop: the ritual re-runs the task that
-broke the moment you do, and hands you what it says.
-"""
-    allowed = "\n".join(f"    {prefix} ..." for prefix in project.agent.may_run)
+# What the agent must not run, from the same list the deny list is built from
+# — so the prompt never leaves out a command the SDK then refuses.
+def _may_not_run(project: Project) -> str:
+    denied = "\n".join(f"    {prefix} ..." for prefix in project.forbidden())
     return f"""\
-Do not run the whole-repository sweeps; the ritual runs the gate itself as soon
-as you stop, so a sweep you run is minutes spent on an answer you are about to
-be given. Check yourself with the narrowest command that answers the question,
-which is one of these and nothing else:
+You have a shell. Check yourself with the narrowest command that answers the
+question: one test file, one linter over one file. These are refused without a
+prompt, so do not spend a turn on them:
 
-{allowed}
+{denied}
 
-Anything else is refused without a prompt, so do not spend a turn on it.
+The long tasks are the ritual's: it runs the gate itself as soon as you stop,
+so a sweep you run is minutes spent on an answer you are about to be given.
+Committing, pushing, moving the branch and speaking to the forge are the
+ritual's too.
 """
 
 
@@ -269,7 +265,7 @@ class Prompts(PromptsProtocol):
     def resolve(self, project: Project, *, base: str, branch: str, files: str) -> str:
         return (
             f"Merging {base} into {branch} stopped on conflicts.\n\n{_RESOLVE}\n"
-            f"{_may_run(project)}\nConflicted files:\n\n{files}"
+            f"{_may_not_run(project)}\nConflicted files:\n\n{files}"
         )
 
     # Concatenated, not formatted: the gate's own output is full of braces the
@@ -278,13 +274,13 @@ class Prompts(PromptsProtocol):
     def fix_gates(self, project: Project, output: str, *, gate: str) -> str:
         return (
             f"`{gate}` is this project's gate, and it is red.\n\n{_FIX_GATES}\n"
-            f"{_may_run(project)}\nWhat it said:\n\n{output}"
+            f"{_may_not_run(project)}\nWhat it said:\n\n{output}"
         )
 
     @override
     def cover_gap(self, project: Project, report: str, *, partial: bool) -> str:
         return (
-            f"{_COVER}\n{_may_run(project)}\n{_NO_SLOW if partial else ''}"
+            f"{_COVER}\n{_may_not_run(project)}\n{_NO_SLOW if partial else ''}"
             f"The report:\n\n{report}"
         )
 

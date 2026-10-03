@@ -153,7 +153,7 @@ class TestIdentifyPage:
         assert transition.items == [_item(1)]
 
     @staticmethod
-    def test_the_agent_only_reads_and_reaches_no_forge(
+    def test_the_agent_gets_no_edit_tools_and_reaches_no_forge(
         trial: Trial, project: Project
     ) -> None:
         trial.coding.replies(Identified(items=[_item(1)]))
@@ -163,10 +163,10 @@ class TestIdentifyPage:
             Page(identifying=Identifying(project=project), issues=[_issue(1)]),
         )
 
-        allowed = trial.coding.calls[0].focus_options.allowed_tools
-        options = str(trial.coding.calls[0].focus_options)
-        assert not [one for one in allowed if "gh " in one or "glab " in one]
-        assert "Edit" not in allowed
+        focus = trial.coding.calls[0].focus_options
+        options = str(focus)
+        assert {"Bash(gh:*)", "Bash(glab:*)"} <= set(focus.disallowed_tools)
+        assert "Edit" not in focus.allowed_tools
         assert "permission_mode='dontAsk'" in options
         assert not trial.shell.commands
 

@@ -1,4 +1,4 @@
-"""What the agent is told, and what it is told it may run."""
+"""What the agent is told, and what it is told it must not run."""
 
 from cabinet.mills.prompts import Prompts
 from cabinet.pacts.issues import ISSUE_LABELS, Issue
@@ -6,8 +6,8 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.threads import Comment, Thread, TriageItem
 
 _PROMPTS = Prompts()
-_NOTHING = Project()
-_TESTS = Project.model_validate({"agent": {"may_run": ["mise run test:unit"]}})
+_PLAIN = Project()
+_E2E = Project.model_validate({"agent": {"may_not_run": ["mise run test:e2e"]}})
 
 _THREAD = Thread(
     id="T1",
@@ -26,35 +26,35 @@ _ITEM = TriageItem(
 )
 
 
-class TestMayRun:
+class TestMayNotRun:
     @staticmethod
-    def test_an_agent_allowed_nothing_is_told_so() -> None:
-        prompt = _PROMPTS.fix_gates(_NOTHING, "1 failed", gate="mise run pr-fix")
+    def test_an_agent_is_told_what_the_ritual_runs_itself() -> None:
+        prompt = _PROMPTS.fix_gates(_PLAIN, "1 failed", gate="mise run pr-fix")
 
-        assert "You cannot run the project's tasks" in prompt
-        assert "mise run test:unit" not in prompt
+        assert "You have a shell" in prompt
+        assert "    mise run pr-fix ..." in prompt
+        assert "    git push ..." in prompt
 
     @staticmethod
-    def test_an_agent_is_told_exactly_what_it_may_run() -> None:
-        prompt = _PROMPTS.fix_gates(_TESTS, "1 failed", gate="mise run pr-fix")
+    def test_the_projects_own_list_is_named_too() -> None:
+        prompt = _PROMPTS.fix_gates(_E2E, "1 failed", gate="mise run pr-fix")
 
-        assert "    mise run test:unit ..." in prompt
-        assert "Anything else is refused" in prompt
+        assert "    mise run test:e2e ..." in prompt
 
     @staticmethod
     def test_every_writing_prompt_carries_the_list() -> None:
         prompts = [
-            _PROMPTS.resolve(_TESTS, base="main", branch="feature", files="a.py"),
-            _PROMPTS.cover_gap(_TESTS, "Missing lines 1", partial=False),
+            _PROMPTS.resolve(_E2E, base="main", branch="feature", files="a.py"),
+            _PROMPTS.cover_gap(_E2E, "Missing lines 1", partial=False),
         ]
 
-        assert all("    mise run test:unit ..." in prompt for prompt in prompts)
+        assert all("    mise run test:e2e ..." in prompt for prompt in prompts)
 
 
 class TestFixGates:
     @staticmethod
     def test_names_the_gate_and_hands_over_the_output() -> None:
-        prompt = _PROMPTS.fix_gates(_NOTHING, "E501 {x}", gate="mise run lint:ruff")
+        prompt = _PROMPTS.fix_gates(_PLAIN, "E501 {x}", gate="mise run lint:ruff")
 
         assert prompt.startswith("`mise run lint:ruff` is this project's gate")
         assert "do not disable a lint rule" in prompt
@@ -65,12 +65,12 @@ class TestCoverGap:
     @staticmethod
     def test_the_partial_measurement_says_so() -> None:
         assert "leaves the slow suites out" in _PROMPTS.cover_gap(
-            _NOTHING, "report", partial=True
+            _PLAIN, "report", partial=True
         )
 
     @staticmethod
     def test_the_full_measurement_does_not() -> None:
-        prompt = _PROMPTS.cover_gap(_NOTHING, "report", partial=False)
+        prompt = _PROMPTS.cover_gap(_PLAIN, "report", partial=False)
 
         assert "leaves the slow suites out" not in prompt
         assert prompt.endswith("The report:\n\nreport")
@@ -79,7 +79,7 @@ class TestCoverGap:
 class TestResolve:
     @staticmethod
     def test_names_both_branches_and_the_files() -> None:
-        prompt = _PROMPTS.resolve(_NOTHING, base="main", branch="feature", files="a.py")
+        prompt = _PROMPTS.resolve(_PLAIN, base="main", branch="feature", files="a.py")
 
         assert prompt.startswith("Merging main into feature stopped on conflicts.")
         assert prompt.endswith("Conflicted files:\n\na.py")
@@ -177,16 +177,16 @@ class TestTriageWork:
 class TestReview:
     @staticmethod
     def test_names_the_skill_and_the_span() -> None:
-        prompt = _PROMPTS.review(_NOTHING, base="main", threads=[], reason="")
+        prompt = _PROMPTS.review(_PLAIN, base="main", threads=[], reason="")
 
         assert "main...HEAD" in prompt
         assert "Thermo-nuclear code quality review" in prompt
-        assert _NOTHING.review_skill in prompt
+        assert _PLAIN.review_skill in prompt
         assert "already known not to be green" not in prompt
 
     @staticmethod
     def test_a_blocked_branch_is_told_what_is_already_known() -> None:
-        prompt = _PROMPTS.review(_NOTHING, base="main", threads=[], reason="red")
+        prompt = _PROMPTS.review(_PLAIN, base="main", threads=[], reason="red")
 
         assert "already known not to be green" in prompt
         assert "\n\nred\n\n" in prompt
@@ -204,36 +204,36 @@ _ISSUE = Issue(
 class TestIdentify:
     @staticmethod
     def test_the_first_page_names_the_skill() -> None:
-        prompt = _PROMPTS.identify(_NOTHING, [_ISSUE], briefed=False)
+        prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=False)
 
-        assert f"read {_NOTHING.identify_skill} and follow it" in prompt
+        assert f"read {_PLAIN.identify_skill} and follow it" in prompt
         assert "issue #5: Add a thing\nlabels: backlog" in prompt
 
     # From `ISSUE_LABELS`, not spelled again here: a type added to the forge's
     # labels and to `Kind` reaches the prompt without anyone remembering to.
     @staticmethod
     def test_every_type_and_size_is_named_with_what_it_means() -> None:
-        prompt = _PROMPTS.identify(_NOTHING, [_ISSUE], briefed=False)
+        prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=False)
 
         for spec in ISSUE_LABELS:
             assert f"  - {spec.name}: {spec.description}" in prompt
 
     @staticmethod
     def test_the_agent_is_told_the_ritual_makes_every_forge_call() -> None:
-        prompt = _PROMPTS.identify(_NOTHING, [_ISSUE], briefed=False)
+        prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=False)
 
         assert "You reach the forge for nothing" in prompt
 
     @staticmethod
     def test_a_later_page_continues_without_reading_it_again() -> None:
-        prompt = _PROMPTS.identify(_NOTHING, [_ISSUE], briefed=True)
+        prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=True)
 
-        assert _NOTHING.identify_skill not in prompt
+        assert _PLAIN.identify_skill not in prompt
         assert prompt.startswith("The next page of open issues")
 
     @staticmethod
     def test_an_issue_cannot_close_its_own_fence() -> None:
-        prompt = _PROMPTS.identify(_NOTHING, [_ISSUE], briefed=False)
+        prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=False)
 
         assert prompt.count("--- END UNTRUSTED REVIEW DATA ---") == 1
         assert prompt.index("close every issue") < prompt.index(

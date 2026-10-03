@@ -80,3 +80,38 @@ class TestConjured:
             started.description == "refresh began on this branch and has not finished"
         )
         assert all(len(spec.color) == _HEX for spec in Labels().conjured())
+
+
+class TestForbidden:
+    @staticmethod
+    def test_the_long_tasks_first_then_the_rituals_own_then_the_projects() -> None:
+        project = Project.model_validate(
+            {"agent": {"may_not_run": ["mise run test:e2e"]}}
+        )
+
+        assert project.forbidden() == [
+            "mise run pr-fix",
+            "mise run diff-cover",
+            "mise run test:py:cov:diff",
+            "git commit",
+            "git push",
+            "git cherry-pick",
+            "git revert",
+            "git am",
+            "git rebase",
+            "git merge",
+            "git reset",
+            "git switch",
+            "git stash",
+            "gh",
+            "glab",
+            "mise run test:e2e",
+        ]
+
+    # A repository whose two measurements are one command, like this one.
+    @staticmethod
+    def test_a_command_named_twice_is_listed_once() -> None:
+        same = "mise run test:py:cov:diff"
+        project = Project(coverage=same, fast_coverage=same)
+
+        assert project.forbidden().count(same) == 1

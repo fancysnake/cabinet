@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- Every agent role, reader included, has a shell, so an agent can `cp` a
+  file or list a directory. A deny list keeps every role off the gate and
+  coverage commands, `git commit`, `push`, `cherry-pick`, `revert`, `am`,
+  `rebase`, `merge`, `reset`, `switch` and `stash`, and `gh` and `glab`. It
+  matches prefixes, so it stops wasted time and honest mistakes, not a
+  determined agent: run every cast in a sandbox.
+- The `resolver` agent role is gone: a conflict goes to a `writer`, and the
+  prompt alone asks it to stage what it resolves.
+- **Breaking:** `agent.may_run` is gone; `agent.may_not_run` names the
+  project's other slow tasks for the deny list. A `.vekna.toml` that still
+  sets `may_run` is refused.
+
 ## [1.0.1] - 2026-10-03
 
 ### Changed

@@ -221,7 +221,7 @@ async def resolve_conflicts(
         .agent(project)
         .ask(
             prompt,
-            role="resolver",
+            role="writer",
             key=f"merge-{work.pr.number}",
             attended=work.run.attended,
         )
