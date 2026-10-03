@@ -2,7 +2,8 @@
 
 Seven rituals, one facade each under `cabinet.rituals`, each named for a D&D
 spell. Two of them sweep every open pull request of yours; one works a single
-branch with you at the terminal; one identifies your open issues; three prepare the ground by making the labels the others wear.
+branch with you at the terminal; one identifies your open issues; three
+prepare the ground by making the labels the others wear.
 
 --8<-- "README.md:cast"
 
