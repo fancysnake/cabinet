@@ -59,8 +59,8 @@ review is provisional, and the label goes on all the same.
 Both run unattended, so they ask you nothing: at 3am a prompt is a hang, so the
 budgets take that decision instead. Agents still work permissively inside a
 step, and what holds them is the step boundary — a gate is green or it is not,
-a budget is spent or it is not — and the allowlist: no agent here commits,
-pushes, runs a sweep, or speaks to the forge.
+a budget is spent or it is not — and the sandbox the cast runs in. Every
+commit, push, sweep and forge write is the ritual's own.
 
 Two things end the whole run rather than one branch: a worktree that is not
 clean, and an agent that dies mid-flight. Both still print the report first,
