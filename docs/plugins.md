@@ -61,12 +61,14 @@ bump, release, tag, cut a version or update the changelog. It commits nothing
 and tags nothing unless asked.
 
 1. **Finds the last release** with `git describe --tags`. No tag means every
-   commit counts. The unit of release is one manifest, the repository root's
-   unless the request names another. Every place carrying its version gets
-   the new one: mirrors, the project's own lockfile entry, the marketplace's
-   `metadata.version`. A marketplace plugin with a `version` of its own that
-   changed since the tag gets its own bump; an unversioned one stays so.
-   Any other package in the repository is its own release.
+   commit counts. The first unit of release is one manifest, the repository
+   root's unless the request names another; after it come the marketplace
+   plugins that carry a `version` and differ from the tag once the first
+   unit's docs and skills are in line. Each unit goes through steps 2–5 in
+   turn. Every place carrying a unit's version gets the new one: mirrors and
+   the project's own lockfile entry. An unversioned plugin stays so. What
+   the marketplace ships is released in the same run; any other package in
+   the repository is a separate release.
 2. **Reads what changed** since the tag and sorts every change into a
    bucket: *break*, *feature*, *fix* or *internal*. An `Unreleased` entry
    already written is checked against the diff, because it is often stale.
@@ -81,16 +83,17 @@ and tags nothing unless asked.
    changes go unless the file already lists tooling, two commits for one
    feature become one entry, mechanism goes where the effect is named,
    puffery goes, and the concrete handle a reader will grep for stays in
-   backticks.
+   backticks. A plugin's entries go in the same section, naming the plugin;
+   plugins get no changelog of their own.
 5. **Brings docs and skills in line.** For every break, feature and
    user-facing fix, the README and `docs/` get an entry for what is new,
    where its siblings have theirs, and lose what was removed. Every skill,
-   agent and command the repository's plugins ship is checked against what
-   changed, and so are help text and docstrings. Nothing the release did not
-   add is added; a doc gap older than the release is a line in the report.
-6. **Reports**: one line per file touched, the version line, and any change
-   it could not classify with the question it raises. Staging, commit and
-   tag stay with you.
+   agent and command in the repository is checked against what changed, and
+   so are help text and docstrings. Nothing the release did not add is
+   added; a doc gap older than the release is a line in the report.
+6. **Reports**: one line per file touched, each unit's version line, and
+   any change it could not classify with the question it raises. Staging,
+   commit and tag stay with you.
 
 Needs a `CHANGELOG.md` in Keep a Changelog form. Without one it says so and
 stops rather than inventing one.
