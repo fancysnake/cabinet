@@ -243,7 +243,7 @@ class TestResolveConflicts:
         assert "src/thing.py" in trial.coding.prompts[0]
         assert trial.coding.calls[0].resume is None
         assert trial.coding.calls[0].focus_options is not None
-        assert "Bash(git add:*)" in str(trial.coding.calls[0].focus_options)
+        assert "Edit" in trial.coding.calls[0].focus_options.allowed_tools
 
     @staticmethod
     def test_an_attended_cast_asks_before_a_resolver_is_spent(

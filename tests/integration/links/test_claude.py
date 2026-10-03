@@ -5,25 +5,30 @@ from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import Transition, done, step
 from vekna.trial import Trial
 
-from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
+from cabinet.links.agent.claude import ClaudeAgent, allowed_tools, disallowed_tools
 from cabinet.pacts.agent import Fallen, Misread, Role
-from cabinet.pacts.project import Forge, Project
+from cabinet.pacts.project import Project
 from cabinet.pacts.threads import TriageNotes
 
 _PROJECT = Project.model_validate(
-    {"agent": {"may_run": ["mise run test:unit"], "max_turns": 30}}
+    {"agent": {"may_not_run": ["mise run test:e2e"], "max_turns": 30}}
 )
-_READER = [
-    "Read",
-    "Grep",
-    "Glob",
-    "Bash(git diff:*)",
-    "Bash(git log:*)",
-    "Bash(git show:*)",
-    "Bash(git status:*)",
-    "Bash(git blame:*)",
+_READER = ["Read", "Grep", "Glob", "Bash"]
+_WRITER = [*_READER, "Edit", "Write", "MultiEdit"]
+_DENIED = [
+    "Bash(mise run pr-fix:*)",
+    "Bash(mise run diff-cover:*)",
+    "Bash(mise run test:py:cov:diff:*)",
+    "Bash(git commit:*)",
+    "Bash(git push:*)",
+    "Bash(git rebase:*)",
+    "Bash(git merge:*)",
+    "Bash(git reset:*)",
+    "Bash(git switch:*)",
+    "Bash(gh:*)",
+    "Bash(glab:*)",
+    "Bash(mise run test:e2e:*)",
 ]
-_WRITER = [*_READER, "Edit", "Write", "MultiEdit", "Bash(mise run test:unit:*)"]
 
 
 class _Ask(BaseModel):
@@ -72,38 +77,30 @@ async def ask_for(asked: _Ask) -> Transition:
 
 class TestAllowedTools:
     @staticmethod
-    def test_a_reader_sees_and_runs_read_only_git() -> None:
-        assert allowed_tools("reader", _PROJECT) == _READER
+    def test_a_reader_reads_and_has_a_shell() -> None:
+        assert allowed_tools("reader") == _READER
 
     @staticmethod
-    def test_a_writer_edits_and_runs_what_the_project_allows() -> None:
-        assert allowed_tools("writer", _PROJECT) == _WRITER
-
-    # Whichever forge, and whatever the prompt is about: no role reaches a
-    # forge client at all, so nothing an agent runs can label, merge or write.
-    @staticmethod
-    def test_no_role_reaches_the_forge_on_either_forge() -> None:
-        forges: tuple[Forge, ...] = ("github", "gitlab")
-        roles: tuple[Role, ...] = ("reader", "writer", "resolver")
-        for forge in forges:
-            project = Project(forge=forge)
-            for role in roles:
-                allowed = allowed_tools(role, project)
-
-                assert not [one for one in allowed if "gh " in one or "glab " in one]
+    def test_a_writer_also_edits() -> None:
+        assert allowed_tools("writer") == _WRITER
 
     @staticmethod
-    def test_a_resolver_may_also_stage() -> None:
-        assert allowed_tools("resolver", _PROJECT) == [*_WRITER, "Bash(git add:*)"]
+    def test_a_resolver_reaches_what_a_writer_does() -> None:
+        assert allowed_tools("resolver") == _WRITER
 
+
+class TestDisallowedTools:
     @staticmethod
-    def test_a_project_allowing_nothing_gives_no_bash_beyond_git() -> None:
-        assert allowed_tools("writer", Project()) == [
-            *_READER,
-            "Edit",
-            "Write",
-            "MultiEdit",
-        ]
+    def test_the_long_tasks_the_ritual_writes_and_the_projects_own() -> None:
+        assert disallowed_tools(_PROJECT) == _DENIED
+
+    # Whichever forge: an agent on a GitHub project has no business in `glab`
+    # either, and nothing an agent runs can label, merge or write.
+    @staticmethod
+    def test_both_forge_clients_on_a_gitlab_project() -> None:
+        denied = disallowed_tools(Project(forge="gitlab"))
+
+        assert {"Bash(gh:*)", "Bash(glab:*)"} <= set(denied)
 
 
 class TestAsk:
@@ -115,7 +112,8 @@ class TestAsk:
         assert trial.coding.calls[0].model == "opus"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
-            allowed_tools=[*_WRITER, "Bash(git add:*)"],
+            allowed_tools=_WRITER,
+            disallowed_tools=_DENIED,
             effort="high",
             max_turns=30,
         )
@@ -128,7 +126,11 @@ class TestAsk:
         trial.walk(ask, _Ask(attended=True))
 
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
-            permission_mode="auto", allowed_tools=_WRITER, effort="high", max_turns=30
+            permission_mode="auto",
+            allowed_tools=_WRITER,
+            disallowed_tools=_DENIED,
+            effort="high",
+            max_turns=30,
         )
 
     @staticmethod
@@ -165,6 +167,7 @@ class TestAskFor:
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
             allowed_tools=_READER,
+            disallowed_tools=_DENIED,
             effort="high",
             max_turns=30,
         )

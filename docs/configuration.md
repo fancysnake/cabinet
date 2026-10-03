@@ -34,7 +34,7 @@ patch_check = "codecov/patch"         # whose summary says "N% of diff hit"
 model = "opus"
 effort = "high"
 max_turns = 0                         # 0 is unbounded
-may_run = []                          # command prefixes an agent may run itself
+may_not_run = []                      # command prefixes no agent may run, on top of the built-in ones
 ```
 
 ## The keys
@@ -72,12 +72,12 @@ Prefixes, matched against the check's name as the forge reports it.
 
 ### `[cabinet.agent]`
 
-| key         | what it is                                                                     |
-| ----------- | ------------------------------------------------------------------------------ |
-| `model`     | the Claude model every agent call uses                                         |
-| `effort`    | `low`, `medium`, `high`, `xhigh` or `max`                                      |
-| `max_turns` | the turn limit per agent call; `0` is unbounded                                |
-| `may_run`   | command prefixes an agent may run itself, on top of read-only git; see [Agents](agents.md) |
+| key           | what it is                                                                     |
+| ------------- | ------------------------------------------------------------------------------ |
+| `model`       | the Claude model every agent call uses                                         |
+| `effort`      | `low`, `medium`, `high`, `xhigh` or `max`                                      |
+| `max_turns`   | the turn limit per agent call; `0` is unbounded                                |
+| `may_not_run` | command prefixes no agent may run, on top of the ones always denied; see [Agents](agents.md) |
 
 ## The review skill
 
