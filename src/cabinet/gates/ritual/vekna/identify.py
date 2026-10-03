@@ -4,22 +4,25 @@
 
 An issue is a candidate when it is open, yours — opened by you or assigned to
 you — and missing a type label, or missing a size label without being an
-epic. Candidates go in pages of ``--batch``, lowest number first, and each page
-is asked about before anything touches it: saying no moves on to the next page
-rather than ending the cast.
+epic. Candidates go in pages of ``--batch``, lowest number first, each shown
+as it is taken up.
 
 One agent reads a page. It reads the ``issues`` skill once, on the first page,
 and every page after continues the same session, so it keeps both the rules and
 what it said about the pages before. It reaches the forge for nothing and edits
 no files: what it hands back is a reading — a type, a size or the epic label,
 the sub-issues an epic should be split into, and the links it found — and the
-ritual is what puts that on the forge.
+ritual is what puts that on the forge. A write the forge refuses is named on
+its issue's row, and the cast goes on — unless the forge refused every write
+on a page.
 
 The issue bodies are somebody's words, so they go to the agent fenced as data,
 the same as review threads.
 """
 
-from vekna.folio.flow import decide
+from collections.abc import Awaitable
+from typing import TypeVar
+
 from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.pacts.agent import Fallen, Misread
@@ -38,6 +41,8 @@ from cabinet.pacts.services import services
 # One session for every page in the cast, so the skill is read once.
 _THREAD = "identify"
 
+_T = TypeVar("_T")
+
 
 # Ask the forge for your open issues and queue the unidentified ones.
 @step
@@ -51,9 +56,9 @@ async def gather(identifying: Gather) -> Tally | Leaf:
     ).to(Leaf)
 
 
-# Take the next page, if you say so.
+# Take the next page.
 @step
-async def leaf(identifying: Leaf) -> Tally | Leaf | Page:
+def leaf(identifying: Leaf) -> Tally | Page:
     if not identifying.queue:
         return identifying.to(Tally)
     batch = identifying.batch
@@ -61,9 +66,7 @@ async def leaf(identifying: Leaf) -> Tally | Leaf | Page:
         identifying=identifying.but(queue=identifying.queue[batch:]),
         issues=identifying.queue[:batch],
     )
-    shown = services().report.page(page.issues)
-    if not await decide(f"{shown}\nidentify these {len(page.issues)}?"):
-        return page.rowed("declined").to(Leaf)
+    emit_delta(services().report.page(page.issues))
     return page
 
 
@@ -81,7 +84,7 @@ async def identify_page(page: Page) -> Tally | Pinning:
         .ask_for(prompt, output=Identified, role="reader", key=_THREAD)
     )
     if isinstance(said, Fallen | Misread):
-        return page.rowed("stopped").but(stopped=said.reason).to(Tally)
+        return page.stopped().but(stopped=said.reason).to(Tally)
     # By the page's numbers, not the answer's: an issue it made up is not on
     # the page to be pinned, and one it skipped is named as missed by `pin`.
     wanted = {one.number for one in page.issues}
@@ -89,64 +92,74 @@ async def identify_page(page: Page) -> Tally | Pinning:
     return Pinning(page=page, items=kept)
 
 
+# One write, and what it answered. What the forge said goes in `said` either
+# way, empty where it took the write, so a reading's writes can be counted
+# against its refusals.
+async def _tried(write: Awaitable[_T], said: list[str]) -> _T | None:
+    try:
+        answered = await write
+    except ForgeError as error:
+        said.append(str(error))
+        return None
+    said.append("")
+    return answered
+
+
 # The labels and links one reading asks for, in the order the skill puts them
 # on: the issue's own labels, then the parts it is split into — each opened,
 # labelled and attached — then the open issues already under it, then what
-# blocks it. Each sub-issue goes into `opened` the moment the forge opens it,
-# so one the forge fails on afterwards is still named rather than orphaned.
-async def _put(forge: ForgeProtocol, item: IdentifiedItem, opened: list[int]) -> None:
-    await forge.label_issue(item.number, add=item.wanted())
+# blocks it. No write waits on another but a part's label and attach on the
+# part being opened, so a refused one is named and the rest still go on.
+# Beside the row, how many writes it tried.
+async def _put(
+    forge: ForgeProtocol, item: IdentifiedItem
+) -> tuple[Identification, int]:
+    opened: list[int] = []
+    said: list[str] = []
+    await _tried(forge.label_issue(item.number, add=item.wanted()), said)
     for part in item.parts:
-        made = await forge.issue(part.title, part.body)
+        if (made := await _tried(forge.issue(part.title, part.body), said)) is None:
+            continue
         opened.append(made.number)
-        await forge.label_issue(made.number, add=[part.kind, part.size])
-        await forge.attach(item.number, made.number)
+        await _tried(forge.label_issue(made.number, add=[part.kind, part.size]), said)
+        await _tried(forge.attach(item.number, made.number), said)
     for child in item.children:
-        await forge.attach(item.number, child)
+        await _tried(forge.attach(item.number, child), said)
     for blocker in item.blocked_by:
-        await forge.blocks(item.number, blocker)
+        await _tried(forge.blocks(item.number, blocker), said)
+    row = Identification(
+        number=item.number,
+        outcome="identified",
+        item=item,
+        opened=opened,
+        refused=[one for one in said if one],
+    )
+    return row, len(said)
 
 
-# One page's rows, and what stopped the cast where something did. A forge that
-# refuses mid-page stops it: what is already on is on, the issue in flight is
-# named as half done, with the sub-issues it already opened, and so is
-# everything after it that was never reached.
-async def _pinned(pinning: Pinning) -> tuple[list[Identification], str]:
+# The forge writes, in one step of their own, apart from the agent's: the
+# labels, the sub-issues and the links the reading asked for. A page whose
+# every write was refused stops the cast: that is a forge that is down or
+# will not have you, not one that disagrees with a write, and an unattended
+# cast would otherwise refuse its way down the backlog and still succeed.
+@step
+async def pin(pinning: Pinning) -> Tally | Leaf:
     page = pinning.page
     forge = services().forge(page.identifying.project)
     items = {item.number: item for item in pinning.items}
     rows: list[Identification] = []
-    for index, one in enumerate(page.issues):
+    writes = 0
+    for one in page.issues:
         if (item := items.get(one.number)) is None:
             rows.append(Identification(number=one.number, outcome="missed"))
             continue
-        opened: list[int] = []
-        try:
-            await _put(forge, item, opened)
-        except ForgeError as error:
-            rows.append(
-                Identification(number=one.number, outcome="stopped", opened=opened)
-            )
-            rows += [
-                Identification(number=other.number, outcome="stopped")
-                for other in page.issues[index + 1 :]
-            ]
-            return rows, str(error)
-        rows.append(
-            Identification(
-                number=one.number, outcome="identified", item=item, opened=opened
-            )
-        )
-    return rows, ""
-
-
-# The forge writes, in one step of their own, apart from the agent's: the
-# labels, the sub-issues and the links the reading asked for.
-@step
-async def pin(pinning: Pinning) -> Tally | Leaf:
-    rows, stopped = await _pinned(pinning)
-    identifying = pinning.page.identifying.rowed(rows).but(briefed=True)
-    if stopped:
+        row, taken = await _put(forge, item)
+        rows.append(row)
+        writes += taken
+    identifying = page.identifying.rowed(rows).but(briefed=True)
+    refused = [said for row in rows for said in row.refused]
+    if writes and len(refused) == writes:
+        stopped = f"the forge refused every write on the page, first: {refused[0]}"
         return identifying.but(stopped=stopped).to(Tally)
     return identifying.to(Leaf)
 

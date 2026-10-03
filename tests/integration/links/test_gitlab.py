@@ -178,7 +178,7 @@ class TestPulls:
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_LIST, stdout="[{}]")
 
-        with pytest.raises(ForgeError, match="unreadable"):
+        with pytest.raises(ForgeError, match="merge requests this could not read"):
             trial.walk(pulls, _Ask())
 
 
@@ -407,6 +407,7 @@ class TestComment:
 
 _PROJECT = "glab api projects/:id"
 _LINKS = "glab api projects/:id/issues/7/links"
+_LISTED = "glab api 'projects/:id/issues/7/links?per_page=100'"
 
 
 class TestIssue:
@@ -463,7 +464,7 @@ class TestLinks:
         trial: Trial,
     ) -> None:
         trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
-        trial.shell.replies(when=f"{_LINKS}*")
+        trial.shell.replies(when=f"{_LINKS} -X POST*")
 
         assert trial.walk(attach, _Ask()) == done()
         assert trial.shell.commands == [
@@ -479,13 +480,56 @@ class TestLinks:
         trial: Trial,
     ) -> None:
         trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
-        trial.shell.replies(when=f"{_LINKS}*")
+        trial.shell.replies(when=f"{_LINKS} -X POST*")
 
         assert trial.walk(blocks, _Ask()) == done()
         assert trial.shell.commands[-1] == (
             f"{_LINKS} -X POST -F target_project_id=42 -F target_issue_iid=9"
             " -f link_type=is_blocked_by"
         )
+
+    # The API refuses a link it already holds, so one that is there is left
+    # alone, and a cast run again is not refused on it.
+    @staticmethod
+    def test_a_link_already_there_is_left_alone(trial: Trial) -> None:
+        trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
+        trial.shell.replies(when=f"{_LINKS} -X POST*", exit_code=1, stderr="409")
+        trial.shell.replies(
+            when=_LISTED,
+            stdout='[{"project_id": 42, "iid": 9, "link_type": "is_blocked_by"}]',
+        )
+
+        assert trial.walk(blocks, _Ask()) == done()
+        assert trial.shell.commands[-1] == _LISTED
+
+    # Related to #9 already, or blocked by a #9 of another project: neither is
+    # the link asked for, so the refusal stands.
+    @staticmethod
+    @pytest.mark.parametrize(
+        "held",
+        [
+            '[{"project_id": 42, "iid": 9, "link_type": "relates_to"}]',
+            '[{"project_id": 41, "iid": 9, "link_type": "is_blocked_by"}]',
+        ],
+    )
+    def test_a_refused_link_that_is_not_there_stops_the_link(
+        trial: Trial, held: str
+    ) -> None:
+        trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
+        trial.shell.replies(when=f"{_LINKS} -X POST*", exit_code=1, stderr="Forbidden")
+        trial.shell.replies(when=_LISTED, stdout=held)
+
+        with pytest.raises(ForgeError, match="blocked by #9: Forbidden"):
+            trial.walk(blocks, _Ask())
+
+    @staticmethod
+    def test_links_it_cannot_read_stop_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
+        trial.shell.replies(when=f"{_LINKS} -X POST*", exit_code=1, stderr="409")
+        trial.shell.replies(when=_LISTED, stdout="{}")
+
+        with pytest.raises(ForgeError, match="links this could not read"):
+            trial.walk(attach, _Ask())
 
     @staticmethod
     def test_a_project_that_will_not_say_its_id_stops_the_link(trial: Trial) -> None:

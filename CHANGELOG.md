@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-03
+
+### Changed
+
+- `identify` takes each page unasked.
+
+### Fixed
+
+- `identify` reports a write the forge refuses under its issue and goes on;
+  only a page on which the forge refused every write stops the cast.
+- `identify` leaves a sub-issue or blocker link that already exists alone
+  instead of having the forge refuse the duplicate.
+
 ## [1.0.0] - 2026-10-02
 
 ### Added
@@ -128,7 +141,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/fancysnake/cabinet/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/fancysnake/cabinet/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/fancysnake/cabinet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fancysnake/cabinet/compare/v0.3.1...v0.4.0

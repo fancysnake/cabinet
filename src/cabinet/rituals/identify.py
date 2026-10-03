@@ -2,7 +2,7 @@
 
     vekna cast identify [--batch N]
 
-With you at the terminal, a page at a time. The steps live in
+A page at a time, unasked. The steps live in
 ``cabinet.gates.ritual.vekna.identify``; this module is the ritual itself and the
 surface vekna sweeps.
 """

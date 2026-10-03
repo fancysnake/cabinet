@@ -2,8 +2,8 @@
 
 Seven rituals, one facade each under `cabinet.rituals`, each named for a D&D
 spell. Two of them sweep every open pull request of yours; one works a single
-branch with you at the terminal; one identifies your open issues with you at
-the terminal; three prepare the ground by making the labels the others wear.
+branch with you at the terminal; one identifies your open issues; three
+prepare the ground by making the labels the others wear.
 
 --8<-- "README.md:cast"
 
@@ -79,13 +79,12 @@ found, and settling it.
 
 ## identify
 
-*Divination.* The backlog, a page at a time, with you at the terminal. The
-candidates are your open issues, opened by you or assigned to you, that lack a
-type label or lack a size label without being an epic. They go in pages of
-`--batch`, lowest number first:
+*Divination.* The backlog, a page at a time, unasked. The candidates are your
+open issues, opened by you or assigned to you, that lack a type label or lack
+a size label without being an epic. They go in pages of `--batch`, lowest
+number first:
 
-1. The page is shown and you are asked about it. Saying no moves on to the
-   next page rather than ending the cast.
+1. The page is shown as it is taken up.
 2. One agent reads the page: it reads the code each issue is about and says
    what the issue is — a type (`feature`, `edit`, `chore`, `spike`, `bug`) and
    a size (`S`, `M`, `L`), or `epic` in place of a size with the sub-issues it
@@ -93,9 +92,12 @@ type label or lack a size label without being an epic. They go in pages of
    blocking it. An issue it could not size is left unsized, which the report
    tells apart from an epic.
 3. The ritual puts that on the forge: the labels, then each sub-issue opened,
-   labelled and attached under its epic, then the links. A forge that refuses
-   stops the cast; the report names the issue in flight and any sub-issue
-   already opened for it, which may be attached to nothing.
+   labelled and attached under its epic, then the links. A write the forge
+   refuses — a label it lacks, say — is named under its
+   issue in the report, and the rest still go on, this issue's and the next
+   ones'. A sub-issue opened but not attached is named there too. A page on
+   which every write was refused stops the cast: that is a forge that is
+   down or will not let you write, not one that disagrees with a write.
 4. The next page continues the same agent session, so the skill it follows is
    read once per cast.
 
