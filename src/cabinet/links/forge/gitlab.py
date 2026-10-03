@@ -88,6 +88,12 @@ class _Project(BaseModel):
     id: int
 
 
+# One issue linked to another, and how, as seen from the issue asked about.
+class _Linked(BaseModel):
+    iid: int
+    link_type: str
+
+
 _MERGE_REQUESTS: TypeAdapter[list[_MergeRequest]] = TypeAdapter(list[_MergeRequest])
 _DISCUSSIONS: TypeAdapter[list[_Discussion]] = TypeAdapter(list[_Discussion])
 _STATUSES: TypeAdapter[list[_Status]] = TypeAdapter(list[_Status])
@@ -103,6 +109,7 @@ class _Listed(BaseModel):
 
 
 _LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
+_LINKED: TypeAdapter[list[_Linked]] = TypeAdapter(list[_Linked])
 
 
 def _api(path: str, *flags: str) -> str:
@@ -161,12 +168,22 @@ async def _project_id() -> int:
 
 
 # Both relationships are the one endpoint with a different `link_type`, and
-# both want the target project spelled out even when it is this one.
+# both want the target project spelled out even when it is this one. A link
+# already there is left alone: the API refuses a duplicate.
 async def _link(number: int, other: int, kind: str, complaint: str) -> None:
+    path = f"projects/:id/issues/{number}/links"
+    seen = await asked(_api(path), complaint)
+    try:
+        linked = _LINKED.validate_json(seen)
+    except ValidationError as error:
+        msg = f"glab returned links this could not read: {error}"
+        raise ForgeError(msg) from error
+    if any(one.iid == other and one.link_type == kind for one in linked):
+        return
     project = await _project_id()
     await asked(
         _api(
-            f"projects/:id/issues/{number}/links",
+            path,
             "-X POST",
             f"-F target_project_id={project}",
             f"-F target_issue_iid={other}",

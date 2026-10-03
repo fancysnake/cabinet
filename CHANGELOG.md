@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- `identify` no longer asks before each page.
+
+### Fixed
+
+- `identify` no longer stops the cast when the forge refuses a write: the
+  refusal is reported under its issue and the remaining writes, pages and
+  issues go on.
+- `identify` leaves a sub-issue or blocker link that is already there alone
+  instead of having the forge refuse the duplicate.
+
 ## [1.0.0] - 2026-10-02
 
 ### Added

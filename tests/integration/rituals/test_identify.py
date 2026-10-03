@@ -111,23 +111,20 @@ class TestGather:
 
 class TestLeaf:
     @staticmethod
-    def test_a_declined_page_is_rowed_and_the_next_one_offered(
+    def test_the_next_page_is_shown_and_taken_unasked(
         trial: Trial, project: Project
     ) -> None:
-        trial.decide.answers(answer=False, when="*identify these 2?")
         identifying = Leaf(
             project=project, batch=2, queue=[_issue(1), _issue(2), _issue(3)]
         )
 
         transition = trial.walk(leaf, identifying)
 
-        assert transition == identifying.but(
-            queue=[_issue(3)],
-            identified=[
-                Identification(number=1, outcome="declined"),
-                Identification(number=2, outcome="declined"),
-            ],
+        assert transition == Page(
+            identifying=identifying.but(queue=[_issue(3)]),
+            issues=[_issue(1), _issue(2)],
         )
+        assert trial.deltas == ["  #1 issue 1\n  #2 issue 2"]
 
 
 class TestIdentifyPage:
@@ -217,7 +214,9 @@ class TestPin:
         trial.shell.replies(
             when="gh api repos/{owner}/{repo}/issues/10 --jq .id", stdout="99"
         )
-        trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/1/sub_issues*")
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues/1/sub_issues*", always=True
+        )
         item = IdentifiedItem(
             number=1,
             kind="edit",
@@ -246,8 +245,8 @@ class TestPin:
         trial.shell.replies(
             when="gh api repos*issues/*--jq .id", stdout="99", always=True
         )
-        trial.shell.replies(when="gh api repos*sub_issues*")
-        trial.shell.replies(when="gh api repos*blocked_by*")
+        trial.shell.replies(when="gh api repos*sub_issues*", always=True)
+        trial.shell.replies(when="gh api repos*blocked_by*", always=True)
         item = IdentifiedItem(
             number=1, kind="feature", size="S", children=[8], blocked_by=[9]
         )
@@ -256,8 +255,8 @@ class TestPin:
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
         assert isinstance(transition, Leaf)
-        assert trial.shell.commands[2].endswith("sub_issues -X POST -F sub_issue_id=99")
-        assert trial.shell.commands[4].endswith("blocked_by -X POST -F issue_id=99")
+        assert trial.shell.commands[3].endswith("sub_issues -X POST -F sub_issue_id=99")
+        assert trial.shell.commands[6].endswith("blocked_by -X POST -F issue_id=99")
 
     @staticmethod
     def test_an_issue_the_agent_did_not_answer_for_is_named(
@@ -276,14 +275,15 @@ class TestPin:
             identified=[*_identified(1), Identification(number=2, outcome="missed")],
         )
 
-    # What is already on stays on: the issue in flight and everything behind
-    # it are named as half done, and the cast ends rather than labelling on.
+    # A refusal is named on its own issue, and the issues after it are still
+    # labelled.
     @staticmethod
-    def test_a_forge_that_refuses_mid_page_stops_the_cast(
+    def test_a_forge_that_refuses_mid_page_goes_on(
         trial: Trial, project: Project
     ) -> None:
         trial.shell.replies(when=_labelled(1))
         trial.shell.replies(when=_labelled(2), exit_code=1, stderr="no such label")
+        trial.shell.replies(when=_labelled(3))
         page = Page(
             identifying=Identifying(project=project),
             issues=[_issue(1), _issue(2), _issue(3)],
@@ -293,16 +293,87 @@ class TestPin:
             pin, Pinning(page=page, items=[_item(1), _item(2), _item(3)])
         )
 
-        assert isinstance(transition, Tally)
+        assert transition == Leaf(
+            project=project,
+            briefed=True,
+            identified=[
+                *_identified(1),
+                Identification(
+                    number=2,
+                    outcome="identified",
+                    item=_item(2),
+                    refused=["could not label #2: no such label"],
+                ),
+                *_identified(3),
+            ],
+        )
+
+    # A link the forge refuses is named like any other write, and the
+    # rest of the issue's links still go on.
+    @staticmethod
+    def test_a_refused_blocker_leaves_the_other_links_on(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when=_labelled(1))
+        trial.shell.replies(
+            when="gh api repos*issues/*--jq .id", stdout="99", always=True
+        )
+        trial.shell.replies(
+            when="gh api repos*blocked_by*", exit_code=1, stderr="Not Found"
+        )
+        trial.shell.replies(when="gh api repos*blocked_by*", always=True)
+        item = IdentifiedItem(number=1, kind="feature", size="S", blocked_by=[6, 7])
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[item]))
+
+        assert isinstance(transition, Leaf)
         assert transition.identified == [
-            *_identified(1),
-            Identification(number=2, outcome="stopped"),
-            Identification(number=3, outcome="stopped"),
+            Identification(
+                number=1,
+                outcome="identified",
+                item=item,
+                refused=["could not say #1 is blocked by #6: Not Found"],
+            )
         ]
-        assert "no such label" in transition.stopped
+        assert trial.shell.commands[-1].endswith("blocked_by -X POST -F issue_id=99")
+
+    # A part the forge would not open has nothing to label or attach.
+    @staticmethod
+    def test_a_part_the_forge_will_not_open_is_named(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(when="gh issue edit 1 --add-label edit --add-label epic")
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues -X POST*",
+            exit_code=1,
+            stderr="rate limited",
+        )
+        item = IdentifiedItem(
+            number=1,
+            kind="edit",
+            epic=True,
+            parts=[Part(title="first half", body="why", kind="feature", size="S")],
+        )
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
+
+        transition = trial.walk(pin, Pinning(page=page, items=[item]))
+
+        assert isinstance(transition, Leaf)
+        assert transition.identified == [
+            Identification(
+                number=1,
+                outcome="identified",
+                item=item,
+                refused=["could not open the issue: rate limited"],
+            )
+        ]
+        assert trial.shell.commands[-1].startswith(
+            "gh api repos/{owner}/{repo}/issues -X POST"
+        )
 
     # A sub-issue the forge opened but would not attach points to nothing, so
-    # the row the cast stopped on carries its number.
+    # its row carries its number beside the refusal.
     @staticmethod
     def test_a_sub_issue_opened_before_the_attach_fails_is_kept(
         trial: Trial, project: Project
@@ -327,18 +398,24 @@ class TestPin:
             epic=True,
             parts=[Part(title="first half", body="why", kind="feature", size="S")],
         )
+        trial.shell.replies(when=_labelled(2))
         page = Page(
             identifying=Identifying(project=project), issues=[_issue(1), _issue(2)]
         )
 
         transition = trial.walk(pin, Pinning(page=page, items=[item, _item(2)]))
 
-        assert isinstance(transition, Tally)
+        assert isinstance(transition, Leaf)
         assert transition.identified == [
-            Identification(number=1, outcome="stopped", opened=[10]),
-            Identification(number=2, outcome="stopped"),
+            Identification(
+                number=1,
+                outcome="identified",
+                item=item,
+                opened=[10],
+                refused=["could not attach #10 under #1: attach refused"],
+            ),
+            *_identified(2),
         ]
-        assert "attach refused" in transition.stopped
 
 
 class TestTally:
@@ -364,7 +441,6 @@ class TestCast:
             when=_AUTHORED, stdout=json.dumps([_row(1), _row(2), _row(3)])
         )
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
-        trial.decide.answers(answer=True, when="*identify these *", always=True)
         trial.coding.replies(Identified(items=[_item(1), _item(2)]))
         trial.coding.replies(Identified(items=[_item(3)]))
         trial.shell.replies(when="gh issue edit*", always=True)

@@ -182,7 +182,14 @@ class TestIdentify:
                         number=5, kind="spike", note="need the metrics"
                     ),
                 ),
-                Identification(number=6, outcome="declined"),
+                Identification(
+                    number=6,
+                    outcome="identified",
+                    item=IdentifiedItem(
+                        number=6, kind="bug", size="S", blocked_by=[3, 5]
+                    ),
+                    refused=["could not say #6 is blocked by #3: taken", "gh died"],
+                ),
                 Identification(number=7, outcome="missed"),
             ],
         )
@@ -192,12 +199,14 @@ class TestIdentify:
             "  #3 feature/M, linked #4\n"
             "  #4 edit/epic, opened #10 #11, linked #12 — split by layer\n"
             "  #5 spike/unsized — need the metrics\n"
-            "  #6: left for later\n"
+            "  #6 bug/S, linked #3 #5\n"
+            "    refused: could not say #6 is blocked by #3: taken\n"
+            "    refused: gh died\n"
             "  #7: the agent did not answer for it"
         )
 
-    # The page you are asked about and the rows saying what became of it are
-    # written here, in one shape, so the two lists read as one.
+    # The page taken up and the rows saying what became of it are written
+    # here, in one shape, so the two lists read as one.
     @staticmethod
     def test_the_page_is_offered_one_issue_a_line() -> None:
         assert _REPORT.page([_ISSUE, _ISSUE.model_copy(update={"number": 6})]) == (
@@ -239,25 +248,8 @@ class TestIdentify:
 
         assert _REPORT.identify(identifying) == (
             "identify — 1 issues\n"
-            "  #2: in flight when the cast stopped; it may be half done\n"
+            "  #2: on the page the cast stopped on; nothing was put on it\n"
             "\n"
             "the cast stopped: the agent stopped mid-flight\n"
             "not reached:    #5"
-        )
-
-    # A sub-issue opened before the forge refused is attached to nothing, so
-    # the row it was opened for is the only place it is named.
-    @staticmethod
-    def test_a_stopped_row_names_the_sub_issues_it_opened() -> None:
-        identifying = Identifying(
-            project=_PROJECT,
-            identified=[Identification(number=2, outcome="stopped", opened=[10])],
-            stopped="attach refused",
-        )
-
-        assert _REPORT.identify(identifying) == (
-            "identify — 1 issues\n"
-            "  #2: in flight when the cast stopped; it may be half done, opened #10\n"
-            "\n"
-            "the cast stopped: attach refused"
         )

@@ -137,16 +137,18 @@ class Identified(BaseModel):
     items: list[IdentifiedItem]
 
 
-Outcome = Literal["identified", "declined", "missed", "stopped"]
+Outcome = Literal["identified", "missed", "stopped"]
 
 
-# One issue's ending: what was read of it, and the sub-issues the ritual
-# opened under it, which are numbers only the forge could say.
+# One issue's ending: what was read of it, the sub-issues the ritual opened
+# under it, which are numbers only the forge could say, and each write the
+# forge refused on it.
 class Identification(BaseModel):
     number: int
     outcome: Outcome
     item: IdentifiedItem | None = None
     opened: list[int] = []
+    refused: list[str] = []
 
 
 # What the cast is still to do and what it has done.
@@ -201,7 +203,7 @@ class Page(BaseModel):
     identifying: Identifying
     issues: list[Issue]
 
-    # Every issue on the page ending the same way: declined, or stopped.
+    # Every issue on the page ending the same way.
     def rowed(self, outcome: Outcome) -> Identifying:
         return self.identifying.rowed(
             [Identification(number=one.number, outcome=outcome) for one in self.issues]
@@ -209,7 +211,7 @@ class Page(BaseModel):
 
 
 # One page read, on its way to the forge: the readings the ritual is about to
-# put on, against the page they were asked about.
+# put on, against the page they were read from.
 class Pinning(BaseModel):
     page: Page
     items: list[IdentifiedItem]

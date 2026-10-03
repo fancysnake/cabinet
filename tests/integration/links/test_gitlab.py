@@ -462,11 +462,13 @@ class TestLinks:
     def test_a_sub_issue_is_a_relation_with_the_project_spelled_out(
         trial: Trial,
     ) -> None:
+        trial.shell.replies(when=_LINKS, stdout="[]")
         trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
-        trial.shell.replies(when=f"{_LINKS}*")
+        trial.shell.replies(when=f"{_LINKS} -X POST*")
 
         assert trial.walk(attach, _Ask()) == done()
         assert trial.shell.commands == [
+            _LINKS,
             _PROJECT,
             (
                 f"{_LINKS} -X POST -F target_project_id=42 -F target_issue_iid=9"
@@ -478,8 +480,12 @@ class TestLinks:
     def test_blocked_by_is_the_same_endpoint_with_its_own_link_type(
         trial: Trial,
     ) -> None:
+        # Related to #9 already, but not blocked by it: a different link.
+        trial.shell.replies(
+            when=_LINKS, stdout='[{"iid": 9, "link_type": "relates_to"}]'
+        )
         trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
-        trial.shell.replies(when=f"{_LINKS}*")
+        trial.shell.replies(when=f"{_LINKS} -X POST*")
 
         assert trial.walk(blocks, _Ask()) == done()
         assert trial.shell.commands[-1] == (
@@ -487,8 +493,27 @@ class TestLinks:
             " -f link_type=is_blocked_by"
         )
 
+    # The API refuses a link it already holds, so one that is there is left
+    # alone, and a cast run again is not refused on it.
+    @staticmethod
+    def test_a_link_already_there_is_left_alone(trial: Trial) -> None:
+        trial.shell.replies(
+            when=_LINKS, stdout='[{"iid": 9, "link_type": "is_blocked_by"}]'
+        )
+
+        assert trial.walk(blocks, _Ask()) == done()
+        assert trial.shell.commands == [_LINKS]
+
+    @staticmethod
+    def test_links_it_cannot_read_stop_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_LINKS, stdout="{}")
+
+        with pytest.raises(ForgeError, match="links this could not read"):
+            trial.walk(attach, _Ask())
+
     @staticmethod
     def test_a_project_that_will_not_say_its_id_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_LINKS, stdout="[]")
         trial.shell.replies(when=_PROJECT, stdout="{}")
 
         with pytest.raises(ForgeError, match="project this could not read"):

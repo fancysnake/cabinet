@@ -4,22 +4,23 @@
 
 An issue is a candidate when it is open, yours — opened by you or assigned to
 you — and missing a type label, or missing a size label without being an
-epic. Candidates go in pages of ``--batch``, lowest number first, and each page
-is asked about before anything touches it: saying no moves on to the next page
-rather than ending the cast.
+epic. Candidates go in pages of ``--batch``, lowest number first, each shown
+as it is taken up.
 
 One agent reads a page. It reads the ``issues`` skill once, on the first page,
 and every page after continues the same session, so it keeps both the rules and
 what it said about the pages before. It reaches the forge for nothing and edits
 no files: what it hands back is a reading — a type, a size or the epic label,
 the sub-issues an epic should be split into, and the links it found — and the
-ritual is what puts that on the forge.
+ritual is what puts that on the forge. A write the forge refuses is named on
+its issue's row, and the cast goes on.
 
 The issue bodies are somebody's words, so they go to the agent fenced as data,
 the same as review threads.
 """
 
-from vekna.folio.flow import decide
+from collections.abc import Awaitable
+
 from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.pacts.agent import Fallen, Misread
@@ -51,9 +52,9 @@ async def gather(identifying: Gather) -> Tally | Leaf:
     ).to(Leaf)
 
 
-# Take the next page, if you say so.
+# Take the next page.
 @step
-async def leaf(identifying: Leaf) -> Tally | Leaf | Page:
+def leaf(identifying: Leaf) -> Tally | Page:
     if not identifying.queue:
         return identifying.to(Tally)
     batch = identifying.batch
@@ -61,9 +62,7 @@ async def leaf(identifying: Leaf) -> Tally | Leaf | Page:
         identifying=identifying.but(queue=identifying.queue[batch:]),
         issues=identifying.queue[:batch],
     )
-    shown = services().report.page(page.issues)
-    if not await decide(f"{shown}\nidentify these {len(page.issues)}?"):
-        return page.rowed("declined").to(Leaf)
+    emit_delta(services().report.page(page.issues))
     return page
 
 
@@ -89,66 +88,63 @@ async def identify_page(page: Page) -> Tally | Pinning:
     return Pinning(page=page, items=kept)
 
 
+# One write; what the forge said, if it refused, goes in `refused`.
+async def _tried(write: Awaitable[None], refused: list[str]) -> None:
+    try:
+        await write
+    except ForgeError as error:
+        refused.append(str(error))
+
+
 # The labels and links one reading asks for, in the order the skill puts them
 # on: the issue's own labels, then the parts it is split into — each opened,
 # labelled and attached — then the open issues already under it, then what
-# blocks it. Each sub-issue goes into `opened` the moment the forge opens it,
-# so one the forge fails on afterwards is still named rather than orphaned.
-async def _put(forge: ForgeProtocol, item: IdentifiedItem, opened: list[int]) -> None:
-    await forge.label_issue(item.number, add=item.wanted())
+# blocks it. No write waits on another but a part's label and attach on the
+# part being opened, so a refused one is named and the rest still go on.
+async def _put(forge: ForgeProtocol, item: IdentifiedItem) -> Identification:
+    opened: list[int] = []
+    refused: list[str] = []
+    await _tried(forge.label_issue(item.number, add=item.wanted()), refused)
     for part in item.parts:
-        made = await forge.issue(part.title, part.body)
-        opened.append(made.number)
-        await forge.label_issue(made.number, add=[part.kind, part.size])
-        await forge.attach(item.number, made.number)
-    for child in item.children:
-        await forge.attach(item.number, child)
-    for blocker in item.blocked_by:
-        await forge.blocks(item.number, blocker)
-
-
-# One page's rows, and what stopped the cast where something did. A forge that
-# refuses mid-page stops it: what is already on is on, the issue in flight is
-# named as half done, with the sub-issues it already opened, and so is
-# everything after it that was never reached.
-async def _pinned(pinning: Pinning) -> tuple[list[Identification], str]:
-    page = pinning.page
-    forge = services().forge(page.identifying.project)
-    items = {item.number: item for item in pinning.items}
-    rows: list[Identification] = []
-    for index, one in enumerate(page.issues):
-        if (item := items.get(one.number)) is None:
-            rows.append(Identification(number=one.number, outcome="missed"))
-            continue
-        opened: list[int] = []
         try:
-            await _put(forge, item, opened)
+            made = await forge.issue(part.title, part.body)
         except ForgeError as error:
-            rows.append(
-                Identification(number=one.number, outcome="stopped", opened=opened)
-            )
-            rows += [
-                Identification(number=other.number, outcome="stopped")
-                for other in page.issues[index + 1 :]
-            ]
-            return rows, str(error)
-        rows.append(
-            Identification(
-                number=one.number, outcome="identified", item=item, opened=opened
-            )
+            refused.append(str(error))
+            continue
+        opened.append(made.number)
+        await _tried(
+            forge.label_issue(made.number, add=[part.kind, part.size]), refused
         )
-    return rows, ""
+        await _tried(forge.attach(item.number, made.number), refused)
+    for child in item.children:
+        await _tried(forge.attach(item.number, child), refused)
+    for blocker in item.blocked_by:
+        await _tried(forge.blocks(item.number, blocker), refused)
+    return Identification(
+        number=item.number,
+        outcome="identified",
+        item=item,
+        opened=opened,
+        refused=refused,
+    )
 
 
 # The forge writes, in one step of their own, apart from the agent's: the
 # labels, the sub-issues and the links the reading asked for.
 @step
-async def pin(pinning: Pinning) -> Tally | Leaf:
-    rows, stopped = await _pinned(pinning)
-    identifying = pinning.page.identifying.rowed(rows).but(briefed=True)
-    if stopped:
-        return identifying.but(stopped=stopped).to(Tally)
-    return identifying.to(Leaf)
+async def pin(pinning: Pinning) -> Leaf:
+    page = pinning.page
+    forge = services().forge(page.identifying.project)
+    items = {item.number: item for item in pinning.items}
+    rows = [
+        (
+            Identification(number=one.number, outcome="missed")
+            if (item := items.get(one.number)) is None
+            else await _put(forge, item)
+        )
+        for one in page.issues
+    ]
+    return page.identifying.rowed(rows).but(briefed=True).to(Leaf)
 
 
 # Every ending comes here, so the report is owed however the cast ends.

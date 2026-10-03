@@ -260,6 +260,14 @@ async def _id(number: int) -> str:
     return said.strip()
 
 
+# The numbers already on one end of a relationship. The API answers a link
+# that is already there with a 422, so a cast run again would be refused on
+# every link it made the first time.
+async def _linked(path: str, complaint: str) -> set[int]:
+    said = await asked(f"gh api {path} --paginate --jq '.[].number'", complaint)
+    return {int(number) for number in said.split()}
+
+
 def _thread(found: _Thread) -> Thread:
     return Thread(
         id=found.id,
@@ -433,18 +441,22 @@ class GithubForge(ForgeProtocol):
 
     @override
     async def attach(self, epic: int, child: int) -> None:
+        path = _SUB_ISSUES.format(epic=epic)
+        complaint = f"could not attach #{child} under #{epic}"
+        if child in await _linked(path, complaint):
+            return
         await asked(
-            f"gh api {_SUB_ISSUES.format(epic=epic)} -X POST"
-            f" -F sub_issue_id={await _id(child)}",
-            f"could not attach #{child} under #{epic}",
+            f"gh api {path} -X POST -F sub_issue_id={await _id(child)}", complaint
         )
 
     @override
     async def blocks(self, number: int, blocker: int) -> None:
+        path = _BLOCKED_BY.format(number=number)
+        complaint = f"could not say #{number} is blocked by #{blocker}"
+        if blocker in await _linked(path, complaint):
+            return
         await asked(
-            f"gh api {_BLOCKED_BY.format(number=number)} -X POST"
-            f" -F issue_id={await _id(blocker)}",
-            f"could not say #{number} is blocked by #{blocker}",
+            f"gh api {path} -X POST -F issue_id={await _id(blocker)}", complaint
         )
 
     # `--force` updates a label that is already there instead of refusing it,
