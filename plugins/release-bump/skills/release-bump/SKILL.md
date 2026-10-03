@@ -18,11 +18,19 @@ changelog, fixes the docs. Commits nothing and tags nothing unless asked.
   the log range is `HEAD` and the diff is against the empty tree,
   `git diff $(git hash-object -t tree /dev/null) HEAD`.
 - The unit of release is one manifest: the one the request names, else the
-  repo root's (`pyproject.toml`, `package.json`, `Cargo.toml`, …). Its
-  version files are that manifest plus whatever mirrors its version (an
-  `__init__.py`, a `version.py`); all of them get the new version. Nothing
-  else changes: a plugin or package elsewhere in the repo is its own
-  release, and `CHANGELOG.md` is touched only in step 4.
+  repo root's (`pyproject.toml`, `package.json`, `Cargo.toml`, …).
+- Its version files are every place that carries that version, and all of
+  them get the new one: the manifest, whatever mirrors it (an
+  `__init__.py`, a `version.py`), the lockfile's entry for the project
+  itself (let the package manager rewrite it), and the plugin marketplace's
+  own version (`metadata.version` in `.claude-plugin/marketplace.json`).
+  Find them with `git grep -nF '<old version>'` and read each hit: a
+  dependency pinned at the same number is not one.
+- A plugin in the repo's marketplace that carries a `version` (in its
+  `plugin.json` or its marketplace entry) and changed since the tag gets its
+  own bump, chosen by step 3 from its own diff. A plugin without one stays
+  unversioned; do not add the field. Any other package elsewhere in the
+  repo is its own release, and `CHANGELOG.md` is touched only in step 4.
 - Changelog: `CHANGELOG.md` in [Keep a Changelog] form. No changelog →
   say so and stop; do not invent one.
 
@@ -89,22 +97,27 @@ who missed the release should know what to change in their setup.
 
 ## 5. Bring docs and skills in line
 
-For every **break**, **feature** and user-facing **fix**, check that the
-prose still matches:
+For every **break**, **feature** and user-facing **fix**:
 
-- `README.md` and any `docs/`: commands, flags, config keys, defaults,
-  tables of what exists.
-- Skill files (`SKILL.md`, anything under `skills/`, `.claude/`,
-  `plugins/`): a step that names a command, path, or option the release
-  changed.
-- Help text and docstrings the diff left behind.
+- **Docs show it.** `README.md` and any `docs/`: a new command, flag,
+  config key or capability gets its entry where its siblings have theirs
+  (a section, a table row, a nav entry), at the depth they get; a changed
+  default or a removed option is corrected everywhere it is named.
+- **Marketplace skills and agents follow it.** Every skill, agent and
+  command the repo ships (`plugins/*/skills/`, `plugins/*/agents/`,
+  `plugins/*/commands/`, `.claude/skills/`, `.claude/agents/`): a step,
+  example or allowlist naming a command, path, flag, config key or output
+  the release changed, and a plugin description that no longer says what
+  the plugin does. A skill that teaches what the code does follows the code.
+- **Help text and docstrings** the diff left behind.
 
-Edit what is wrong. Add nothing the release did not add. A doc gap that
-predates this release is a line in the report, not an edit.
+Edit what is wrong or missing for this release. Add nothing the release did
+not add; a doc gap that predates it is a line in the report, not an edit.
 
 ## 6. Report
 
-One line per file touched, the version line from step 3, and any change
+One line per file touched, the version line from step 3 (one more per
+plugin bumped), and any change
 you could not classify with the question it raises. Leave staging, commit
 and tag to the user unless the request said otherwise.
 

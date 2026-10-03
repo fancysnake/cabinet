@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- `release-bump` writes the new version everywhere the old one stood:
+  mirrors, the lockfile, the marketplace's `metadata.version`; a versioned
+  plugin that changed gets its own bump.
+- `release-bump` documents what the release added and updates the skills,
+  agents and commands the marketplace's plugins ship.
+
 ## [1.0.1] - 2026-10-03
 
 ### Changed

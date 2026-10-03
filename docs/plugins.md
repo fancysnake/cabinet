@@ -62,8 +62,11 @@ and tags nothing unless asked.
 
 1. **Finds the last release** with `git describe --tags`. No tag means every
    commit counts. The unit of release is one manifest, the repository root's
-   unless the request names another, plus whatever mirrors its version; a
-   plugin or package elsewhere in the repository is its own release.
+   unless the request names another. Every place carrying its version gets
+   the new one: mirrors, the project's own lockfile entry, the marketplace's
+   `metadata.version`. A marketplace plugin with a `version` of its own that
+   changed since the tag gets its own bump; an unversioned one stays so.
+   Any other package in the repository is its own release.
 2. **Reads what changed** since the tag and sorts every change into a
    bucket: *break*, *feature*, *fix* or *internal*. An `Unreleased` entry
    already written is checked against the diff, because it is often stale.
@@ -80,9 +83,11 @@ and tags nothing unless asked.
    puffery goes, and the concrete handle a reader will grep for stays in
    backticks.
 5. **Brings docs and skills in line.** For every break, feature and
-   user-facing fix, the README, `docs/`, skill files and help text are
-   checked and corrected. Nothing the release did not add is added; a doc
-   gap older than the release is a line in the report.
+   user-facing fix, the README and `docs/` get an entry for what is new,
+   where its siblings have theirs, and lose what was removed. Every skill,
+   agent and command the repository's plugins ship is checked against what
+   changed, and so are help text and docstrings. Nothing the release did not
+   add is added; a doc gap older than the release is a line in the report.
 6. **Reports**: one line per file touched, the version line, and any change
    it could not classify with the question it raises. Staging, commit and
    tag stay with you.
