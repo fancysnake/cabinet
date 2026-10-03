@@ -94,7 +94,9 @@ number first:
    labelled and attached under its epic, then the links. A write the forge
    refuses — a label it lacks, say — is named under its
    issue in the report, and the rest still go on, this issue's and the next
-   ones'. A sub-issue opened but not attached is named there too.
+   ones'. A sub-issue opened but not attached is named there too. A page on
+   which every write was refused stops the cast: that is a forge that is
+   down or will not let you write, not one that disagrees with a write.
 4. The next page continues the same agent session, so the skill it follows is
    read once per cast.
 

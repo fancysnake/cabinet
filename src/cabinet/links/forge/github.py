@@ -260,12 +260,24 @@ async def _id(number: int) -> str:
     return said.strip()
 
 
-# The numbers already on one end of a relationship. The API answers a link
-# that is already there with a 422, so a cast run again would be refused on
-# every link it made the first time.
+# The numbers already on one end of a relationship.
 async def _linked(path: str, complaint: str) -> set[int]:
     said = await asked(f"gh api {path} --paginate --jq '.[].number'", complaint)
     return {int(number) for number in said.split()}
+
+
+# Both relationships are the other issue's id posted to an endpoint of this
+# one. The API answers a link already there with a 422, so a refusal is
+# checked against what is linked: a cast run again is not refused on every
+# link it made the first time, and the listing is paid only on a refusal.
+async def _link(path: str, field: str, other: int, complaint: str) -> None:
+    held = await _id(other)
+    try:
+        await asked(f"gh api {path} -X POST -F {field}={held}", complaint)
+    except ForgeError:
+        if other in await _linked(path, complaint):
+            return
+        raise
 
 
 def _thread(found: _Thread) -> Thread:
@@ -441,22 +453,20 @@ class GithubForge(ForgeProtocol):
 
     @override
     async def attach(self, epic: int, child: int) -> None:
-        path = _SUB_ISSUES.format(epic=epic)
-        complaint = f"could not attach #{child} under #{epic}"
-        if child in await _linked(path, complaint):
-            return
-        await asked(
-            f"gh api {path} -X POST -F sub_issue_id={await _id(child)}", complaint
+        await _link(
+            _SUB_ISSUES.format(epic=epic),
+            "sub_issue_id",
+            child,
+            f"could not attach #{child} under #{epic}",
         )
 
     @override
     async def blocks(self, number: int, blocker: int) -> None:
-        path = _BLOCKED_BY.format(number=number)
-        complaint = f"could not say #{number} is blocked by #{blocker}"
-        if blocker in await _linked(path, complaint):
-            return
-        await asked(
-            f"gh api {path} -X POST -F issue_id={await _id(blocker)}", complaint
+        await _link(
+            _BLOCKED_BY.format(number=number),
+            "issue_id",
+            blocker,
+            f"could not say #{number} is blocked by #{blocker}",
         )
 
     # `--force` updates a label that is already there instead of refusing it,

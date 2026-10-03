@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning].
 
 - `identify` no longer stops the cast when the forge refuses a write: the
   refusal is reported under its issue and the remaining writes, pages and
-  issues go on.
+  issues go on. A page on which the forge refused every write still stops
+  the cast.
 - `identify` leaves a sub-issue or blocker link that is already there alone
   instead of having the forge refuse the duplicate.
 

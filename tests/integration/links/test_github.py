@@ -514,13 +514,11 @@ class TestLabelIssue:
 class TestLinks:
     @staticmethod
     def test_a_sub_issue_is_attached_by_the_id_behind_its_number(trial: Trial) -> None:
-        trial.shell.replies(when=_SUBS, stdout="3\n")
         trial.shell.replies(when=_ID, stdout="1234\n")
         trial.shell.replies(when="gh api repos*sub_issues -X POST*")
 
         assert trial.walk(attach, _Ask()) == done()
         assert trial.shell.commands == [
-            _SUBS,
             _ID,
             (
                 "gh api repos/{owner}/{repo}/issues/7/sub_issues -X POST"
@@ -530,13 +528,11 @@ class TestLinks:
 
     @staticmethod
     def test_blocked_by_takes_the_blocker_s_id(trial: Trial) -> None:
-        trial.shell.replies(when=_BLOCKERS)
         trial.shell.replies(when=_ID, stdout="1234\n")
         trial.shell.replies(when="gh api repos*blocked_by -X POST*")
 
         assert trial.walk(blocks, _Ask()) == done()
         assert trial.shell.commands == [
-            _BLOCKERS,
             _ID,
             (
                 "gh api repos/{owner}/{repo}/issues/7/dependencies/blocked_by"
@@ -548,20 +544,44 @@ class TestLinks:
     # alone, and a cast run again is not refused on it.
     @staticmethod
     def test_a_sub_issue_already_attached_is_left_alone(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, stdout="1234\n")
+        trial.shell.replies(
+            when="gh api repos*sub_issues -X POST*", exit_code=1, stderr="422"
+        )
         trial.shell.replies(when=_SUBS, stdout="3\n9\n")
 
         assert trial.walk(attach, _Ask()) == done()
-        assert trial.shell.commands == [_SUBS]
+        assert trial.shell.commands[-1] == _SUBS
 
     @staticmethod
     def test_a_blocker_already_linked_is_left_alone(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, stdout="1234\n")
+        trial.shell.replies(
+            when="gh api repos*blocked_by -X POST*", exit_code=1, stderr="422"
+        )
         trial.shell.replies(when=_BLOCKERS, stdout="9\n")
 
         assert trial.walk(blocks, _Ask()) == done()
-        assert trial.shell.commands == [_BLOCKERS]
+        assert trial.shell.commands[-1] == _BLOCKERS
+
+    # Refused and not there: what the forge said to the write is the error.
+    @staticmethod
+    def test_a_refused_link_that_is_not_there_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, stdout="1234\n")
+        trial.shell.replies(
+            when="gh api repos*blocked_by -X POST*", exit_code=1, stderr="Forbidden"
+        )
+        trial.shell.replies(when=_BLOCKERS, stdout="3\n")
+
+        with pytest.raises(ForgeError, match="blocked by #9: Forbidden"):
+            trial.walk(blocks, _Ask())
 
     @staticmethod
     def test_links_that_cannot_be_listed_stop_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_ID, stdout="1234\n")
+        trial.shell.replies(
+            when="gh api repos*blocked_by -X POST*", exit_code=1, stderr="Forbidden"
+        )
         trial.shell.replies(when=_BLOCKERS, exit_code=1, stderr="Not Found")
 
         with pytest.raises(ForgeError, match="could not say #7 is blocked by #9"):
@@ -569,7 +589,6 @@ class TestLinks:
 
     @staticmethod
     def test_a_number_with_no_id_behind_it_stops_the_link(trial: Trial) -> None:
-        trial.shell.replies(when=_SUBS)
         trial.shell.replies(when=_ID, exit_code=1, stderr="Not Found")
 
         with pytest.raises(ForgeError, match="could not read the id of #9"):

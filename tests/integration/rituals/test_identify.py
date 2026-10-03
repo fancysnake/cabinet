@@ -255,8 +255,8 @@ class TestPin:
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
         assert isinstance(transition, Leaf)
-        assert trial.shell.commands[3].endswith("sub_issues -X POST -F sub_issue_id=99")
-        assert trial.shell.commands[6].endswith("blocked_by -X POST -F issue_id=99")
+        assert trial.shell.commands[2].endswith("sub_issues -X POST -F sub_issue_id=99")
+        assert trial.shell.commands[4].endswith("blocked_by -X POST -F issue_id=99")
 
     @staticmethod
     def test_an_issue_the_agent_did_not_answer_for_is_named(
@@ -306,6 +306,42 @@ class TestPin:
                 ),
                 *_identified(3),
             ],
+        )
+
+    # Every write on the page refused is a forge that is down or will not have
+    # you, and the cast stops there rather than refusing its way through the
+    # backlog to a clean exit.
+    @staticmethod
+    def test_a_page_with_every_write_refused_stops_the_cast(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(
+            when="gh issue edit*", exit_code=1, stderr="auth expired", always=True
+        )
+        page = Page(
+            identifying=Identifying(project=project, queue=[_issue(3)]),
+            issues=[_issue(1), _issue(2)],
+        )
+
+        transition = trial.walk(pin, Pinning(page=page, items=[_item(1), _item(2)]))
+
+        assert transition == Tally(
+            project=project,
+            queue=[_issue(3)],
+            briefed=True,
+            identified=[
+                Identification(
+                    number=number,
+                    outcome="identified",
+                    item=_item(number),
+                    refused=[f"could not label #{number}: auth expired"],
+                )
+                for number in (1, 2)
+            ],
+            stopped=(
+                "the forge refused every write on the page, first:"
+                " could not label #1: auth expired"
+            ),
         )
 
     # A link the forge refuses is named like any other write, and the
@@ -391,6 +427,9 @@ class TestPin:
             when="gh api repos/{owner}/{repo}/issues/1/sub_issues*",
             exit_code=1,
             stderr="attach refused",
+        )
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues/1/sub_issues --paginate*"
         )
         item = IdentifiedItem(
             number=1,

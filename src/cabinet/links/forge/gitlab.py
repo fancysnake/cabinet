@@ -6,6 +6,7 @@ here, only `glab auth login --hostname`.
 """
 
 from collections.abc import Sequence
+from typing import TypeVar
 from urllib.parse import quote
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -89,7 +90,9 @@ class _Project(BaseModel):
 
 
 # One issue linked to another, and how, as seen from the issue asked about.
+# The project too: an iid is only unique within one.
 class _Linked(BaseModel):
+    project_id: int
     iid: int
     link_type: str
 
@@ -110,11 +113,30 @@ class _Listed(BaseModel):
 
 _LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
 _LINKED: TypeAdapter[list[_Linked]] = TypeAdapter(list[_Linked])
+_MERGE_REQUEST: TypeAdapter[_MergeRequest] = TypeAdapter(_MergeRequest)
+_ANCHORED: TypeAdapter[_Anchored] = TypeAdapter(_Anchored)
+_ISSUE: TypeAdapter[_Issue] = TypeAdapter(_Issue)
+_PROJECT: TypeAdapter[_Project] = TypeAdapter(_Project)
+
+_T = TypeVar("_T")
 
 
 def _api(path: str, *flags: str) -> str:
     extra = "".join(f" {flag}" for flag in flags)
     return f"glab api {quoted(path)}{extra}"
+
+
+# What glab answered to `command`, read by `adapter`; `what` names it in the
+# error when it cannot be read.
+async def _read(
+    adapter: TypeAdapter[_T], command: str, complaint: str, what: str
+) -> _T:
+    answered = await asked(command, complaint)
+    try:
+        return adapter.validate_json(answered)
+    except ValidationError as error:
+        msg = f"glab returned {what} this could not read: {error}"
+        raise ForgeError(msg) from error
 
 
 def _pull(found: _MergeRequest) -> PullRequest:
@@ -159,50 +181,55 @@ def _thread(found: _Discussion) -> Thread | None:
 
 
 async def _project_id() -> int:
-    seen = await asked(_api("projects/:id"), "glab could not read the project")
-    try:
-        return _Project.model_validate_json(seen).id
-    except ValidationError as error:
-        msg = f"glab returned a project this could not read: {error}"
-        raise ForgeError(msg) from error
+    project = await _read(
+        _PROJECT, _api("projects/:id"), "glab could not read the project", "a project"
+    )
+    return project.id
 
 
 # Both relationships are the one endpoint with a different `link_type`, and
-# both want the target project spelled out even when it is this one. A link
-# already there is left alone: the API refuses a duplicate.
+# both want the target project spelled out even when it is this one. The API
+# refuses a duplicate, so a refusal is checked against what is linked, and
+# the listing is paid only on a refusal.
 async def _link(number: int, other: int, kind: str, complaint: str) -> None:
     path = f"projects/:id/issues/{number}/links"
-    seen = await asked(_api(path), complaint)
-    try:
-        linked = _LINKED.validate_json(seen)
-    except ValidationError as error:
-        msg = f"glab returned links this could not read: {error}"
-        raise ForgeError(msg) from error
-    if any(one.iid == other and one.link_type == kind for one in linked):
-        return
     project = await _project_id()
-    await asked(
-        _api(
-            path,
-            "-X POST",
-            f"-F target_project_id={project}",
-            f"-F target_issue_iid={other}",
-            f"-f link_type={kind}",
-        ),
-        complaint,
+    try:
+        await asked(
+            _api(
+                path,
+                "-X POST",
+                f"-F target_project_id={project}",
+                f"-F target_issue_iid={other}",
+                f"-f link_type={kind}",
+            ),
+            complaint,
+        )
+    except ForgeError:
+        if await _linked(path, project, other, kind, complaint):
+            return
+        raise
+
+
+# Whether issue `other` of `project` is linked as `kind` already.
+async def _linked(
+    path: str, project: int, other: int, kind: str, complaint: str
+) -> bool:
+    linked = await _read(_LINKED, _api(f"{path}?per_page={_PAGE}"), complaint, "links")
+    return any(
+        one.project_id == project and one.iid == other and one.link_type == kind
+        for one in linked
     )
 
 
 async def _refs(number: int) -> _DiffRefs:
-    seen = await asked(
+    anchored = await _read(
+        _ANCHORED,
         _api(f"projects/:id/merge_requests/{number}"),
         "glab could not read the merge request",
+        "a merge request",
     )
-    try:
-        return _Anchored.model_validate_json(seen).diff_refs
-    except ValidationError as error:
-        msg = f"glab returned a merge request this could not read: {error}"
-        raise ForgeError(msg) from error
+    return anchored.diff_refs
 
 
 # Read once for a whole review rather than once per item: every anchored
@@ -253,24 +280,23 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
 class GitlabForge(ForgeProtocol):
     @override
     async def pulls(self) -> list[PullRequest]:
-        listed = await asked(_api(_LIST), "glab could not list your merge requests")
-        try:
-            return [_pull(found) for found in _MERGE_REQUESTS.validate_json(listed)]
-        except ValidationError as error:
-            msg = f"glab returned something unreadable: {error}"
-            raise ForgeError(msg) from error
+        listed = await _read(
+            _MERGE_REQUESTS,
+            _api(_LIST),
+            "glab could not list your merge requests",
+            "merge requests",
+        )
+        return [_pull(found) for found in listed]
 
     @override
     async def labels(self, number: int) -> list[str]:
-        seen = await asked(
+        seen = await _read(
+            _MERGE_REQUEST,
             _api(f"projects/:id/merge_requests/{number}"),
             "glab could not read the labels",
+            "labels",
         )
-        try:
-            return _MergeRequest.model_validate_json(seen).labels
-        except ValidationError as error:
-            msg = f"glab returned labels this could not read: {error}"
-            raise ForgeError(msg) from error
+        return seen.labels
 
     @override
     async def label(
@@ -286,15 +312,12 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def threads(self, number: int) -> list[Thread]:
-        answered = await asked(
+        found = await _read(
+            _DISCUSSIONS,
             _api(f"projects/:id/merge_requests/{number}/discussions?per_page={_PAGE}"),
             "glab could not read the discussions",
+            "discussions",
         )
-        try:
-            found = _DISCUSSIONS.validate_json(answered)
-        except ValidationError as error:
-            msg = f"glab returned discussions this could not read: {error}"
-            raise ForgeError(msg) from error
         return [thread for one in found if (thread := _thread(one)) is not None]
 
     @override
@@ -324,15 +347,12 @@ class GitlabForge(ForgeProtocol):
     # line the GitHub board carries. A full page may be a short page.
     @override
     async def board(self, branch: str) -> Board:
-        answered = await asked(
+        found = await _read(
+            _STATUSES,
             _api(f"projects/:id/repository/commits/{branch}/statuses?per_page={_PAGE}"),
             "glab could not read the commit statuses",
+            "statuses",
         )
-        try:
-            found = _STATUSES.validate_json(answered)
-        except ValidationError as error:
-            msg = f"glab returned statuses this could not read: {error}"
-            raise ForgeError(msg) from error
         return Board(
             checks=[_check(status) for status in found], truncated=len(found) >= _PAGE
         )
@@ -351,7 +371,8 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def issue(self, title: str, body: str) -> Opened:
-        made = await asked(
+        opened = await _read(
+            _ISSUE,
             _api(
                 "projects/:id/issues",
                 "-X POST",
@@ -359,12 +380,8 @@ class GitlabForge(ForgeProtocol):
                 f"-f description={quoted(body)}",
             ),
             "could not open the issue",
+            "an issue",
         )
-        try:
-            opened = _Issue.model_validate_json(made)
-        except ValidationError as error:
-            msg = f"glab returned an issue this could not read: {error}"
-            raise ForgeError(msg) from error
         return Opened(number=opened.iid, url=opened.web_url)
 
     @override
@@ -372,17 +389,14 @@ class GitlabForge(ForgeProtocol):
         found: dict[int, Issue] = {}
         truncated = False
         for scope in ("created_by_me", "assigned_to_me"):
-            listed = await asked(
+            rows = await _read(
+                _LISTED,
                 _api(
                     f"projects/:id/issues?state=opened&scope={scope}&per_page={_PAGE}"
                 ),
                 "glab could not list your issues",
+                "issues",
             )
-            try:
-                rows = _LISTED.validate_json(listed)
-            except ValidationError as error:
-                msg = f"glab returned issues this could not read: {error}"
-                raise ForgeError(msg) from error
             # A full page may be a short page, as it is for the board: what is
             # past it is not asked for, so the cast never sees it.
             truncated = truncated or len(rows) >= _PAGE

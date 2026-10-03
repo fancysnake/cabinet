@@ -32,7 +32,8 @@ Grouped by school, the way a spellbook is.
   lack a type or a size; an agent reads each one and says what it is, and the
   ritual puts that on the forge: a type and a size, or an epic split into
   sub-issues, and the links between them. A write the forge refuses is
-  reported on its issue, and the cast goes on.
+  reported on its issue, and the cast goes on unless the forge refused
+  every write on a page.
 
 ### Conjuration
 

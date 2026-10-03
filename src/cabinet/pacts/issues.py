@@ -203,10 +203,13 @@ class Page(BaseModel):
     identifying: Identifying
     issues: list[Issue]
 
-    # Every issue on the page ending the same way.
-    def rowed(self, outcome: Outcome) -> Identifying:
+    # Every issue on the page rowed as stopped: the page the cast stopped on.
+    def stopped(self) -> Identifying:
         return self.identifying.rowed(
-            [Identification(number=one.number, outcome=outcome) for one in self.issues]
+            [
+                Identification(number=one.number, outcome="stopped")
+                for one in self.issues
+            ]
         )
 
 
