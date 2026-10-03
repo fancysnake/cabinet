@@ -82,29 +82,17 @@ class TestConjured:
         assert all(len(spec.color) == _HEX for spec in Labels().conjured())
 
 
-class TestForbidden:
+class TestLongTasks:
     @staticmethod
-    def test_the_long_tasks_first_then_the_rituals_own_then_the_projects() -> None:
+    def test_the_rituals_own_first_then_the_projects() -> None:
         project = Project.model_validate(
             {"agent": {"may_not_run": ["mise run test:e2e"]}}
         )
 
-        assert project.forbidden() == [
+        assert project.long_tasks() == [
             "mise run pr-fix",
             "mise run diff-cover",
             "mise run test:py:cov:diff",
-            "git commit",
-            "git push",
-            "git cherry-pick",
-            "git revert",
-            "git am",
-            "git rebase",
-            "git merge",
-            "git reset",
-            "git switch",
-            "git stash",
-            "gh",
-            "glab",
             "mise run test:e2e",
         ]
 
@@ -114,4 +102,4 @@ class TestForbidden:
         same = "mise run test:py:cov:diff"
         project = Project(coverage=same, fast_coverage=same)
 
-        assert project.forbidden().count(same) == 1
+        assert project.long_tasks().count(same) == 1

@@ -34,7 +34,7 @@ patch_check = "codecov/patch"         # whose summary says "N% of diff hit"
 model = "opus"
 effort = "high"
 max_turns = 0                         # 0 is unbounded
-may_not_run = []                      # command prefixes no agent may run, on top of the built-in ones
+may_not_run = []                      # slow tasks the prompt asks an agent to leave alone
 ```
 
 ## The keys
@@ -77,7 +77,7 @@ Prefixes, matched against the check's name as the forge reports it.
 | `model`       | the Claude model every agent call uses                                         |
 | `effort`      | `low`, `medium`, `high`, `xhigh` or `max`                                      |
 | `max_turns`   | the turn limit per agent call; `0` is unbounded                                |
-| `may_not_run` | command prefixes no agent may run, on top of the ones always denied; see [Agents](agents.md) |
+| `may_not_run` | slow tasks the prompt asks an agent to leave alone, beside the gate and coverage commands; see [Agents](agents.md) |
 
 ## The review skill
 

@@ -4,10 +4,9 @@ from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-# What an agent is meant to do. Every role has a shell and none runs what
-# `Project.forbidden()` names: the long tasks, a commit, a push, the forge.
-# A `reader` is not given the edit tools, and is not read-only either: its
-# shell writes. A `writer` edits.
+# What an agent is meant to do. Every role has a shell. A `reader` is not
+# given the edit tools, and is not read-only either: its shell writes. A
+# `writer` edits.
 Role = Literal["reader", "writer"]
 
 
@@ -31,7 +30,7 @@ class AgentProtocol(Protocol):
     # Nothing reads what the agent said back: the call is judged by what it
     # left in the worktree. A key joins the call to a thread, so a retry meets
     # an agent that remembers the attempt that just failed. `attended` says
-    # somebody is at the terminal to be asked; the deny list holds either way.
+    # somebody is at the terminal to be asked.
     async def ask(
         self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
     ) -> Fallen | None: ...

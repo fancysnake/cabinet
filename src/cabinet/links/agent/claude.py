@@ -1,13 +1,10 @@
-"""Asking Claude, with a shell and a deny list.
+"""Asking Claude, with a shell.
 
-Every role has plain `Bash`. Denied, whatever the prompt says, is every prefix
-in `Project.forbidden()`: the long tasks the ritual runs itself, and the
-commits, pushes, branch moves and forge writes that are the ritual's alone —
-the same list the prompt quotes. A prefix match guards against wasted time and
-honest mistakes, not against an agent set on getting round it (`sh -c "..."`
-does); the sandbox the cast runs in is the boundary. Unattended, every call
-runs under `dontAsk`, so a cast never hangs on a prompt. Attended, the mode is
-`auto`, with somebody there to be asked; the deny list holds in both.
+Every role has plain `Bash`, and nothing here denies a command: a prefix list
+cannot, when `mise exec` or `sh -c` runs anything. The sandbox the cast runs
+in is the boundary. Unattended, every call runs under `dontAsk`, so a cast
+never hangs on a prompt. Attended, the mode is `auto`, with somebody there to
+be asked.
 """
 
 import logging
@@ -34,10 +31,6 @@ _WRITER = ["Edit", "Write", "MultiEdit"]
 
 def allowed_tools(role: Role) -> list[str]:
     return [*_READER] if role == "reader" else [*_READER, *_WRITER]
-
-
-def disallowed_tools(project: Project) -> list[str]:
-    return [f"Bash({prefix}:*)" for prefix in project.forbidden()]
 
 
 # A key is what makes a call a continuation: the same key twice is an agent
@@ -79,7 +72,6 @@ class ClaudeAgent(AgentProtocol):
             focus_options=ClaudeOptions(
                 permission_mode="auto" if attended else "dontAsk",
                 allowed_tools=allowed_tools(role),
-                disallowed_tools=disallowed_tools(self._project),
                 effort=agent.effort,
                 max_turns=agent.max_turns or None,
             ),

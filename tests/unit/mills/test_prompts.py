@@ -1,4 +1,4 @@
-"""What the agent is told, and what it is told it must not run."""
+"""What the agent is told, and which long tasks it is asked to leave alone."""
 
 from cabinet.mills.prompts import Prompts
 from cabinet.pacts.issues import ISSUE_LABELS, Issue
@@ -33,7 +33,6 @@ class TestMayNotRun:
 
         assert "You have a shell" in prompt
         assert "    mise run pr-fix ..." in prompt
-        assert "    git push ..." in prompt
 
     @staticmethod
     def test_the_projects_own_list_is_named_too() -> None:
@@ -132,7 +131,7 @@ class TestTriageWork:
 
         assert "thread: T1" in prompt
         assert "what I want: guard the empty case" in prompt
-        assert "you cannot reach\nthe forge" in prompt
+        assert "do not reach the\nforge yourself" in prompt
 
     # The prompt promises markers, so it has to emit them: the reading of a
     # thread goes inside, and the answer that is an instruction stays out.

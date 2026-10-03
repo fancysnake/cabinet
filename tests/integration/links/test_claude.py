@@ -1,21 +1,18 @@
-"""How much an agent is allowed to reach, and what a failed call comes back as."""
+"""Which tools an agent gets, and what a failed call comes back as."""
 
 from pydantic import BaseModel
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import Transition, done, step
 from vekna.trial import Trial
 
-from cabinet.links.agent.claude import ClaudeAgent, allowed_tools, disallowed_tools
+from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
 from cabinet.pacts.agent import Fallen, Misread, Role
 from cabinet.pacts.project import Project
 from cabinet.pacts.threads import TriageNotes
 
-_PROJECT = Project.model_validate(
-    {"agent": {"may_not_run": ["mise run test:e2e"], "max_turns": 30}}
-)
+_PROJECT = Project.model_validate({"agent": {"max_turns": 30}})
 _READER = ["Read", "Grep", "Glob", "Bash"]
 _WRITER = [*_READER, "Edit", "Write", "MultiEdit"]
-_DENIED = [f"Bash({prefix}:*)" for prefix in _PROJECT.forbidden()]
 
 
 class _Ask(BaseModel):
@@ -72,12 +69,6 @@ class TestAllowedTools:
         assert allowed_tools("writer") == _WRITER
 
 
-class TestDisallowedTools:
-    @staticmethod
-    def test_every_forbidden_prefix_is_a_bash_deny_entry() -> None:
-        assert disallowed_tools(_PROJECT) == _DENIED
-
-
 class TestAsk:
     @staticmethod
     def test_every_call_is_bound_by_its_role(trial: Trial) -> None:
@@ -88,7 +79,6 @@ class TestAsk:
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
             allowed_tools=_WRITER,
-            disallowed_tools=_DENIED,
             effort="high",
             max_turns=30,
         )
@@ -101,11 +91,7 @@ class TestAsk:
         trial.walk(ask, _Ask(attended=True))
 
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
-            permission_mode="auto",
-            allowed_tools=_WRITER,
-            disallowed_tools=_DENIED,
-            effort="high",
-            max_turns=30,
+            permission_mode="auto", allowed_tools=_WRITER, effort="high", max_turns=30
         )
 
     @staticmethod
@@ -142,7 +128,6 @@ class TestAskFor:
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
             allowed_tools=_READER,
-            disallowed_tools=_DENIED,
             effort="high",
             max_turns=30,
         )

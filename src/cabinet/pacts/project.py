@@ -114,30 +114,10 @@ class Agent(BaseModel):
     effort: Effort = "high"
     # Zero is unbounded; the SDK's own default.
     max_turns: Annotated[int, Field(ge=0)] = 0
-    # Command prefixes an agent must not run, on top of the ones every project
-    # forbids: the repository's own slow tasks, a full e2e suite, say.
+    # The repository's own slow tasks, a full e2e suite, say. The prompt names
+    # them beside the gate and the coverage commands, so an agent checks
+    # itself with something narrower. Advice, not a lock.
     may_not_run: list[str] = []
-
-
-# What only the ritual does: committing, pushing, moving the branch it reads,
-# and speaking to the forge. Both forges' clients, whichever this one is.
-# It turns away wasted time and honest mistakes, not every command that could
-# do these: `git checkout` and `git restore` stay off it, because an agent
-# resolving a conflict takes a side with `--ours` or `--theirs`.
-_RITUALS_OWN = (
-    "git commit",
-    "git push",
-    "git cherry-pick",
-    "git revert",
-    "git am",
-    "git rebase",
-    "git merge",
-    "git reset",
-    "git switch",
-    "git stash",
-    "gh",
-    "glab",
-)
 
 
 class Project(BaseModel):
@@ -166,13 +146,12 @@ class Project(BaseModel):
     ci: Ci = Ci()
     agent: Agent = Agent()
 
-    # Command prefixes no agent runs: the long tasks the ritual runs itself as
-    # soon as the agent stops, and the writes that are the ritual's alone. One
-    # list, so what the prompt names and what the SDK denies cannot drift.
-    def forbidden(self) -> list[str]:
+    # The long tasks an agent is asked to leave alone: the ones the ritual runs
+    # itself as soon as the agent stops, and the project's own slow ones.
+    def long_tasks(self) -> list[str]:
         named = (self.gate, self.coverage, self.fast_coverage)
         # A value spelled out: with none, or `None`, its values type as `Any`.
-        listed = (*named, *_RITUALS_OWN, *self.agent.may_not_run)
+        listed = (*named, *self.agent.may_not_run)
         return list(dict.fromkeys(listed, True))
 
 
