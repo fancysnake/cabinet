@@ -1,9 +1,9 @@
-"""What an issue is to the rituals, and what the refinement cast carries.
+"""What an issue is to the rituals, and what the identification cast carries.
 
 The vocabulary lives here rather than with the repository's own configuration
-because it is not the repository's to choose: the `issues` skill the refiner
+because it is not the repository's to choose: the `issues` skill the agent
 reads names the same types, sizes and epic label, and a project that renamed
-them would be refined against words its agent has never heard.
+them would be identified against words its agent has never heard.
 """
 
 from typing import Literal, Self, TypeVar, get_args
@@ -14,7 +14,7 @@ from cabinet.pacts.budgets import BATCH, Batch
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import LabelSpec, Project
 
-_RefiningT = TypeVar("_RefiningT", bound="Refining")
+_IdentifyingT = TypeVar("_IdentifyingT", bound="Identifying")
 
 
 # One open issue as the forge lists it.
@@ -28,7 +28,7 @@ class Issue(BaseModel):
 
 # Your open issues as the forge gave them, and whether it gave them all: a
 # listing that hit its cap hides the rest, and a hidden issue looks exactly
-# like a refined one.
+# like a identified one.
 class Listing(BaseModel):
     issues: list[Issue] = []
     truncated: bool = False
@@ -41,7 +41,7 @@ class Opened(BaseModel):
     url: str
 
 
-# What an issue is and how big, as refinement labels it. Bare names rather
+# What an issue is and how big, as identification labels it. Bare names rather
 # than prefixed ones: these are the labels a backlog already wears, and
 # GitHub's issue types carry the same words.
 Kind = Literal["feature", "edit", "chore", "spike", "bug"]
@@ -50,9 +50,9 @@ KINDS: tuple[Kind, ...] = get_args(Kind)
 SIZES: tuple[Size, ...] = get_args(Size)
 EPIC = "epic"
 
-# Every label refinement reads or writes, with what it means, for the forge.
-# Read by `labels:issue` to make them and by the prompt to say what they mean,
-# so the words the refiner is given and the words the forge holds are one list.
+# Every label identification reads or writes, with what it means, for the forge.
+# Read by `labels:identify` to make them and by the prompt to say what they mean,
+# so the words the agent is given and the words the forge holds are one list.
 ISSUE_LABELS = [
     LabelSpec(
         name="feature",
@@ -92,13 +92,13 @@ ISSUE_LABELS = [
 ]
 
 
-class Refine(BaseModel):
-    # How many unrefined issues go on one page.
+class Identify(BaseModel):
+    # How many unidentified issues go on one page.
     batch: Batch = BATCH
 
 
-# One sub-issue the refiner would split an epic into, for the ritual to open.
-# Typed and sized in the same breath, so a part is never left behind unrefined.
+# One sub-issue the agent would split an epic into, for the ritual to open.
+# Typed and sized in the same breath, so a part is never left behind unidentified.
 class Part(BaseModel):
     title: str
     body: str
@@ -106,13 +106,13 @@ class Part(BaseModel):
     size: Size
 
 
-# What the refiner read one issue as. A reading and not a report: nothing here
+# What the agent read one issue as. A reading and not a report: nothing here
 # has happened yet, and `pin` is what puts it on the forge.
-class RefinedItem(BaseModel):
+class IdentifiedItem(BaseModel):
     number: int
     kind: Kind
     # The size to label it with. None on an epic, which is sized by its parts,
-    # and None where the refiner would not size it — an issue nobody could
+    # and None where the agent would not size it — an issue nobody could
     # size is left unsized rather than guessed at.
     size: Size | None = None
     # Too big for one pull request: the epic label goes on in place of a size.
@@ -126,47 +126,47 @@ class RefinedItem(BaseModel):
     note: str = ""
 
     # The type, and then a size or the epic label: the labels this reading
-    # asks for and no others, so a label the refiner did not put on stays on.
+    # asks for and no others, so a label the agent did not put on stays on.
     def wanted(self) -> list[str]:
         if self.epic:
             return [self.kind, EPIC]
         return [self.kind, *([self.size] if self.size is not None else [])]
 
 
-class Refined(BaseModel):
-    items: list[RefinedItem]
+class Identified(BaseModel):
+    items: list[IdentifiedItem]
 
 
-Outcome = Literal["refined", "declined", "missed", "stopped"]
+Outcome = Literal["identified", "declined", "missed", "stopped"]
 
 
 # One issue's ending: what was read of it, and the sub-issues the ritual
 # opened under it, which are numbers only the forge could say.
-class Refinement(BaseModel):
+class Identification(BaseModel):
     number: int
     outcome: Outcome
-    item: RefinedItem | None = None
+    item: IdentifiedItem | None = None
     opened: list[int] = []
 
 
 # What the cast is still to do and what it has done.
-class Refining(Hop):
+class Identifying(Hop):
     project: Project
     batch: Batch = BATCH
     queue: list[Issue] = Field(default_factory=list)
-    refined: list[Refinement] = Field(default_factory=list)
+    identified: list[Identification] = Field(default_factory=list)
     # The forge would not list every open issue of yours, so the queue is not
     # the whole backlog. Said in the report, because a cast that cannot see an
     # issue reads exactly like a cast that found nothing to do on it.
     truncated: bool = False
-    # Whether the refiner has been told to read the skill. Once a cast: every
+    # Whether the agent has been told to read the skill. Once a cast: every
     # page after the first continues the session that read it.
     briefed: bool = False
     stopped: str = ""
 
-    # The steps that gather, leaf and tally: `pacts/refine.py` names them. A
+    # The steps that gather, leaf and tally: `pacts/identify.py` names them. A
     # page is read and pinned under classes of its own.
-    def to(self, kind: type[_RefiningT]) -> _RefiningT:
+    def to(self, kind: type[_IdentifyingT]) -> _IdentifyingT:
         return self._rebuilt(kind)
 
     # `None` means "whatever this one had", as every other payload's builder.
@@ -174,16 +174,16 @@ class Refining(Hop):
         self,
         *,
         queue: list[Issue] | None = None,
-        refined: list[Refinement] | None = None,
+        identified: list[Identification] | None = None,
         truncated: bool | None = None,
         briefed: bool | None = None,
         stopped: str | None = None,
     ) -> Self:
-        update: dict[str, list[Issue] | list[Refinement] | bool | str] = {}
+        update: dict[str, list[Issue] | list[Identification] | bool | str] = {}
         if queue is not None:
             update["queue"] = queue
-        if refined is not None:
-            update["refined"] = refined
+        if identified is not None:
+            update["identified"] = identified
         if truncated is not None:
             update["truncated"] = truncated
         if briefed is not None:
@@ -192,19 +192,19 @@ class Refining(Hop):
             update["stopped"] = stopped
         return self.model_copy(update=update)
 
-    def rowed(self, rows: list[Refinement]) -> Self:
-        return self.but(refined=[*self.refined, *rows])
+    def rowed(self, rows: list[Identification]) -> Self:
+        return self.but(identified=[*self.identified, *rows])
 
 
-# The issues one agent call refines, and the rest of the cast riding along.
+# The issues one agent call identifies, and the rest of the cast riding along.
 class Page(BaseModel):
-    refining: Refining
+    identifying: Identifying
     issues: list[Issue]
 
     # Every issue on the page ending the same way: declined, or stopped.
-    def rowed(self, outcome: Outcome) -> Refining:
-        return self.refining.rowed(
-            [Refinement(number=one.number, outcome=outcome) for one in self.issues]
+    def rowed(self, outcome: Outcome) -> Identifying:
+        return self.identifying.rowed(
+            [Identification(number=one.number, outcome=outcome) for one in self.issues]
         )
 
 
@@ -212,4 +212,4 @@ class Page(BaseModel):
 # put on, against the page they were asked about.
 class Pinning(BaseModel):
     page: Page
-    items: list[RefinedItem]
+    items: list[IdentifiedItem]

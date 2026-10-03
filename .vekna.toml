@@ -17,9 +17,9 @@ coverage = "mise run test:py:cov:diff"
 fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
 # The copy in this repository rather than one in ~/.claude: the skill ships
-# from here, and a cast over this repo should refine by the version it is
+# from here, and a cast over this repo should identify by the version it is
 # looking at.
-refine_skill = "plugins/issues/skills/issues/SKILL.md"
+identify_skill = "plugins/issues/skills/issues/SKILL.md"
 
 [cabinet.labels]
 reviewed = "pr::thermo"

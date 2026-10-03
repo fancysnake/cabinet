@@ -4,13 +4,21 @@ from types import ModuleType
 
 from vekna.lexicon._pacts import Ritual, Step
 
+from cabinet.gates.ritual.vekna import identify as identify_steps
 from cabinet.gates.ritual.vekna import labels as labels_steps
-from cabinet.gates.ritual.vekna import refine as refine_steps
 from cabinet.gates.ritual.vekna import review as review_steps
 from cabinet.gates.ritual.vekna import sweep
 from cabinet.inits.services import Services
 from cabinet.pacts.services import services
-from cabinet.rituals import cover, labels_issue, labels_pr, refine, refresh, review
+from cabinet.rituals import (
+    cover,
+    identify,
+    labels,
+    labels_identify,
+    labels_pr,
+    refresh,
+    review,
+)
 
 
 # A facade exports every step of the module behind it, so it names the whole
@@ -53,13 +61,18 @@ class TestFacade:
         assert _registered(review) == set(review.__all__)
 
     @staticmethod
-    def test_refine_exports_its_ritual_and_every_step() -> None:
-        assert set(refine.__all__) == _steps(refine_steps) | {"refine"}
-        assert _registered(refine) == set(refine.__all__)
+    def test_identify_exports_its_ritual_and_every_step() -> None:
+        assert set(identify.__all__) == _steps(identify_steps) | {"identify"}
+        assert _registered(identify) == set(identify.__all__)
 
     @staticmethod
     def test_importing_a_facade_wires_the_services() -> None:
         assert isinstance(services(), Services)
+
+    @staticmethod
+    def test_labels_exports_its_ritual_and_its_step() -> None:
+        assert set(labels.__all__) == _steps(labels_steps) | {"labels"}
+        assert _registered(labels) == {"labels", "conjure"}
 
     @staticmethod
     def test_labels_pr_exports_its_ritual_and_its_step() -> None:
@@ -67,11 +80,13 @@ class TestFacade:
         assert _registered(labels_pr) == {"labels:pr", "conjure"}
 
     @staticmethod
-    def test_labels_issue_exports_its_ritual_and_its_step() -> None:
-        assert set(labels_issue.__all__) == _steps(labels_steps) | {"labels_issue"}
-        assert _registered(labels_issue) == {"labels:issue", "conjure"}
+    def test_labels_identify_exports_its_ritual_and_its_step() -> None:
+        assert set(labels_identify.__all__) == _steps(labels_steps) | {
+            "labels_identify"
+        }
+        assert _registered(labels_identify) == {"labels:identify", "conjure"}
 
-    # One step object behind both, so loading both registers `conjure` once.
+    # One step object behind all three, so loading them registers `conjure` once.
     @staticmethod
-    def test_the_two_label_rituals_share_their_step() -> None:
-        assert labels_pr.conjure is labels_issue.conjure
+    def test_the_label_rituals_share_their_step() -> None:
+        assert labels.conjure is labels_pr.conjure is labels_identify.conjure

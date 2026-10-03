@@ -28,29 +28,35 @@ Grouped by school, the way a spellbook is.
 - **`review`** — the morning after. Reads the review threads the night left,
   triages them with you at the terminal, answers every one, makes the gate
   green and ships the branch. Discovering what was found, and settling it.
-- **`refine`** — the backlog, a page at a time. Takes your open issues that
+- **`identify`** — the backlog, a page at a time. Takes your open issues that
   lack a type or a size; an agent reads each one and says what it is, and the
   ritual puts that on the forge: a type and a size, or an epic split into
   sub-issues, and the links between them. You say yes to each page first.
 
 ### Conjuration
 
+- **`labels`** — makes every label cabinet uses: what `labels:pr` and
+  `labels:identify` make, in one cast. Cast it once to set a project up.
 - **`labels:pr`** — makes every label the pull request rituals read and
   write: the reviewed and wait labels and each ritual's `started`/`done`
-  checkpoints, created where missing and refreshed where present. Cast it once
-  before the first sweep, and again after changing `[cabinet.labels]`.
-- **`labels:issue`** — makes the labels `refine` puts on issues: the types
+  checkpoints, created where missing and refreshed where present. Cast it
+  again after changing `[cabinet.labels]`.
+- **`labels:identify`** — makes the labels `identify` puts on issues: the types
   (`feature`, `edit`, `chore`, `spike`, `bug`), the sizes (`S`, `M`, `L`) and
-  `epic`. Cast it once before the first `refine`.
+  `epic`.
+
+Every label ritual creates what is missing and refreshes what is there, so
+casting one twice is as safe as once.
 
 <!-- --8<-- [start:cast] -->
 ```bash
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N] [--batch N]
-vekna cast refine [--batch N]
+vekna cast identify [--batch N]
+vekna cast labels
 vekna cast labels:pr
-vekna cast labels:issue
+vekna cast labels:identify
 ```
 <!-- --8<-- [end:cast] -->
 
@@ -58,10 +64,10 @@ vekna cast labels:issue
 default 3. `--attended true` says somebody is at the terminal: the sweep asks
 before every repair attempt instead of letting the budget decide, and its
 agents run in Claude's `auto` permission mode. `review` is always attended, and
-`refine` asks you about every page. `--batch` is how many open threads `review`
+`identify` asks you about every page. `--batch` is how many open threads `review`
 reads and answers in one round before fetching what is still open, default 7:
 a forty-thread review is six triages you can hold in your head, and still one
-commit. On `refine` it is how many issues go on one page, default 7.
+commit. On `identify` it is how many issues go on one page, default 7.
 
 ## Install
 

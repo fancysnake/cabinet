@@ -1,6 +1,6 @@
-"""Conjuration: ``labels:issue`` makes the labels ``refine`` puts on issues.
+"""Conjuration: ``labels:identify`` makes the labels ``identify`` puts on issues.
 
-    vekna cast labels:issue
+    vekna cast labels:identify
 
 The step lives in ``cabinet.gates.ritual.vekna.labels``; this module is the
 ritual itself and the surface vekna sweeps.
@@ -14,9 +14,9 @@ from cabinet.pacts.project import Conjure
 from cabinet.pacts.services import services
 
 
-@ritual("labels:issue")
-def labels_issue(_: NoComponents) -> Conjure:
+@ritual("labels:identify")
+def labels_identify(_: NoComponents) -> Conjure:
     return Conjure(project=services().project(), specs=ISSUE_LABELS)
 
 
-__all__ = ["conjure", "labels_issue"]
+__all__ = ["conjure", "labels_identify"]

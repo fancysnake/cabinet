@@ -40,7 +40,7 @@ A step returns the next step's payload, or `Done(result)`, and its return
 annotation names every exit. vekna routes by the payload's exact class, so
 every step has a class of its own, named for it and adding no fields:
 `SetAside(Work)` in `pacts/sweep.py`, `Pick(Picking)` in `pacts/review.py`,
-`Leaf(Refining)` in `pacts/refine.py`.
+`Leaf(Identifying)` in `pacts/identify.py`.
 `payload.to(NextStep)` rebuilds one as another — one `to` per carrier, taking
 only that carrier's own steps — and mypy checks every `return` against the
 annotation.

@@ -7,7 +7,7 @@ you already have open.
 
 | plugin         | skill          | what it does                                                 |
 | -------------- | -------------- | ------------------------------------------------------------ |
-| `issues`       | `issues`       | how issues are written, typed, sized and linked; what `refine` follows |
+| `issues`       | `issues`       | how issues are written, typed, sized and linked; what `identify` follows |
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 | `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
@@ -25,8 +25,8 @@ What an issue is in this repository: how one is written, which type and size
 it gets, when it becomes an epic, and how issues are linked. Knowledge only:
 it triggers on "make an issue for this", "put that in the backlog", any ask to
 file, open, raise or write an issue or ticket, and any ask to refine, type,
-size, split or link the backlog. The [`refine`](rituals.md#refine) ritual has
-its agent read it too, from `refine_skill`.
+size, split or link the backlog. The [`identify`](rituals.md#identify) ritual has
+its agent read it too, from `identify_skill`.
 
 1. **Types**: `feature` for something a user can see, `edit` for a refactor
    with no feature change, `chore` for docs, CI, tooling and tests, `spike`
@@ -49,7 +49,7 @@ its agent read it too, from `refine_skill`.
    comment, never closed. On GitLab, whose epics are Premium, parts are linked
    and named in the body.
 
-`vekna cast labels:issue` makes the type, size and epic labels. Needs `gh`
+`vekna cast labels:identify` makes the type, size and epic labels. Needs `gh`
 (or `glab`) logged in; setting Project fields needs the `project` token scope.
 
 ## release-bump

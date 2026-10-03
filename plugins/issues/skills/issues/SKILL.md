@@ -5,7 +5,7 @@ description: >-
   the user asks to file, open, create, write, or raise an issue or ticket,
   says "make an issue for this" / "put that in the backlog" about work that
   won't be done now, or asks to refine, triage, type, size, split or
-  link issues or the backlog. Also what cabinet's `refine` ritual hands its
+  link issues or the backlog. Also what cabinet's `identify` ritual hands its
   agent.
 ---
 
@@ -16,7 +16,7 @@ the same where a GitLab line is given.
 
 ## Types
 
-One per issue, as a label of the same name (`vekna cast labels:issue` makes
+One per issue, as a label of the same name (`vekna cast labels:identify` makes
 them). Where the repo also has GitHub issue types, set the matching one too.
 
 - **feature**: new functionality the user can see, such as a page, an option
@@ -67,7 +67,7 @@ the code it touches before judging.
      `gh project field-list`.
 
    This step is the interactive path, where you run `gh` yourself. Under
-   cabinet's `refine` you reach no forge client at all: name the type, the size
+   cabinet's `identify` you reach no forge client at all: name the type, the size
    and the links in your answer and the ritual puts on what it can.
 
 ## Links
@@ -94,13 +94,13 @@ undo.
 `gh api repos/{owner}/{repo}/issues/<n> --jq .id`. `gh api` fills in
 `{owner}` and `{repo}` itself.
 
-## Refining a backlog
+## Identifying a backlog
 
 For each issue, set one type, then one size or `epic`, then the links, and
 nothing else. Do not close, delete or retitle anything, and do not remove a
 label you did not add. Give a sub-issue you open a type and a size in the same
 breath, so it is not left behind unrefined.
 
-Under cabinet's `refine` ritual you only read: say what each issue is and what
+Under cabinet's `identify` ritual you only read: say what each issue is and what
 should be opened, labelled and linked, and the ritual makes every one of those
 calls itself.

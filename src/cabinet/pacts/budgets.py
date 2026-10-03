@@ -14,7 +14,7 @@ from typing import Annotated, Self
 from pydantic import BaseModel, Field
 
 # How much one round takes before the next one asks what is left: open threads
-# for `review`, unrefined issues for `refine`. Forty at once is one reading
+# for `review`, unidentified issues for `identify`. Forty at once is one reading
 # nobody holds in their head and one agent asked to do forty things before
 # anything lands. No ceiling: a batch bigger than the queue is the whole queue.
 Batch = Annotated[int, Field(ge=1)]

@@ -31,11 +31,12 @@ Grouped by school, the way a spellbook is.
 - **`review`** (Divination) — the morning after. Reads the review threads the
   night left, triages them with you at the terminal, answers every one, makes
   the gate green and ships the branch.
-- **`refine`** (Divination) — your open issues, a page at a time: each gets a
+- **`identify`** (Divination) — your open issues, a page at a time: each gets a
   type and a size, one too big becomes an epic with sub-issues, related ones
   get linked.
-- **`labels:pr`** and **`labels:issue`** (Conjuration) — make the labels the
-  pull request rituals and `refine` wear. Cast each once before first use.
+- **`labels`** (Conjuration) — makes every label the pull request rituals and
+  `identify` wear; cast it once to set a project up. **`labels:pr`** and
+  **`labels:identify`** make one half each.
 
 [Rituals](rituals.md) has each one in full, with its flags.
 
@@ -43,7 +44,7 @@ Grouped by school, the way a spellbook is.
 
 - **`issues`** — how issues are written, typed, sized and linked: files or
   updates an issue checked against the code and the open issues first, and is
-  the knowledge `refine` hands its agent.
+  the knowledge `identify` hands its agent.
 - **`release-bump`** — cuts a release: the version by semver from what
   changed since the last tag, the changelog compacted, the docs and skills
   brought in line. Commits and tags nothing unless asked.
@@ -72,7 +73,7 @@ Every `[cabinet]` key has a default; [Configuration](configuration.md) lists
 them all. With that in place:
 
 ```bash
-vekna cast labels:pr
+vekna cast labels
 vekna cast refresh
 ```
 

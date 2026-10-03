@@ -139,9 +139,9 @@ class Project(BaseModel):
     sign_commits: bool = True
     review_skill: str = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
     review_title: str = "Thermo-nuclear code quality review"
-    # The skill file `refine` has the agent read once, at the top of its
+    # The skill file `identify` has the agent read once, at the top of its
     # session: what the types and sizes mean and how issues are linked.
-    refine_skill: str = "~/.claude/skills/issues/SKILL.md"
+    identify_skill: str = "~/.claude/skills/issues/SKILL.md"
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()

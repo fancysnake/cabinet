@@ -159,7 +159,7 @@ code on its own terms.
 """
 
 
-# The vocabulary from the same list `labels:issue` makes on the forge, with
+# The vocabulary from the same list `labels:identify` makes on the forge, with
 # each label's own description: a sixth type added to `Kind` reaches the prompt
 # by itself rather than leaving this prose a version behind.
 def _meanings(*names: str) -> str:
@@ -167,7 +167,7 @@ def _meanings(*names: str) -> str:
     return "\n".join(f"  - {name}: {described[name]}" for name in names)
 
 
-_REFINE = f"""\
+_IDENTIFY = f"""\
 Read every issue between the markers, and only those. Read the code an issue is
 about before judging it: the size is what the change costs in this repository as
 it stands.
@@ -186,7 +186,7 @@ One item per issue in `items`, carrying its number:
 - `epic: true` and no size instead, where it will not fit one pull request:
 {_meanings(EPIC)}
   Then `parts`: one per sub-issue to open, each with a `title`, a `body`, and a
-  `kind` and `size` of its own, so no part is left behind unrefined. An open
+  `kind` and `size` of its own, so no part is left behind unidentified. An open
   issue that is already a part of it goes in `children` by number, rather than
   being opened again.
 - `blocked_by`: the open issues this one cannot start until they land. Only
@@ -329,13 +329,13 @@ class Prompts(PromptsProtocol):
     # The skill is named on the first page only: every page after it continues
     # the session that read it, and reading it again is turns spent on nothing.
     @override
-    def refine(self, project: Project, issues: list[Issue], *, briefed: bool) -> str:
+    def identify(self, project: Project, issues: list[Issue], *, briefed: bool) -> str:
         opening = (
             "The next page of open issues, by the same skill and the same rules."
             if briefed
-            else "Say how each of the open issues below should be refined: read"
-            f" {project.refine_skill} and follow it. It says what each type and"
+            else "Say how each of the open issues below should be identified: read"
+            f" {project.identify_skill} and follow it. It says what each type and"
             " size means, when an issue is an epic, and how issues are linked."
         )
         shown = _fence("\n\n".join(_issue(issue) for issue in issues))
-        return f"{opening}\n\n{_FENCE}\n{_REFINE}\nThe issues:\n\n{shown}"
+        return f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\nThe issues:\n\n{shown}"

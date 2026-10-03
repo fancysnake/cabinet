@@ -1,4 +1,4 @@
-"""Refining your issues a page at a time, with one agent session for them all."""
+"""Identifying your issues a page at a time, with one agent session for them all."""
 
 import json
 
@@ -6,21 +6,21 @@ import pytest
 from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.refine import gather, leaf, pin, refine_page, tally
+from cabinet.gates.ritual.vekna.identify import gather, identify_page, leaf, pin, tally
+from cabinet.pacts.identify import Gather, Leaf, Tally
 from cabinet.pacts.issues import (
+    Identification,
+    Identified,
+    IdentifiedItem,
+    Identify,
+    Identifying,
     Issue,
     Page,
     Part,
     Pinning,
-    Refine,
-    Refined,
-    RefinedItem,
-    Refinement,
-    Refining,
 )
 from cabinet.pacts.project import Project
-from cabinet.pacts.refine import Gather, Leaf, Tally
-from cabinet.rituals.refine import refine
+from cabinet.rituals.identify import identify
 
 _AUTHORED = (
     "gh issue list --author @me --state open --limit 200"
@@ -50,24 +50,24 @@ def _issue(number: int) -> Issue:
     )
 
 
-def _item(number: int) -> RefinedItem:
-    return RefinedItem(number=number, kind="feature", size="S")
+def _item(number: int) -> IdentifiedItem:
+    return IdentifiedItem(number=number, kind="feature", size="S")
 
 
 def _labelled(number: int) -> str:
     return f"gh issue edit {number} --add-label feature --add-label S"
 
 
-def _refined(*numbers: int) -> list[Refinement]:
+def _identified(*numbers: int) -> list[Identification]:
     return [
-        Refinement(number=number, outcome="refined", item=_item(number))
+        Identification(number=number, outcome="identified", item=_item(number))
         for number in numbers
     ]
 
 
 class TestGather:
     @staticmethod
-    def test_only_the_unrefined_are_queued(trial: Trial, project: Project) -> None:
+    def test_only_the_unidentified_are_queued(trial: Trial, project: Project) -> None:
         trial.shell.replies(
             when=_AUTHORED,
             stdout=json.dumps([_row(1, "bug", "S"), _row(2, "bug"), _row(3)]),
@@ -114,31 +114,31 @@ class TestLeaf:
     def test_a_declined_page_is_rowed_and_the_next_one_offered(
         trial: Trial, project: Project
     ) -> None:
-        trial.decide.answers(answer=False, when="*refine these 2?")
-        refining = Leaf(
+        trial.decide.answers(answer=False, when="*identify these 2?")
+        identifying = Leaf(
             project=project, batch=2, queue=[_issue(1), _issue(2), _issue(3)]
         )
 
-        transition = trial.walk(leaf, refining)
+        transition = trial.walk(leaf, identifying)
 
-        assert transition == refining.but(
+        assert transition == identifying.but(
             queue=[_issue(3)],
-            refined=[
-                Refinement(number=1, outcome="declined"),
-                Refinement(number=2, outcome="declined"),
+            identified=[
+                Identification(number=1, outcome="declined"),
+                Identification(number=2, outcome="declined"),
             ],
         )
 
 
-class TestRefinePage:
+class TestIdentifyPage:
     @staticmethod
     def test_the_reading_goes_to_the_forge_writes(
         trial: Trial, project: Project
     ) -> None:
-        trial.coding.replies(Refined(items=[_item(1)]))
-        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+        trial.coding.replies(Identified(items=[_item(1)]))
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
 
-        transition = trial.walk(refine_page, page)
+        transition = trial.walk(identify_page, page)
 
         assert transition == Pinning(page=page, items=[_item(1)])
 
@@ -147,10 +147,10 @@ class TestRefinePage:
     def test_an_issue_that_was_never_on_the_page_is_dropped(
         trial: Trial, project: Project
     ) -> None:
-        trial.coding.replies(Refined(items=[_item(1), _item(99)]))
-        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+        trial.coding.replies(Identified(items=[_item(1), _item(99)]))
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
 
-        transition = trial.walk(refine_page, page)
+        transition = trial.walk(identify_page, page)
 
         assert isinstance(transition, Pinning)
         assert transition.items == [_item(1)]
@@ -159,10 +159,11 @@ class TestRefinePage:
     def test_the_agent_only_reads_and_reaches_no_forge(
         trial: Trial, project: Project
     ) -> None:
-        trial.coding.replies(Refined(items=[_item(1)]))
+        trial.coding.replies(Identified(items=[_item(1)]))
 
         trial.walk(
-            refine_page, Page(refining=Refining(project=project), issues=[_issue(1)])
+            identify_page,
+            Page(identifying=Identifying(project=project), issues=[_issue(1)]),
         )
 
         allowed = trial.coding.calls[0].focus_options.allowed_tools
@@ -177,12 +178,12 @@ class TestRefinePage:
         trial: Trial, project: Project
     ) -> None:
         trial.coding.replies("no idea, sorry")
-        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
 
-        transition = trial.walk(refine_page, page)
+        transition = trial.walk(identify_page, page)
 
         assert isinstance(transition, Tally)
-        assert transition.refined == [Refinement(number=1, outcome="stopped")]
+        assert transition.identified == [Identification(number=1, outcome="stopped")]
         assert "shape" in transition.stopped
 
 
@@ -192,11 +193,13 @@ class TestPin:
         trial: Trial, project: Project
     ) -> None:
         trial.shell.replies(when=_labelled(1))
-        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
 
         transition = trial.walk(pin, Pinning(page=page, items=[_item(1)]))
 
-        assert transition == Leaf(project=project, briefed=True, refined=_refined(1))
+        assert transition == Leaf(
+            project=project, briefed=True, identified=_identified(1)
+        )
         assert trial.shell.commands == [_labelled(1)]
 
     # An epic wears the epic label in place of a size, and its parts are
@@ -215,19 +218,19 @@ class TestPin:
             when="gh api repos/{owner}/{repo}/issues/10 --jq .id", stdout="99"
         )
         trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/1/sub_issues*")
-        item = RefinedItem(
+        item = IdentifiedItem(
             number=1,
             kind="edit",
             epic=True,
             parts=[Part(title="first half", body="why", kind="feature", size="S")],
         )
-        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
 
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
         assert isinstance(transition, Leaf)
-        assert transition.refined == [
-            Refinement(number=1, outcome="refined", item=item, opened=[10])
+        assert transition.identified == [
+            Identification(number=1, outcome="identified", item=item, opened=[10])
         ]
         assert trial.shell.commands[-1] == (
             "gh api repos/{owner}/{repo}/issues/1/sub_issues -X POST -F sub_issue_id=99"
@@ -245,10 +248,10 @@ class TestPin:
         )
         trial.shell.replies(when="gh api repos*sub_issues*")
         trial.shell.replies(when="gh api repos*blocked_by*")
-        item = RefinedItem(
+        item = IdentifiedItem(
             number=1, kind="feature", size="S", children=[8], blocked_by=[9]
         )
-        page = Page(refining=Refining(project=project), issues=[_issue(1)])
+        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
 
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
@@ -261,14 +264,16 @@ class TestPin:
         trial: Trial, project: Project
     ) -> None:
         trial.shell.replies(when=_labelled(1))
-        page = Page(refining=Refining(project=project), issues=[_issue(1), _issue(2)])
+        page = Page(
+            identifying=Identifying(project=project), issues=[_issue(1), _issue(2)]
+        )
 
         transition = trial.walk(pin, Pinning(page=page, items=[_item(1)]))
 
         assert transition == Leaf(
             project=project,
             briefed=True,
-            refined=[*_refined(1), Refinement(number=2, outcome="missed")],
+            identified=[*_identified(1), Identification(number=2, outcome="missed")],
         )
 
     # What is already on stays on: the issue in flight and everything behind
@@ -280,7 +285,8 @@ class TestPin:
         trial.shell.replies(when=_labelled(1))
         trial.shell.replies(when=_labelled(2), exit_code=1, stderr="no such label")
         page = Page(
-            refining=Refining(project=project), issues=[_issue(1), _issue(2), _issue(3)]
+            identifying=Identifying(project=project),
+            issues=[_issue(1), _issue(2), _issue(3)],
         )
 
         transition = trial.walk(
@@ -288,10 +294,10 @@ class TestPin:
         )
 
         assert isinstance(transition, Tally)
-        assert transition.refined == [
-            *_refined(1),
-            Refinement(number=2, outcome="stopped"),
-            Refinement(number=3, outcome="stopped"),
+        assert transition.identified == [
+            *_identified(1),
+            Identification(number=2, outcome="stopped"),
+            Identification(number=3, outcome="stopped"),
         ]
         assert "no such label" in transition.stopped
 
@@ -315,20 +321,22 @@ class TestPin:
             exit_code=1,
             stderr="attach refused",
         )
-        item = RefinedItem(
+        item = IdentifiedItem(
             number=1,
             kind="edit",
             epic=True,
             parts=[Part(title="first half", body="why", kind="feature", size="S")],
         )
-        page = Page(refining=Refining(project=project), issues=[_issue(1), _issue(2)])
+        page = Page(
+            identifying=Identifying(project=project), issues=[_issue(1), _issue(2)]
+        )
 
         transition = trial.walk(pin, Pinning(page=page, items=[item, _item(2)]))
 
         assert isinstance(transition, Tally)
-        assert transition.refined == [
-            Refinement(number=1, outcome="stopped", opened=[10]),
-            Refinement(number=2, outcome="stopped"),
+        assert transition.identified == [
+            Identification(number=1, outcome="stopped", opened=[10]),
+            Identification(number=2, outcome="stopped"),
         ]
         assert "attach refused" in transition.stopped
 
@@ -338,9 +346,13 @@ class TestTally:
     # rather than the step's.
     @staticmethod
     def test_the_result_is_the_carrier(trial: Trial, project: Project) -> None:
-        transition = trial.walk(tally, Tally(project=project, refined=_refined(1)))
+        transition = trial.walk(
+            tally, Tally(project=project, identified=_identified(1))
+        )
 
-        assert transition == Done(Refining(project=project, refined=_refined(1)))
+        assert transition == Done(
+            Identifying(project=project, identified=_identified(1))
+        )
 
 
 class TestCast:
@@ -352,23 +364,23 @@ class TestCast:
             when=_AUTHORED, stdout=json.dumps([_row(1), _row(2), _row(3)])
         )
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
-        trial.decide.answers(answer=True, when="*refine these *", always=True)
-        trial.coding.replies(Refined(items=[_item(1), _item(2)]))
-        trial.coding.replies(Refined(items=[_item(3)]))
+        trial.decide.answers(answer=True, when="*identify these *", always=True)
+        trial.coding.replies(Identified(items=[_item(1), _item(2)]))
+        trial.coding.replies(Identified(items=[_item(3)]))
         trial.shell.replies(when="gh issue edit*", always=True)
 
-        result = trial.cast(refine, Refine(batch=2))
+        result = trial.cast(identify, Identify(batch=2))
 
-        assert result == Refining(
-            project=Project(), batch=2, briefed=True, refined=_refined(1, 2, 3)
+        assert result == Identifying(
+            project=Project(), batch=2, briefed=True, identified=_identified(1, 2, 3)
         )
         assert trial.steps == [
             "gather",
             "leaf",
-            "refine_page",
+            "identify_page",
             "pin",
             "leaf",
-            "refine_page",
+            "identify_page",
             "pin",
             "leaf",
             "tally",
@@ -378,19 +390,19 @@ class TestCast:
         assert "SKILL.md" not in second
         assert trial.coding.calls[0].resume is None
         assert trial.coding.calls[1].resume == "s1"
-        assert trial.deltas[-1].startswith("refine — 3 issues")
+        assert trial.deltas[-1].startswith("identify — 3 issues")
 
     @staticmethod
     @pytest.mark.usefixtures("here")
-    def test_a_backlog_with_nothing_to_refine_asks_nothing(trial: Trial) -> None:
+    def test_a_backlog_with_nothing_to_identify_asks_nothing(trial: Trial) -> None:
         trial.shell.replies(when=_AUTHORED, stdout=json.dumps([_row(1, "bug", "S")]))
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
 
-        result = trial.cast(refine, Refine())
+        result = trial.cast(identify, Identify())
 
-        assert result == Refining(project=Project())
+        assert result == Identifying(project=Project())
         assert trial.steps == ["gather", "leaf", "tally"]
-        assert trial.deltas == ["refine — 0 issues\n  (none wanted refining)"]
+        assert trial.deltas == ["identify — 0 issues\n  (none wanted identifying)"]
 
     @staticmethod
     @pytest.mark.usefixtures("here")
@@ -398,6 +410,6 @@ class TestCast:
         trial.shell.replies(when=_AUTHORED, exit_code=1, stderr="not logged in")
 
         with pytest.raises(RitualError, match="not logged in"):
-            trial.cast(refine, Refine())
+            trial.cast(identify, Identify())
 
         assert "the cast stopped" in trial.deltas[0]

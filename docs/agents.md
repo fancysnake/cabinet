@@ -27,7 +27,7 @@ fence, where an approved mistake cannot reach anything that matters.
 No role names a forge client, so no agent commits, pushes, runs a linter or a
 sweep, or says anything to the forge — not a label, not a comment, not an
 issue. Every forge call is the ritual's own, through vekna's `shell` medium in
-the `links` adapters, including `refine`'s labels, sub-issues and links: its
+the `links` adapters, including `identify`'s labels, sub-issues and links: its
 agent reads the backlog and hands back what each issue is, and the ritual puts
 that on. The ritual does the rest itself too, and after every repair attempt it
 re-runs the task the runner named as broken and hands the agent the output.

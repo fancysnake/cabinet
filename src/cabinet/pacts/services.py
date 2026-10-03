@@ -15,7 +15,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
-    from cabinet.pacts.issues import Issue, Refining
+    from cabinet.pacts.issues import Identifying, Issue
     from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Board, PullRequest, Run
     from cabinet.pacts.repairs import Attempt, Ruling
@@ -40,7 +40,7 @@ class PullsProtocol(Protocol):
 
 class BacklogProtocol(Protocol):
     # The issues without a type, or without a size unless they are an epic.
-    def unrefined(self, issues: list[Issue]) -> list[Issue]: ...
+    def unidentified(self, issues: list[Issue]) -> list[Issue]: ...
 
 
 class VerdictsProtocol(Protocol):
@@ -82,7 +82,7 @@ class PromptsProtocol(Protocol):
         self, project: Project, *, base: str, threads: list[Thread], reason: str
     ) -> str: ...
 
-    def refine(
+    def identify(
         self, project: Project, issues: list[Issue], *, briefed: bool
     ) -> str: ...
 
@@ -102,10 +102,10 @@ class ReportProtocol(Protocol):
 
     def review(self, picking: Picking) -> str: ...
 
-    # The page `refine` asks you about, before it is refined.
+    # The page `identify` asks you about, before it is identified.
     def page(self, issues: list[Issue]) -> str: ...
 
-    def refine(self, refining: Refining) -> str: ...
+    def identify(self, identifying: Identifying) -> str: ...
 
     def triage(self, items: list[TriageItem]) -> list[str]: ...
 

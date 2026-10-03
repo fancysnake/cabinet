@@ -5,7 +5,13 @@ from itertools import starmap
 
 from typing_extensions import override
 
-from cabinet.pacts.issues import EPIC, Issue, RefinedItem, Refinement, Refining
+from cabinet.pacts.issues import (
+    EPIC,
+    Identification,
+    IdentifiedItem,
+    Identifying,
+    Issue,
+)
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, Run
 from cabinet.pacts.reviews import Picking
@@ -31,7 +37,7 @@ _PRIORITIES = ("p1", "p2", "p3", "p4")
 
 _LEFT = {
     "declined": "left for later",
-    "missed": "the refiner did not answer for it",
+    "missed": "the agent did not answer for it",
     "stopped": "in flight when the cast stopped; it may be half done",
 }
 
@@ -40,10 +46,10 @@ def _numbers(numbers: list[int]) -> str:
     return " ".join(f"#{number}" for number in numbers)
 
 
-# An epic carries no size because its parts carry it; an issue the refiner
+# An epic carries no size because its parts carry it; an issue the agent
 # would not size carries none either. Different answers, so the line says
 # which rather than reading one as the other.
-def _sized(item: RefinedItem) -> str:
+def _sized(item: IdentifiedItem) -> str:
     if item.epic:
         return EPIC
     return item.size or "unsized"
@@ -52,7 +58,7 @@ def _sized(item: RefinedItem) -> str:
 # What went on one issue, on one line: `#12 feature/M`, or an epic with the
 # sub-issues opened under it, then what it was linked to and the note. A row
 # the cast stopped on still names what it opened: nothing else points to those.
-def _refined(row: Refinement) -> str:
+def _identified(row: Identification) -> str:
     opened = f", opened {_numbers(row.opened)}" if row.opened else ""
     if (item := row.item) is None:
         return f"  #{row.number}: {_LEFT[row.outcome]}{opened}"
@@ -141,14 +147,14 @@ class Report(ReportProtocol):
         return "\n".join(f"  #{one.number} {one.title}" for one in issues)
 
     @override
-    def refine(self, refining: Refining) -> str:
-        lines = [f"refine — {len(refining.refined)} issues"]
-        lines += [_refined(row) for row in refining.refined] or [
-            "  (none wanted refining)"
+    def identify(self, identifying: Identifying) -> str:
+        lines = [f"identify — {len(identifying.identified)} issues"]
+        lines += [_identified(row) for row in identifying.identified] or [
+            "  (none wanted identifying)"
         ]
         # An issue the listing never reached looks exactly like one nothing
         # wanted doing to, so the count above is a count of what was seen.
-        if refining.truncated:
+        if identifying.truncated:
             lines += [
                 "",
                 (
@@ -156,9 +162,9 @@ class Report(ReportProtocol):
                     " once: there are more, and this cast never saw them"
                 ),
             ]
-        if refining.stopped:
-            lines += ["", f"the cast stopped: {refining.stopped}"]
-            if left := refining.queue:
+        if identifying.stopped:
+            lines += ["", f"the cast stopped: {identifying.stopped}"]
+            if left := identifying.queue:
                 lines += [f"not reached:    {_numbers([one.number for one in left])}"]
         return "\n".join(lines)
 

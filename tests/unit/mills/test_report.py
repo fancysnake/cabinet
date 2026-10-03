@@ -1,7 +1,7 @@
 """What the morning reads."""
 
 from cabinet.mills.report import Report
-from cabinet.pacts.issues import Issue, RefinedItem, Refinement, Refining
+from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, PullRequest, Run
 from cabinet.pacts.reviews import Picking, Reviewed
@@ -150,23 +150,23 @@ class TestFindings:
 _ISSUE = Issue(number=5, title="t", url="https://example.test/5")
 
 
-class TestRefine:
+class TestIdentify:
     @staticmethod
     def test_every_ending_gets_its_line() -> None:
-        refining = Refining(
+        identifying = Identifying(
             project=_PROJECT,
-            refined=[
-                Refinement(
+            identified=[
+                Identification(
                     number=3,
-                    outcome="refined",
-                    item=RefinedItem(
+                    outcome="identified",
+                    item=IdentifiedItem(
                         number=3, kind="feature", size="M", blocked_by=[4]
                     ),
                 ),
-                Refinement(
+                Identification(
                     number=4,
-                    outcome="refined",
-                    item=RefinedItem(
+                    outcome="identified",
+                    item=IdentifiedItem(
                         number=4,
                         kind="edit",
                         epic=True,
@@ -175,23 +175,25 @@ class TestRefine:
                     ),
                     opened=[10, 11],
                 ),
-                Refinement(
+                Identification(
                     number=5,
-                    outcome="refined",
-                    item=RefinedItem(number=5, kind="spike", note="need the metrics"),
+                    outcome="identified",
+                    item=IdentifiedItem(
+                        number=5, kind="spike", note="need the metrics"
+                    ),
                 ),
-                Refinement(number=6, outcome="declined"),
-                Refinement(number=7, outcome="missed"),
+                Identification(number=6, outcome="declined"),
+                Identification(number=7, outcome="missed"),
             ],
         )
 
-        assert _REPORT.refine(refining) == (
-            "refine — 5 issues\n"
+        assert _REPORT.identify(identifying) == (
+            "identify — 5 issues\n"
             "  #3 feature/M, linked #4\n"
             "  #4 edit/epic, opened #10 #11, linked #12 — split by layer\n"
             "  #5 spike/unsized — need the metrics\n"
             "  #6: left for later\n"
-            "  #7: the refiner did not answer for it"
+            "  #7: the agent did not answer for it"
         )
 
     # The page you are asked about and the rows saying what became of it are
@@ -210,33 +212,33 @@ class TestRefine:
     # doing to, so the count is said to be a count of what was seen.
     @staticmethod
     def test_a_backlog_the_forge_would_not_list_the_end_of_says_so() -> None:
-        refining = Refining(project=_PROJECT, truncated=True)
+        identifying = Identifying(project=_PROJECT, truncated=True)
 
-        assert _REPORT.refine(refining) == (
-            "refine — 0 issues\n"
-            "  (none wanted refining)\n"
+        assert _REPORT.identify(identifying) == (
+            "identify — 0 issues\n"
+            "  (none wanted identifying)\n"
             "\n"
             "the forge listed as many of your open issues as it gives at once:"
             " there are more, and this cast never saw them"
         )
 
     @staticmethod
-    def test_nothing_to_refine_says_so() -> None:
-        assert _REPORT.refine(Refining(project=_PROJECT)) == (
-            "refine — 0 issues\n  (none wanted refining)"
+    def test_nothing_to_identify_says_so() -> None:
+        assert _REPORT.identify(Identifying(project=_PROJECT)) == (
+            "identify — 0 issues\n  (none wanted identifying)"
         )
 
     @staticmethod
     def test_a_stopped_cast_names_the_reason_and_what_was_never_reached() -> None:
-        refining = Refining(
+        identifying = Identifying(
             project=_PROJECT,
             queue=[_ISSUE],
-            refined=[Refinement(number=2, outcome="stopped")],
+            identified=[Identification(number=2, outcome="stopped")],
             stopped="the agent stopped mid-flight",
         )
 
-        assert _REPORT.refine(refining) == (
-            "refine — 1 issues\n"
+        assert _REPORT.identify(identifying) == (
+            "identify — 1 issues\n"
             "  #2: in flight when the cast stopped; it may be half done\n"
             "\n"
             "the cast stopped: the agent stopped mid-flight\n"
@@ -247,14 +249,14 @@ class TestRefine:
     # the row it was opened for is the only place it is named.
     @staticmethod
     def test_a_stopped_row_names_the_sub_issues_it_opened() -> None:
-        refining = Refining(
+        identifying = Identifying(
             project=_PROJECT,
-            refined=[Refinement(number=2, outcome="stopped", opened=[10])],
+            identified=[Identification(number=2, outcome="stopped", opened=[10])],
             stopped="attach refused",
         )
 
-        assert _REPORT.refine(refining) == (
-            "refine — 1 issues\n"
+        assert _REPORT.identify(identifying) == (
+            "identify — 1 issues\n"
             "  #2: in flight when the cast stopped; it may be half done, opened #10\n"
             "\n"
             "the cast stopped: attach refused"

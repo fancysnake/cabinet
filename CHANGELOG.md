@@ -11,21 +11,23 @@ and this project adheres to [Semantic Versioning].
 
 ### Added
 
-- `refine` ritual: your open issues that lack a type or a size, a page of
+- `identify` ritual: your open issues that lack a type or a size, a page of
   `--batch` at a time, each page asked about first. One agent session per cast
   says what each is — a type and a size, or an epic with the sub-issues to
   split it into, plus what is part of it and what blocks it — following the
-  skill at the `refine_skill` setting; the ritual puts that
+  skill at the `identify_skill` setting; the ritual puts that
   on the forge. The report says when the forge would not list your whole
   backlog.
-- `labels:issue` ritual: makes the `feature`, `edit`, `chore`, `spike`,
-  `bug`, `S`, `M`, `L` and `epic` labels `refine` uses.
+- `labels:identify` ritual: makes the `feature`, `edit`, `chore`, `spike`,
+  `bug`, `S`, `M`, `L` and `epic` labels `identify` uses.
+- `labels:pr` ritual: makes the pull request rituals' labels alone.
 - `issues` plugin: a skill for how issues are written, typed, sized and
-  linked, which `refine` hands its agent.
+  linked, which `identify` hands its agent.
 
 ### Changed
 
-- **Breaking:** the `labels` ritual is `labels:pr`; cast it by that name.
+- `labels` makes every label cabinet uses, the issue labels as well as the
+  pull request ones.
 
 ### Removed
 
