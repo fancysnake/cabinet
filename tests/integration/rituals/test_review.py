@@ -1,7 +1,5 @@
 """Taking every reviewed branch in turn, answering it item by item, shipping it."""
 
-import json
-
 import pytest
 from vekna.lexicon import Done, RitualError, Transition
 from vekna.trial import Trial
@@ -35,7 +33,20 @@ from cabinet.pacts.reviews import (
 )
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
 from cabinet.rituals.review import review
-from tests.conftest import HERE, LIST, STATUS, THREADS, checkpoint, commit, listing, row
+from tests.conftest import (
+    HERE,
+    LIST,
+    STATUS,
+    THREADS,
+    checkpoint,
+    comment,
+    commit,
+    listing,
+    node,
+    page,
+    row,
+    threads_page,
+)
 from tests.integration.rituals.falling import falling
 
 _STARTED = checkpoint("review", "started")
@@ -52,33 +63,12 @@ _ITEM = TriageItem(
 
 
 def _threads(*nodes: dict[str, object]) -> str:
-    return json.dumps(
-        {
-            "data": {
-                "repository": {
-                    "pullRequest": {
-                        "reviewThreads": {
-                            "pageInfo": {"hasNextPage": False},
-                            "nodes": list(nodes),
-                        }
-                    }
-                }
-            }
-        }
-    )
+    return threads_page(page(list(nodes)))
 
 
 def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
-    return {
-        "id": node_id,
-        "isResolved": resolved,
-        "path": "src/thing.py",
-        "line": 12,
-        "comments": {
-            "pageInfo": {"hasNextPage": False},
-            "nodes": [{"databaseId": 101, "author": {"login": "bot"}, "body": "guard"}],
-        },
-    }
+    guard = page([comment(101, author="bot", body="guard")])
+    return node(node_id, guard, resolved=resolved, path="src/thing.py", line=12)
 
 
 # Nothing between `queue_up` and `settle` raises: a step that gives up writes

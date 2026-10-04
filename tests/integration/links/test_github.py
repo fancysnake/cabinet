@@ -13,6 +13,7 @@ from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from tests.conftest import comment, node, page, threads_page
 
 _FORGE = GithubForge()
 
@@ -28,33 +29,12 @@ _THREAD = Thread(
     line=12,
     comments=[Comment(id="101", author="reviewer", body="guard this")],
 )
-_LAST = {"hasNextPage": False}
 _GRAPHQL = "slug=*gh api graphql*"
 _REPO = ' -f repo="${slug#*/}"'
 
 
-# One page of a connection, with a cursor to the next where there is one.
-def _page(nodes: list[dict[str, object]], cursor: str = "") -> dict[str, object]:
-    info = {"hasNextPage": True, "endCursor": cursor} if cursor else _LAST
-    return {"pageInfo": info, "nodes": nodes}
-
-
-def _comment(number: int) -> dict[str, object]:
-    return {"databaseId": number, "author": {"login": "reviewer"}, "body": "hm"}
-
-
-def _node(node_id: str, comments: dict[str, object]) -> dict[str, object]:
-    return {"id": node_id, "isResolved": False, "comments": comments}
-
-
-def _threads_page(page: dict[str, object]) -> str:
-    return json.dumps(
-        {"data": {"repository": {"pullRequest": {"reviewThreads": page}}}}
-    )
-
-
-def _comments_page(page: dict[str, object]) -> str:
-    return json.dumps({"data": {"node": {"comments": page}}})
+def _comments_page(connection: dict[str, object]) -> str:
+    return json.dumps({"data": {"node": {"comments": connection}}})
 
 
 def _open(node_id: str, *numbers: int) -> Thread:
@@ -264,43 +244,10 @@ class TestLabels:
 class TestThreads:
     @staticmethod
     def test_graphql_nodes_become_threads(trial: Trial) -> None:
-        answer = {
-            "data": {
-                "repository": {
-                    "pullRequest": {
-                        "reviewThreads": {
-                            "pageInfo": _LAST,
-                            "nodes": [
-                                {
-                                    "id": "PRRT_1",
-                                    "isResolved": False,
-                                    "path": "src/thing.py",
-                                    "line": 12,
-                                    "comments": {
-                                        "pageInfo": _LAST,
-                                        "nodes": [
-                                            {
-                                                "databaseId": 101,
-                                                "author": {"login": "reviewer"},
-                                                "body": "guard this",
-                                            }
-                                        ],
-                                    },
-                                },
-                                {
-                                    "id": "PRRT_2",
-                                    "isResolved": True,
-                                    "path": None,
-                                    "line": None,
-                                    "comments": {"pageInfo": _LAST, "nodes": []},
-                                },
-                            ],
-                        }
-                    }
-                }
-            }
-        }
-        trial.shell.replies(when="slug=*gh api graphql*", stdout=json.dumps(answer))
+        guarded = page([comment(101, body="guard this")])
+        held = node("PRRT_1", guarded, path="src/thing.py", line=12)
+        settled = node("PRRT_2", page([]), resolved=True)
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([held, settled])))
 
         transition = trial.walk(threads, _Ask())
 
@@ -311,10 +258,10 @@ class TestThreads:
 
     @staticmethod
     def test_threads_past_the_first_page_are_asked_for(trial: Trial) -> None:
-        first = _page([_node("PRRT_1", _page([_comment(101)]))], cursor="c1")
-        second = _page([_node("PRRT_2", _page([_comment(102)]))])
-        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(first))
-        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(second))
+        first = page([node("PRRT_1", page([comment(101)]))], cursor="c1")
+        second = page([node("PRRT_2", page([comment(102)]))])
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(first))
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(second))
 
         transition = trial.walk(threads, _Ask())
 
@@ -326,8 +273,8 @@ class TestThreads:
 
     @staticmethod
     def test_a_full_last_page_is_the_last(trial: Trial) -> None:
-        nodes = [_node(f"PRRT_{one}", _page([])) for one in range(100)]
-        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(_page(nodes)))
+        nodes = [node(f"PRRT_{one}", page([])) for one in range(100)]
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page(nodes)))
 
         transition = trial.walk(threads, _Ask())
 
@@ -338,11 +285,11 @@ class TestThreads:
 
     @staticmethod
     def test_comments_past_the_first_page_are_asked_for(trial: Trial) -> None:
-        held = _page([_node("PRRT_1", _page([_comment(101)], cursor="k1"))])
-        rest = _page([_comment(102)], cursor="k2")
-        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(held))
+        held = page([node("PRRT_1", page([comment(101)], cursor="k1"))])
+        rest = page([comment(102)], cursor="k2")
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(held))
         trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(rest))
-        trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(_page([])))
+        trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(page([])))
 
         transition = trial.walk(threads, _Ask())
 
@@ -354,7 +301,7 @@ class TestThreads:
     # is here to refuse.
     @staticmethod
     def test_an_answer_that_does_not_say_if_there_is_more(trial: Trial) -> None:
-        answer = _threads_page({"nodes": []})
+        answer = threads_page({"nodes": []})
         trial.shell.replies(when=_GRAPHQL, stdout=answer)
 
         with pytest.raises(ForgeError, match="threads this could not read"):
@@ -362,8 +309,8 @@ class TestThreads:
 
     @staticmethod
     def test_more_comments_on_a_thread_that_is_gone(trial: Trial) -> None:
-        held = _page([_node("PRRT_1", _page([], cursor="k1"))])
-        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(held))
+        held = page([node("PRRT_1", page([], cursor="k1"))])
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(held))
         trial.shell.replies(when=_GRAPHQL, stdout='{"data": {"node": null}}')
 
         with pytest.raises(ForgeError, match="comments this could not read"):

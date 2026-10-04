@@ -276,7 +276,7 @@ class TestThreads:
         assert transition == done(_Threads(threads=_opened(range(101))))
         assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
 
-    # The API says nothing about what is left, so a full last page costs one
+    # The next-page headers go unread, so a full last page costs one
     # more ask, which comes back empty.
     @staticmethod
     def test_an_exactly_full_last_page(trial: Trial) -> None:

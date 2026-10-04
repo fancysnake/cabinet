@@ -140,8 +140,9 @@ async def _read(
 
 
 # The listing at `path`, which carries `per_page` already, from `page` on. The
-# REST API says nothing about what is left, so a short page is the last one —
-# and a full one costs one more ask, which may come back empty.
+# `x-next-page` and `Link` headers go unread so the answer stays a bare JSON
+# body: a short page is the last one, and a full last page costs one more ask
+# that comes back empty.
 async def _pages(
     adapter: TypeAdapter[list[_T]], path: str, complaint: str, what: str, page: int = 1
 ) -> list[_T]:

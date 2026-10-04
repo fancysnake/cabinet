@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning].
 
 ### Fixed
 
-- `review` and `refresh` read every review thread and every comment on it,
+- `cover`, `refresh` and `review` read every review thread and every comment on it,
   not only the first page of each.
 
 ## [2.0.0] - 2026-10-03
