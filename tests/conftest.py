@@ -27,6 +27,8 @@ THREADS = "slug=*gh api graphql*-F number=7"
 # The one pull request most tests are about.
 _NUMBER = 7
 
+_LAST = {"hasNextPage": False}
+
 
 def checkpoint(ritual: str, state: State) -> str:
     add, remove = Labels().pair(ritual, state)
@@ -60,6 +62,43 @@ def row(number: int = _NUMBER, **extra: object) -> dict[str, object]:
 
 def listing(*rows: dict[str, object]) -> str:
     return json.dumps(list(rows))
+
+
+# One page of a GraphQL connection, with a cursor to the next where there is one.
+def page(nodes: list[dict[str, object]], cursor: str = "") -> dict[str, object]:
+    info = {"hasNextPage": True, "endCursor": cursor} if cursor else _LAST
+    return {"pageInfo": info, "nodes": nodes}
+
+
+def comment(
+    number: int, author: str = "reviewer", body: str = "hm"
+) -> dict[str, object]:
+    return {"databaseId": number, "author": {"login": author}, "body": body}
+
+
+# A review thread, its `comments` one page of them.
+def node(
+    node_id: str,
+    comments: dict[str, object],
+    *,
+    resolved: bool = False,
+    path: str | None = None,
+    line: int | None = None,
+) -> dict[str, object]:
+    return {
+        "id": node_id,
+        "isResolved": resolved,
+        "path": path,
+        "line": line,
+        "comments": comments,
+    }
+
+
+# What `gh api graphql` answers for one page of a pull request's threads.
+def threads_page(connection: dict[str, object]) -> str:
+    return json.dumps(
+        {"data": {"repository": {"pullRequest": {"reviewThreads": connection}}}}
+    )
 
 
 def _pull() -> PullRequest:
