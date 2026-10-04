@@ -80,3 +80,26 @@ class TestConjured:
             started.description == "refresh began on this branch and has not finished"
         )
         assert all(len(spec.color) == _HEX for spec in Labels().conjured())
+
+
+class TestLongTasks:
+    @staticmethod
+    def test_the_rituals_own_first_then_the_projects() -> None:
+        project = Project.model_validate(
+            {"agent": {"may_not_run": ["mise run test:e2e"]}}
+        )
+
+        assert project.long_tasks() == [
+            "mise run pr-fix",
+            "mise run diff-cover",
+            "mise run test:py:cov:diff",
+            "mise run test:e2e",
+        ]
+
+    # A repository whose two measurements are one command, like this one.
+    @staticmethod
+    def test_a_command_named_twice_is_listed_once() -> None:
+        same = "mise run test:py:cov:diff"
+        project = Project(coverage=same, fast_coverage=same)
+
+        assert project.long_tasks().count(same) == 1

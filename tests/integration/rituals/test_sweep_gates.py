@@ -184,7 +184,7 @@ class TestGateCheck:
         assert prompt.startswith("`mise run pr-fix` is this project's gate")
         assert "E501 line too long\n1 failed" in prompt
         assert "do not disable a lint rule" in prompt
-        assert "You cannot run the project's tasks" in prompt
+        assert "You have a shell" in prompt
         assert trial.coding.calls[0].resume is None
 
     @staticmethod

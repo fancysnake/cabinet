@@ -112,14 +112,15 @@ reuse one (`recap` is review's; identify's are `tally` and `pin`).
 
 ### Who runs what
 
-Agents (`links/agent/claude.py`) run under `dontAsk` with per-role
-allowlists (reader / writer / resolver, plus `project.agent.may_run`). No role
-names a forge client: every commit, push, task run and forge write is the
-ritual's own, through vekna's `shell` medium in the `links` adapters. That
-includes `identify`'s labels, sub-issues and links — its agent reads the backlog
-and answers what each issue is, and `gates/ritual/vekna/identify.py:pin` puts it
-on. Keep it that way: no agent permission that commits, pushes, or talks to
-the forge.
+Agents (`links/agent/claude.py`) run under `dontAsk` with plain `Bash` for
+every role (reader / writer) and no deny list: a shell gets round any prefix
+list, so the sandbox every cast runs in is the boundary. The prompt names
+`Project.long_tasks()` (gate, coverage commands, `project.agent.may_not_run`)
+and asks the agent to run narrow checks instead. Every commit, push, long
+task run and forge write is the ritual's own, through vekna's `shell` medium
+in the `links` adapters. That includes `identify`'s labels, sub-issues and
+links — its agent reads the backlog and answers what each issue is, and
+`gates/ritual/vekna/identify.py:pin` puts it on.
 
 ## Tests
 
