@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- `release-bump` writes the new version everywhere the old one stood,
+  mirrors and lockfile included; a versioned plugin that changed gets its
+  own bump.
+- `release-bump` documents what the release added and updates every skill,
+  agent and command in the repository.
+
 ## [2.0.0] - 2026-10-03
 
 ### Changed

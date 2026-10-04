@@ -17,19 +17,35 @@ changelog, fixes the docs. Commits nothing and tags nothing unless asked.
 - Last tag: `git describe --tags --abbrev=0`. No tag → every commit counts:
   the log range is `HEAD` and the diff is against the empty tree,
   `git diff $(git hash-object -t tree /dev/null) HEAD`.
-- The unit of release is one manifest: the one the request names, else the
-  repo root's (`pyproject.toml`, `package.json`, `Cargo.toml`, …). Its
-  version files are that manifest plus whatever mirrors its version (an
-  `__init__.py`, a `version.py`); all of them get the new version. Nothing
-  else changes: a plugin or package elsewhere in the repo is its own
-  release, and `CHANGELOG.md` is touched only in step 4.
+- Release units, each run through steps 2–5 in turn, then step 6 once:
+  - the manifest the request names, else the repo root's
+    (`pyproject.toml`, `package.json`, `Cargo.toml`, …), first;
+  - then each plugin in the repo's marketplace that carries a `version`
+    (in its `plugin.json` or its marketplace entry) and whose directory
+    differs from the tag once the first unit's step 5 is done
+    (`git diff <tag> --stat -- <plugin dir>`, working tree included, so
+    step 5's own edits count). A plugin without a `version` stays
+    unversioned; do not add the field.
+
+  What the repo's marketplace ships is released in this run; any other
+  package in the repo is a separate release.
+- A unit's version files are every place that carries its version, and all
+  of them get the new one: the manifest, whatever mirrors it (an
+  `__init__.py`, a `version.py`), the lockfile's entry for the project
+  itself (let the package manager rewrite it). Find them with
+  `git grep -nF '<old version>'` and read each hit: a dependency pinned at
+  the same number is not one.
 - Changelog: `CHANGELOG.md` in [Keep a Changelog] form. No changelog →
-  say so and stop; do not invent one.
+  say so and stop; do not invent one. No unit writes it outside step 4:
+  the old version's heading and links in it are history, not version
+  files.
 
 ## 2. Read what changed
 
 `git log <tag>..HEAD` and `git diff <tag>..HEAD --stat` (the no-tag range
 from step 1 otherwise), then the diff of anything the log leaves unclear.
+For a plugin unit, limit both to its directory and diff against the working
+tree (`git diff <tag> -- <plugin dir>`).
 Sort every change into one of:
 
 | bucket | what it is |
@@ -65,6 +81,9 @@ link block at the bottom: `[unreleased]` compares the new tag to `HEAD`,
 the new version gets its own compare or release link, matching the existing
 ones.
 
+A plugin unit writes into the section the first unit made, each entry
+naming the plugin; a plugin gets no changelog of its own.
+
 Then compact every entry in the new section; released sections stay as
 they are. Rules are deletions only; the worst case is an entry unchanged.
 
@@ -89,24 +108,29 @@ who missed the release should know what to change in their setup.
 
 ## 5. Bring docs and skills in line
 
-For every **break**, **feature** and user-facing **fix**, check that the
-prose still matches:
+For every **break**, **feature** and user-facing **fix**:
 
-- `README.md` and any `docs/`: commands, flags, config keys, defaults,
-  tables of what exists.
-- Skill files (`SKILL.md`, anything under `skills/`, `.claude/`,
-  `plugins/`): a step that names a command, path, or option the release
-  changed.
-- Help text and docstrings the diff left behind.
+- **Docs show it.** `README.md` and any `docs/`: a new command, flag,
+  config key or capability gets its entry where its siblings have theirs
+  (a section, a table row, a nav entry), at the depth they get; a changed
+  default or a removed option is corrected everywhere it is named.
+- **Skills, agents and commands follow it.** Every one in the repo
+  (`plugins/*/skills/`, `plugins/*/agents/`, `plugins/*/commands/`,
+  `.claude/skills/`, `.claude/agents/`): a step, example or allowlist
+  naming a command, path, flag, config key or output the release changed,
+  and a plugin description that no longer says what the plugin does: each
+  is rewritten to match. A skill that teaches what the code does follows
+  the code.
+- **Help text and docstrings** the diff left behind.
 
-Edit what is wrong. Add nothing the release did not add. A doc gap that
-predates this release is a line in the report, not an edit.
+Edit what is wrong or missing for this release. Add nothing the release did
+not add; a doc gap that predates it is a line in the report, not an edit.
 
 ## 6. Report
 
-One line per file touched, the version line from step 3, and any change
-you could not classify with the question it raises. Leave staging, commit
-and tag to the user unless the request said otherwise.
+One line per file touched, each unit's version line from step 3, and any
+change you could not classify with the question it raises. Leave staging,
+commit and tag to the user unless the request said otherwise.
 
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
