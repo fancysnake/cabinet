@@ -23,6 +23,7 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.review import Land, Look, Pick, QueueUp, Read, Recap, Settle
 from cabinet.pacts.reviews import (
+    STEPS,
     Answering,
     Branch,
     Instructed,
@@ -111,6 +112,8 @@ class TestQueueUp:
 
         assert isinstance(transition, Pick)
         assert [pull.number for pull in transition.queue] == [8, 7]
+        # `queue_up`, a `pick` per branch and the one that finds none, `recap`.
+        assert transition.reserved == len(transition.queue) + 3
 
     @staticmethod
     def test_a_forge_that_will_not_answer_ends_the_cast(
@@ -145,9 +148,23 @@ class TestPick:
             pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
         ) == Branch(
             picking=Picking(project=project, bound=2), name="feature", number=7
+        ).given(
+            1
         ).to(
             Look
         )
+
+    # Nothing went wrong, so nothing fails: the branch goes back on the queue
+    # it came off, for the report to name.
+    @staticmethod
+    def test_a_branch_the_budget_has_no_room_for_ends_the_cast(
+        trial: Trial, project: Project, pull: PullRequest
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
+        full = Picking(project=project, bound=2, queue=[pull], reserved=STEPS)
+
+        assert trial.walk(pick, full.to(Pick)) == full.to(Recap)
+        assert len(trial.shell.commands) == 1
 
     @staticmethod
     def test_a_branch_with_nothing_open_earns_no_row(
@@ -193,6 +210,8 @@ class TestPick:
             bound=2,
             reviewed=[Reviewed(branch="feature", outcome="stopped", note=stopped)],
             stopped=stopped,
+        ).taking(
+            1
         ).to(
             Recap
         )
@@ -329,13 +348,26 @@ class TestRead:
         assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
         assert trial.deltas == ["feature: nothing is left open"]
 
+    # A thread opened after the branch was taken, or one a round left
+    # unanswered, is not read: the rounds were what the budget spoke for.
+    @staticmethod
+    def test_rounds_spent_are_the_gate_with_threads_still_open(
+        trial: Trial, branch: Branch
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_9")))
+        taken = branch.taken(7)
+
+        assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
+        assert trial.deltas == ["feature: 1 threads wait for the next cast"]
+        assert not trial.coding.prompts
+
     @staticmethod
     def test_a_reading_that_found_nothing_after_a_round_is_the_gate(
         trial: Trial, branch: Branch
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies(TriageNotes(items=[]))
-        taken = branch.taken(7)
+        taken = branch.given(2).taken(7)
 
         assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
 

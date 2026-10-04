@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning].
 - `release-bump` documents what the release added and updates every skill,
   agent and command in the repository.
 
+### Fixed
+
+- `review` no longer runs out of steps mid-cast and loses its report: it
+  takes a branch only while its worst case fits, gives each branch one round
+  per batch, and leaves the rest for the next cast.
+
 ## [2.0.0] - 2026-10-03
 
 ### Changed

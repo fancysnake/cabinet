@@ -34,6 +34,12 @@ first ``--batch`` are read, answered and settled, and the next round fetches
 what the forge still holds open. The gate runs once, after the last round, so
 a forty-thread review is six triages you can hold in your head and one commit.
 
+A branch gets one round per batch it holds when it is taken, so a thread that
+appears meanwhile, or one a round left unanswered, waits for the next cast.
+That makes the worst a branch can spend a number, and the cast takes a branch
+only where that number still fits the engine's step budget; one that does not
+fit ends the cast without failing it, and the report names what is left.
+
 The branch earns the ``started`` checkpoint the moment the agent is turned
 loose on the triage, and ``done`` once nothing is left open. A branch left with
 threads still open, or one a gate stopped, keeps ``started``.
@@ -107,7 +113,11 @@ async def queue_up(picking: QueueUp) -> Recap | Pick:
     ordered = [pull for pull in carrying if pull.branch == mine] + [
         pull for pull in carrying if pull.branch != mine
     ]
-    return picking.but(queue=ordered).to(Pick)
+    # Every step that works no branch, spoken for now that the queue is known:
+    # this one, a `pick` per branch and the one that finds the queue empty, and
+    # `recap`. The forge lists at most a hundred, so this always fits.
+    reserved = len(ordered) + 3
+    return picking.but(queue=ordered, reserved=reserved).to(Pick)
 
 
 # `None` where the forge would not say, which is not "nothing to do": `pick`
@@ -135,9 +145,17 @@ async def pick(picking: Pick) -> Recap | Pick | Look:
     if not left:
         # The ordinary case, and the reason it earns no row.
         return branch.picking.to(Pick)
-    # Fatal, and before every checkout: `look` moves branches around and later
-    # commits everything it finds, so work left in the tree would be committed
-    # onto the branch it takes.
+    # Not a failure: nothing went wrong, and the report names what is left for
+    # the next cast, this branch first.
+    if not (rounds := picking.rounds_for(left)):
+        return picking.to(Recap)
+    return await _clean(branch.given(rounds))
+
+
+# Fatal, and before every checkout: `look` moves branches around and later
+# commits everything it finds, so work left in the tree would be committed onto
+# the branch it takes.
+async def _clean(branch: Branch) -> Recap | Look:
     try:
         dirty = await services().scm(branch.project).status()
     except ScmError as error:
@@ -193,6 +211,8 @@ async def read(branch: Read) -> Recap | Landing | Pick | Triage:
         return _stopped(branch, str(error))
     if not threads:
         return _no_more(branch, "nothing is left open")
+    if not branch.rounds:
+        return _no_more(branch, f"{len(threads)} threads wait for the next cast")
     batch = threads[: branch.batch]
     if len(batch) < len(threads):
         emit_delta(

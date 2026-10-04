@@ -1,5 +1,6 @@
 """What the review-answering cast carries from branch to branch."""
 
+from math import ceil
 from typing import Literal, Self, TypeVar
 
 from pydantic import BaseModel, Field
@@ -12,6 +13,13 @@ from cabinet.pacts.threads import Answer, TriageItem
 
 _PickingT = TypeVar("_PickingT", bound="Picking")
 _BranchT = TypeVar("_BranchT", bound="Branch")
+
+# The engine's step budget for one cast. Running out of it raises past
+# `recap` and loses the report, so `pick` keeps the cast under it by the worst
+# case of every branch it takes, and the engine's own check never fires.
+STEPS = 400
+# One round is `read`, `plan`, `work` and `answer`.
+_ROUND = 4
 
 
 class Review(BaseModel):
@@ -43,6 +51,10 @@ class Picking(Hop):
     queue: list[PullRequest] = Field(default_factory=list)
     reviewed: list[Reviewed] = Field(default_factory=list)
     stopped: str = ""
+    # Steps the cast has spoken for out of `STEPS`: every step that works no
+    # branch, counted once the queue is known, and the worst each branch it
+    # took can spend.
+    reserved: int = 0
 
     # The steps that pick and recap, and no others: the steps that work one
     # branch are `Branch`'s.
@@ -57,15 +69,34 @@ class Picking(Hop):
         queue: list[PullRequest] | None = None,
         reviewed: list[Reviewed] | None = None,
         stopped: str | None = None,
+        reserved: int | None = None,
     ) -> Self:
-        update: dict[str, list[PullRequest] | list[Reviewed] | str] = {}
+        update: dict[str, list[PullRequest] | list[Reviewed] | str | int] = {}
         if queue is not None:
             update["queue"] = queue
         if reviewed is not None:
             update["reviewed"] = reviewed
         if stopped is not None:
             update["stopped"] = stopped
+        if reserved is not None:
+            update["reserved"] = reserved
         return self.model_copy(update=update)
+
+    # Rounds a branch with `left` threads open may take: one per batch, as far
+    # as the budget reaches. Zero is a branch the budget has no room for.
+    def rounds_for(self, left: int) -> int:
+        room = (STEPS - self.reserved - self._around()) // _ROUND
+        return max(0, min(ceil(left / self.batch), room))
+
+    # The worst a branch given `rounds` can spend, spoken for.
+    def taking(self, rounds: int) -> Self:
+        return self.but(reserved=self.reserved + self._around() + _ROUND * rounds)
+
+    # What a branch spends besides its rounds: `look`, the `read` that finds
+    # no more, `land`, `settle`, and `gates` — a whole run and a narrowed one
+    # for every repair the bound allows, then the last whole run.
+    def _around(self) -> int:
+        return 2 * self.bound + 5
 
 
 class Branch(Hop):
@@ -80,11 +111,22 @@ class Branch(Hop):
     # nothing has touched, which is the only one that can still be walked
     # away from without a commit.
     answered: int = 0
+    # Rounds this branch may still take, given by `pick` out of the cast's
+    # budget. Threads still open once they are spent wait for the next cast.
+    rounds: int = 1
 
     # One branch's own steps: what comes after this branch is the `Picking`
     # this rides on, which routes itself.
     def to(self, kind: type[_BranchT]) -> _BranchT:
         return self._rebuilt(kind)
+
+    # Taken with `rounds` to spend, and the worst they cost spoken for.
+    def given(self, rounds: int) -> Self:
+        update: dict[str, int | Picking] = {
+            "rounds": rounds,
+            "picking": self.picking.taking(rounds),
+        }
+        return self.model_copy(update=update)
 
     @property
     def bound(self) -> int:
@@ -96,7 +138,10 @@ class Branch(Hop):
 
     # Another round posted and settled.
     def taken(self, count: int) -> Self:
-        update: dict[str, int] = {"answered": self.answered + count}
+        update: dict[str, int] = {
+            "answered": self.answered + count,
+            "rounds": self.rounds - 1,
+        }
         return self.model_copy(update=update)
 
     @property
@@ -149,7 +194,7 @@ class Landing(Budgeted):
 # the rows and nothing of what it took to collect them.
 class Recapped(BaseModel):
     reviewed: list[Reviewed] = []
-    # Branches the forge was never asked about, which only a cast that stopped
-    # leaves behind.
+    # Branches the cast never took, which only a cast that stopped or ran out
+    # of steps leaves behind.
     not_polled: list[str] = []
     failed: str = ""
