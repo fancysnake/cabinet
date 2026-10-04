@@ -36,6 +36,6 @@ patch_check = "codecov/patch"
 model = "opus"
 effort = "high"
 max_turns = 0
-# A single test file or case is a quick check; the linters and the sweeps stay
-# the ritual's.
-may_run = ["mise run test:unit", "mise run test:int"]
+# The whole-repository linter sweeps, which the gate runs anyway. One linter
+# over one file, or one test file or case, stays a quick check.
+may_not_run = ["mise run lint:py", "mise run lint:hk"]

@@ -21,7 +21,7 @@ sign_commits = false
 wait = "hold"
 
 [cabinet.agent]
-may_run = ["mise run test:unit"]
+may_not_run = ["mise run test:e2e"]
 """
 
 
@@ -37,7 +37,7 @@ class TestReadProject:
         assert project.sign_commits is False
         assert project.labels.wait == "hold"
         assert project.labels.reviewed == "pr::thermo"
-        assert project.agent.may_run == ["mise run test:unit"]
+        assert project.agent.may_not_run == ["mise run test:e2e"]
 
     @staticmethod
     def test_found_by_walking_up(tmp_path: Path) -> None:

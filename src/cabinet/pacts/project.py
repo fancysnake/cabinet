@@ -114,10 +114,10 @@ class Agent(BaseModel):
     effort: Effort = "high"
     # Zero is unbounded; the SDK's own default.
     max_turns: Annotated[int, Field(ge=0)] = 0
-    # Command prefixes an agent may run itself, on top of read-only git. Each
-    # becomes a `Bash(<prefix>:*)` allowlist entry, so what the prompt says
-    # and what the SDK permits are the same list.
-    may_run: list[str] = []
+    # The repository's own slow tasks, a full e2e suite, say. The prompt names
+    # them beside the gate and the coverage commands, so an agent checks
+    # itself with something narrower. Advice, not a lock.
+    may_not_run: list[str] = []
 
 
 class Project(BaseModel):
@@ -145,6 +145,14 @@ class Project(BaseModel):
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()
+
+    # The long tasks an agent is asked to leave alone: the ones the ritual runs
+    # itself as soon as the agent stops, and the project's own slow ones.
+    def long_tasks(self) -> list[str]:
+        named = (self.gate, self.coverage, self.fast_coverage)
+        # A value spelled out: with none, or `None`, its values type as `Any`.
+        listed = (*named, *self.agent.may_not_run)
+        return list(dict.fromkeys(listed, True))
 
 
 # `conjure`'s payload: which labels to make, and on which forge. Its own class

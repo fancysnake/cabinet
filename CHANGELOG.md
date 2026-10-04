@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-03
+
+### Changed
+
+- Every agent role has a shell with no command denied; run every cast in a
+  sandbox.
+- **Breaking:** `agent.may_not_run` replaces `agent.may_run` and names slow
+  tasks the prompt asks an agent to leave alone; a `.vekna.toml` still setting
+  `may_run` is refused.
+
 ## [1.0.1] - 2026-10-03
 
 ### Changed
@@ -141,7 +151,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v1.0.1...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/fancysnake/cabinet/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/fancysnake/cabinet/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/fancysnake/cabinet/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/fancysnake/cabinet/compare/v0.4.0...v0.5.0

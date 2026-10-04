@@ -4,11 +4,10 @@ from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-# What an agent may reach. `reader` sees the code and read-only git. `writer`
-# edits files and runs what the project's `may_run` allows. `resolver` may also
-# stage, because staging is the only thing the ritual reads to know a conflict
-# is gone. None of them commits, pushes, or speaks to the forge.
-Role = Literal["reader", "writer", "resolver"]
+# What an agent is meant to do. Every role has a shell. A `reader` is not
+# given the edit tools, and is not read-only either: its shell writes. A
+# `writer` edits.
+Role = Literal["reader", "writer"]
 
 
 # The agent died mid-flight — a spent token budget, a killed CLI. This ends the
@@ -31,8 +30,7 @@ class AgentProtocol(Protocol):
     # Nothing reads what the agent said back: the call is judged by what it
     # left in the worktree. A key joins the call to a thread, so a retry meets
     # an agent that remembers the attempt that just failed. `attended` says
-    # somebody is at the terminal to be asked: the allowlist stays, but what is
-    # outside it is judged rather than refused.
+    # somebody is at the terminal to be asked.
     async def ask(
         self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
     ) -> Fallen | None: ...

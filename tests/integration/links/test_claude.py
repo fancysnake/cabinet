@@ -1,4 +1,4 @@
-"""How much an agent is allowed to reach, and what a failed call comes back as."""
+"""Which tools an agent gets, and what a failed call comes back as."""
 
 from pydantic import BaseModel
 from vekna.folio.coding_claude import ClaudeOptions
@@ -7,23 +7,12 @@ from vekna.trial import Trial
 
 from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
 from cabinet.pacts.agent import Fallen, Misread, Role
-from cabinet.pacts.project import Forge, Project
+from cabinet.pacts.project import Project
 from cabinet.pacts.threads import TriageNotes
 
-_PROJECT = Project.model_validate(
-    {"agent": {"may_run": ["mise run test:unit"], "max_turns": 30}}
-)
-_READER = [
-    "Read",
-    "Grep",
-    "Glob",
-    "Bash(git diff:*)",
-    "Bash(git log:*)",
-    "Bash(git show:*)",
-    "Bash(git status:*)",
-    "Bash(git blame:*)",
-]
-_WRITER = [*_READER, "Edit", "Write", "MultiEdit", "Bash(mise run test:unit:*)"]
+_PROJECT = Project.model_validate({"agent": {"max_turns": 30}})
+_READER = ["Read", "Grep", "Glob", "Bash"]
+_WRITER = [*_READER, "Edit", "Write", "MultiEdit"]
 
 
 class _Ask(BaseModel):
@@ -72,38 +61,12 @@ async def ask_for(asked: _Ask) -> Transition:
 
 class TestAllowedTools:
     @staticmethod
-    def test_a_reader_sees_and_runs_read_only_git() -> None:
-        assert allowed_tools("reader", _PROJECT) == _READER
+    def test_a_reader_reads_and_has_a_shell() -> None:
+        assert allowed_tools("reader") == _READER
 
     @staticmethod
-    def test_a_writer_edits_and_runs_what_the_project_allows() -> None:
-        assert allowed_tools("writer", _PROJECT) == _WRITER
-
-    # Whichever forge, and whatever the prompt is about: no role reaches a
-    # forge client at all, so nothing an agent runs can label, merge or write.
-    @staticmethod
-    def test_no_role_reaches_the_forge_on_either_forge() -> None:
-        forges: tuple[Forge, ...] = ("github", "gitlab")
-        roles: tuple[Role, ...] = ("reader", "writer", "resolver")
-        for forge in forges:
-            project = Project(forge=forge)
-            for role in roles:
-                allowed = allowed_tools(role, project)
-
-                assert not [one for one in allowed if "gh " in one or "glab " in one]
-
-    @staticmethod
-    def test_a_resolver_may_also_stage() -> None:
-        assert allowed_tools("resolver", _PROJECT) == [*_WRITER, "Bash(git add:*)"]
-
-    @staticmethod
-    def test_a_project_allowing_nothing_gives_no_bash_beyond_git() -> None:
-        assert allowed_tools("writer", Project()) == [
-            *_READER,
-            "Edit",
-            "Write",
-            "MultiEdit",
-        ]
+    def test_a_writer_also_edits() -> None:
+        assert allowed_tools("writer") == _WRITER
 
 
 class TestAsk:
@@ -111,11 +74,11 @@ class TestAsk:
     def test_every_call_is_bound_by_its_role(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        assert trial.walk(ask, _Ask(role="resolver")) == done(_Came())
+        assert trial.walk(ask, _Ask(role="writer")) == done(_Came())
         assert trial.coding.calls[0].model == "opus"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
-            allowed_tools=[*_WRITER, "Bash(git add:*)"],
+            allowed_tools=_WRITER,
             effort="high",
             max_turns=30,
         )
