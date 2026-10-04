@@ -55,7 +55,15 @@ _GREEN_ROW = Checked(
     unpushed=0,
 )
 _NO_THREADS = json.dumps(
-    {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}}
+    {
+        "data": {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {"pageInfo": {"hasNextPage": False}, "nodes": []}
+                }
+            }
+        }
+    }
 )
 _GREEN_BOARD = json.dumps(
     {

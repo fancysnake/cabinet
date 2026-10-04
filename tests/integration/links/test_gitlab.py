@@ -1,6 +1,7 @@
 """What is said to glab, and what is made of the answer."""
 
 import json
+from collections.abc import Iterable
 
 import pytest
 from pydantic import BaseModel
@@ -19,7 +20,10 @@ _LIST = (
     "glab api 'projects/:id/merge_requests"
     "?scope=created_by_me&state=opened&per_page=100'"
 )
-_DISCUSSIONS = "glab api 'projects/:id/merge_requests/7/discussions?per_page=100'"
+_DISCUSSIONS = (
+    "glab api 'projects/:id/merge_requests/7/discussions?per_page=100&page=1'"
+)
+_SECOND = "glab api 'projects/:id/merge_requests/7/discussions?per_page=100&page=2'"
 _STATUSES = "glab api 'projects/:id/repository/commits/feature/statuses?per_page=100'"
 _MR = "glab api projects/:id/merge_requests/7"
 _THREAD = Thread(
@@ -42,6 +46,27 @@ def _mr(iid: int, **extra: object) -> dict[str, object]:
         "labels": [],
         **extra,
     }
+
+
+# Open discussions, one note each, numbered by `numbers`.
+def _discussions(numbers: Iterable[int]) -> str:
+    return json.dumps(
+        [
+            {"id": f"d{one}", "notes": [{"id": one, "resolvable": True}]}
+            for one in numbers
+        ]
+    )
+
+
+def _opened(numbers: Iterable[int]) -> list[Thread]:
+    return [
+        Thread(
+            id=f"d{one}",
+            resolved=False,
+            comments=[Comment(id=str(one), author="", body="")],
+        )
+        for one in numbers
+    ]
 
 
 class _Ask(BaseModel):
@@ -240,6 +265,37 @@ class TestThreads:
         trial.shell.replies(when=_DISCUSSIONS, stdout=json.dumps(answer))
 
         assert trial.walk(threads, _Ask()) == done(_Threads(threads=[_THREAD]))
+
+    @staticmethod
+    def test_discussions_past_a_full_page_are_asked_for(trial: Trial) -> None:
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
+        trial.shell.replies(when=_SECOND, stdout=_discussions([100]))
+
+        transition = trial.walk(threads, _Ask())
+
+        assert transition == done(_Threads(threads=_opened(range(101))))
+        assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
+
+    # The API says nothing about what is left, so a full last page costs one
+    # more ask, which comes back empty.
+    @staticmethod
+    def test_an_exactly_full_last_page(trial: Trial) -> None:
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
+        trial.shell.replies(when=_SECOND, stdout="[]")
+
+        transition = trial.walk(threads, _Ask())
+
+        assert transition == done(_Threads(threads=_opened(range(100))))
+        assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
+
+    @staticmethod
+    def test_a_short_page_is_the_last(trial: Trial) -> None:
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(3)))
+
+        transition = trial.walk(threads, _Ask())
+
+        assert transition == done(_Threads(threads=_opened(range(3))))
+        assert trial.shell.commands == [_DISCUSSIONS]
 
     @staticmethod
     def test_discussions_that_will_not_parse(trial: Trial) -> None:

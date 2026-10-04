@@ -139,6 +139,18 @@ async def _read(
         raise ForgeError(msg) from error
 
 
+# The listing at `path`, which carries `per_page` already, from `page` on. The
+# REST API says nothing about what is left, so a short page is the last one —
+# and a full one costs one more ask, which may come back empty.
+async def _pages(
+    adapter: TypeAdapter[list[_T]], path: str, complaint: str, what: str, page: int = 1
+) -> list[_T]:
+    rows = await _read(adapter, _api(f"{path}&page={page}"), complaint, what)
+    if len(rows) < _PAGE:
+        return rows
+    return rows + await _pages(adapter, path, complaint, what, page + 1)
+
+
 def _pull(found: _MergeRequest) -> PullRequest:
     return PullRequest(
         number=found.iid,
@@ -312,9 +324,9 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def threads(self, number: int) -> list[Thread]:
-        found = await _read(
+        found = await _pages(
             _DISCUSSIONS,
-            _api(f"projects/:id/merge_requests/{number}/discussions?per_page={_PAGE}"),
+            f"projects/:id/merge_requests/{number}/discussions?per_page={_PAGE}",
             "glab could not read the discussions",
             "discussions",
         )

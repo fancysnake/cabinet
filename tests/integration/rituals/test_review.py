@@ -55,7 +55,14 @@ def _threads(*nodes: dict[str, object]) -> str:
     return json.dumps(
         {
             "data": {
-                "repository": {"pullRequest": {"reviewThreads": {"nodes": list(nodes)}}}
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "pageInfo": {"hasNextPage": False},
+                            "nodes": list(nodes),
+                        }
+                    }
+                }
             }
         }
     )
@@ -68,7 +75,8 @@ def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
         "path": "src/thing.py",
         "line": 12,
         "comments": {
-            "nodes": [{"databaseId": 101, "author": {"login": "bot"}, "body": "guard"}]
+            "pageInfo": {"hasNextPage": False},
+            "nodes": [{"databaseId": 101, "author": {"login": "bot"}, "body": "guard"}],
         },
     }
 

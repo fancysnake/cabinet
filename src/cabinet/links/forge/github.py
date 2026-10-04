@@ -41,13 +41,26 @@ _BOARD = "repos/{{owner}}/{{repo}}/commits/{branch}/check-runs?per_page=100"
 # carries no resolution state: it answers a settled thread and a live one
 # identically, and a cast that cannot tell them apart works twice. Both ids
 # ride along: the reply endpoint takes `databaseId`, the mutation takes `id`.
+# Both connections are paged by cursor, the comments nested in each thread by
+# a query of their own: a page is never taken for the whole answer.
 _THREADS = """\
-query($owner: String!, $repo: String!, $number: Int!) {
+query($owner: String!, $repo: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $number) {
-      reviewThreads(first: 100) { nodes {
-        id isResolved path line
-        comments(first: 50) { nodes { databaseId author { login } body } } } } } } }"""
+      reviewThreads(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id isResolved path line
+          comments(first: 100) {
+            pageInfo { hasNextPage endCursor }
+            nodes { databaseId author { login } body } } } } } } }"""
+
+_COMMENTS = """\
+query($id: ID!, $after: String) {
+  node(id: $id) { ... on PullRequestReviewThread {
+    comments(first: 100, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes { databaseId author { login } body } } } } }"""
 
 _RESOLVE = """\
 mutation($id: ID!) {
@@ -130,7 +143,19 @@ class _Comment(BaseModel):
     body: str = ""
 
 
+# Required wherever a connection is read: without it a full page and the
+# whole answer look the same.
+class _Page(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    more: bool = Field(alias="hasNextPage")
+    cursor: str | None = Field(default=None, alias="endCursor")
+
+
 class _Comments(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    page: _Page = Field(alias="pageInfo")
     nodes: list[_Comment] = []
 
 
@@ -141,10 +166,13 @@ class _Thread(BaseModel):
     resolved: bool = Field(alias="isResolved")
     path: str | None = None
     line: int | None = None
-    comments: _Comments = _Comments()
+    comments: _Comments
 
 
 class _ThreadNodes(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    page: _Page = Field(alias="pageInfo")
     nodes: list[_Thread] = []
 
 
@@ -159,6 +187,14 @@ class _Threads(BaseModel):
     threads: _ThreadNodes = Field(
         validation_alias=AliasPath("data", "repository", "pullRequest", "reviewThreads")
     )
+
+
+# Required for the reason `_Threads` is: a `node: null` answer is not a thread
+# with nothing more said on it.
+class _MoreComments(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    comments: _Comments = Field(validation_alias=AliasPath("data", "node", "comments"))
 
 
 class _Issue(BaseModel):
@@ -280,7 +316,54 @@ async def _link(path: str, field: str, other: int, complaint: str) -> None:
         raise
 
 
-def _thread(found: _Thread) -> Thread:
+# Where the next page starts; nothing on the first.
+def _after(cursor: str | None) -> tuple[str, ...]:
+    return () if cursor is None else (f"-f after={quoted(cursor)}",)
+
+
+async def _thread_page(number: int, cursor: str | None) -> _ThreadNodes:
+    answered = await asked(
+        _graphql(_THREADS, *_after(cursor), f"-F number={number}"),
+        "gh could not read the threads",
+    )
+    try:
+        return _Threads.model_validate_json(answered).threads
+    except ValidationError as error:
+        msg = f"gh returned threads this could not read: {error}"
+        raise ForgeError(msg) from error
+
+
+async def _comment_page(thread: str, cursor: str | None) -> _Comments:
+    answered = await asked(
+        _graphql(_COMMENTS, f"-f id={quoted(thread)}", *_after(cursor)),
+        f"gh could not read the comments on thread {thread}",
+    )
+    try:
+        return _MoreComments.model_validate_json(answered).comments
+    except ValidationError as error:
+        msg = f"gh returned comments this could not read: {error}"
+        raise ForgeError(msg) from error
+
+
+# Every comment from the page in hand on, asking for the rest.
+async def _comment_nodes(thread: str, held: _Comments) -> list[_Comment]:
+    if not held.page.more:
+        return held.nodes
+    rest = await _comment_page(thread, held.page.cursor)
+    return held.nodes + await _comment_nodes(thread, rest)
+
+
+# Every thread from the page `cursor` starts on.
+async def _threads_from(number: int, cursor: str | None) -> list[Thread]:
+    page = await _thread_page(number, cursor)
+    found = [await _thread(node) for node in page.nodes]
+    if not page.page.more:
+        return found
+    return found + await _threads_from(number, page.page.cursor)
+
+
+async def _thread(found: _Thread) -> Thread:
+    nodes = await _comment_nodes(found.id, found.comments)
     return Thread(
         id=found.id,
         resolved=found.resolved,
@@ -292,7 +375,7 @@ def _thread(found: _Thread) -> Thread:
                 author=comment.author.login if comment.author else "",
                 body=comment.body,
             )
-            for comment in found.comments.nodes
+            for comment in nodes
         ],
     )
 
@@ -334,15 +417,7 @@ class GithubForge(ForgeProtocol):
 
     @override
     async def threads(self, number: int) -> list[Thread]:
-        answered = await asked(
-            _graphql(_THREADS, f"-F number={number}"), "gh could not read the threads"
-        )
-        try:
-            found = _Threads.model_validate_json(answered)
-        except ValidationError as error:
-            msg = f"gh returned threads this could not read: {error}"
-            raise ForgeError(msg) from error
-        return [_thread(node) for node in found.threads.nodes]
+        return await _threads_from(number, None)
 
     # The path without the number answers 404, and the reply goes under the
     # thread's first comment: that is the one the REST id names a thread by.

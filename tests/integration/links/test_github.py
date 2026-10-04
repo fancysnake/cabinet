@@ -28,6 +28,38 @@ _THREAD = Thread(
     line=12,
     comments=[Comment(id="101", author="reviewer", body="guard this")],
 )
+_LAST = {"hasNextPage": False}
+_GRAPHQL = "slug=*gh api graphql*"
+_REPO = ' -f repo="${slug#*/}"'
+
+
+# One page of a connection, with a cursor to the next where there is one.
+def _page(nodes: list[dict[str, object]], cursor: str = "") -> dict[str, object]:
+    info = {"hasNextPage": True, "endCursor": cursor} if cursor else _LAST
+    return {"pageInfo": info, "nodes": nodes}
+
+
+def _comment(number: int) -> dict[str, object]:
+    return {"databaseId": number, "author": {"login": "reviewer"}, "body": "hm"}
+
+
+def _node(node_id: str, comments: dict[str, object]) -> dict[str, object]:
+    return {"id": node_id, "isResolved": False, "comments": comments}
+
+
+def _threads_page(page: dict[str, object]) -> str:
+    return json.dumps(
+        {"data": {"repository": {"pullRequest": {"reviewThreads": page}}}}
+    )
+
+
+def _comments_page(page: dict[str, object]) -> str:
+    return json.dumps({"data": {"node": {"comments": page}}})
+
+
+def _open(node_id: str, *numbers: int) -> Thread:
+    comments = [Comment(id=str(one), author="reviewer", body="hm") for one in numbers]
+    return Thread(id=node_id, resolved=False, comments=comments)
 
 
 def _row(number: int, **extra: object) -> dict[str, object]:
@@ -237,6 +269,7 @@ class TestThreads:
                 "repository": {
                     "pullRequest": {
                         "reviewThreads": {
+                            "pageInfo": _LAST,
                             "nodes": [
                                 {
                                     "id": "PRRT_1",
@@ -244,13 +277,14 @@ class TestThreads:
                                     "path": "src/thing.py",
                                     "line": 12,
                                     "comments": {
+                                        "pageInfo": _LAST,
                                         "nodes": [
                                             {
                                                 "databaseId": 101,
                                                 "author": {"login": "reviewer"},
                                                 "body": "guard this",
                                             }
-                                        ]
+                                        ],
                                     },
                                 },
                                 {
@@ -258,9 +292,9 @@ class TestThreads:
                                     "isResolved": True,
                                     "path": None,
                                     "line": None,
-                                    "comments": {"nodes": []},
+                                    "comments": {"pageInfo": _LAST, "nodes": []},
                                 },
-                            ]
+                            ],
                         }
                     }
                 }
@@ -274,6 +308,66 @@ class TestThreads:
             _Threads(threads=[_THREAD, Thread(id="PRRT_2", resolved=True)])
         )
         assert trial.shell.commands[0].endswith(' -f repo="${slug#*/}" -F number=7')
+
+    @staticmethod
+    def test_threads_past_the_first_page_are_asked_for(trial: Trial) -> None:
+        first = _page([_node("PRRT_1", _page([_comment(101)]))], cursor="c1")
+        second = _page([_node("PRRT_2", _page([_comment(102)]))])
+        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(first))
+        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(second))
+
+        transition = trial.walk(threads, _Ask())
+
+        assert transition == done(
+            _Threads(threads=[_open("PRRT_1", 101), _open("PRRT_2", 102)])
+        )
+        assert trial.shell.commands[0].endswith(f"{_REPO} -F number=7")
+        assert trial.shell.commands[1].endswith(f"{_REPO} -f after=c1 -F number=7")
+
+    @staticmethod
+    def test_a_full_last_page_is_the_last(trial: Trial) -> None:
+        nodes = [_node(f"PRRT_{one}", _page([])) for one in range(100)]
+        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(_page(nodes)))
+
+        transition = trial.walk(threads, _Ask())
+
+        assert transition == done(
+            _Threads(threads=[_open(f"PRRT_{one}") for one in range(100)])
+        )
+        assert len(trial.shell.commands) == 1
+
+    @staticmethod
+    def test_comments_past_the_first_page_are_asked_for(trial: Trial) -> None:
+        held = _page([_node("PRRT_1", _page([_comment(101)], cursor="k1"))])
+        rest = _page([_comment(102)], cursor="k2")
+        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(held))
+        trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(rest))
+        trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(_page([])))
+
+        transition = trial.walk(threads, _Ask())
+
+        assert transition == done(_Threads(threads=[_open("PRRT_1", 101, 102)]))
+        assert trial.shell.commands[1].endswith(f"{_REPO} -f id=PRRT_1 -f after=k1")
+        assert trial.shell.commands[2].endswith(f"{_REPO} -f id=PRRT_1 -f after=k2")
+
+    # Without it a full page reads as the whole answer, which is the cut this
+    # is here to refuse.
+    @staticmethod
+    def test_an_answer_that_does_not_say_if_there_is_more(trial: Trial) -> None:
+        answer = _threads_page({"nodes": []})
+        trial.shell.replies(when=_GRAPHQL, stdout=answer)
+
+        with pytest.raises(ForgeError, match="threads this could not read"):
+            trial.walk(threads, _Ask())
+
+    @staticmethod
+    def test_more_comments_on_a_thread_that_is_gone(trial: Trial) -> None:
+        held = _page([_node("PRRT_1", _page([], cursor="k1"))])
+        trial.shell.replies(when=_GRAPHQL, stdout=_threads_page(held))
+        trial.shell.replies(when=_GRAPHQL, stdout='{"data": {"node": null}}')
+
+        with pytest.raises(ForgeError, match="comments this could not read"):
+            trial.walk(threads, _Ask())
 
     @staticmethod
     def test_an_answer_that_will_not_parse(trial: Trial) -> None:

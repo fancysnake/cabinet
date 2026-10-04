@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning].
 - `release-bump` documents what the release added and updates every skill,
   agent and command in the repository.
 
+### Fixed
+
+- `review` and `refresh` read every review thread and every comment on it,
+  not only the first page of each.
+
 ## [2.0.0] - 2026-10-03
 
 ### Changed
