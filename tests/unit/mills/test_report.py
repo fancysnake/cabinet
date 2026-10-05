@@ -95,6 +95,14 @@ class TestReview:
             "\n\nthe cast stopped: red\nnot polled:     feature"
         )
 
+    @staticmethod
+    def test_a_cast_out_of_steps_names_what_it_left() -> None:
+        picking = Picking(project=_PROJECT, bound=2, queue=[_PULL])
+
+        assert _REPORT.review(picking).endswith(
+            "\n\nout of steps, left for the next cast: feature"
+        )
+
 
 class TestTriage:
     @staticmethod

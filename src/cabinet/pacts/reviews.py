@@ -33,6 +33,13 @@ class Reviewed(BaseModel):
     note: str = ""
 
 
+# What a branch is given out of the cast's step budget: the rounds it may take,
+# and the worst those rounds and the steps around them can spend.
+class Share(BaseModel):
+    rounds: int
+    steps: int
+
+
 # What the cast is still to do and what it has done. Carried through every
 # step, because every ending goes round again — and the last one owes the
 # report.
@@ -43,6 +50,10 @@ class Picking(Hop):
     queue: list[PullRequest] = Field(default_factory=list)
     reviewed: list[Reviewed] = Field(default_factory=list)
     stopped: str = ""
+    # Steps the cast has spoken for out of the engine's budget: every step that
+    # works no branch, counted once the queue is known, and the worst each
+    # branch it took can spend.
+    reserved: int = 0
 
     # The steps that pick and recap, and no others: the steps that work one
     # branch are `Branch`'s.
@@ -57,15 +68,32 @@ class Picking(Hop):
         queue: list[PullRequest] | None = None,
         reviewed: list[Reviewed] | None = None,
         stopped: str | None = None,
+        reserved: int | None = None,
     ) -> Self:
-        update: dict[str, list[PullRequest] | list[Reviewed] | str] = {}
+        update: dict[str, list[PullRequest] | list[Reviewed] | str | int] = {}
         if queue is not None:
             update["queue"] = queue
         if reviewed is not None:
             update["reviewed"] = reviewed
         if stopped is not None:
             update["stopped"] = stopped
+        if reserved is not None:
+            update["reserved"] = reserved
         return self.model_copy(update=update)
+
+    # `pull` taken with the rounds its share gives it, and the steps the share
+    # costs spoken for.
+    def take(self, pull: PullRequest, share: Share) -> "Branch":
+        return Branch(
+            picking=self.but(reserved=self.reserved + share.steps),
+            name=pull.branch,
+            number=pull.number,
+            rounds=share.rounds,
+        )
+
+    def rowed(self, branch: str, outcome: Outcome, note: str = "") -> Self:
+        row = Reviewed(branch=branch, outcome=outcome, note=note)
+        return self.but(reviewed=[*self.reviewed, row])
 
 
 class Branch(Hop):
@@ -80,6 +108,9 @@ class Branch(Hop):
     # nothing has touched, which is the only one that can still be walked
     # away from without a commit.
     answered: int = 0
+    # Rounds this branch may still take, given by `pick` out of the cast's
+    # budget. Threads still open once they are spent wait for the next cast.
+    rounds: int
 
     # One branch's own steps: what comes after this branch is the `Picking`
     # this rides on, which routes itself.
@@ -96,7 +127,10 @@ class Branch(Hop):
 
     # Another round posted and settled.
     def taken(self, count: int) -> Self:
-        update: dict[str, int] = {"answered": self.answered + count}
+        update: dict[str, int] = {
+            "answered": self.answered + count,
+            "rounds": self.rounds - 1,
+        }
         return self.model_copy(update=update)
 
     @property
@@ -105,8 +139,7 @@ class Branch(Hop):
 
     # What this branch's turn came to, written where its turn ended.
     def rowed(self, outcome: Outcome, note: str = "") -> Picking:
-        row = Reviewed(branch=self.name, outcome=outcome, note=note)
-        return self.picking.but(reviewed=[*self.picking.reviewed, row])
+        return self.picking.rowed(self.name, outcome, note)
 
 
 class Triage(BaseModel):
@@ -149,7 +182,8 @@ class Landing(Budgeted):
 # the rows and nothing of what it took to collect them.
 class Recapped(BaseModel):
     reviewed: list[Reviewed] = []
-    # Branches the forge was never asked about, which only a cast that stopped
-    # leaves behind.
-    not_polled: list[str] = []
+    # Branches the cast never took, which only a cast that stopped or ran out
+    # of steps leaves behind: the first of them may have been polled, and
+    # found too big for what was left of the budget.
+    left: list[str] = []
     failed: str = ""

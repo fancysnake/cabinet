@@ -25,14 +25,10 @@ from cabinet.gates.ritual.vekna.review import (
 from cabinet.pacts.review import QueueUp
 from cabinet.pacts.reviews import Review
 from cabinet.pacts.services import services
-
-# The engine's backstop and nothing else: the repair loop is bounded by the
-# person sitting at it, and the branch loop by how many branches were reviewed
-# in the night.
-_MAX_STEPS = 400
+from cabinet.specs import STEPS
 
 
-@ritual("review", max_steps=_MAX_STEPS)
+@ritual("review", max_steps=STEPS)
 def review(components: Review) -> QueueUp:
     return QueueUp(
         project=services().project(), bound=components.bound, batch=components.batch

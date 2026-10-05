@@ -14,9 +14,14 @@ and this project adheres to [Semantic Versioning].
   own bump.
 - `release-bump` documents what the release added and updates every skill,
   agent and command in the repository.
+- `review`'s result lists the branches it did not take under `left`, not
+  `not_polled`.
 
 ### Fixed
 
+- `review` no longer runs out of steps mid-cast and loses its report: it
+  takes a branch only while its worst case fits, gives each branch one round
+  per batch, and leaves the rest for the next cast.
 - `cover`, `refresh` and `review` read every review thread and every comment on it,
   not only the first page of each.
 

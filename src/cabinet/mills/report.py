@@ -130,13 +130,15 @@ class Report(ReportProtocol):
             + (f" — {row.note}" if row.note else "")
             for row in picking.reviewed
         ] or ["  (none had a review waiting)"]
+        # A cast that ran to the end left nothing in the queue. One that
+        # stopped left branches the forge was never asked about, not branches
+        # with work outstanding; one out of steps left branches that may have.
+        left = ", ".join(pull.branch for pull in picking.queue)
         if picking.stopped:
-            # What is left in the queue only means anything here: a cast that
-            # ran to the end left nothing in it. These are branches the forge
-            # was never asked about, not branches with work outstanding.
-            left = ", ".join(pull.branch for pull in picking.queue)
             lines += ["", f"the cast stopped: {picking.stopped}"]
             lines += [f"not polled:     {left}"] if left else []
+        elif left:
+            lines += ["", f"out of steps, left for the next cast: {left}"]
         return "\n".join(lines)
 
     # The page as it goes to the agent, before anything is read or written: the

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Board, PullRequest, Run
     from cabinet.pacts.repairs import Attempt, Ruling
-    from cabinet.pacts.reviews import Picking
+    from cabinet.pacts.reviews import Picking, Share
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
     from cabinet.pacts.threads import Finding, Thread, TriageItem
@@ -93,6 +93,15 @@ class RepairsProtocol(Protocol):
     def ruling(self, attempt: Attempt) -> Ruling: ...
 
 
+class StepsProtocol(Protocol):
+    # Steps `review` spends on a queue of `queue` branches outside any branch.
+    def opening(self, queue: int) -> int: ...
+
+    # What the next branch, with `left` threads open, may spend; `None` where
+    # the budget has no room for it.
+    def share(self, picking: Picking, left: int) -> Share | None: ...
+
+
 class ReportProtocol(Protocol):
     # The review's items as they go on the pull request, each headed with the
     # review's own title.
@@ -127,6 +136,9 @@ class ServicesProtocol(Protocol):
 
     @property
     def repairs(self) -> RepairsProtocol: ...
+
+    @property
+    def steps(self) -> StepsProtocol: ...
 
     @property
     def report(self) -> ReportProtocol: ...

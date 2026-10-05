@@ -15,3 +15,8 @@ VERDICT_LINES = 12
 
 # A patch below this is a patch with a gap in it.
 WHOLE = 100.0
+
+# The engine's step budget for one `review` cast. Running out of it raises past
+# `recap` and loses the report, so `pick` keeps the cast under it by the worst
+# case of every branch it takes, and the engine's own check never fires.
+STEPS = 400

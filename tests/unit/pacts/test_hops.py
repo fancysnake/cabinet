@@ -43,7 +43,10 @@ class TestHeld:
     @staticmethod
     def test_a_field_holds_its_own_class_whatever_it_was_handed() -> None:
         reading = Branch(
-            picking=Picking(project=Project(), bound=2), name="feature", number=7
+            picking=Picking(project=Project(), bound=2),
+            name="feature",
+            number=7,
+            rounds=1,
         ).to(Read)
 
         assert Triage(branch=reading, items=[]).branch.__class__ is Branch

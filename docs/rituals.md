@@ -68,7 +68,9 @@ on to the next. For each branch you take:
 3. One agent fixes what you said to fix and writes a reply for every item.
    The ritual, the only thing that can reach the forge, opens the issues you
    said to file, posts the replies, and settles the threads.
-4. Another round fetches what the forge still holds open, until nothing is.
+4. Another round fetches what the forge still holds open, until nothing is
+   or the branch has had one round per batch it held when it was taken. A
+   thread that appears meanwhile waits for the next cast.
 5. The gate runs once, after the last round, repaired up to `--bound` times,
    and what came out is committed and pushed. No question in between: the
    answers you gave were the decision.
@@ -76,6 +78,9 @@ on to the next. For each branch you take:
 A gate that will not go green ends the cast rather than moving on, because the
 repair work is sitting uncommitted in the worktree. Discovering what was
 found, and settling it.
+
+A cast with no room left in its step budget for the next branch ends there
+without failing, and its report names the branches left for the next cast.
 
 ## identify
 

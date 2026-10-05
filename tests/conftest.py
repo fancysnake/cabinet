@@ -134,7 +134,9 @@ def work() -> Work:
 
 @pytest.fixture
 def branch() -> Branch:
-    return Branch(picking=Picking(project=Project(), bound=2), name="feature", number=7)
+    return Branch(
+        picking=Picking(project=Project(), bound=2), name="feature", number=7, rounds=2
+    )
 
 
 # A whole cast reads its project from the cwd, the way a real one does.
