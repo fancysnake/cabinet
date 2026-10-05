@@ -39,7 +39,9 @@ from tests.conftest import (
     checkpoint,
     commit,
     listing,
+    page,
     row,
+    threads_page,
 )
 from tests.integration.rituals.falling import falling
 
@@ -54,9 +56,7 @@ _GREEN_ROW = Checked(
     outcome="green",
     unpushed=0,
 )
-_NO_THREADS = json.dumps(
-    {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}}
-)
+_NO_THREADS = threads_page(page([]))
 _GREEN_BOARD = json.dumps(
     {
         "total_count": 3,

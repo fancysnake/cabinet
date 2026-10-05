@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning].
 - `review` no longer runs out of steps mid-cast and loses its report: it
   takes a branch only while its worst case fits, gives each branch one round
   per batch, and leaves the rest for the next cast.
+- `cover`, `refresh` and `review` read every review thread and every comment on it,
+  not only the first page of each.
 
 ## [2.0.0] - 2026-10-03
 
