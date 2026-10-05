@@ -13,6 +13,16 @@ class Comment(BaseModel):
     body: str
 
 
+# Hidden in what `review` posts, so the forge records how far a round got:
+# a reply carrying it answered its thread, and an issue body naming a thread
+# was filed for it.
+ANSWERED = "<!-- cabinet:answered -->"
+
+
+def filed_for(thread: str) -> str:
+    return f"<!-- cabinet:thread {thread} -->"
+
+
 class Thread(BaseModel):
     # Whatever the forge needs to settle it: a graphql node id on GitHub, a
     # discussion id on GitLab. Carried through the triage so the round that
@@ -22,6 +32,12 @@ class Thread(BaseModel):
     path: str = ""
     line: int | None = None
     comments: list[Comment] = []
+
+    # The last word, not any word: a reviewer answering the reply reopens
+    # the conversation.
+    @property
+    def answered(self) -> bool:
+        return bool(self.comments) and ANSWERED in self.comments[-1].body
 
 
 Priority = Literal["p1", "p2", "p3", "p4"]

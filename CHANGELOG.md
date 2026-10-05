@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning].
 - `review` no longer runs out of steps mid-cast and loses its report: it
   takes a branch only while its worst case fits, gives each branch one round
   per batch, and leaves the rest for the next cast.
+- `review` finishes a round an earlier cast's forge failure cut short, rather
+  than reading its threads again: an answered thread is settled, and one with
+  an issue already filed gets the reply naming it instead of a second issue.
 - `cover`, `refresh` and `review` read every review thread and every comment on it,
   not only the first page of each.
 

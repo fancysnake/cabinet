@@ -29,6 +29,13 @@ reply for every item — and the ritual, which is the only thing here that can
 reach the forge, opens the issues you said to file, posts the replies, and
 settles the threads.
 
+The forge is the record of how far that got. Each reply and each filed issue
+carries a hidden mark, so a cast the forge cut short partway leaves threads
+the next one recognises: a thread already answered is settled, and one with
+an issue filed for it gets the reply naming the issue, neither read again.
+That cast first needs a clean worktree: the agent's work from the cut-short
+round is yours to commit or set aside.
+
 A branch with more open threads than ``--batch`` goes round in batches: the
 first ``--batch`` are read, answered and settled, and the next round fetches
 what the forge still holds open. The gate runs once, after the last round, so
@@ -72,7 +79,7 @@ from cabinet.pacts.reviews import (
 )
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
-from cabinet.pacts.threads import Answered, Thread, TriageNotes
+from cabinet.pacts.threads import ANSWERED, Answered, Thread, TriageNotes, filed_for
 
 # One thread for every agent call in the cast, so a later round meets an agent
 # that remembers writing the one before.
@@ -184,6 +191,34 @@ async def _unsettled(branch: Branch) -> list[Thread]:
     return [thread for thread in threads if not thread.resolved]
 
 
+# A round an earlier cast's forge failure cut short, finished before anything
+# is read: a thread whose last word is the ritual's reply only wants settling,
+# and one an open issue was filed for wants the reply naming it. Only on a
+# branch's first round, because a failure mid-cast ends the cast. Answers with
+# the threads still to read.
+async def _finished(branch: Branch, threads: list[Thread]) -> list[Thread]:
+    if branch.answered:
+        return threads
+    forge = services().forge(branch.project)
+    unanswered = [thread for thread in threads if not thread.answered]
+    issues = (await forge.issues()).issues if unanswered else []
+    left: list[Thread] = []
+    for thread in threads:
+        if not thread.answered:
+            if (filed := services().backlog.filed(issues, thread.id)) is None:
+                left.append(thread)
+                continue
+            await forge.reply(branch.number, thread, _signed(f"Filed as {filed.url}"))
+        await forge.resolve(branch.number, thread)
+    if done := len(threads) - len(left):
+        emit_delta(f"{branch.name}: settled {done} threads an earlier cast left")
+    return left
+
+
+def _signed(reply: str) -> str:
+    return f"{reply}\n\n{ANSWERED}"
+
+
 # Where a round finds nothing to read. A branch with rounds behind it has the
 # work of those rounds sitting in the worktree, and that goes to the gate
 # whatever the forge says about the rest; a branch nothing touched is left as
@@ -202,7 +237,7 @@ async def read(branch: Read) -> Recap | Landing | Pick | Triage:
     # triaged against the code as it stands, and a thread the last round
     # settled is no longer open.
     try:
-        threads = await _unsettled(branch)
+        threads = await _finished(branch, await _unsettled(branch))
     except ForgeError as error:
         return _stopped(branch, str(error))
     if not threads:
@@ -284,9 +319,10 @@ async def _marked(branch: Branch, state: State) -> str:
 
 
 # An issue is opened before the reply that names it, and a thread is settled
-# after the reply that answers it. A thread the agent invented is reported and
-# skipped; a thread it left unanswered stays open, and the next round reads it
-# again. Answers with how many threads were settled.
+# after the reply that answers it; both carry a mark `_finished` reads back
+# when the forge fails between them. A thread the agent invented is reported
+# and skipped; a thread it left unanswered stays open, and the next round
+# reads it again. Answers with how many threads were settled.
 async def _posted(answering: Answering) -> int:
     branch = answering.branch
     forge = services().forge(branch.project)
@@ -298,9 +334,10 @@ async def _posted(answering: Answering) -> int:
             continue
         reply = item.reply
         if item.issue is not None:
-            opened = await forge.issue(item.issue.title, item.issue.body)
+            body = f"{item.issue.body}\n\n{filed_for(item.thread)}"
+            opened = await forge.issue(item.issue.title, body)
             reply = f"{reply}\n\nFiled as {opened.url}"
-        await forge.reply(branch.number, threads[item.thread], reply)
+        await forge.reply(branch.number, threads[item.thread], _signed(reply))
         await forge.resolve(branch.number, threads[item.thread])
         settled += 1
     return settled
