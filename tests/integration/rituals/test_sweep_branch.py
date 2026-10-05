@@ -12,6 +12,7 @@ from cabinet.gates.ritual.vekna.sweep import (
 )
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest, Run, Work
+from cabinet.pacts.services import services
 from cabinet.pacts.sweep import (
     CheckClean,
     ListPrs,
@@ -25,6 +26,7 @@ from cabinet.pacts.sweep import (
     SyncBranch,
     TakePass,
 )
+from cabinet.specs import SWEEP_STEPS
 from tests.conftest import LIST, STATUS, checkpoint, listing, row
 from tests.integration.rituals.falling import falling
 
@@ -53,6 +55,7 @@ class TestListPrs:
 
         assert isinstance(transition, NextPr)
         assert [pull.number for pull in transition.queue] == [7, 8]
+        assert transition.reserved == services().steps.opening(2)
 
     @staticmethod
     def test_a_forge_that_will_not_answer_ends_in_the_report(
@@ -96,11 +99,23 @@ class TestNextPr:
         trial: Trial, project: Project, pull: PullRequest
     ) -> None:
         other = pull.model_copy(update={"number": 8, "branch": "feature-8"})
-        run = Run(project=project, bound=3, queue=[pull, other])
+        run = Run(project=project, bound=3, queue=[pull, other], reserved=5)
+        share = services().steps.sweep_share(run)
+        assert share is not None
 
         assert trial.walk(next_pr, run.to(NextPr)) == Work(
-            run=run.but(queue=[other]), pr=pull
+            run=run.but(queue=[other], reserved=5 + share), pr=pull
         ).to(CheckClean)
+
+    # Nothing went wrong, so nothing fails: the branch stays on the queue, for
+    # the report to name.
+    @staticmethod
+    def test_a_branch_the_budget_has_no_room_for_ends_the_run(
+        trial: Trial, project: Project, pull: PullRequest
+    ) -> None:
+        full = Run(project=project, bound=3, queue=[pull], reserved=SWEEP_STEPS)
+
+        assert trial.walk(next_pr, full.to(NextPr)) == full.to(Reporting)
 
 
 class TestCheckClean:

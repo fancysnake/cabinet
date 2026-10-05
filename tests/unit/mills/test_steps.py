@@ -1,9 +1,10 @@
-"""How much of `review`'s step budget a cast speaks for, branch by branch."""
+"""How much of a cast's step budget it speaks for, branch by branch."""
 
 from cabinet.mills.steps import Steps
 from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import Run
 from cabinet.pacts.reviews import Picking, Share
-from cabinet.specs import STEPS
+from cabinet.specs import REVIEW_STEPS, SWEEP_STEPS
 
 # A bound of two: `look`, `land`, `settle`, and five `gates`.
 _AROUND = 8
@@ -13,6 +14,10 @@ _STEPS = Steps()
 
 def _picking(reserved: int = 0) -> Picking:
     return Picking(project=Project(), bound=2, batch=7, reserved=reserved)
+
+
+def _run(reserved: int = 0) -> Run:
+    return Run(project=Project(), bound=3, reserved=reserved)
 
 
 def _rounds(picking: Picking, left: int) -> int:
@@ -36,16 +41,38 @@ class TestShare:
 
     @staticmethod
     def test_as_many_as_the_budget_reaches() -> None:
-        picking = _picking(reserved=STEPS - _AROUND - 4 * _ROUNDS)
+        picking = _picking(reserved=REVIEW_STEPS - _AROUND - 4 * _ROUNDS)
 
         assert _rounds(picking, 40) == _ROUNDS
 
     @staticmethod
     def test_none_where_a_round_does_not_fit() -> None:
-        assert _STEPS.share(_picking(reserved=STEPS - _AROUND - 3), 1) is None
+        assert _STEPS.share(_picking(reserved=REVIEW_STEPS - _AROUND - 3), 1) is None
 
     @staticmethod
     def test_the_worst_the_rounds_can_spend() -> None:
         assert _STEPS.share(_picking(reserved=5), 8) == Share(
             rounds=_ROUNDS, steps=_AROUND + 4 * _ROUNDS
         )
+
+
+class TestSweepShare:
+    # A bound of three: nine steps walked once, four `resolve_conflicts` and
+    # seven runs of the gate's loop.
+    _WORST = 20
+
+    def test_the_worst_a_branch_can_spend(self) -> None:
+        assert _STEPS.sweep_share(_run()) == self._WORST
+
+    def test_a_branch_that_just_fits(self) -> None:
+        assert _STEPS.sweep_share(_run(SWEEP_STEPS - self._WORST)) == self._WORST
+
+    def test_none_where_the_branch_does_not_fit(self) -> None:
+        assert _STEPS.sweep_share(_run(SWEEP_STEPS - self._WORST + 1)) is None
+
+    @staticmethod
+    def test_the_most_the_forge_lists_fits_at_the_default_bound() -> None:
+        share = _STEPS.sweep_share(_run())
+        assert share is not None
+
+        assert _STEPS.opening(100) + 100 * share == SWEEP_STEPS

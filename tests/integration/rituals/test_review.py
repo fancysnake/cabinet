@@ -34,7 +34,7 @@ from cabinet.pacts.reviews import (
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
 from cabinet.rituals.review import review
-from cabinet.specs import STEPS
+from cabinet.specs import REVIEW_STEPS
 from tests.conftest import (
     HERE,
     LIST,
@@ -161,7 +161,7 @@ class TestPick:
         trial: Trial, project: Project, pull: PullRequest
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
-        full = Picking(project=project, bound=2, queue=[pull], reserved=STEPS)
+        full = Picking(project=project, bound=2, queue=[pull], reserved=REVIEW_STEPS)
 
         assert trial.walk(pick, full.to(Pick)) == full.to(Recap)
         assert len(trial.shell.commands) == 1

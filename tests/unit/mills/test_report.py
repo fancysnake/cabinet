@@ -63,6 +63,13 @@ class TestSweep:
             "not reached: feature\n\nthe run failed: gh died\n"
         )
 
+    @staticmethod
+    def test_what_was_left_for_the_next_run() -> None:
+        assert _REPORT.sweep(_run(queue=[_PULL])) == (
+            "refresh — 0 checked\n\n  (none)\n\n"
+            "out of steps, left for the next run: feature\n"
+        )
+
 
 class TestReview:
     @staticmethod

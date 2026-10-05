@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning].
 - `review` no longer runs out of steps mid-cast and loses its report: it
   takes a branch only while its worst case fits, gives each branch one round
   per batch, and leaves the rest for the next cast.
+- `refresh` and `cover` no longer run out of steps mid-branch and lose their
+  report: they take a branch only while its worst case fits, and leave the
+  rest for the next run. The budget now fits a hundred branches at the
+  default `--bound`.
 - `cover`, `refresh` and `review` read every review thread and every comment on it,
   not only the first page of each.
 

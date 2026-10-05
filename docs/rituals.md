@@ -31,6 +31,11 @@ worktree is released and the branch is reviewed on its last good commit, then
 reported blocked. Like *Purify Food and Drink*: what was there is still there,
 only fit to use.
 
+A run takes the next branch only while the worst that branch can spend still
+fits its step budget. One that does not fit ends the run without failing it,
+and the report names the branches left for the next run. The budget fits a
+hundred branches at the default `--bound`. `cover` keeps the same budget.
+
 ## cover
 
 *Abjuration.* The night's slow pass, and it asks before it spends. It takes
