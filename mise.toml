@@ -1,6 +1,6 @@
 [tools]
 actionlint = "1.7.12"
-hk = "2.0.1"
+hk = "2.4.0"
 pipx = "1.17.5"
 "pipx:poetry" = "2.5.1"
 pkl = "0.32.1"
