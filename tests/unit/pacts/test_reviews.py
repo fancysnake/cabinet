@@ -1,45 +1,36 @@
-"""How much of the step budget a branch may take, and what it is charged."""
+"""A branch taken out of the cast, and the rounds it spends."""
 
 from cabinet.pacts.project import Project
-from cabinet.pacts.reviews import STEPS, Branch, Picking
+from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.reviews import Branch, Picking, Share
 
-# A bound of two: `look`, the last `read`, `land`, `settle`, and five `gates`.
-_AROUND = 9
-_ROUNDS = 2
+_PULL = PullRequest(
+    number=7,
+    title="pr 7",
+    url="https://github.com/o/r/pull/7",
+    branch="feature",
+    base="main",
+    updated_at="2026-08-01T22:00:00Z",
+)
 
 
 def _picking(reserved: int = 0) -> Picking:
-    return Picking(project=Project(), bound=2, batch=7, reserved=reserved)
+    return Picking(project=Project(), bound=2, reserved=reserved)
 
 
-class TestRoundsFor:
+class TestTake:
     @staticmethod
-    def test_one_round_per_batch() -> None:
-        assert [_picking().rounds_for(left) for left in (1, 7, 8, 40)] == [1, 1, 2, 6]
+    def test_the_share_is_given_and_spoken_for() -> None:
+        taken = _picking(reserved=5).take(_PULL, Share(rounds=2, steps=16))
 
-    @staticmethod
-    def test_as_many_as_the_budget_reaches() -> None:
-        picking = _picking(reserved=STEPS - _AROUND - 4 * _ROUNDS)
-
-        assert picking.rounds_for(40) == _ROUNDS
-
-    @staticmethod
-    def test_none_where_a_round_does_not_fit() -> None:
-        assert not _picking(reserved=STEPS - _AROUND - 3).rounds_for(1)
+        assert taken == Branch(
+            picking=_picking(reserved=21), name="feature", number=7, rounds=2
+        )
 
 
-class TestGiven:
-    @staticmethod
-    def test_the_worst_the_rounds_can_spend_is_reserved() -> None:
-        branch = Branch(picking=_picking(reserved=5), name="feature", number=7)
-
-        given = branch.given(_ROUNDS)
-
-        assert given.rounds == _ROUNDS
-        assert given.picking.reserved == 5 + _AROUND + 4 * _ROUNDS
-
+class TestTaken:
     @staticmethod
     def test_a_round_taken_is_one_fewer_left() -> None:
-        branch = Branch(picking=_picking(), name="feature", number=7).given(2)
+        branch = Branch(picking=_picking(), name="feature", number=7, rounds=2)
 
         assert branch.taken(3).rounds == 1

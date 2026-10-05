@@ -60,8 +60,8 @@ moving modules.
 | layer      | holds                                                         | may import               |
 | ---------- | ------------------------------------------------------------- | ------------------------ |
 | `pacts/`   | pydantic payloads, `Project` config, protocols (forge/scm/tasks/agent/services) | nothing internal |
-| `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`)       | pacts                    |
-| `mills/`   | pure logic: `Pulls`, `Backlog`, `Verdicts`, `Prompts`, `Repairs`, `Report` | pacts, specs           |
+| `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`, `STEPS`) | pacts                 |
+| `mills/`   | pure logic: `Pulls`, `Backlog`, `Verdicts`, `Prompts`, `Repairs`, `Report`, `Steps` | pacts, specs  |
 | `links/`   | adapters: `forge/{github,gitlab}`, `scm/git`, `tasks/mise`, `agent/claude`, `config/vekna_toml` | pacts only; `links/*` subpackages independent of each other |
 | `gates/`   | `@step` bodies (`gates/ritual/vekna/{sweep,review,identify,labels,marking}.py`) | pacts only            |
 | `inits/`   | `Services` binds concrete adapters, `wire()`                   | everything               |

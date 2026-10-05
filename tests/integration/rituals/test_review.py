@@ -21,7 +21,6 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.review import Land, Look, Pick, QueueUp, Read, Recap, Settle
 from cabinet.pacts.reviews import (
-    STEPS,
     Answering,
     Branch,
     Instructed,
@@ -32,8 +31,10 @@ from cabinet.pacts.reviews import (
     Reviewed,
     Triage,
 )
+from cabinet.pacts.services import services
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
 from cabinet.rituals.review import review
+from cabinet.specs import STEPS
 from tests.conftest import (
     HERE,
     LIST,
@@ -81,6 +82,13 @@ def _gave_up(transition: Transition) -> str:
     return transition.stopped
 
 
+# A branch taken with whatever share of the budget `pick` would give it.
+def _taken(picking: Picking, pull: PullRequest, left: int) -> Branch:
+    share = services().steps.share(picking, left)
+    assert share is not None
+    return picking.take(pull, share)
+
+
 def _preflight(trial: Trial) -> None:
     trial.shell.replies(
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
@@ -110,8 +118,7 @@ class TestQueueUp:
 
         assert isinstance(transition, Pick)
         assert [pull.number for pull in transition.queue] == [8, 7]
-        # `queue_up`, a `pick` per branch and the one that finds none, `recap`.
-        assert transition.reserved == len(transition.queue) + 3
+        assert transition.reserved == services().steps.opening(2)
 
     @staticmethod
     def test_a_forge_that_will_not_answer_ends_the_cast(
@@ -141,16 +148,11 @@ class TestPick:
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(when=STATUS)
+        taken = _taken(Picking(project=project, bound=2), pull, 1)
 
         assert trial.walk(
             pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
-        ) == Branch(
-            picking=Picking(project=project, bound=2), name="feature", number=7
-        ).given(
-            1
-        ).to(
-            Look
-        )
+        ) == taken.to(Look)
 
     # Nothing went wrong, so nothing fails: the branch goes back on the queue
     # it came off, for the report to name.
@@ -200,19 +202,11 @@ class TestPick:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
         stopped = "the worktree is not clean:\nM a.py"
+        taken = _taken(Picking(project=project, bound=2), pull, 1)
 
         assert trial.walk(
             pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
-        ) == Picking(
-            project=project,
-            bound=2,
-            reviewed=[Reviewed(branch="feature", outcome="stopped", note=stopped)],
-            stopped=stopped,
-        ).taking(
-            1
-        ).to(
-            Recap
-        )
+        ) == taken.rowed("stopped", stopped).but(stopped=stopped).to(Recap)
 
     @staticmethod
     def test_a_status_that_fails_ends_the_cast(
@@ -284,7 +278,10 @@ class TestRead:
         trial: Trial, project: Project
     ) -> None:
         branch = Branch(
-            picking=Picking(project=project, bound=2, batch=2), name="feature", number=7
+            picking=Picking(project=project, bound=2, batch=2),
+            name="feature",
+            number=7,
+            rounds=2,
         )
         trial.shell.replies(
             when=THREADS,
@@ -346,26 +343,13 @@ class TestRead:
         assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
         assert trial.deltas == ["feature: nothing is left open"]
 
-    # A thread opened after the branch was taken, or one a round left
-    # unanswered, is not read: the rounds were what the budget spoke for.
-    @staticmethod
-    def test_rounds_spent_are_the_gate_with_threads_still_open(
-        trial: Trial, branch: Branch
-    ) -> None:
-        trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_9")))
-        taken = branch.taken(7)
-
-        assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
-        assert trial.deltas == ["feature: 1 threads wait for the next cast"]
-        assert not trial.coding.prompts
-
     @staticmethod
     def test_a_reading_that_found_nothing_after_a_round_is_the_gate(
         trial: Trial, branch: Branch
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies(TriageNotes(items=[]))
-        taken = branch.given(2).taken(7)
+        taken = branch.taken(7)
 
         assert trial.walk(read, taken.to(Read)) == Landing(branch=taken)
 
@@ -463,6 +447,26 @@ class TestAnswer:
             "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies -f body=guarded"
         )
         assert trial.shell.commands[2].endswith("-f id=PRRT_1")
+
+    # A thread opened after the branch was taken, or one a round left
+    # unanswered, is not read: the rounds were what the budget spoke for.
+    @staticmethod
+    def test_the_last_round_is_the_gate_with_threads_still_open(
+        trial: Trial, branch: Branch
+    ) -> None:
+        trial.shell.replies(
+            when=THREADS, stdout=_threads(_node("PRRT_1"), _node("PRRT_9"))
+        )
+        trial.shell.replies(when="gh api repos/*")
+        trial.shell.replies(when="slug=*-f id=PRRT_1")
+        last = branch.taken(0)
+        answering = Answering(
+            branch=last,
+            items=[Answer(thread="PRRT_1", reply="guarded")],
+            threads=["PRRT_1"],
+        )
+
+        assert trial.walk(answer, answering) == Landing(branch=last.taken(1))
 
     @staticmethod
     def test_an_issue_is_opened_and_named_in_the_reply(
@@ -699,7 +703,6 @@ class TestWholeCast:
             "plan",
             "work",
             "answer",
-            "read",
             "gates",
             "land",
             "settle",
@@ -784,7 +787,6 @@ class TestWholeCast:
             "plan",
             "work",
             "answer",
-            "read",
             "gates",
             "land",
             "settle",
@@ -797,3 +799,67 @@ class TestWholeCast:
         assert trial.deltas[0] == "feature: 3 threads open, reading 2 of them"
         assert trial.shell.commands.count(_GATE) == 1
         assert trial.shell.commands[-1] == _DONE
+
+    # Every round the branch was given, and every repair the bound allows: the
+    # longest a branch can run, and exactly what its share spoke for.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_the_worst_a_branch_can_spend_is_what_was_reserved(trial: Trial) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(row(7, labels=[{"name": "pr::thermo"}]))
+        )
+        trial.shell.replies(when=HERE, stdout="feature\n")
+        both = _threads(_node("PRRT_1"), _node("PRRT_2"))
+        trial.shell.replies(when=THREADS, stdout=both)
+        trial.shell.replies(when=STATUS)
+        trial.decide.answers(answer=True, when="read the review on feature?")
+        trial.shell.replies(when="git checkout feature")
+        trial.decide.answers(answer="", when="1. *", always=True)
+        trial.shell.replies(when="gh pr edit 7*", always=True)
+        trial.shell.replies(when="gh api repos/*", always=True)
+        second = _threads(_node("PRRT_1", resolved=True), _node("PRRT_2"))
+        for thread, seen in (("PRRT_1", both), ("PRRT_2", second)):
+            trial.shell.replies(when=THREADS, stdout=seen)
+            trial.coding.replies(
+                TriageNotes(items=[_ITEM.model_copy(update={"thread": thread})]),
+                when="Triage the open*",
+            )
+            trial.coding.replies(
+                Answered(items=[Answer(thread=thread, reply="guarded")]),
+                when="Below is a triage*",
+            )
+            trial.shell.replies(when=THREADS, stdout=seen)
+            trial.shell.replies(when=f"slug=*-f id={thread}")
+        # Red on the whole gate, green on the task it named, twice over.
+        red = "[lint:ruff] ERROR task failed"
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="E501", stderr=red)
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="E501", stderr=red)
+        trial.shell.replies(when=_GATE)
+        trial.shell.replies(when="CI=1 mise run lint:ruff", always=True)
+        trial.coding.replies("fixed", when="*is this project's gate*", always=True)
+        trial.shell.replies(when="git add -A*")
+        trial.shell.replies(when="git push origin feature")
+        settled = _threads(
+            _node("PRRT_1", resolved=True), _node("PRRT_2", resolved=True)
+        )
+        trial.shell.replies(when=THREADS, stdout=settled)
+
+        result = trial.cast(review, Review(bound=2, batch=1))
+
+        assert result.reviewed == [Reviewed(branch="feature", outcome="shipped")]
+        assert trial.steps == [
+            "queue_up",
+            "pick",
+            "look",
+            *["read", "plan", "work", "answer"] * 2,
+            *["gates"] * 5,
+            "land",
+            "settle",
+            "pick",
+            "recap",
+        ]
+        share = services().steps.share(Picking(project=Project(), bound=2, batch=1), 2)
+        assert share is not None
+        assert len(trial.steps[2:-2]) == share.steps
+        assert len(trial.steps) == services().steps.opening(1) + share.steps

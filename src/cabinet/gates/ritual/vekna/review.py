@@ -59,7 +59,7 @@ from vekna.lexicon import Done, RitualError, emit_delta, step
 from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.project import State
+from cabinet.pacts.project import Project, State
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.review import Land, Look, Pick, QueueUp, Read, Recap, Settle
 from cabinet.pacts.reviews import (
@@ -113,18 +113,16 @@ async def queue_up(picking: QueueUp) -> Recap | Pick:
     ordered = [pull for pull in carrying if pull.branch == mine] + [
         pull for pull in carrying if pull.branch != mine
     ]
-    # Every step that works no branch, spoken for now that the queue is known:
-    # this one, a `pick` per branch and the one that finds the queue empty, and
-    # `recap`. The forge lists at most a hundred, so this always fits.
-    reserved = len(ordered) + 3
+    # Every step that works no branch, spoken for now that the queue is known.
+    reserved = services().steps.opening(len(ordered))
     return picking.but(queue=ordered, reserved=reserved).to(Pick)
 
 
 # `None` where the forge would not say, which is not "nothing to do": `pick`
 # skips that branch rather than calling it clean, and names it.
-async def _open_threads(branch: Branch) -> int | None:
+async def _open_threads(project: Project, number: int) -> int | None:
     try:
-        threads = await services().forge(branch.project).threads(branch.number)
+        threads = await services().forge(project).threads(number)
     except ForgeError:
         return None
     return sum(1 for thread in threads if not thread.resolved)
@@ -136,20 +134,18 @@ async def pick(picking: Pick) -> Recap | Pick | Look:
     if not picking.queue:
         return picking.to(Recap)
     pull, *rest = picking.queue
-    branch = Branch(
-        picking=picking.but(queue=rest), name=pull.branch, number=pull.number
-    )
-    if (left := await _open_threads(branch)) is None:
-        emit_delta(f"the forge would not say what is open on {branch.name}")
-        return branch.rowed("unread").to(Pick)
+    after = picking.but(queue=rest)
+    if (left := await _open_threads(picking.project, pull.number)) is None:
+        emit_delta(f"the forge would not say what is open on {pull.branch}")
+        return after.rowed(pull.branch, "unread").to(Pick)
     if not left:
         # The ordinary case, and the reason it earns no row.
-        return branch.picking.to(Pick)
+        return after.to(Pick)
     # Not a failure: nothing went wrong, and the report names what is left for
     # the next cast, this branch first.
-    if not (rounds := picking.rounds_for(left)):
+    if (share := services().steps.share(after, left)) is None:
         return picking.to(Recap)
-    return await _clean(branch.given(rounds))
+    return await _clean(after.take(pull, share))
 
 
 # Fatal, and before every checkout: `look` moves branches around and later
@@ -211,8 +207,6 @@ async def read(branch: Read) -> Recap | Landing | Pick | Triage:
         return _stopped(branch, str(error))
     if not threads:
         return _no_more(branch, "nothing is left open")
-    if not branch.rounds:
-        return _no_more(branch, f"{len(threads)} threads wait for the next cast")
     batch = threads[: branch.batch]
     if len(batch) < len(threads):
         emit_delta(
@@ -323,10 +317,14 @@ async def answer(answering: Answering) -> Recap | Landing | Read:
     # Round again rather than straight to the gate: what the forge still holds
     # open is the next batch, and `read` is what finds out there is none. A
     # round that settled nothing would read the same batch back, so it goes to
-    # the gate with whatever the agent did change.
+    # the gate with whatever the agent did change. The last round goes there
+    # too: what is still open waits for the next cast, and `settle` counts it.
     if not settled:
         return Landing(branch=answering.branch)
-    return answering.branch.taken(settled).to(Read)
+    taken = answering.branch.taken(settled)
+    if not taken.rounds:
+        return Landing(branch=taken)
+    return taken.to(Read)
 
 
 # Run the gate, repairing it up to the bound.
@@ -388,7 +386,7 @@ async def land(branch: Land) -> Recap | Settle:
 # Mark the branch done where the forge says nothing is left open.
 @step
 async def settle(branch: Settle) -> Pick:
-    left = await _open_threads(branch)
+    left = await _open_threads(branch.project, branch.number)
     if left is None:
         note = "the forge would not say what is left open"
     elif left:
@@ -413,7 +411,7 @@ def recap(picking: Recap) -> Done[Recapped]:
     return Done(
         Recapped(
             reviewed=picking.reviewed,
-            not_polled=[pull.branch for pull in picking.queue],
+            left=[pull.branch for pull in picking.queue],
             failed=picking.stopped,
         )
     )

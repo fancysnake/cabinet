@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning].
   own bump.
 - `release-bump` documents what the release added and updates every skill,
   agent and command in the repository.
+- `review`'s result lists the branches it did not take under `left`, not
+  `not_polled`.
 
 ### Fixed
 

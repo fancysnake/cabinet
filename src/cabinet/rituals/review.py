@@ -23,8 +23,9 @@ from cabinet.gates.ritual.vekna.review import (
     work,
 )
 from cabinet.pacts.review import QueueUp
-from cabinet.pacts.reviews import STEPS, Review
+from cabinet.pacts.reviews import Review
 from cabinet.pacts.services import services
+from cabinet.specs import STEPS
 
 
 @ritual("review", max_steps=STEPS)

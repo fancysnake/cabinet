@@ -1,6 +1,5 @@
 """What the review-answering cast carries from branch to branch."""
 
-from math import ceil
 from typing import Literal, Self, TypeVar
 
 from pydantic import BaseModel, Field
@@ -13,13 +12,6 @@ from cabinet.pacts.threads import Answer, TriageItem
 
 _PickingT = TypeVar("_PickingT", bound="Picking")
 _BranchT = TypeVar("_BranchT", bound="Branch")
-
-# The engine's step budget for one cast. Running out of it raises past
-# `recap` and loses the report, so `pick` keeps the cast under it by the worst
-# case of every branch it takes, and the engine's own check never fires.
-STEPS = 400
-# One round is `read`, `plan`, `work` and `answer`.
-_ROUND = 4
 
 
 class Review(BaseModel):
@@ -41,6 +33,13 @@ class Reviewed(BaseModel):
     note: str = ""
 
 
+# What a branch is given out of the cast's step budget: the rounds it may take,
+# and the worst those rounds and the steps around them can spend.
+class Share(BaseModel):
+    rounds: int
+    steps: int
+
+
 # What the cast is still to do and what it has done. Carried through every
 # step, because every ending goes round again — and the last one owes the
 # report.
@@ -51,9 +50,9 @@ class Picking(Hop):
     queue: list[PullRequest] = Field(default_factory=list)
     reviewed: list[Reviewed] = Field(default_factory=list)
     stopped: str = ""
-    # Steps the cast has spoken for out of `STEPS`: every step that works no
-    # branch, counted once the queue is known, and the worst each branch it
-    # took can spend.
+    # Steps the cast has spoken for out of the engine's budget: every step that
+    # works no branch, counted once the queue is known, and the worst each
+    # branch it took can spend.
     reserved: int = 0
 
     # The steps that pick and recap, and no others: the steps that work one
@@ -82,21 +81,19 @@ class Picking(Hop):
             update["reserved"] = reserved
         return self.model_copy(update=update)
 
-    # Rounds a branch with `left` threads open may take: one per batch, as far
-    # as the budget reaches. Zero is a branch the budget has no room for.
-    def rounds_for(self, left: int) -> int:
-        room = (STEPS - self.reserved - self._around()) // _ROUND
-        return max(0, min(ceil(left / self.batch), room))
+    # `pull` taken with the rounds its share gives it, and the steps the share
+    # costs spoken for.
+    def take(self, pull: PullRequest, share: Share) -> "Branch":
+        return Branch(
+            picking=self.but(reserved=self.reserved + share.steps),
+            name=pull.branch,
+            number=pull.number,
+            rounds=share.rounds,
+        )
 
-    # The worst a branch given `rounds` can spend, spoken for.
-    def taking(self, rounds: int) -> Self:
-        return self.but(reserved=self.reserved + self._around() + _ROUND * rounds)
-
-    # What a branch spends besides its rounds: `look`, the `read` that finds
-    # no more, `land`, `settle`, and `gates` — a whole run and a narrowed one
-    # for every repair the bound allows, then the last whole run.
-    def _around(self) -> int:
-        return 2 * self.bound + 5
+    def rowed(self, branch: str, outcome: Outcome, note: str = "") -> Self:
+        row = Reviewed(branch=branch, outcome=outcome, note=note)
+        return self.but(reviewed=[*self.reviewed, row])
 
 
 class Branch(Hop):
@@ -113,20 +110,12 @@ class Branch(Hop):
     answered: int = 0
     # Rounds this branch may still take, given by `pick` out of the cast's
     # budget. Threads still open once they are spent wait for the next cast.
-    rounds: int = 1
+    rounds: int
 
     # One branch's own steps: what comes after this branch is the `Picking`
     # this rides on, which routes itself.
     def to(self, kind: type[_BranchT]) -> _BranchT:
         return self._rebuilt(kind)
-
-    # Taken with `rounds` to spend, and the worst they cost spoken for.
-    def given(self, rounds: int) -> Self:
-        update: dict[str, int | Picking] = {
-            "rounds": rounds,
-            "picking": self.picking.taking(rounds),
-        }
-        return self.model_copy(update=update)
 
     @property
     def bound(self) -> int:
@@ -150,8 +139,7 @@ class Branch(Hop):
 
     # What this branch's turn came to, written where its turn ended.
     def rowed(self, outcome: Outcome, note: str = "") -> Picking:
-        row = Reviewed(branch=self.name, outcome=outcome, note=note)
-        return self.picking.but(reviewed=[*self.picking.reviewed, row])
+        return self.picking.rowed(self.name, outcome, note)
 
 
 class Triage(BaseModel):
@@ -195,6 +183,7 @@ class Landing(Budgeted):
 class Recapped(BaseModel):
     reviewed: list[Reviewed] = []
     # Branches the cast never took, which only a cast that stopped or ran out
-    # of steps leaves behind.
-    not_polled: list[str] = []
+    # of steps leaves behind: the first of them may have been polled, and
+    # found too big for what was left of the budget.
+    left: list[str] = []
     failed: str = ""
