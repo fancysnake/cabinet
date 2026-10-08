@@ -24,4 +24,7 @@ REVIEW_STEPS = 400
 # The same for one `refresh` or `cover` cast, kept by `next_pr`. Big enough that
 # the most GitHub lists, a hundred branches, each fits at the default bound
 # of three: twenty steps a branch at worst, and a hundred and three around them.
+# `REVIEW_STEPS` has no such sum behind it: a review branch's share stretches
+# its rounds to whatever room is left, so there is no fixed worst case to size
+# it by.
 SWEEP_STEPS = 100 * 20 + 103

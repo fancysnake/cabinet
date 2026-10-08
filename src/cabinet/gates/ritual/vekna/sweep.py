@@ -117,8 +117,8 @@ async def list_prs(run: ListPrs) -> Reporting | NextPr:
         return run.but(stopped=str(error)).to(Reporting)
     queue = services().pulls.wanted(pulls, run.project)
     # Every step that works no branch, spoken for now that the queue is known.
-    reserved = services().steps.opening(len(queue))
-    return run.but(queue=queue, reserved=reserved).to(NextPr)
+    opening = services().steps.opening(len(queue))
+    return run.but(queue=queue).spoke_for(opening).to(NextPr)
 
 
 @step
@@ -131,8 +131,7 @@ def next_pr(run: NextPr) -> Reporting | CheckClean:
     if (share := services().steps.sweep_share(run)) is None:
         return run.to(Reporting)
     pull, *rest = run.queue
-    # A fresh Work per pull request, so no budget survives the branch change.
-    return CheckClean(run=run.but(queue=rest, reserved=run.reserved + share), pr=pull)
+    return run.but(queue=rest).take(pull, share).to(CheckClean)
 
 
 @step

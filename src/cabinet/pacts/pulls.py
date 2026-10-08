@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Self, TypeAlias, TypeVar
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import Budgeted
+from cabinet.pacts.budgets import Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 
@@ -92,14 +92,8 @@ def joined(*parts: str) -> str:
     return "; ".join(part for part in parts if part)
 
 
-# Every field `Run.but` may route forward, in one annotation.
-_RunUpdate: TypeAlias = dict[
-    str, list[PullRequest] | list[Checked] | list[str] | str | int
-]
-
-
 # Every step carries this, because the report is owed however the cast ends.
-class Run(Hop):
+class Run(Reserving, Hop):
     project: Project
     bound: int
     mode: Mode = "refresh"
@@ -111,10 +105,6 @@ class Run(Hop):
     # so the next one can recognise it: a night where the same thing is broken
     # everywhere should pay for that answer once, not once per pull request.
     seen: list[str] = Field(default_factory=list)
-    # Steps the cast has spoken for out of the engine's budget: every step that
-    # works no branch, counted once the queue is known, and the worst each
-    # branch it took can spend.
-    reserved: int = 0
 
     # The run's own steps and no others: `pacts/sweep.py` names one class per
     # step, and the ones that take a branch are `Work`'s, not these.
@@ -131,9 +121,8 @@ class Run(Hop):
         checked: list[Checked] | None = None,
         stopped: str | None = None,
         seen: list[str] | None = None,
-        reserved: int | None = None,
     ) -> Self:
-        update: _RunUpdate = {}
+        update: dict[str, list[PullRequest] | list[Checked] | list[str] | str] = {}
         if queue is not None:
             update["queue"] = queue
         if checked is not None:
@@ -142,9 +131,12 @@ class Run(Hop):
             update["stopped"] = stopped
         if seen is not None:
             update["seen"] = seen
-        if reserved is not None:
-            update["reserved"] = reserved
         return self.model_copy(update=update)
+
+    # `pull` taken, with the worst it can spend spoken for. A fresh `Work`
+    # per pull request, so no budget survives the branch change.
+    def take(self, pull: PullRequest, steps: int) -> "Work":
+        return Work(run=self.spoke_for(steps), pr=pull)
 
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])

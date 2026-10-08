@@ -84,7 +84,7 @@ def _gave_up(transition: Transition) -> str:
 
 # A branch taken with whatever share of the budget `pick` would give it.
 def _taken(picking: Picking, pull: PullRequest, left: int) -> Branch:
-    share = services().steps.share(picking, left)
+    share = services().steps.review_share(picking, left)
     assert share is not None
     return picking.take(pull, share)
 
@@ -859,7 +859,9 @@ class TestWholeCast:
             "pick",
             "recap",
         ]
-        share = services().steps.share(Picking(project=Project(), bound=2, batch=1), 2)
+        share = services().steps.review_share(
+            Picking(project=Project(), bound=2, batch=1), 2
+        )
         assert share is not None
         assert len(trial.steps[2:-2]) == share.steps
         assert len(trial.steps) == services().steps.opening(1) + share.steps

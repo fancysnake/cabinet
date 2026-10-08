@@ -97,9 +97,9 @@ class StepsProtocol(Protocol):
     # Steps a cast spends on a queue of `queue` branches outside any branch.
     def opening(self, queue: int) -> int: ...
 
-    # What the next branch, with `left` threads open, may spend; `None` where
-    # the budget has no room for it.
-    def share(self, picking: Picking, left: int) -> Share | None: ...
+    # What the next review branch, with `left` threads open, may spend; `None`
+    # where the budget has no room for it.
+    def review_share(self, picking: Picking, left: int) -> Share | None: ...
 
     # What the next sweep branch may spend; `None` where the budget has no
     # room for it.

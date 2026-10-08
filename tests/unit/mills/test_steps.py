@@ -21,7 +21,7 @@ def _run(reserved: int = 0) -> Run:
 
 
 def _rounds(picking: Picking, left: int) -> int:
-    share = _STEPS.share(picking, left)
+    share = _STEPS.review_share(picking, left)
     assert share is not None
     return share.rounds
 
@@ -34,7 +34,7 @@ class TestOpening:
         assert _STEPS.opening(branches) == 1 + branches + 1 + 1
 
 
-class TestShare:
+class TestReviewShare:
     @staticmethod
     def test_one_round_per_batch() -> None:
         assert [_rounds(_picking(), left) for left in (1, 7, 8, 40)] == [1, 1, 2, 6]
@@ -47,11 +47,14 @@ class TestShare:
 
     @staticmethod
     def test_none_where_a_round_does_not_fit() -> None:
-        assert _STEPS.share(_picking(reserved=REVIEW_STEPS - _AROUND - 3), 1) is None
+        assert (
+            _STEPS.review_share(_picking(reserved=REVIEW_STEPS - _AROUND - 3), 1)
+            is None
+        )
 
     @staticmethod
     def test_the_worst_the_rounds_can_spend() -> None:
-        assert _STEPS.share(_picking(reserved=5), 8) == Share(
+        assert _STEPS.review_share(_picking(reserved=5), 8) == Share(
             rounds=_ROUNDS, steps=_AROUND + 4 * _ROUNDS
         )
 

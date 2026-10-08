@@ -104,7 +104,8 @@ class TestNextPr:
         assert share is not None
 
         assert trial.walk(next_pr, run.to(NextPr)) == Work(
-            run=run.but(queue=[other], reserved=5 + share), pr=pull
+            run=Run(project=project, bound=3, queue=[other], reserved=5 + share),
+            pr=pull,
         ).to(CheckClean)
 
     # Nothing went wrong, so nothing fails: the branch stays on the queue, for
