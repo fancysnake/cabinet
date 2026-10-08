@@ -31,8 +31,10 @@ settles the threads.
 
 The forge is the record of how far that got. Each reply and each filed issue
 carries a hidden mark, so a cast the forge cut short partway leaves threads
-the next one recognises: a thread already answered is settled, and one with
-an issue filed for it gets the reply naming the issue, neither read again.
+the next one recognises once it has checked the branch out: a thread already
+answered is settled, and one with an issue filed for it gets the reply naming
+the issue, neither read again. A forge that will not list every open issue
+ends the cast there, since it cannot say which threads already have one.
 That cast first needs a clean worktree: the agent's work from the cut-short
 round is yours to commit or set aside.
 
@@ -65,7 +67,8 @@ from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.gates.ritual.vekna.marking import mark
 from cabinet.pacts.agent import Fallen, Misread
-from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import Project, State
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.review import Land, Look, Pick, QueueUp, Read, Recap, Settle
@@ -79,7 +82,14 @@ from cabinet.pacts.reviews import (
 )
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
-from cabinet.pacts.threads import ANSWERED, Answered, Thread, TriageNotes, filed_for
+from cabinet.pacts.threads import (
+    Answered,
+    Thread,
+    TriageNotes,
+    filed_as,
+    filed_for,
+    signed,
+)
 
 # One thread for every agent call in the cast, so a later round meets an agent
 # that remembers writing the one before.
@@ -170,7 +180,7 @@ async def _clean(branch: Branch) -> Recap | Look:
 
 # Check the branch out.
 @step
-async def look(branch: Look) -> Pick | Read:
+async def look(branch: Look) -> Recap | Pick | Read:
     # Asked before the checkout: a `no` from the other side of the move leaves
     # you standing on a branch you did not ask for.
     if not await decide(f"read the review on {branch.name}?"):
@@ -183,7 +193,10 @@ async def look(branch: Look) -> Pick | Read:
     except ScmError as error:
         emit_delta(f"{branch.name} is checked out elsewhere: {error}")
         return branch.rowed("elsewhere", str(error)).to(Pick)
-    return branch.to(Read)
+    try:
+        return await _finished(branch)
+    except ForgeError as error:
+        return _stopped(branch, str(error))
 
 
 async def _unsettled(branch: Branch) -> list[Thread]:
@@ -193,36 +206,56 @@ async def _unsettled(branch: Branch) -> list[Thread]:
 
 # A round an earlier cast's forge failure cut short, finished before anything
 # is read: a thread whose last word is the ritual's reply only wants settling,
-# and one an open issue was filed for wants the reply naming it. Only on a
-# branch's first round, because a failure mid-cast ends the cast. Answers with
-# the threads still to read.
-async def _finished(branch: Branch, threads: list[Thread]) -> list[Thread]:
-    if branch.answered:
-        return threads
+# and one an open issue was filed for wants the reply naming it. On checkout
+# only: a failure mid-cast ends the cast, so only an earlier cast leaves one.
+# What it settles counts as answered, so a branch it settles outright still
+# goes to `settle`.
+async def _finished(branch: Branch) -> Recap | Read:
     forge = services().forge(branch.project)
+    threads = await _unsettled(branch)
+    answered = [thread for thread in threads if thread.answered]
     unanswered = [thread for thread in threads if not thread.answered]
-    issues = (await forge.issues()).issues if unanswered else []
-    left: list[Thread] = []
-    for thread in threads:
-        if not thread.answered:
-            if (filed := services().backlog.filed(issues, thread.id)) is None:
-                left.append(thread)
-                continue
-            await forge.reply(branch.number, thread, _signed(f"Filed as {filed.url}"))
+    listing = await forge.issues() if unanswered else Listing()
+    # A backlog the forge would not list whole may hide the issue filed for
+    # a thread, and reading that thread again would file it twice.
+    if listing.truncated:
+        return _stopped(
+            branch,
+            "the forge would not list every open issue, so an issue filed for"
+            " an open thread may be missing from it",
+        )
+    filed = [
+        (thread, issue)
+        for thread in unanswered
+        if (issue := filed_as(listing.issues, thread.id)) is not None
+    ]
+    for thread in answered:
         await forge.resolve(branch.number, thread)
-    if done := len(threads) - len(left):
+    for thread, issue in filed:
+        await _settled(forge, branch.number, thread, _filed(issue.url))
+    if done := len(answered) + len(filed):
         emit_delta(f"{branch.name}: settled {done} threads an earlier cast left")
-    return left
+    return branch.recovered(done).to(Read)
 
 
-def _signed(reply: str) -> str:
-    return f"{reply}\n\n{ANSWERED}"
+# The ritual's reply under a thread, then the thread settled: in that order,
+# so a forge that fails between them leaves the mark `_finished` reads.
+async def _settled(
+    forge: ForgeProtocol, number: int, thread: Thread, reply: str
+) -> None:
+    await forge.reply(number, thread, signed(reply))
+    await forge.resolve(number, thread)
 
 
-# Where a round finds nothing to read. A branch with rounds behind it has the
-# work of those rounds sitting in the worktree, and that goes to the gate
-# whatever the forge says about the rest; a branch nothing touched is left as
-# it was, and nothing is committed or labelled on it.
+def _filed(url: str) -> str:
+    return f"Filed as {url}"
+
+
+# Where a round finds nothing to read. A branch with threads answered on it
+# goes to the gate whatever the forge says about the rest, with the work of
+# its rounds sitting in the worktree, and to `settle` for its mark; a branch
+# nothing touched is left as it was, and nothing is committed or labelled on
+# it.
 def _no_more(branch: Branch, note: str) -> Landing | Pick:
     emit_delta(f"{branch.name}: {note}")
     if branch.answered:
@@ -237,7 +270,7 @@ async def read(branch: Read) -> Recap | Landing | Pick | Triage:
     # triaged against the code as it stands, and a thread the last round
     # settled is no longer open.
     try:
-        threads = await _finished(branch, await _unsettled(branch))
+        threads = await _unsettled(branch)
     except ForgeError as error:
         return _stopped(branch, str(error))
     if not threads:
@@ -336,9 +369,8 @@ async def _posted(answering: Answering) -> int:
         if item.issue is not None:
             body = f"{item.issue.body}\n\n{filed_for(item.thread)}"
             opened = await forge.issue(item.issue.title, body)
-            reply = f"{reply}\n\nFiled as {opened.url}"
-        await forge.reply(branch.number, threads[item.thread], _signed(reply))
-        await forge.resolve(branch.number, threads[item.thread])
+            reply = f"{reply}\n\n{_filed(opened.url)}"
+        await _settled(forge, branch.number, threads[item.thread], reply)
         settled += 1
     return settled
 

@@ -1,10 +1,9 @@
-"""Which issues still want identifying, and which one a thread was filed as."""
+"""Which issues still want identifying."""
 
 from typing_extensions import override
 
 from cabinet.pacts.issues import EPIC, KINDS, SIZES, Issue
 from cabinet.pacts.services import BacklogProtocol
-from cabinet.pacts.threads import filed_for
 
 
 class Backlog(BacklogProtocol):
@@ -14,11 +13,6 @@ class Backlog(BacklogProtocol):
     @override
     def unidentified(self, issues: list[Issue]) -> list[Issue]:
         return [one for one in issues if not _identified(one)]
-
-    @override
-    def filed(self, issues: list[Issue], thread: str) -> Issue | None:
-        mark = filed_for(thread)
-        return next((one for one in issues if mark in one.body), None)
 
 
 def _identified(issue: Issue) -> bool:

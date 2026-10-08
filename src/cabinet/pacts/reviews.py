@@ -104,9 +104,10 @@ class Branch(Hop):
     # Carried rather than looked up again: review threads are addressed by
     # pull request and not by branch.
     number: int
-    # Threads answered on this branch so far, round by round. Zero is a branch
-    # nothing has touched, which is the only one that can still be walked
-    # away from without a commit.
+    # Threads answered on this branch so far, round by round, and those an
+    # earlier cast left half-settled. Zero is a branch nothing has touched,
+    # which is the only one that can still be walked away from without a
+    # commit.
     answered: int = 0
     # Rounds this branch may still take, given by `pick` out of the cast's
     # budget. Threads still open once they are spent wait for the next cast.
@@ -131,6 +132,12 @@ class Branch(Hop):
             "answered": self.answered + count,
             "rounds": self.rounds - 1,
         }
+        return self.model_copy(update=update)
+
+    # Threads an earlier cast left half-settled, finished without spending a
+    # round.
+    def recovered(self, count: int) -> Self:
+        update: dict[str, int] = {"answered": self.answered + count}
         return self.model_copy(update=update)
 
     @property

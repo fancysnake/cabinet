@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from cabinet.pacts.issues import Issue
+
 
 class Comment(BaseModel):
     # Whatever the forge needs to reply under it: a REST id on GitHub, a note id
@@ -19,8 +21,18 @@ class Comment(BaseModel):
 ANSWERED = "<!-- cabinet:answered -->"
 
 
+def signed(reply: str) -> str:
+    return f"{reply}\n\n{ANSWERED}"
+
+
 def filed_for(thread: str) -> str:
     return f"<!-- cabinet:thread {thread} -->"
+
+
+# The open issue `review` filed for a thread, where there is one.
+def filed_as(issues: list[Issue], thread: str) -> Issue | None:
+    mark = filed_for(thread)
+    return next((one for one in issues if mark in one.body), None)
 
 
 class Thread(BaseModel):

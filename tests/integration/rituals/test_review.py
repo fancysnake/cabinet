@@ -40,6 +40,7 @@ from cabinet.pacts.threads import (
     TriageItem,
     TriageNotes,
     filed_for,
+    signed,
 )
 from cabinet.rituals.review import review
 from cabinet.specs import STEPS
@@ -75,9 +76,15 @@ _ITEM = TriageItem(
 _ISSUES = "gh issue list *"
 
 
-# A branch's first round asks which open issues were filed for its threads.
+# A branch checked out asks which open issues were filed for its threads.
 def _nothing_filed(trial: Trial) -> None:
     trial.shell.replies(when=_ISSUES, stdout="[]", always=True)
+
+
+def _checked_out(trial: Trial, threads: str) -> None:
+    trial.decide.answers(answer=True, when="read the review on feature?")
+    trial.shell.replies(when="git checkout feature")
+    trial.shell.replies(when=THREADS, stdout=threads)
 
 
 def _threads(*nodes: dict[str, object]) -> str:
@@ -259,10 +266,91 @@ class TestLook:
 
     @staticmethod
     def test_a_checkout_that_went_through_is_read(trial: Trial, branch: Branch) -> None:
-        trial.decide.answers(answer=True, when="read the review on feature?")
-        trial.shell.replies(when="git checkout feature")
+        _checked_out(trial, _threads(_node("PRRT_1")))
+        _nothing_filed(trial)
 
         assert trial.walk(look, branch.to(Look)) == branch.to(Read)
+
+    @staticmethod
+    def test_threads_the_forge_would_not_give_end_the_cast(
+        trial: Trial, branch: Branch
+    ) -> None:
+        trial.decide.answers(answer=True, when="read the review on feature?")
+        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(when=THREADS, exit_code=1, stderr="502")
+
+        assert "could not read the threads" in _gave_up(
+            trial.walk(look, branch.to(Look))
+        )
+
+    # An earlier cast replied and then the forge failed to settle the thread.
+    @staticmethod
+    def test_a_thread_already_answered_is_settled_and_counted(
+        trial: Trial, branch: Branch
+    ) -> None:
+        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        _checked_out(trial, _threads(node("PRRT_1", replied), _node("PRRT_2")))
+        _nothing_filed(trial)
+        trial.shell.replies(when="slug=*-f id=PRRT_1")
+
+        assert trial.walk(look, branch.to(Look)) == branch.recovered(1).to(Read)
+        assert trial.shell.commands[-1].endswith("-f id=PRRT_1")
+        assert trial.deltas == ["feature: settled 1 threads an earlier cast left"]
+
+    # A reviewer answering the reply reopens the conversation.
+    @staticmethod
+    def test_a_reply_answered_back_is_left_to_read(
+        trial: Trial, branch: Branch
+    ) -> None:
+        argued = page([comment(101, body=ANSWERED), comment(102, body="no")])
+        _checked_out(trial, _threads(node("PRRT_1", argued)))
+        _nothing_filed(trial)
+
+        assert trial.walk(look, branch.to(Look)) == branch.to(Read)
+        assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+
+    # An earlier cast filed the issue and then the forge refused the reply.
+    @staticmethod
+    def test_a_thread_with_an_issue_filed_gets_the_reply_naming_it(
+        trial: Trial, branch: Branch
+    ) -> None:
+        _checked_out(trial, _threads(_node("PRRT_1")))
+        filed = {
+            "number": 9,
+            "title": "guard",
+            "url": "https://github.com/o/r/issues/9",
+            "body": f"later\n\n{filed_for('PRRT_1')}",
+            "labels": [],
+        }
+        trial.shell.replies(when=_ISSUES, stdout=listing(filed))
+        trial.shell.replies(when=_ISSUES, stdout="[]")
+        trial.shell.replies(when="gh api repos/*")
+        trial.shell.replies(when="slug=*-f id=PRRT_1")
+
+        assert trial.walk(look, branch.to(Look)) == branch.recovered(1).to(Read)
+        body = signed("Filed as https://github.com/o/r/issues/9")
+        assert trial.shell.commands[4] == (
+            "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies"
+            f" -f body='{body}'"
+        )
+        assert trial.shell.commands[5].endswith("-f id=PRRT_1")
+
+    # Past the cap, the issue filed for a thread may be the one not listed,
+    # and reading that thread again would file it twice.
+    @staticmethod
+    def test_a_backlog_listed_short_ends_the_cast(trial: Trial, branch: Branch) -> None:
+        _checked_out(trial, _threads(_node("PRRT_1")))
+        rows = [
+            {"number": n, "title": "t", "url": "u", "body": "", "labels": []}
+            for n in range(1, 201)
+        ]
+        trial.shell.replies(when=_ISSUES, stdout=listing(*rows))
+        trial.shell.replies(when=_ISSUES, stdout="[]")
+
+        assert "would not list every open issue" in _gave_up(
+            trial.walk(look, branch.to(Look))
+        )
+        assert not any("id=PRRT_1" in command for command in trial.shell.commands)
 
 
 class TestRead:
@@ -274,7 +362,6 @@ class TestRead:
             when=THREADS,
             stdout=_threads(_node("PRRT_1"), _node("PRRT_2", resolved=True)),
         )
-        _nothing_filed(trial)
         trial.coding.replies(TriageNotes(items=[_ITEM]))
 
         transition = trial.walk(read, branch.to(Read))
@@ -304,7 +391,6 @@ class TestRead:
             when=THREADS,
             stdout=_threads(_node("PRRT_1"), _node("PRRT_2"), _node("PRRT_3")),
         )
-        _nothing_filed(trial)
         trial.coding.replies(TriageNotes(items=[_ITEM]))
 
         trial.walk(read, branch.to(Read))
@@ -328,7 +414,6 @@ class TestRead:
     @staticmethod
     def test_a_reading_that_found_nothing_is_said(trial: Trial, branch: Branch) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
-        _nothing_filed(trial)
         trial.coding.replies(TriageNotes(items=[]))
 
         assert trial.walk(read, branch.to(Read)) == branch.rowed(
@@ -377,70 +462,11 @@ class TestRead:
         trial: Trial, branch: Branch
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
-        _nothing_filed(trial)
         trial.coding.replies("no idea, sorry")
 
         assert "did not answer in the shape" in _gave_up(
             trial.walk(read, branch.to(Read))
         )
-
-    # An earlier cast replied and then the forge failed to settle the thread.
-    @staticmethod
-    def test_a_thread_already_answered_is_settled_not_read(
-        trial: Trial, branch: Branch
-    ) -> None:
-        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
-        trial.shell.replies(
-            when=THREADS, stdout=_threads(node("PRRT_1", replied), _node("PRRT_2"))
-        )
-        _nothing_filed(trial)
-        trial.shell.replies(when="slug=*-f id=PRRT_1")
-        trial.coding.replies(TriageNotes(items=[_ITEM]))
-
-        trial.walk(read, branch.to(Read))
-
-        assert trial.shell.commands[-1].endswith("-f id=PRRT_1")
-        assert "PRRT_1" not in trial.coding.prompts[0]
-        assert "thread PRRT_2 (open)" in trial.coding.prompts[0]
-        assert trial.deltas[0] == "feature: settled 1 threads an earlier cast left"
-
-    # A reviewer answering the reply reopens the conversation.
-    @staticmethod
-    def test_a_reply_answered_back_is_read_again(trial: Trial, branch: Branch) -> None:
-        argued = page([comment(101, body=ANSWERED), comment(102, body="no")])
-        trial.shell.replies(when=THREADS, stdout=_threads(node("PRRT_1", argued)))
-        _nothing_filed(trial)
-        trial.coding.replies(TriageNotes(items=[_ITEM]))
-
-        assert trial.walk(read, branch.to(Read)) == Triage(branch=branch, items=[_ITEM])
-
-    # An earlier cast filed the issue and then the forge refused the reply.
-    @staticmethod
-    def test_a_thread_with_an_issue_filed_gets_the_reply_naming_it(
-        trial: Trial, branch: Branch
-    ) -> None:
-        trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
-        filed = {
-            "number": 9,
-            "title": "guard",
-            "url": "https://github.com/o/r/issues/9",
-            "body": f"later\n\n{filed_for('PRRT_1')}",
-            "labels": [],
-        }
-        trial.shell.replies(when=_ISSUES, stdout=listing(filed))
-        trial.shell.replies(when=_ISSUES, stdout="[]")
-        trial.shell.replies(when="gh api repos/*")
-        trial.shell.replies(when="slug=*-f id=PRRT_1")
-
-        assert trial.walk(read, branch.to(Read)) == branch.rowed(
-            "nothing", "nothing is left open"
-        ).to(Pick)
-        assert trial.shell.commands[3] == (
-            "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies"
-            f" -f body='Filed as https://github.com/o/r/issues/9\n\n{ANSWERED}'"
-        )
-        assert trial.shell.commands[4].endswith("-f id=PRRT_1")
-        assert not trial.coding.prompts
 
 
 class TestPlan:
@@ -523,7 +549,7 @@ class TestAnswer:
         assert trial.walk(answer, answering) == branch.taken(1).to(Read)
         assert trial.shell.commands[1] == (
             "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies"
-            f" -f body='guarded\n\n{ANSWERED}'"
+            f" -f body='{signed('guarded')}'"
         )
         assert trial.shell.commands[2].endswith("-f id=PRRT_1")
 
@@ -576,9 +602,8 @@ class TestAnswer:
             "gh api repos/{owner}/{repo}/issues -X POST -f title=guard"
             f" -f body='later\n\n{filed_for('PRRT_1')}'"
         )
-        assert trial.shell.commands[2].endswith(
-            f"-f body='filed\n\nFiled as https://github.com/o/r/issues/9\n\n{ANSWERED}'"
-        )
+        body = signed("filed\n\nFiled as https://github.com/o/r/issues/9")
+        assert trial.shell.commands[2].endswith(f"-f body='{body}'")
 
     @staticmethod
     def test_a_thread_nobody_triaged_is_skipped_and_said(
@@ -754,6 +779,7 @@ class TestWholeCast:
         trial.shell.replies(when="git checkout feature")
         _nothing_filed(trial)
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
+        trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies(TriageNotes(items=[_ITEM]), when="Triage the open*")
         trial.decide.answers(answer="", when="1. *")
         trial.shell.replies(when="gh pr edit 7*", always=True)
@@ -793,6 +819,49 @@ class TestWholeCast:
         assert trial.shell.commands[-1] == _DONE
         assert trial.shell.commands[-2].startswith("slug=")
 
+    # An earlier cast replied and then the forge failed to settle the thread:
+    # settling it leaves nothing to read, and the branch is still marked done.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_a_branch_finished_by_recovery_is_shipped_and_done(trial: Trial) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(row(7, labels=[{"name": "pr::thermo"}]))
+        )
+        trial.shell.replies(when=HERE, stdout="feature\n")
+        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        open_reply = _threads(node("PRRT_1", replied))
+        trial.shell.replies(when=THREADS, stdout=open_reply)
+        trial.shell.replies(when=STATUS)
+        trial.decide.answers(answer=True, when="read the review on feature?")
+        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(when=THREADS, stdout=open_reply)
+        trial.shell.replies(when="slug=*-f id=PRRT_1")
+        trial.shell.replies(
+            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True)), always=True
+        )
+        trial.shell.replies(when=_GATE)
+        trial.shell.replies(when="git add -A*")
+        trial.shell.replies(when="git push origin feature")
+        trial.shell.replies(when="gh pr edit 7*", always=True)
+
+        result = trial.cast(review, Review(bound=2))
+
+        assert result.reviewed == [Reviewed(branch="feature", outcome="shipped")]
+        assert trial.steps == [
+            "queue_up",
+            "pick",
+            "look",
+            "read",
+            "gates",
+            "land",
+            "settle",
+            "pick",
+            "recap",
+        ]
+        assert not trial.coding.prompts
+        assert trial.shell.commands[-1] == _DONE
+
     # Three threads, a batch of two: two rounds of reading and answering, one
     # gate, one commit.
     @staticmethod
@@ -809,6 +878,7 @@ class TestWholeCast:
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
         _nothing_filed(trial)
+        trial.shell.replies(when=THREADS, stdout=every)
         # The first round reads, works and posts over the whole list.
         trial.shell.replies(when=THREADS, stdout=every)
         first = [_ITEM, _ITEM.model_copy(update={"thread": "PRRT_2"})]
@@ -898,6 +968,7 @@ class TestWholeCast:
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
         _nothing_filed(trial)
+        trial.shell.replies(when=THREADS, stdout=both)
         trial.decide.answers(answer="", when="1. *", always=True)
         trial.shell.replies(when="gh pr edit 7*", always=True)
         trial.shell.replies(when="gh api repos/*", always=True)

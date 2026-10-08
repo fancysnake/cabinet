@@ -42,9 +42,6 @@ class BacklogProtocol(Protocol):
     # The issues without a type, or without a size unless they are an epic.
     def unidentified(self, issues: list[Issue]) -> list[Issue]: ...
 
-    # The issue `review` filed for a thread, where one is open.
-    def filed(self, issues: list[Issue], thread: str) -> Issue | None: ...
-
 
 class VerdictsProtocol(Protocol):
     # Both streams, trimmed to the budget an agent is worth reading.
