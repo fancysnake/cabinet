@@ -109,6 +109,7 @@ class _Listed(BaseModel):
     # Null on an issue opened without one.
     description: str | None = None
     labels: list[str] = []
+    author: _Author = _Author()
 
 
 _LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
@@ -117,6 +118,7 @@ _MERGE_REQUEST: TypeAdapter[_MergeRequest] = TypeAdapter(_MergeRequest)
 _ANCHORED: TypeAdapter[_Anchored] = TypeAdapter(_Anchored)
 _ISSUE: TypeAdapter[_Issue] = TypeAdapter(_Issue)
 _PROJECT: TypeAdapter[_Project] = TypeAdapter(_Project)
+_USER: TypeAdapter[_Author] = TypeAdapter(_Author)
 
 _T = TypeVar("_T")
 
@@ -292,6 +294,16 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
 
 class GitlabForge(ForgeProtocol):
     @override
+    async def operator(self) -> str:
+        user = await _read(
+            _USER, _api("user"), "glab could not say who you are", "a user"
+        )
+        if not user.username:
+            msg = "glab said you are nobody"
+            raise ForgeError(msg)
+        return user.username
+
+    @override
     async def pulls(self) -> list[PullRequest]:
         listed = await _read(
             _MERGE_REQUESTS,
@@ -420,6 +432,7 @@ class GitlabForge(ForgeProtocol):
                     url=row.web_url,
                     body=row.description or "",
                     labels=row.labels,
+                    author=row.author.username,
                 )
                 for row in rows
             }

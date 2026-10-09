@@ -510,7 +510,7 @@ class TestIssues:
     def test_created_and_assigned_are_merged_once_each_lowest_first(
         trial: Trial,
     ) -> None:
-        nine = _listed(9, description="why", labels=["S"])
+        nine = _listed(9, description="why", labels=["S"], author={"username": "me"})
         trial.shell.replies(when=_AUTHORED, stdout=json.dumps([nine]))
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([nine, _listed(2)]))
 
@@ -527,6 +527,7 @@ class TestIssues:
                     url="https://gitlab.example/o/r/-/issues/9",
                     body="why",
                     labels=["S"],
+                    author="me",
                 ),
             ]
         )
@@ -548,3 +549,21 @@ class TestIssues:
 
         with pytest.raises(ForgeError, match="issues this could not read"):
             drive(trial, _FORGE.issues)
+
+
+_USER = "glab api user"
+
+
+class TestOperator:
+    @staticmethod
+    def test_the_username_glab_is_using(trial: Trial) -> None:
+        trial.shell.replies(when=_USER, stdout=json.dumps({"username": "me"}))
+
+        assert drive(trial, _FORGE.operator) == "me"
+
+    @staticmethod
+    def test_no_username_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_USER, stdout="{}")
+
+        with pytest.raises(ForgeError, match="you are nobody"):
+            drive(trial, _FORGE.operator)

@@ -528,11 +528,11 @@ class TestLinks:
 
 _AUTHORED = (
     "gh issue list --author @me --state open --limit 200"
-    " --json number,title,url,body,labels"
+    " --json number,title,url,body,labels,author"
 )
 _ASSIGNED = (
     "gh issue list --assignee @me --state open --limit 200"
-    " --json number,title,url,body,labels"
+    " --json number,title,url,body,labels,author"
 )
 
 
@@ -554,7 +554,9 @@ class TestIssues:
     ) -> None:
         trial.shell.replies(
             when=_AUTHORED,
-            stdout=json.dumps([_issue(9, labels=[{"name": "bug"}]), _issue(4)]),
+            stdout=json.dumps(
+                [_issue(9, labels=[{"name": "bug"}], author={"login": "me"}), _issue(4)]
+            ),
         )
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4), _issue(2)]))
 
@@ -567,6 +569,7 @@ class TestIssues:
                     title="issue 9",
                     url="https://github.com/o/r/issues/9",
                     labels=["bug"],
+                    author="me",
                 ),
             ]
         )
@@ -591,3 +594,29 @@ class TestIssues:
 
         with pytest.raises(ForgeError, match="issues this could not read"):
             drive(trial, _FORGE.issues)
+
+
+_OPERATOR = "gh api user --jq .login"
+
+
+class TestOperator:
+    @staticmethod
+    def test_the_login_gh_is_using(trial: Trial) -> None:
+        trial.shell.replies(when=_OPERATOR, stdout="me\n")
+
+        assert drive(trial, _FORGE.operator) == "me"
+
+    # An empty login would match every comment a deleted account left.
+    @staticmethod
+    def test_no_login_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_OPERATOR, stdout="\n")
+
+        with pytest.raises(ForgeError, match="you are nobody"):
+            drive(trial, _FORGE.operator)
+
+    @staticmethod
+    def test_a_client_logged_out_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_OPERATOR, exit_code=1, stderr="not logged in")
+
+        with pytest.raises(ForgeError, match="could not say who you are"):
+            drive(trial, _FORGE.operator)

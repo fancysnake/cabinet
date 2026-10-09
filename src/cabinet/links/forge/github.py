@@ -78,8 +78,10 @@ _ISSUE_PAGE = 200
 # and `--assignee` per listing and ANDs them when given both.
 _ISSUES = (
     f"gh issue list {{who}} @me --state open --limit {_ISSUE_PAGE} "
-    "--json number,title,url,body,labels"
+    "--json number,title,url,body,labels,author"
 )
+
+_OPERATOR = "gh api user --jq .login"
 
 # A relationship endpoint takes the issue's database id, which is not the
 # number anything else here names an issue by.
@@ -203,6 +205,8 @@ class _Issue(BaseModel):
     url: str
     body: str = ""
     labels: list[_Label] = []
+    # Null for a deleted account.
+    author: _Author | None = None
 
 
 # The REST answer to opening one, which spells its URL the API's way.
@@ -382,6 +386,14 @@ async def _thread(found: _Thread) -> Thread:
 
 class GithubForge(ForgeProtocol):
     @override
+    async def operator(self) -> str:
+        login = (await asked(_OPERATOR, "gh could not say who you are")).strip()
+        if not login:
+            msg = "gh said you are nobody"
+            raise ForgeError(msg)
+        return login
+
+    @override
     async def pulls(self) -> list[PullRequest]:
         listed = await asked(_LIST, "gh could not list your pull requests")
         try:
@@ -507,6 +519,7 @@ class GithubForge(ForgeProtocol):
                     url=row.url,
                     body=row.body,
                     labels=[label.name for label in row.labels],
+                    author=row.author.login if row.author else "",
                 )
                 for row in rows
             }

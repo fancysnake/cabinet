@@ -213,8 +213,9 @@ async def _unsettled(branch: Branch) -> list[Thread]:
 async def _finished(branch: Branch) -> Recap | Read:
     forge = services().forge(branch.project)
     threads = await _unsettled(branch)
-    answered = [thread for thread in threads if thread.answered]
-    unanswered = [thread for thread in threads if not thread.answered]
+    operator = await forge.operator()
+    answered = [thread for thread in threads if thread.answered_by(operator)]
+    unanswered = [thread for thread in threads if not thread.answered_by(operator)]
     listing = await forge.issues() if unanswered else Listing()
     # A backlog the forge would not list whole may hide the issue filed for
     # a thread, and reading that thread again would file it twice.
@@ -227,7 +228,7 @@ async def _finished(branch: Branch) -> Recap | Read:
     filed = [
         (thread, issue)
         for thread in unanswered
-        if (issue := filed_as(listing.issues, thread.id)) is not None
+        if (issue := filed_as(listing.issues, thread.id, operator)) is not None
     ]
     for thread in answered:
         await forge.resolve(branch.number, thread)

@@ -30,6 +30,9 @@ LABELS = "gh pr view 7 --json labels"
 # The graphql call's jq holds brackets a glob would read as a character class,
 # so the pattern names the two ends of the command and nothing in between.
 THREADS = "slug=*gh api graphql*-F number=7"
+OPERATOR = "gh api user --jq .login"
+# Who the forge says is casting: the only author whose marks count.
+ME = "me"
 
 # The one pull request most tests are about.
 _NUMBER = 7

@@ -86,8 +86,10 @@ found, and settling it.
 
 Every reply and filed issue carries a hidden mark, so a cast the forge cut
 short between filing, replying and settling is finished by the next one: a
-thread already answered is settled, and one with an issue filed for it gets
-the reply naming the issue, without either being read again. A forge that will
+thread whose last reply is yours and marked is settled, and one with an issue
+you opened for it gets the reply naming the issue, without either being read
+again. "Yours" is whoever the forge's client is logged in as: a mark someone
+else wrote is read like any other comment. A forge that will
 not list every open issue ends the cast instead, since an issue it left out
 could be filed twice. Commit or set aside the cut-short round's work first; the
 next cast wants a clean worktree.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Fixed
+
+- `review` finishes a cut-short round only from marks you wrote: a thread
+  whose last reply someone else marked is read again, and an issue only
+  assigned to you no longer counts as filed for a thread.
+
 ## [3.0.0] - 2026-10-09
 
 ### Changed

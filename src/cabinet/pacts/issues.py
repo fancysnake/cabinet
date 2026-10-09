@@ -24,6 +24,7 @@ class Issue(BaseModel):
     url: str
     body: str = ""
     labels: list[str] = []
+    author: str = ""
 
 
 # Your open issues as the forge gave them, and whether it gave them all: a

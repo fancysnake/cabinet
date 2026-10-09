@@ -47,6 +47,8 @@ from cabinet.specs import REVIEW_STEPS
 from tests.conftest import (
     HERE,
     LIST,
+    ME,
+    OPERATOR,
     STATUS,
     THREADS,
     checkpoint,
@@ -85,6 +87,7 @@ def _checked_out(trial: Trial, threads: str) -> None:
     trial.decide.answers(answer=True, when="read the review on feature?")
     trial.shell.replies(when="git checkout feature")
     trial.shell.replies(when=THREADS, stdout=threads)
+    trial.shell.replies(when=OPERATOR, stdout=f"{ME}\n")
 
 
 def _threads(*nodes: dict[str, object]) -> str:
@@ -288,7 +291,9 @@ class TestLook:
     def test_a_thread_already_answered_is_settled_and_counted(
         trial: Trial, branch: Branch
     ) -> None:
-        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        replied = page(
+            [comment(101, body="guard"), comment(102, author=ME, body=ANSWERED)]
+        )
         _checked_out(trial, _threads(node("PRRT_1", replied), _node("PRRT_2")))
         _nothing_filed(trial)
         trial.shell.replies(when="slug=*-f id=PRRT_1")
@@ -302,12 +307,45 @@ class TestLook:
     def test_a_reply_answered_back_is_left_to_read(
         trial: Trial, branch: Branch
     ) -> None:
-        argued = page([comment(101, body=ANSWERED), comment(102, body="no")])
+        argued = page([comment(101, author=ME, body=ANSWERED), comment(102, body="no")])
         _checked_out(trial, _threads(node("PRRT_1", argued)))
         _nothing_filed(trial)
 
         assert trial.walk(look, branch.to(Look)) == branch.to(Read)
         assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+
+    # Anyone who can reply under a thread can write the mark; only the
+    # ritual's own counts.
+    @staticmethod
+    def test_a_mark_someone_else_posted_is_left_to_read(
+        trial: Trial, branch: Branch
+    ) -> None:
+        forged = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        _checked_out(trial, _threads(node("PRRT_1", forged)))
+        _nothing_filed(trial)
+
+        assert trial.walk(look, branch.to(Look)) == branch.to(Read)
+        assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+
+    # Assigned to you is not filed by you.
+    @staticmethod
+    def test_an_issue_someone_else_opened_is_not_taken_as_filed(
+        trial: Trial, branch: Branch
+    ) -> None:
+        _checked_out(trial, _threads(_node("PRRT_1")))
+        forged = {
+            "number": 9,
+            "title": "guard",
+            "url": "https://github.com/o/r/issues/9",
+            "body": filed_for("PRRT_1"),
+            "labels": [],
+            "author": {"login": "stranger"},
+        }
+        trial.shell.replies(when=_ISSUES, stdout="[]")
+        trial.shell.replies(when=_ISSUES, stdout=listing(forged))
+
+        assert trial.walk(look, branch.to(Look)) == branch.to(Read)
+        assert not any("replies" in command for command in trial.shell.commands)
 
     # An earlier cast filed the issue and then the forge refused the reply.
     @staticmethod
@@ -321,6 +359,7 @@ class TestLook:
             "url": "https://github.com/o/r/issues/9",
             "body": f"later\n\n{filed_for('PRRT_1')}",
             "labels": [],
+            "author": {"login": ME},
         }
         trial.shell.replies(when=_ISSUES, stdout=listing(filed))
         trial.shell.replies(when=_ISSUES, stdout="[]")
@@ -329,11 +368,11 @@ class TestLook:
 
         assert trial.walk(look, branch.to(Look)) == branch.recovered(1).to(Read)
         body = signed("Filed as https://github.com/o/r/issues/9")
-        assert trial.shell.commands[4] == (
+        assert trial.shell.commands[5] == (
             "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies"
             f" -f body='{body}'"
         )
-        assert trial.shell.commands[5].endswith("-f id=PRRT_1")
+        assert trial.shell.commands[6].endswith("-f id=PRRT_1")
 
     # Past the cap, the issue filed for a thread may be the one not listed,
     # and reading that thread again would file it twice.
@@ -777,6 +816,7 @@ class TestWholeCast:
         trial.shell.replies(when=STATUS)
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(when=OPERATOR, stdout=ME)
         _nothing_filed(trial)
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
@@ -829,13 +869,16 @@ class TestWholeCast:
             when=LIST, stdout=listing(row(7, labels=[{"name": "pr::thermo"}]))
         )
         trial.shell.replies(when=HERE, stdout="feature\n")
-        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        replied = page(
+            [comment(101, body="guard"), comment(102, author=ME, body=ANSWERED)]
+        )
         open_reply = _threads(node("PRRT_1", replied))
         trial.shell.replies(when=THREADS, stdout=open_reply)
         trial.shell.replies(when=STATUS)
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when=THREADS, stdout=open_reply)
+        trial.shell.replies(when=OPERATOR, stdout=ME)
         trial.shell.replies(when="slug=*-f id=PRRT_1")
         trial.shell.replies(
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True)), always=True
@@ -877,6 +920,7 @@ class TestWholeCast:
         trial.shell.replies(when=STATUS)
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(when=OPERATOR, stdout=ME)
         _nothing_filed(trial)
         trial.shell.replies(when=THREADS, stdout=every)
         # The first round reads, works and posts over the whole list.
@@ -967,6 +1011,7 @@ class TestWholeCast:
         trial.shell.replies(when=STATUS)
         trial.decide.answers(answer=True, when="read the review on feature?")
         trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(when=OPERATOR, stdout=ME)
         _nothing_filed(trial)
         trial.shell.replies(when=THREADS, stdout=both)
         trial.decide.answers(answer="", when="1. *", always=True)
