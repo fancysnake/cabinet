@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 from vekna.folio.coding_claude import ClaudeOptions
-from vekna.lexicon import Transition, done, step
+from vekna.lexicon import Done, step
 from vekna.trial import Trial
 
 from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
@@ -21,6 +21,19 @@ class _Ask(BaseModel):
     attended: bool = False
 
 
+# One class per step: vekna routes by payload class, so no two steps share one.
+class _AskAsk(_Ask):
+    pass
+
+
+class _AskAskTwice(_Ask):
+    pass
+
+
+class _AskAskFor(_Ask):
+    pass
+
+
 class _Came(BaseModel):
     fallen: Fallen | None = None
     misread: Misread | None = None
@@ -28,23 +41,23 @@ class _Came(BaseModel):
 
 
 @step
-async def ask(asked: _Ask) -> Transition:
+async def ask(asked: _AskAsk) -> Done[_Came]:
     fallen = await ClaudeAgent(_PROJECT).ask(
         "do it", role=asked.role, key=asked.key, attended=asked.attended
     )
-    return done(_Came(fallen=fallen))
+    return Done(_Came(fallen=fallen))
 
 
 @step
-async def ask_twice(asked: _Ask) -> Transition:
+async def ask_twice(asked: _AskAskTwice) -> Done[None]:
     agent = ClaudeAgent(_PROJECT)
     await agent.ask("do it", role=asked.role, key=asked.key)
     await agent.ask("do it again", role=asked.role, key=asked.key)
-    return done()
+    return Done(None)
 
 
 @step
-async def ask_for(asked: _Ask) -> Transition:
+async def ask_for(asked: _AskAskFor) -> Done[_Came]:
     came = await ClaudeAgent(_PROJECT).ask_for(
         "read it",
         output=TriageNotes,
@@ -53,10 +66,10 @@ async def ask_for(asked: _Ask) -> Transition:
         attended=asked.attended,
     )
     if isinstance(came, Fallen):
-        return done(_Came(fallen=came))
+        return Done(_Came(fallen=came))
     if isinstance(came, Misread):
-        return done(_Came(misread=came))
-    return done(_Came(notes=came))
+        return Done(_Came(misread=came))
+    return Done(_Came(notes=came))
 
 
 class TestAllowedTools:
@@ -74,7 +87,7 @@ class TestAsk:
     def test_every_call_is_bound_by_its_role(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        assert trial.walk(ask, _Ask(role="writer")) == done(_Came())
+        assert trial.walk(ask, _AskAsk(role="writer")) == Done(_Came())
         assert trial.coding.calls[0].model == "opus"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
@@ -88,7 +101,7 @@ class TestAsk:
     def test_an_attended_call_runs_in_auto_mode(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        trial.walk(ask, _Ask(attended=True))
+        trial.walk(ask, _AskAsk(attended=True))
 
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="auto", allowed_tools=_WRITER, effort="high", max_turns=30
@@ -99,7 +112,7 @@ class TestAsk:
         trial.coding.replies("first")
         trial.coding.replies("second")
 
-        trial.walk(ask_twice, _Ask(key="repair"))
+        trial.walk(ask_twice, _AskAskTwice(key="repair"))
 
         assert trial.coding.calls[0].resume is None
         assert trial.coding.calls[1].resume == "s1"
@@ -108,9 +121,9 @@ class TestAsk:
     # this test can make happen from the outside.
     @staticmethod
     def test_a_medium_that_raises_comes_back_as_fallen(trial: Trial) -> None:
-        transition = trial.walk(ask, _Ask(key=""))
+        transition = trial.walk(ask, _AskAsk(key=""))
 
-        assert isinstance(transition, type(done()))
+        assert isinstance(transition, Done)
         assert isinstance(transition.result, _Came)
         assert transition.result.fallen is not None
         assert "stopped mid-flight" in transition.result.fallen.reason
@@ -122,7 +135,7 @@ class TestAskFor:
     def test_the_answer_is_validated(trial: Trial) -> None:
         trial.coding.replies(TriageNotes(items=[]))
 
-        assert trial.walk(ask_for, _Ask(role="reader")) == done(
+        assert trial.walk(ask_for, _AskAskFor(role="reader")) == Done(
             _Came(notes=TriageNotes(items=[]))
         )
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
@@ -136,17 +149,17 @@ class TestAskFor:
     def test_an_answer_in_the_wrong_shape_is_a_misread(trial: Trial) -> None:
         trial.coding.replies("no idea, sorry")
 
-        transition = trial.walk(ask_for, _Ask(role="reader"))
+        transition = trial.walk(ask_for, _AskAskFor(role="reader"))
 
-        assert isinstance(transition, type(done()))
+        assert isinstance(transition, Done)
         assert isinstance(transition.result, _Came)
         assert transition.result.misread is not None
         assert "did not answer in the shape asked" in transition.result.misread.reason
 
     @staticmethod
     def test_a_medium_that_raises_comes_back_as_fallen(trial: Trial) -> None:
-        transition = trial.walk(ask_for, _Ask(role="reader", key=""))
+        transition = trial.walk(ask_for, _AskAskFor(role="reader", key=""))
 
-        assert isinstance(transition, type(done()))
+        assert isinstance(transition, Done)
         assert isinstance(transition.result, _Came)
         assert transition.result.fallen is not None
