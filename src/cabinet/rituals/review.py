@@ -25,10 +25,10 @@ from cabinet.gates.ritual.vekna.review import (
 from cabinet.pacts.review import QueueUp
 from cabinet.pacts.reviews import Review
 from cabinet.pacts.services import services
-from cabinet.specs import STEPS
+from cabinet.specs import REVIEW_STEPS
 
 
-@ritual("review", max_steps=STEPS)
+@ritual("review", max_steps=REVIEW_STEPS)
 def review(components: Review) -> QueueUp:
     return QueueUp(
         project=services().project(), bound=components.bound, batch=components.batch

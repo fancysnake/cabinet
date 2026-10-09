@@ -6,7 +6,9 @@ with it. The rule lives here so the loops cannot drift into two dialects of it.
 The batch is the other half of the same question — how much of a queue one
 round takes — and it is here rather than in either domain's own pact because
 threads and issues both take their queues in rounds and neither owns the
-other's number.
+other's number. What a cast has spoken for out of the engine's step budget is
+the same count at the scale of a whole cast, and a sweep and `review` both
+keep it.
 """
 
 from typing import Annotated, Self
@@ -20,6 +22,17 @@ from pydantic import BaseModel, Field
 Batch = Annotated[int, Field(ge=1)]
 # Spelled once, so the flag's default is one number and not four.
 BATCH = 7
+
+
+class Reserving(BaseModel):
+    # Steps the cast has spoken for out of the engine's budget: every step that
+    # works no branch, counted once the queue is known, and the worst each
+    # branch it took can spend.
+    reserved: int = 0
+
+    def spoke_for(self, steps: int) -> Self:
+        update: dict[str, int] = {"reserved": self.reserved + steps}
+        return self.model_copy(update=update)
 
 
 class Budgeted(BaseModel):

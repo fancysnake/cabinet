@@ -4,7 +4,7 @@ from typing import Literal, Self, TypeVar
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import BATCH, Batch, Budgeted
+from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Bound, PullRequest
@@ -43,17 +43,13 @@ class Share(BaseModel):
 # What the cast is still to do and what it has done. Carried through every
 # step, because every ending goes round again — and the last one owes the
 # report.
-class Picking(Hop):
+class Picking(Reserving, Hop):
     project: Project
     bound: Bound
     batch: Batch = BATCH
     queue: list[PullRequest] = Field(default_factory=list)
     reviewed: list[Reviewed] = Field(default_factory=list)
     stopped: str = ""
-    # Steps the cast has spoken for out of the engine's budget: every step that
-    # works no branch, counted once the queue is known, and the worst each
-    # branch it took can spend.
-    reserved: int = 0
 
     # The steps that pick and recap, and no others: the steps that work one
     # branch are `Branch`'s.
@@ -68,24 +64,21 @@ class Picking(Hop):
         queue: list[PullRequest] | None = None,
         reviewed: list[Reviewed] | None = None,
         stopped: str | None = None,
-        reserved: int | None = None,
     ) -> Self:
-        update: dict[str, list[PullRequest] | list[Reviewed] | str | int] = {}
+        update: dict[str, list[PullRequest] | list[Reviewed] | str] = {}
         if queue is not None:
             update["queue"] = queue
         if reviewed is not None:
             update["reviewed"] = reviewed
         if stopped is not None:
             update["stopped"] = stopped
-        if reserved is not None:
-            update["reserved"] = reserved
         return self.model_copy(update=update)
 
     # `pull` taken with the rounds its share gives it, and the steps the share
     # costs spoken for.
     def take(self, pull: PullRequest, share: Share) -> "Branch":
         return Branch(
-            picking=self.but(reserved=self.reserved + share.steps),
+            picking=self.spoke_for(share.steps),
             name=pull.branch,
             number=pull.number,
             rounds=share.rounds,
