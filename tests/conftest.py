@@ -1,15 +1,22 @@
 """What every ritual test starts from: the services wired, a project in hand."""
 
 import json
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
+from pydantic import BaseModel
+from vekna.lexicon import Done, step
+from vekna.trial import Trial
 
 from cabinet.inits.services import Services
 from cabinet.pacts.project import Labels, Project, State
 from cabinet.pacts.pulls import PullRequest, Run, Work
 from cabinet.pacts.reviews import Branch, Picking
 from cabinet.pacts.services import bind
+
+_ResultT = TypeVar("_ResultT")
 
 # The same rows the real forge would list, in gh's own spelling.
 LIST = (
@@ -145,3 +152,22 @@ def here(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / ".vekna.toml").write_text('[rituals]\nmodules = ["cabinet.rituals"]\n')
     monkeypatch.chdir(tmp_path)
     return tmp_path
+
+
+# A medium answers only inside a step, so an adapter call is run as one. The
+# payload class is declared afresh each time: the trial forgets the step at
+# its end, and vekna routes by class, so nothing collides. `Done` carries only
+# a model, so what the call returned comes back past it.
+def drive(trial: Trial, call: Callable[[], Awaitable[_ResultT]]) -> _ResultT:
+    class _Driven(BaseModel):
+        pass
+
+    came: list[_ResultT] = []
+
+    @step
+    async def driven(_: _Driven) -> Done[None]:
+        came.append(await call())
+        return Done(None)
+
+    trial.walk(driven, _Driven())
+    return came[0]

@@ -16,7 +16,7 @@ the same where a GitLab line is given.
 
 ## Types
 
-One per issue, as a label of the same name (`vekna cast labels:identify` makes
+One per issue, as a label of the same name (`vekna cast labels.identify` makes
 them). Where the repo also has GitHub issue types, set the matching one too.
 
 - **feature**: new functionality the user can see, such as a page, an option

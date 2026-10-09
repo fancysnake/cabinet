@@ -131,17 +131,17 @@ looks from here exactly like one nothing wanted doing to.
 ## labels
 
 *Conjuration.* Makes every label cabinet uses, created where missing and
-refreshed where present: what `labels:pr` and `labels:identify` each make, in one
+refreshed where present: what `labels.pr` and `labels.identify` each make, in one
 cast. Cast it once to set a project up.
 
-## labels:pr
+## labels.pr
 
 *Conjuration.* Makes every label the pull request rituals read and write: the
 reviewed and wait labels and each ritual's `started`/`done` checkpoints. Cast
 it before the first sweep when `labels` was not, and again after changing
 `[cabinet.labels]`.
 
-## labels:identify
+## labels.identify
 
 *Conjuration.* Makes the labels `identify` puts on issues: the five types, the
 three sizes and `epic`. Cast it before the first `identify` when `labels` was

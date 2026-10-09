@@ -77,14 +77,14 @@ class TestFacade:
     @staticmethod
     def test_labels_pr_exports_its_ritual_and_its_step() -> None:
         assert set(labels_pr.__all__) == _steps(labels_steps) | {"labels_pr"}
-        assert _registered(labels_pr) == {"labels:pr", "conjure"}
+        assert _registered(labels_pr) == {"labels.pr", "conjure"}
 
     @staticmethod
     def test_labels_identify_exports_its_ritual_and_its_step() -> None:
         assert set(labels_identify.__all__) == _steps(labels_steps) | {
             "labels_identify"
         }
-        assert _registered(labels_identify) == {"labels:identify", "conjure"}
+        assert _registered(labels_identify) == {"labels.identify", "conjure"}
 
     # One step object behind all three, so loading them registers `conjure` once.
     @staticmethod

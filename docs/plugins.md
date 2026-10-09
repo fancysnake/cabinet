@@ -49,7 +49,7 @@ its agent read it too, from `identify_skill`.
    comment, never closed. On GitLab, whose epics are Premium, parts are linked
    and named in the body.
 
-`vekna cast labels:identify` makes the type, size and epic labels. Needs `gh`
+`vekna cast labels.identify` makes the type, size and epic labels. Needs `gh`
 (or `glab`) logged in; setting Project fields needs the `project` token scope.
 
 ## release-bump

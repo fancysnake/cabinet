@@ -7,31 +7,32 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-09
+
 ### Changed
 
-- `release-bump` writes the new version everywhere the old one stood,
-  mirrors and lockfile included; a versioned plugin that changed gets its
-  own bump.
+- **Breaking:** `labels:pr` and `labels:identify` are renamed `labels.pr` and
+  `labels.identify`, and cabinet requires vekna 0.13, which reserves `:` for a
+  tome's namespace.
+- **Breaking:** `review`'s result lists the branches it did not take under
+  `left`, replacing `not_polled`.
+- `release-bump` writes the new version everywhere the old one stood, mirrors
+  and lockfile included, and bumps each versioned plugin that changed.
 - `release-bump` documents what the release added and updates every skill,
   agent and command in the repository.
-- `review`'s result lists the branches it did not take under `left`, not
-  `not_polled`.
 
 ### Fixed
 
-- `review` no longer runs out of steps mid-cast and loses its report: it
-  takes a branch only while its worst case fits, gives each branch one round
-  per batch, and leaves the rest for the next cast.
-- `refresh` and `cover` no longer run out of steps mid-branch and lose their
-  report: they take a branch only while its worst case fits, and leave the
-  rest for the next run. The budget now fits a hundred branches at the
-  default `--bound`.
-- `review` finishes a round an earlier cast's forge failure cut short, rather
-  than reading its threads again: an answered thread is settled, and one with
-  an issue already filed gets the reply naming it instead of a second issue.
-  A forge that will not list every open issue ends the cast instead.
-- `cover`, `refresh` and `review` read every review thread and every comment on it,
-  not only the first page of each.
+- `refresh`, `cover` and `review` stop before their step budget runs out and
+  leave the remaining branches for the next cast, keeping the report; `review`
+  gives each branch one round per batch. The sweep budget fits a hundred
+  branches at the default `--bound`.
+- `review` finishes a round an earlier cast's forge failure cut short instead
+  of reading its threads again: an answered thread is settled, and one with an
+  issue filed gets the reply naming it, not a second issue. A forge that will
+  not list every open issue ends the cast.
+- `cover`, `refresh` and `review` read every review thread and every comment on
+  it, past the first page.
 
 ## [2.0.0] - 2026-10-03
 
@@ -177,7 +178,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v2.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/fancysnake/cabinet/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/fancysnake/cabinet/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/fancysnake/cabinet/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/fancysnake/cabinet/compare/v0.5.0...v1.0.0

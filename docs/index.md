@@ -35,8 +35,8 @@ Grouped by school, the way a spellbook is.
   type and a size, one too big becomes an epic with sub-issues, related ones
   get linked.
 - **`labels`** (Conjuration) — makes every label the pull request rituals and
-  `identify` wear; cast it once to set a project up. **`labels:pr`** and
-  **`labels:identify`** make one half each.
+  `identify` wear; cast it once to set a project up. **`labels.pr`** and
+  **`labels.identify`** make one half each.
 
 [Rituals](rituals.md) has each one in full, with its flags.
 
