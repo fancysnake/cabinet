@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning].
   report: they take a branch only while its worst case fits, and leave the
   rest for the next run. The budget now fits a hundred branches at the
   default `--bound`.
+- `review` finishes a round an earlier cast's forge failure cut short, rather
+  than reading its threads again: an answered thread is settled, and one with
+  an issue already filed gets the reply naming it instead of a second issue.
+  A forge that will not list every open issue ends the cast instead.
 - `cover`, `refresh` and `review` read every review thread and every comment on it,
   not only the first page of each.
 

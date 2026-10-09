@@ -84,6 +84,14 @@ A gate that will not go green ends the cast rather than moving on, because the
 repair work is sitting uncommitted in the worktree. Discovering what was
 found, and settling it.
 
+Every reply and filed issue carries a hidden mark, so a cast the forge cut
+short between filing, replying and settling is finished by the next one: a
+thread already answered is settled, and one with an issue filed for it gets
+the reply naming the issue, without either being read again. A forge that will
+not list every open issue ends the cast instead, since an issue it left out
+could be filed twice. Commit or set aside the cut-short round's work first; the
+next cast wants a clean worktree.
+
 A cast with no room left in its step budget for the next branch ends there
 without failing, and its report names the branches left for the next cast.
 
