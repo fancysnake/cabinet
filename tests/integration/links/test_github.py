@@ -4,8 +4,6 @@ import json
 import shlex
 
 import pytest
-from pydantic import BaseModel
-from vekna.lexicon import Done, step
 from vekna.trial import Trial
 
 from cabinet.links.forge.github import GithubForge
@@ -13,7 +11,7 @@ from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
-from tests.conftest import comment, node, page, threads_page
+from tests.conftest import comment, drive, node, page, threads_page
 
 _FORGE = GithubForge()
 
@@ -31,6 +29,13 @@ _THREAD = Thread(
 )
 _GRAPHQL = "slug=*gh api graphql*"
 _REPO = ' -f repo="${slug#*/}"'
+_ANCHORED = [Finding(path="src/thing.py", line=12, body="hm")]
+# Two anchored items in one review, which is what the head commit is read
+# once for.
+_SEVERAL = [
+    Finding(path="src/thing.py", line=12, body="one"),
+    Finding(path="src/other.py", line=3, body="two"),
+]
 
 
 def _comments_page(connection: dict[str, object]) -> str:
@@ -55,194 +60,11 @@ def _row(number: int, **extra: object) -> dict[str, object]:
     }
 
 
-class _Ask(BaseModel):
-    number: int = 7
-
-
-# One class per step: vekna routes by payload class, so no two steps share one.
-class _AskPulls(_Ask):
-    pass
-
-
-class _AskLabels(_Ask):
-    pass
-
-
-class _AskLabel(_Ask):
-    pass
-
-
-class _AskThreads(_Ask):
-    pass
-
-
-class _AskReply(_Ask):
-    pass
-
-
-class _AskResolve(_Ask):
-    pass
-
-
-class _AskBoard(_Ask):
-    pass
-
-
-class _AskAnchored(_Ask):
-    pass
-
-
-class _AskGeneral(_Ask):
-    pass
-
-
-class _AskSeveral(_Ask):
-    pass
-
-
-class _AskIssue(_Ask):
-    pass
-
-
-class _AskLabelIssue(_Ask):
-    pass
-
-
-class _AskAttach(_Ask):
-    pass
-
-
-class _AskBlocks(_Ask):
-    pass
-
-
-class _AskLabelNothing(_Ask):
-    pass
-
-
-class _AskLabelIssueNothing(_Ask):
-    pass
-
-
-class _AskReplyBare(_Ask):
-    pass
-
-
-class _AskIssues(_Ask):
-    pass
-
-
-class _Pulls(BaseModel):
-    pulls: list[PullRequest]
-
-
-class _Labels(BaseModel):
-    labels: list[str]
-
-
-class _Threads(BaseModel):
-    threads: list[Thread]
-
-
-@step
-async def pulls(_: _AskPulls) -> Done[_Pulls]:
-    return Done(_Pulls(pulls=await _FORGE.pulls()))
-
-
-@step
-async def labels(ask: _AskLabels) -> Done[_Labels]:
-    return Done(_Labels(labels=await _FORGE.labels(ask.number)))
-
-
-@step
-async def label(ask: _AskLabel) -> Done[None]:
-    await _FORGE.label(ask.number, add=["v:refresh:started"], remove=["v:refresh:done"])
-    return Done(None)
-
-
-@step
-async def threads(ask: _AskThreads) -> Done[_Threads]:
-    return Done(_Threads(threads=await _FORGE.threads(ask.number)))
-
-
-@step
-async def reply(ask: _AskReply) -> Done[None]:
-    await _FORGE.reply(ask.number, _THREAD, "done")
-    return Done(None)
-
-
-@step
-async def resolve(ask: _AskResolve) -> Done[None]:
-    await _FORGE.resolve(ask.number, _THREAD)
-    return Done(None)
-
-
-@step
-async def board(_: _AskBoard) -> Done[Board]:
-    return Done(await _FORGE.board("feature"))
-
-
-@step
-async def anchored(ask: _AskAnchored) -> Done[Posted]:
-    findings = [Finding(path="src/thing.py", line=12, body="hm")]
-    return Done(await _FORGE.comment(ask.number, findings))
-
-
-@step
-async def general(ask: _AskGeneral) -> Done[Posted]:
-    return Done(await _FORGE.comment(ask.number, [Finding(path="", body="hm")]))
-
-
-# Two anchored items in one review, which is what the head commit is read
-# once for.
-@step
-async def several(ask: _AskSeveral) -> Done[Posted]:
-    findings = [
-        Finding(path="src/thing.py", line=12, body="one"),
-        Finding(path="src/other.py", line=3, body="two"),
-    ]
-    return Done(await _FORGE.comment(ask.number, findings))
-
-
-@step
-async def issue(_: _AskIssue) -> Done[Opened]:
-    return Done(await _FORGE.issue("a title", "a body"))
-
-
-@step
-async def label_issue(ask: _AskLabelIssue) -> Done[None]:
-    await _FORGE.label_issue(ask.number, add=["bug"], remove=["epic"])
-    return Done(None)
-
-
-@step
-async def attach(ask: _AskAttach) -> Done[None]:
-    await _FORGE.attach(ask.number, 9)
-    return Done(None)
-
-
-@step
-async def blocks(ask: _AskBlocks) -> Done[None]:
-    await _FORGE.blocks(ask.number, 9)
-    return Done(None)
-
-
-@step
-async def label_nothing(ask: _AskLabelNothing) -> Done[None]:
-    await _FORGE.label(ask.number)
-    return Done(None)
-
-
-@step
-async def label_issue_nothing(ask: _AskLabelIssueNothing) -> Done[None]:
-    await _FORGE.label_issue(ask.number)
-    return Done(None)
-
-
-@step
-async def reply_bare(ask: _AskReplyBare) -> Done[None]:
-    await _FORGE.reply(ask.number, Thread(id="PRRT_9", resolved=False), "done")
-    return Done(None)
+def _label(trial: Trial) -> None:
+    drive(
+        trial,
+        lambda: _FORGE.label(7, add=["v:refresh:started"], remove=["v:refresh:done"]),
+    )
 
 
 class TestPulls:
@@ -252,23 +74,17 @@ class TestPulls:
             when=_LIST, stdout=json.dumps([_row(7, labels=[{"name": "pr::wait"}])])
         )
 
-        transition = trial.walk(pulls, _AskPulls())
-
-        assert transition == Done(
-            _Pulls(
-                pulls=[
-                    PullRequest(
-                        number=7,
-                        title="pr 7",
-                        url="https://github.com/o/r/pull/7",
-                        branch="feature-7",
-                        base="main",
-                        updated_at="2026-08-01T22:00:00Z",
-                        labels=["pr::wait"],
-                    )
-                ]
+        assert drive(trial, _FORGE.pulls) == [
+            PullRequest(
+                number=7,
+                title="pr 7",
+                url="https://github.com/o/r/pull/7",
+                branch="feature-7",
+                base="main",
+                updated_at="2026-08-01T22:00:00Z",
+                labels=["pr::wait"],
             )
-        )
+        ]
         assert trial.shell.commands == [_LIST]
 
     @staticmethod
@@ -276,14 +92,14 @@ class TestPulls:
         trial.shell.replies(when=_LIST, exit_code=1, stderr="not logged in")
 
         with pytest.raises(ForgeError, match=r"could not list.*not logged in"):
-            trial.walk(pulls, _AskPulls())
+            drive(trial, _FORGE.pulls)
 
     @staticmethod
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_LIST, stdout="[{}]")
 
         with pytest.raises(ForgeError, match="unreadable"):
-            trial.walk(pulls, _AskPulls())
+            drive(trial, _FORGE.pulls)
 
 
 class TestLabels:
@@ -294,22 +110,20 @@ class TestLabels:
             stdout='{"labels": [{"name": "bug"}, {"name": "pr::thermo"}]}',
         )
 
-        assert trial.walk(labels, _AskLabels()) == Done(
-            _Labels(labels=["bug", "pr::thermo"])
-        )
+        assert drive(trial, lambda: _FORGE.labels(7)) == ["bug", "pr::thermo"]
 
     @staticmethod
     def test_labels_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when="gh pr view 7 --json labels", stdout='{"labels": 1}')
 
         with pytest.raises(ForgeError, match="labels this could not read"):
-            trial.walk(labels, _AskLabels())
+            drive(trial, lambda: _FORGE.labels(7))
 
     @staticmethod
     def test_both_halves_go_in_one_call(trial: Trial) -> None:
         trial.shell.replies(when="gh pr edit 7*")
 
-        trial.walk(label, _AskLabel())
+        _label(trial)
 
         assert trial.shell.commands == [
             "gh pr edit 7 --add-label v:refresh:started --remove-label v:refresh:done"
@@ -317,7 +131,7 @@ class TestLabels:
 
     @staticmethod
     def test_nothing_to_change_is_no_call(trial: Trial) -> None:
-        trial.walk(label_nothing, _AskLabelNothing())
+        drive(trial, lambda: _FORGE.label(7))
 
         assert not trial.shell.commands
 
@@ -326,7 +140,7 @@ class TestLabels:
         trial.shell.replies(when="gh pr edit 7*", exit_code=1, stderr="no such label")
 
         with pytest.raises(ForgeError, match="could not label #7"):
-            trial.walk(label, _AskLabel())
+            _label(trial)
 
 
 class TestThreads:
@@ -337,11 +151,10 @@ class TestThreads:
         settled = node("PRRT_2", page([]), resolved=True)
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([held, settled])))
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(
-            _Threads(threads=[_THREAD, Thread(id="PRRT_2", resolved=True)])
-        )
+        assert drive(trial, lambda: _FORGE.threads(7)) == [
+            _THREAD,
+            Thread(id="PRRT_2", resolved=True),
+        ]
         assert trial.shell.commands[0].endswith(' -f repo="${slug#*/}" -F number=7')
 
     @staticmethod
@@ -351,11 +164,10 @@ class TestThreads:
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(first))
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(second))
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(
-            _Threads(threads=[_open("PRRT_1", 101), _open("PRRT_2", 102)])
-        )
+        assert drive(trial, lambda: _FORGE.threads(7)) == [
+            _open("PRRT_1", 101),
+            _open("PRRT_2", 102),
+        ]
         assert trial.shell.commands[0].endswith(f"{_REPO} -F number=7")
         assert trial.shell.commands[1].endswith(f"{_REPO} -f after=c1 -F number=7")
 
@@ -364,11 +176,9 @@ class TestThreads:
         nodes = [node(f"PRRT_{one}", page([])) for one in range(100)]
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page(nodes)))
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(
-            _Threads(threads=[_open(f"PRRT_{one}") for one in range(100)])
-        )
+        assert drive(trial, lambda: _FORGE.threads(7)) == [
+            _open(f"PRRT_{one}") for one in range(100)
+        ]
         assert len(trial.shell.commands) == 1
 
     @staticmethod
@@ -379,9 +189,7 @@ class TestThreads:
         trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(rest))
         trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(page([])))
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(_Threads(threads=[_open("PRRT_1", 101, 102)]))
+        assert drive(trial, lambda: _FORGE.threads(7)) == [_open("PRRT_1", 101, 102)]
         assert trial.shell.commands[1].endswith(f"{_REPO} -f id=PRRT_1 -f after=k1")
         assert trial.shell.commands[2].endswith(f"{_REPO} -f id=PRRT_1 -f after=k2")
 
@@ -393,7 +201,7 @@ class TestThreads:
         trial.shell.replies(when=_GRAPHQL, stdout=answer)
 
         with pytest.raises(ForgeError, match="threads this could not read"):
-            trial.walk(threads, _AskThreads())
+            drive(trial, lambda: _FORGE.threads(7))
 
     @staticmethod
     def test_more_comments_on_a_thread_that_is_gone(trial: Trial) -> None:
@@ -402,7 +210,7 @@ class TestThreads:
         trial.shell.replies(when=_GRAPHQL, stdout='{"data": {"node": null}}')
 
         with pytest.raises(ForgeError, match="comments this could not read"):
-            trial.walk(threads, _AskThreads())
+            drive(trial, lambda: _FORGE.threads(7))
 
     @staticmethod
     def test_an_answer_that_will_not_parse(trial: Trial) -> None:
@@ -411,7 +219,7 @@ class TestThreads:
         trial.shell.replies(when="slug=*gh api graphql*", stdout=json.dumps(answer))
 
         with pytest.raises(ForgeError, match="threads this could not read"):
-            trial.walk(threads, _AskThreads())
+            drive(trial, lambda: _FORGE.threads(7))
 
     # gh exits 0 on this and the answer carries no GraphQL error, so the only
     # thing standing between it and a review posted over everything already
@@ -424,13 +232,13 @@ class TestThreads:
         trial.shell.replies(when="slug=*gh api graphql*", stdout=json.dumps(answer))
 
         with pytest.raises(ForgeError, match="threads this could not read"):
-            trial.walk(threads, _AskThreads())
+            drive(trial, lambda: _FORGE.threads(7))
 
     @staticmethod
     def test_a_reply_goes_under_the_first_comment(trial: Trial) -> None:
         trial.shell.replies(when="gh api repos/*")
 
-        trial.walk(reply, _AskReply())
+        drive(trial, lambda: _FORGE.reply(7, _THREAD, "done"))
 
         assert trial.shell.commands == [
             "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies -f body=done"
@@ -438,14 +246,16 @@ class TestThreads:
 
     @staticmethod
     def test_a_thread_without_comments_cannot_be_answered(trial: Trial) -> None:
+        bare = Thread(id="PRRT_9", resolved=False)
+
         with pytest.raises(ForgeError, match="no comment to reply under"):
-            trial.walk(reply_bare, _AskReplyBare())
+            drive(trial, lambda: _FORGE.reply(7, bare, "done"))
 
     @staticmethod
     def test_resolving_takes_the_node_id(trial: Trial) -> None:
         trial.shell.replies(when="slug=*gh api graphql*")
 
-        trial.walk(resolve, _AskResolve())
+        drive(trial, lambda: _FORGE.resolve(7, _THREAD))
 
         assert trial.shell.commands[0].endswith(' -f repo="${slug#*/}" -f id=PRRT_1')
 
@@ -467,14 +277,12 @@ class TestBoard:
         }
         trial.shell.replies(when=_BOARD, stdout=json.dumps(answer))
 
-        assert trial.walk(board, _AskBoard()) == Done(
-            Board(
-                checks=[
-                    Check(name="test", passed=True),
-                    Check(name="checks", passed=False),
-                    Check(name="codecov/patch", title="96.84% of diff hit"),
-                ]
-            )
+        assert drive(trial, lambda: _FORGE.board("feature")) == Board(
+            checks=[
+                Check(name="test", passed=True),
+                Check(name="checks", passed=False),
+                Check(name="codecov/patch", title="96.84% of diff hit"),
+            ]
         )
 
     @staticmethod
@@ -483,8 +291,8 @@ class TestBoard:
             when=_BOARD, stdout='{"total_count": 2, "check_runs": [{"name": "test"}]}'
         )
 
-        assert trial.walk(board, _AskBoard()) == Done(
-            Board(checks=[Check(name="test")], truncated=True)
+        assert drive(trial, lambda: _FORGE.board("feature")) == Board(
+            checks=[Check(name="test")], truncated=True
         )
 
     @staticmethod
@@ -492,14 +300,14 @@ class TestBoard:
         trial.shell.replies(when=_BOARD, stdout='{"check_runs": 1}')
 
         with pytest.raises(ForgeError, match="board this could not read"):
-            trial.walk(board, _AskBoard())
+            drive(trial, lambda: _FORGE.board("feature"))
 
     @staticmethod
     def test_a_board_gh_would_not_give(trial: Trial) -> None:
         trial.shell.replies(when=_BOARD, exit_code=1, stderr="502")
 
         with pytest.raises(ForgeError, match=r"check board.*502"):
-            trial.walk(board, _AskBoard())
+            drive(trial, lambda: _FORGE.board("feature"))
 
 
 class TestComment:
@@ -508,7 +316,7 @@ class TestComment:
         trial.shell.replies(when="gh pr view 7 --json headRefOid*", stdout="abc123\n")
         trial.shell.replies(when="gh api repos/*")
 
-        assert trial.walk(anchored, _AskAnchored()) == Done(Posted(count=1))
+        assert drive(trial, lambda: _FORGE.comment(7, _ANCHORED)) == Posted(count=1)
         assert trial.shell.commands == [
             "gh pr view 7 --json headRefOid -q .headRefOid",
             (
@@ -523,15 +331,16 @@ class TestComment:
         trial.shell.replies(when="gh api repos/*", exit_code=1, stderr="422")
         trial.shell.replies(when="gh pr comment 7*")
 
-        trial.walk(anchored, _AskAnchored())
+        drive(trial, lambda: _FORGE.comment(7, _ANCHORED))
 
         assert trial.shell.commands[-1] == "gh pr comment 7 --body hm"
 
     @staticmethod
     def test_a_general_item_is_a_plain_comment(trial: Trial) -> None:
         trial.shell.replies(when="gh pr comment 7*")
+        general = [Finding(path="", body="hm")]
 
-        assert trial.walk(general, _AskGeneral()) == Done(Posted(count=1))
+        assert drive(trial, lambda: _FORGE.comment(7, general)) == Posted(count=1)
         assert trial.shell.commands == ["gh pr comment 7 --body hm"]
 
     # The head commit is the same for every item, so it is asked for once.
@@ -540,7 +349,7 @@ class TestComment:
         trial.shell.replies(when="gh pr view 7 --json headRefOid*", stdout="abc123\n")
         trial.shell.replies(when="gh api repos/*", always=True)
 
-        assert trial.walk(several, _AskSeveral()) == Done(Posted(count=2))
+        assert drive(trial, lambda: _FORGE.comment(7, _SEVERAL)) == Posted(count=2)
         head, first, second = trial.shell.commands
         assert head == "gh pr view 7 --json headRefOid -q .headRefOid"
         assert first.endswith("-f body=one")
@@ -561,8 +370,8 @@ class TestComment:
             when="gh pr comment 7 --body two", exit_code=1, stderr="403"
         )
 
-        assert trial.walk(several, _AskSeveral()) == Done(
-            Posted(count=1, stopped="could not comment on #7: 403")
+        assert drive(trial, lambda: _FORGE.comment(7, _SEVERAL)) == Posted(
+            count=1, stopped="could not comment on #7: 403"
         )
 
     # The anchor is what a head read buys, and losing it is not losing the
@@ -574,7 +383,7 @@ class TestComment:
         )
         trial.shell.replies(when="gh pr comment 7*")
 
-        assert trial.walk(anchored, _AskAnchored()) == Done(Posted(count=1))
+        assert drive(trial, lambda: _FORGE.comment(7, _ANCHORED)) == Posted(count=1)
         assert trial.shell.commands[-1] == "gh pr comment 7 --body hm"
 
 
@@ -592,8 +401,8 @@ class TestIssue:
     def test_the_number_and_the_url_come_back(trial: Trial) -> None:
         trial.shell.replies(when="gh api repos*issues -X POST*", stdout=_OPENED)
 
-        assert trial.walk(issue, _AskIssue()) == Done(
-            Opened(number=9, url="https://github.com/o/r/issues/9")
+        assert drive(trial, lambda: _FORGE.issue("a title", "a body")) == Opened(
+            number=9, url="https://github.com/o/r/issues/9"
         )
         assert trial.shell.commands == [
             (
@@ -608,7 +417,7 @@ class TestIssue:
         trial.shell.replies(when="gh api repos*issues -X POST*", stdout="{}")
 
         with pytest.raises(ForgeError, match="issue this could not read"):
-            trial.walk(issue, _AskIssue())
+            drive(trial, lambda: _FORGE.issue("a title", "a body"))
 
 
 class TestLabelIssue:
@@ -616,14 +425,15 @@ class TestLabelIssue:
     def test_what_goes_on_and_what_comes_off_in_one_call(trial: Trial) -> None:
         trial.shell.replies(when="gh issue edit*")
 
-        assert trial.walk(label_issue, _AskLabelIssue()) == Done(None)
+        drive(trial, lambda: _FORGE.label_issue(7, add=["bug"], remove=["epic"]))
+
         assert trial.shell.commands == [
             "gh issue edit 7 --add-label bug --remove-label epic"
         ]
 
     @staticmethod
     def test_nothing_to_change_is_no_call(trial: Trial) -> None:
-        trial.walk(label_issue_nothing, _AskLabelIssueNothing())
+        drive(trial, lambda: _FORGE.label_issue(7))
 
         assert not trial.shell.commands
 
@@ -634,7 +444,8 @@ class TestLinks:
         trial.shell.replies(when=_ID, stdout="1234\n")
         trial.shell.replies(when="gh api repos*sub_issues -X POST*")
 
-        assert trial.walk(attach, _AskAttach()) == Done(None)
+        drive(trial, lambda: _FORGE.attach(7, 9))
+
         assert trial.shell.commands == [
             _ID,
             (
@@ -648,7 +459,8 @@ class TestLinks:
         trial.shell.replies(when=_ID, stdout="1234\n")
         trial.shell.replies(when="gh api repos*blocked_by -X POST*")
 
-        assert trial.walk(blocks, _AskBlocks()) == Done(None)
+        drive(trial, lambda: _FORGE.blocks(7, 9))
+
         assert trial.shell.commands == [
             _ID,
             (
@@ -667,7 +479,8 @@ class TestLinks:
         )
         trial.shell.replies(when=_SUBS, stdout="3\n9\n")
 
-        assert trial.walk(attach, _AskAttach()) == Done(None)
+        drive(trial, lambda: _FORGE.attach(7, 9))
+
         assert trial.shell.commands[-1] == _SUBS
 
     @staticmethod
@@ -678,7 +491,8 @@ class TestLinks:
         )
         trial.shell.replies(when=_BLOCKERS, stdout="9\n")
 
-        assert trial.walk(blocks, _AskBlocks()) == Done(None)
+        drive(trial, lambda: _FORGE.blocks(7, 9))
+
         assert trial.shell.commands[-1] == _BLOCKERS
 
     # Refused and not there: what the forge said to the write is the error.
@@ -691,7 +505,7 @@ class TestLinks:
         trial.shell.replies(when=_BLOCKERS, stdout="3\n")
 
         with pytest.raises(ForgeError, match="blocked by #9: Forbidden"):
-            trial.walk(blocks, _AskBlocks())
+            drive(trial, lambda: _FORGE.blocks(7, 9))
 
     @staticmethod
     def test_links_that_cannot_be_listed_stop_the_link(trial: Trial) -> None:
@@ -702,14 +516,14 @@ class TestLinks:
         trial.shell.replies(when=_BLOCKERS, exit_code=1, stderr="Not Found")
 
         with pytest.raises(ForgeError, match="could not say #7 is blocked by #9"):
-            trial.walk(blocks, _AskBlocks())
+            drive(trial, lambda: _FORGE.blocks(7, 9))
 
     @staticmethod
     def test_a_number_with_no_id_behind_it_stops_the_link(trial: Trial) -> None:
         trial.shell.replies(when=_ID, exit_code=1, stderr="Not Found")
 
         with pytest.raises(ForgeError, match="could not read the id of #9"):
-            trial.walk(attach, _AskAttach())
+            drive(trial, lambda: _FORGE.attach(7, 9))
 
 
 _AUTHORED = (
@@ -720,11 +534,6 @@ _ASSIGNED = (
     "gh issue list --assignee @me --state open --limit 200"
     " --json number,title,url,body,labels"
 )
-
-
-@step
-async def issues(_: _AskIssues) -> Done[Listing]:
-    return Done(await _FORGE.issues())
 
 
 def _issue(number: int, **extra: object) -> dict[str, object]:
@@ -749,23 +558,17 @@ class TestIssues:
         )
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4), _issue(2)]))
 
-        assert trial.walk(issues, _AskIssues()) == Done(
-            Listing(
-                issues=[
-                    Issue(
-                        number=2, title="issue 2", url="https://github.com/o/r/issues/2"
-                    ),
-                    Issue(
-                        number=4, title="issue 4", url="https://github.com/o/r/issues/4"
-                    ),
-                    Issue(
-                        number=9,
-                        title="issue 9",
-                        url="https://github.com/o/r/issues/9",
-                        labels=["bug"],
-                    ),
-                ]
-            )
+        assert drive(trial, _FORGE.issues) == Listing(
+            issues=[
+                Issue(number=2, title="issue 2", url="https://github.com/o/r/issues/2"),
+                Issue(number=4, title="issue 4", url="https://github.com/o/r/issues/4"),
+                Issue(
+                    number=9,
+                    title="issue 9",
+                    url="https://github.com/o/r/issues/9",
+                    labels=["bug"],
+                ),
+            ]
         )
         assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
 
@@ -777,16 +580,14 @@ class TestIssues:
         trial.shell.replies(when=_AUTHORED, stdout=json.dumps(rows))
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
 
-        transition = trial.walk(issues, _AskIssues())
+        listing = drive(trial, _FORGE.issues)
 
-        assert isinstance(transition, Done)
-        assert isinstance(transition.result, Listing)
-        assert transition.result.truncated
-        assert len(transition.result.issues) == len(rows)
+        assert listing.truncated
+        assert len(listing.issues) == len(rows)
 
     @staticmethod
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_AUTHORED, stdout="[{}]")
 
         with pytest.raises(ForgeError, match="issues this could not read"):
-            trial.walk(issues, _AskIssues())
+            drive(trial, _FORGE.issues)

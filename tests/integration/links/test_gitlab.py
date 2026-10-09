@@ -4,8 +4,6 @@ import json
 from collections.abc import Iterable
 
 import pytest
-from pydantic import BaseModel
-from vekna.lexicon import Done, step
 from vekna.trial import Trial
 
 from cabinet.links.forge.gitlab import GitlabForge
@@ -13,6 +11,7 @@ from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Listing, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from tests.conftest import drive
 
 _FORGE = GitlabForge()
 
@@ -33,6 +32,13 @@ _THREAD = Thread(
     line=12,
     comments=[Comment(id="101", author="reviewer", body="guard this")],
 )
+_ANCHORED = [Finding(path="src/thing.py", line=12, body="hm")]
+# Two anchored items in one review, which is what the diff refs are read once
+# for.
+_SEVERAL = [
+    Finding(path="src/thing.py", line=12, body="one"),
+    Finding(path="src/other.py", line=3, body="two"),
+]
 
 
 def _mr(iid: int, **extra: object) -> dict[str, object]:
@@ -69,186 +75,6 @@ def _opened(numbers: Iterable[int]) -> list[Thread]:
     ]
 
 
-class _Ask(BaseModel):
-    number: int = 7
-
-
-# One class per step: vekna routes by payload class, so no two steps share one.
-class _AskPulls(_Ask):
-    pass
-
-
-class _AskLabels(_Ask):
-    pass
-
-
-class _AskLabel(_Ask):
-    pass
-
-
-class _AskThreads(_Ask):
-    pass
-
-
-class _AskReply(_Ask):
-    pass
-
-
-class _AskResolve(_Ask):
-    pass
-
-
-class _AskBoard(_Ask):
-    pass
-
-
-class _AskAnchored(_Ask):
-    pass
-
-
-class _AskGeneral(_Ask):
-    pass
-
-
-class _AskSeveral(_Ask):
-    pass
-
-
-class _AskIssue(_Ask):
-    pass
-
-
-class _AskLabelIssue(_Ask):
-    pass
-
-
-class _AskAttach(_Ask):
-    pass
-
-
-class _AskBlocks(_Ask):
-    pass
-
-
-class _AskLabelNothing(_Ask):
-    pass
-
-
-class _AskLabelIssueNothing(_Ask):
-    pass
-
-
-class _AskIssues(_Ask):
-    pass
-
-
-class _Pulls(BaseModel):
-    pulls: list[PullRequest]
-
-
-class _Labels(BaseModel):
-    labels: list[str]
-
-
-class _Threads(BaseModel):
-    threads: list[Thread]
-
-
-@step
-async def pulls(_: _AskPulls) -> Done[_Pulls]:
-    return Done(_Pulls(pulls=await _FORGE.pulls()))
-
-
-@step
-async def labels(ask: _AskLabels) -> Done[_Labels]:
-    return Done(_Labels(labels=await _FORGE.labels(ask.number)))
-
-
-@step
-async def label(ask: _AskLabel) -> Done[None]:
-    await _FORGE.label(ask.number, add=["v:refresh:started"], remove=["v:refresh:done"])
-    return Done(None)
-
-
-@step
-async def threads(ask: _AskThreads) -> Done[_Threads]:
-    return Done(_Threads(threads=await _FORGE.threads(ask.number)))
-
-
-@step
-async def reply(ask: _AskReply) -> Done[None]:
-    await _FORGE.reply(ask.number, _THREAD, "done")
-    return Done(None)
-
-
-@step
-async def resolve(ask: _AskResolve) -> Done[None]:
-    await _FORGE.resolve(ask.number, _THREAD)
-    return Done(None)
-
-
-@step
-async def board(_: _AskBoard) -> Done[Board]:
-    return Done(await _FORGE.board("feature"))
-
-
-@step
-async def anchored(ask: _AskAnchored) -> Done[Posted]:
-    findings = [Finding(path="src/thing.py", line=12, body="hm")]
-    return Done(await _FORGE.comment(ask.number, findings))
-
-
-@step
-async def general(ask: _AskGeneral) -> Done[Posted]:
-    return Done(await _FORGE.comment(ask.number, [Finding(path="", body="hm")]))
-
-
-# Two anchored items in one review, which is what the diff refs are read once
-# for.
-@step
-async def several(ask: _AskSeveral) -> Done[Posted]:
-    findings = [
-        Finding(path="src/thing.py", line=12, body="one"),
-        Finding(path="src/other.py", line=3, body="two"),
-    ]
-    return Done(await _FORGE.comment(ask.number, findings))
-
-
-@step
-async def issue(_: _AskIssue) -> Done[Opened]:
-    return Done(await _FORGE.issue("a title", "a body"))
-
-
-@step
-async def label_issue(ask: _AskLabelIssue) -> Done[None]:
-    await _FORGE.label_issue(ask.number, add=["bug"], remove=["epic"])
-    return Done(None)
-
-
-@step
-async def attach(ask: _AskAttach) -> Done[None]:
-    await _FORGE.attach(ask.number, 9)
-    return Done(None)
-
-
-@step
-async def blocks(ask: _AskBlocks) -> Done[None]:
-    await _FORGE.blocks(ask.number, 9)
-    return Done(None)
-
-
-@step
-async def label_nothing(ask: _AskLabelNothing) -> Done[None]:
-    await _FORGE.label(ask.number)
-    return Done(None)
-
-
-@step
-async def label_issue_nothing(ask: _AskLabelIssueNothing) -> Done[None]:
-    await _FORGE.label_issue(ask.number)
-    return Done(None)
-
-
 class TestPulls:
     @staticmethod
     def test_merge_requests_become_pull_requests(trial: Trial) -> None:
@@ -256,21 +82,17 @@ class TestPulls:
             when=_LIST, stdout=json.dumps([_mr(7, labels=["pr::wait"])])
         )
 
-        assert trial.walk(pulls, _AskPulls()) == Done(
-            _Pulls(
-                pulls=[
-                    PullRequest(
-                        number=7,
-                        title="mr 7",
-                        url="https://gitlab.example/o/r/-/merge_requests/7",
-                        branch="feature-7",
-                        base="main",
-                        updated_at="2026-08-01T22:00:00Z",
-                        labels=["pr::wait"],
-                    )
-                ]
+        assert drive(trial, _FORGE.pulls) == [
+            PullRequest(
+                number=7,
+                title="mr 7",
+                url="https://gitlab.example/o/r/-/merge_requests/7",
+                branch="feature-7",
+                base="main",
+                updated_at="2026-08-01T22:00:00Z",
+                labels=["pr::wait"],
             )
-        )
+        ]
         assert trial.shell.commands == [_LIST]
 
     @staticmethod
@@ -278,14 +100,14 @@ class TestPulls:
         trial.shell.replies(when=_LIST, exit_code=1, stderr="401")
 
         with pytest.raises(ForgeError, match=r"could not list.*401"):
-            trial.walk(pulls, _AskPulls())
+            drive(trial, _FORGE.pulls)
 
     @staticmethod
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_LIST, stdout="[{}]")
 
         with pytest.raises(ForgeError, match="merge requests this could not read"):
-            trial.walk(pulls, _AskPulls())
+            drive(trial, _FORGE.pulls)
 
 
 class TestLabels:
@@ -293,20 +115,25 @@ class TestLabels:
     def test_read_off_the_merge_request(trial: Trial) -> None:
         trial.shell.replies(when=_MR, stdout=json.dumps(_mr(7, labels=["bug"])))
 
-        assert trial.walk(labels, _AskLabels()) == Done(_Labels(labels=["bug"]))
+        assert drive(trial, lambda: _FORGE.labels(7)) == ["bug"]
 
     @staticmethod
     def test_labels_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_MR, stdout="{}")
 
         with pytest.raises(ForgeError, match="labels this could not read"):
-            trial.walk(labels, _AskLabels())
+            drive(trial, lambda: _FORGE.labels(7))
 
     @staticmethod
     def test_both_halves_go_in_one_call(trial: Trial) -> None:
         trial.shell.replies(when="glab mr update 7*")
 
-        trial.walk(label, _AskLabel())
+        drive(
+            trial,
+            lambda: _FORGE.label(
+                7, add=["v:refresh:started"], remove=["v:refresh:done"]
+            ),
+        )
 
         assert trial.shell.commands == [
             "glab mr update 7 --label v:refresh:started --unlabel v:refresh:done"
@@ -314,7 +141,7 @@ class TestLabels:
 
     @staticmethod
     def test_nothing_to_change_is_no_call(trial: Trial) -> None:
-        trial.walk(label_nothing, _AskLabelNothing())
+        drive(trial, lambda: _FORGE.label(7))
 
         assert not trial.shell.commands
 
@@ -340,16 +167,14 @@ class TestThreads:
         ]
         trial.shell.replies(when=_DISCUSSIONS, stdout=json.dumps(answer))
 
-        assert trial.walk(threads, _AskThreads()) == Done(_Threads(threads=[_THREAD]))
+        assert drive(trial, lambda: _FORGE.threads(7)) == [_THREAD]
 
     @staticmethod
     def test_discussions_past_a_full_page_are_asked_for(trial: Trial) -> None:
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
         trial.shell.replies(when=_SECOND, stdout=_discussions([100]))
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(_Threads(threads=_opened(range(101))))
+        assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(101))
         assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
 
     # The next-page headers go unread, so a full last page costs one
@@ -359,18 +184,14 @@ class TestThreads:
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
         trial.shell.replies(when=_SECOND, stdout="[]")
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(_Threads(threads=_opened(range(100))))
+        assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(100))
         assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
 
     @staticmethod
     def test_a_short_page_is_the_last(trial: Trial) -> None:
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(3)))
 
-        transition = trial.walk(threads, _AskThreads())
-
-        assert transition == Done(_Threads(threads=_opened(range(3))))
+        assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(3))
         assert trial.shell.commands == [_DISCUSSIONS]
 
     @staticmethod
@@ -378,13 +199,13 @@ class TestThreads:
         trial.shell.replies(when=_DISCUSSIONS, stdout='[{"notes": []}]')
 
         with pytest.raises(ForgeError, match="discussions this could not read"):
-            trial.walk(threads, _AskThreads())
+            drive(trial, lambda: _FORGE.threads(7))
 
     @staticmethod
     def test_a_reply_is_a_note_on_the_discussion(trial: Trial) -> None:
         trial.shell.replies(when="glab api *")
 
-        trial.walk(reply, _AskReply())
+        drive(trial, lambda: _FORGE.reply(7, _THREAD, "done"))
 
         assert trial.shell.commands == [
             (
@@ -397,7 +218,7 @@ class TestThreads:
     def test_resolving_is_a_put(trial: Trial) -> None:
         trial.shell.replies(when="glab api *")
 
-        trial.walk(resolve, _AskResolve())
+        drive(trial, lambda: _FORGE.resolve(7, _THREAD))
 
         assert trial.shell.commands == [
             (
@@ -418,15 +239,13 @@ class TestBoard:
         ]
         trial.shell.replies(when=_STATUSES, stdout=json.dumps(answer))
 
-        assert trial.walk(board, _AskBoard()) == Done(
-            Board(
-                checks=[
-                    Check(name="test", passed=True),
-                    Check(name="checks", passed=False),
-                    Check(name="lint", passed=False),
-                    Check(name="codecov/patch", title="96% hit"),
-                ]
-            )
+        assert drive(trial, lambda: _FORGE.board("feature")) == Board(
+            checks=[
+                Check(name="test", passed=True),
+                Check(name="checks", passed=False),
+                Check(name="lint", passed=False),
+                Check(name="codecov/patch", title="96% hit"),
+            ]
         )
 
     @staticmethod
@@ -434,11 +253,7 @@ class TestBoard:
         full = [{"name": f"job{index}", "status": "success"} for index in range(100)]
         trial.shell.replies(when=_STATUSES, stdout=json.dumps(full))
 
-        transition = trial.walk(board, _AskBoard())
-
-        assert isinstance(transition, Done)
-        assert transition.result is not None
-        assert transition.result == Board(
+        assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[Check(name=f"job{index}", passed=True) for index in range(100)],
             truncated=True,
         )
@@ -448,7 +263,7 @@ class TestBoard:
         trial.shell.replies(when=_STATUSES, stdout='[{"name": 1}]')
 
         with pytest.raises(ForgeError, match="statuses this could not read"):
-            trial.walk(board, _AskBoard())
+            drive(trial, lambda: _FORGE.board("feature"))
 
 
 class TestComment:
@@ -458,7 +273,7 @@ class TestComment:
         trial.shell.replies(when=_MR, stdout=json.dumps(refs))
         trial.shell.replies(when="glab api projects/:id/merge_requests/7/discussions*")
 
-        assert trial.walk(anchored, _AskAnchored()) == Done(Posted(count=1))
+        assert drive(trial, lambda: _FORGE.comment(7, _ANCHORED)) == Posted(count=1)
         assert trial.shell.commands[-1] == (
             "glab api projects/:id/merge_requests/7/discussions -X POST -f body=hm"
             " -f 'position[position_type]=text' -f 'position[base_sha]=b'"
@@ -478,15 +293,16 @@ class TestComment:
         )
         trial.shell.replies(when="glab mr note 7*")
 
-        trial.walk(anchored, _AskAnchored())
+        drive(trial, lambda: _FORGE.comment(7, _ANCHORED))
 
         assert trial.shell.commands[-1] == "glab mr note 7 -m hm"
 
     @staticmethod
     def test_a_general_item_is_a_note(trial: Trial) -> None:
         trial.shell.replies(when="glab mr note 7*")
+        general = [Finding(path="", body="hm")]
 
-        assert trial.walk(general, _AskGeneral()) == Done(Posted(count=1))
+        assert drive(trial, lambda: _FORGE.comment(7, general)) == Posted(count=1)
         assert trial.shell.commands == ["glab mr note 7 -m hm"]
 
     # The refs are the same for every item, so they are read once.
@@ -498,7 +314,7 @@ class TestComment:
             when="glab api projects/:id/merge_requests/7/discussions*", always=True
         )
 
-        assert trial.walk(several, _AskSeveral()) == Done(Posted(count=2))
+        assert drive(trial, lambda: _FORGE.comment(7, _SEVERAL)) == Posted(count=2)
         refs_read, first, second = trial.shell.commands
         assert refs_read == _MR
         assert first.endswith("-F 'position[new_line]=12'")
@@ -521,8 +337,8 @@ class TestComment:
         trial.shell.replies(when="glab mr note 7 -m one")
         trial.shell.replies(when="glab mr note 7 -m two", exit_code=1, stderr="403")
 
-        assert trial.walk(several, _AskSeveral()) == Done(
-            Posted(count=1, stopped="could not comment on !7: 403")
+        assert drive(trial, lambda: _FORGE.comment(7, _SEVERAL)) == Posted(
+            count=1, stopped="could not comment on !7: 403"
         )
 
     # The anchor is what the refs buy, and losing it is not losing the item.
@@ -533,7 +349,7 @@ class TestComment:
         trial.shell.replies(when=_MR, stdout="{}")
         trial.shell.replies(when="glab mr note 7*")
 
-        assert trial.walk(anchored, _AskAnchored()) == Done(Posted(count=1))
+        assert drive(trial, lambda: _FORGE.comment(7, _ANCHORED)) == Posted(count=1)
         assert trial.shell.commands[-1] == "glab mr note 7 -m hm"
 
 
@@ -550,8 +366,8 @@ class TestIssue:
             stdout='{"iid": 9, "web_url": "https://gitlab.example/o/r/-/issues/9"}',
         )
 
-        assert trial.walk(issue, _AskIssue()) == Done(
-            Opened(number=9, url="https://gitlab.example/o/r/-/issues/9")
+        assert drive(trial, lambda: _FORGE.issue("a title", "a body")) == Opened(
+            number=9, url="https://gitlab.example/o/r/-/issues/9"
         )
         assert trial.shell.commands == [
             (
@@ -565,7 +381,7 @@ class TestIssue:
         trial.shell.replies(when="glab api projects/:id/issues -X POST*", stdout="{}")
 
         with pytest.raises(ForgeError, match="issue this could not read"):
-            trial.walk(issue, _AskIssue())
+            drive(trial, lambda: _FORGE.issue("a title", "a body"))
 
 
 class TestLabelIssue:
@@ -573,14 +389,15 @@ class TestLabelIssue:
     def test_what_goes_on_and_what_comes_off_in_one_call(trial: Trial) -> None:
         trial.shell.replies(when="glab issue update*")
 
-        assert trial.walk(label_issue, _AskLabelIssue()) == Done(None)
+        drive(trial, lambda: _FORGE.label_issue(7, add=["bug"], remove=["epic"]))
+
         assert trial.shell.commands == [
             "glab issue update 7 --label bug --unlabel epic"
         ]
 
     @staticmethod
     def test_nothing_to_change_is_no_call(trial: Trial) -> None:
-        trial.walk(label_issue_nothing, _AskLabelIssueNothing())
+        drive(trial, lambda: _FORGE.label_issue(7))
 
         assert not trial.shell.commands
 
@@ -593,7 +410,8 @@ class TestLinks:
         trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
         trial.shell.replies(when=f"{_LINKS} -X POST*")
 
-        assert trial.walk(attach, _AskAttach()) == Done(None)
+        drive(trial, lambda: _FORGE.attach(7, 9))
+
         assert trial.shell.commands == [
             _PROJECT,
             (
@@ -609,7 +427,8 @@ class TestLinks:
         trial.shell.replies(when=_PROJECT, stdout='{"id": 42}')
         trial.shell.replies(when=f"{_LINKS} -X POST*")
 
-        assert trial.walk(blocks, _AskBlocks()) == Done(None)
+        drive(trial, lambda: _FORGE.blocks(7, 9))
+
         assert trial.shell.commands[-1] == (
             f"{_LINKS} -X POST -F target_project_id=42 -F target_issue_iid=9"
             " -f link_type=is_blocked_by"
@@ -626,7 +445,8 @@ class TestLinks:
             stdout='[{"project_id": 42, "iid": 9, "link_type": "is_blocked_by"}]',
         )
 
-        assert trial.walk(blocks, _AskBlocks()) == Done(None)
+        drive(trial, lambda: _FORGE.blocks(7, 9))
+
         assert trial.shell.commands[-1] == _LISTED
 
     # Related to #9 already, or blocked by a #9 of another project: neither is
@@ -647,7 +467,7 @@ class TestLinks:
         trial.shell.replies(when=_LISTED, stdout=held)
 
         with pytest.raises(ForgeError, match="blocked by #9: Forbidden"):
-            trial.walk(blocks, _AskBlocks())
+            drive(trial, lambda: _FORGE.blocks(7, 9))
 
     @staticmethod
     def test_links_it_cannot_read_stop_the_link(trial: Trial) -> None:
@@ -656,14 +476,14 @@ class TestLinks:
         trial.shell.replies(when=_LISTED, stdout="{}")
 
         with pytest.raises(ForgeError, match="links this could not read"):
-            trial.walk(attach, _AskAttach())
+            drive(trial, lambda: _FORGE.attach(7, 9))
 
     @staticmethod
     def test_a_project_that_will_not_say_its_id_stops_the_link(trial: Trial) -> None:
         trial.shell.replies(when=_PROJECT, stdout="{}")
 
         with pytest.raises(ForgeError, match="project this could not read"):
-            trial.walk(attach, _AskAttach())
+            drive(trial, lambda: _FORGE.attach(7, 9))
 
 
 _AUTHORED = (
@@ -672,11 +492,6 @@ _AUTHORED = (
 _ASSIGNED = (
     "glab api 'projects/:id/issues?state=opened&scope=assigned_to_me&per_page=100'"
 )
-
-
-@step
-async def issues(_: _AskIssues) -> Done[Listing]:
-    return Done(await _FORGE.issues())
 
 
 def _listed(iid: int, **extra: object) -> dict[str, object]:
@@ -699,23 +514,21 @@ class TestIssues:
         trial.shell.replies(when=_AUTHORED, stdout=json.dumps([nine]))
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([nine, _listed(2)]))
 
-        assert trial.walk(issues, _AskIssues()) == Done(
-            Listing(
-                issues=[
-                    Issue(
-                        number=2,
-                        title="issue 2",
-                        url="https://gitlab.example/o/r/-/issues/2",
-                    ),
-                    Issue(
-                        number=9,
-                        title="issue 9",
-                        url="https://gitlab.example/o/r/-/issues/9",
-                        body="why",
-                        labels=["S"],
-                    ),
-                ]
-            )
+        assert drive(trial, _FORGE.issues) == Listing(
+            issues=[
+                Issue(
+                    number=2,
+                    title="issue 2",
+                    url="https://gitlab.example/o/r/-/issues/2",
+                ),
+                Issue(
+                    number=9,
+                    title="issue 9",
+                    url="https://gitlab.example/o/r/-/issues/9",
+                    body="why",
+                    labels=["S"],
+                ),
+            ]
         )
         assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
 
@@ -727,15 +540,11 @@ class TestIssues:
         )
         trial.shell.replies(when=_ASSIGNED, stdout="[]")
 
-        transition = trial.walk(issues, _AskIssues())
-
-        assert isinstance(transition, Done)
-        assert isinstance(transition.result, Listing)
-        assert transition.result.truncated
+        assert drive(trial, _FORGE.issues).truncated
 
     @staticmethod
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_AUTHORED, stdout="[{}]")
 
         with pytest.raises(ForgeError, match="issues this could not read"):
-            trial.walk(issues, _AskIssues())
+            drive(trial, _FORGE.issues)
