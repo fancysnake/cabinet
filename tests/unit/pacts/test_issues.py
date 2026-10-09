@@ -11,7 +11,7 @@ _HEX = 6
 
 
 class TestVocabulary:
-    # The words the agent is given, the labels `labels:identify` makes and the
+    # The words the agent is given, the labels `labels.identify` makes and the
     # types a reading may carry are one list, or a cast asks for a label the
     # forge has never been told about.
     @staticmethod

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
+- `labels:pr` and `labels:identify` are now `labels.pr` and
+  `labels.identify`: vekna 0.13 reserves `:` for a tome's namespace and
+  skipped every cabinet ritual while either name held one.
 - `release-bump` writes the new version everywhere the old one stood,
   mirrors and lockfile included; a versioned plugin that changed gets its
   own bump.

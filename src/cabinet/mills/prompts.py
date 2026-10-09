@@ -158,7 +158,7 @@ code on its own terms.
 """
 
 
-# The vocabulary from the same list `labels:identify` makes on the forge, with
+# The vocabulary from the same list `labels.identify` makes on the forge, with
 # each label's own description: a sixth type added to `Kind` reaches the prompt
 # by itself rather than leaving this prose a version behind.
 def _meanings(*names: str) -> str:

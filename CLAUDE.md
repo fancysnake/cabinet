@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
-maintenance rituals (`refresh`, `cover`, `review`, `identify`, `labels`, `labels:pr`,
-`labels:identify`) packaged under `src/cabinet` and cast from other
+maintenance rituals (`refresh`, `cover`, `review`, `identify`, `labels`, `labels.pr`,
+`labels.identify`) packaged under `src/cabinet` and cast from other
 repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
 marketplace (`.claude-plugin/marketplace.json`) whose
 plugins live under `plugins/<name>/` as skills only, no Python. `docs/` is the
@@ -105,8 +105,9 @@ both `__all__` lists (`test_facade.py` checks).
 wraps `gates/ritual/vekna/identify.py`. `rituals/labels.py`, `rituals/labels_pr.py` and
 `rituals/labels_identify.py` share the one `conjure` step in
 `gates/ritual/vekna/labels.py`, each handing it its own label specs. A ritual's
-name is the `@ritual("...")` string, not the module: `labels:pr` is cast by
-that name. A ritual is named for a D&D spell, and its facade's docstring opens
+name is the `@ritual("...")` string, not the module, and holds no `:`: vekna
+reserves it for the tome prefix (`vekna cast cabinet:refresh` when another
+tome offers a `refresh`). A ritual is named for a D&D spell, and its facade's docstring opens
 with that spell's school (`identify` is Divination). Step names are global across the package, so a new step must not
 reuse one (`recap` is review's; identify's are `tally` and `pin`).
 

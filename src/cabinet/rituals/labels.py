@@ -2,7 +2,7 @@
 
     vekna cast labels
 
-The full setup: what ``labels:pr`` and ``labels:identify`` each make, in one
+The full setup: what ``labels.pr`` and ``labels.identify`` each make, in one
 cast. The step lives in ``cabinet.gates.ritual.vekna.labels``; this module is
 the ritual itself and the surface vekna sweeps.
 """

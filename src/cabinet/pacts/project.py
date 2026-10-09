@@ -28,7 +28,7 @@ class LabelSpec(BaseModel):
 
 
 # The rituals that mark checkpoints: the type a marking call takes, and the
-# set whose labels `labels:pr` conjures. Spelled once, so a ritual that marks
+# set whose labels `labels.pr` conjures. Spelled once, so a ritual that marks
 # cannot be one the forge has no labels for.
 Marked = Literal["refresh", "cover", "review"]
 _MARKED: tuple[Marked, ...] = get_args(Marked)

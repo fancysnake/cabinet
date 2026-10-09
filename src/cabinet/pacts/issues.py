@@ -51,7 +51,7 @@ SIZES: tuple[Size, ...] = get_args(Size)
 EPIC = "epic"
 
 # Every label identification reads or writes, with what it means, for the forge.
-# Read by `labels:identify` to make them and by the prompt to say what they mean,
+# Read by `labels.identify` to make them and by the prompt to say what they mean,
 # so the words the agent is given and the words the forge holds are one list.
 ISSUE_LABELS = [
     LabelSpec(

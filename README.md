@@ -37,13 +37,13 @@ Grouped by school, the way a spellbook is.
 
 ### Conjuration
 
-- **`labels`** — makes every label cabinet uses: what `labels:pr` and
-  `labels:identify` make, in one cast. Cast it once to set a project up.
-- **`labels:pr`** — makes every label the pull request rituals read and
+- **`labels`** — makes every label cabinet uses: what `labels.pr` and
+  `labels.identify` make, in one cast. Cast it once to set a project up.
+- **`labels.pr`** — makes every label the pull request rituals read and
   write: the reviewed and wait labels and each ritual's `started`/`done`
   checkpoints, created where missing and refreshed where present. Cast it
   again after changing `[cabinet.labels]`.
-- **`labels:identify`** — makes the labels `identify` puts on issues: the types
+- **`labels.identify`** — makes the labels `identify` puts on issues: the types
   (`feature`, `edit`, `chore`, `spike`, `bug`), the sizes (`S`, `M`, `L`) and
   `epic`.
 
@@ -57,8 +57,8 @@ vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N] [--batch N]
 vekna cast identify [--batch N]
 vekna cast labels
-vekna cast labels:pr
-vekna cast labels:identify
+vekna cast labels.pr
+vekna cast labels.identify
 ```
 <!-- --8<-- [end:cast] -->
 

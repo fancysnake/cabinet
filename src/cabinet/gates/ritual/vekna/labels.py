@@ -1,14 +1,14 @@
 """Make the labels the other rituals read and write.
 
     vekna cast labels
-    vekna cast labels:pr
-    vekna cast labels:identify
+    vekna cast labels.pr
+    vekna cast labels.identify
 
 One call per label, created where it is missing and refreshed where it is
 there, so casting it twice is as safe as once. Which labels is the ritual's
-say: `labels:pr` hands over what the pull request rituals wear,
-`labels:identify` what `identify` puts on issues, and `labels` both. Cast
-`labels` once to set a project up; `labels:pr` again after changing
+say: `labels.pr` hands over what the pull request rituals wear,
+`labels.identify` what `identify` puts on issues, and `labels` both. Cast
+`labels` once to set a project up; `labels.pr` again after changing
 `[cabinet.labels]`.
 """
 
