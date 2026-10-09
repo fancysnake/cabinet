@@ -1,6 +1,7 @@
 """How a branch ends, how the night ends, and a whole night at once."""
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,8 @@ from cabinet.gates.ritual.vekna.sweep import (
     stand_down,
 )
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Checked, Closed, Report, Run, Sweep, Work
+from cabinet.pacts.pulls import Checked, Closed, PullRequest, Report, Run, Sweep, Work
+from cabinet.pacts.services import services
 from cabinet.pacts.sweep import (
     NextPr,
     PushWork,
@@ -49,6 +51,16 @@ _DONE = checkpoint("refresh", "done")
 _COVER_DONE = checkpoint("cover", "done")
 _AHEAD = f'test feature = "$({HERE})" && git rev-list --count origin/feature..HEAD'
 _RELEASE = "if git rev-parse*"
+_UNMERGED = "git diff --name-only --diff-filter=U"
+_MISSING = """Diff Coverage
+-------------
+src/thing.py (80.0%): Missing lines 12-14
+-------------
+Total:   10 lines
+Missing: 3 lines
+-------------
+"""
+_COVERED = "Diff Coverage\n-------------\nTotal:   10 lines\nMissing: 0 lines\n"
 _GREEN_ROW = Checked(
     number=7,
     branch="feature",
@@ -359,6 +371,17 @@ class TestReport:
         )
 
     @staticmethod
+    def test_a_run_out_of_steps_ends_without_failing(
+        trial: Trial, project: Project, pull: PullRequest
+    ) -> None:
+        run = Run(project=project, bound=3, queue=[pull])
+
+        assert trial.walk(report, run.to(Reporting)) == Done(
+            Report(not_reached=["feature"])
+        )
+        assert "left for the next run: feature" in trial.deltas[0]
+
+    @staticmethod
     def test_a_stopped_run_is_said_before_it_fails(
         trial: Trial, project: Project
     ) -> None:
@@ -368,6 +391,48 @@ class TestReport:
             trial.walk(report, run.to(Reporting))
 
         assert "the run failed: gh died" in trial.deltas[0]
+
+
+# `refresh`'s worst after `take_pass`: the whole gate red, a repair, the task it
+# named green, round to the bound, then red once more and stood down. Answers
+# with the steps that walks.
+def _worst_gate(trial: Trial, bound: int) -> list[str]:
+    red = "[lint:ruff] ERROR task failed"
+    for _ in range(bound + 1):
+        trial.shell.replies(
+            when="CI=1 mise run pr-fix", exit_code=1, stdout="E501", stderr=red
+        )
+    trial.shell.replies(when="CI=1 mise run lint:ruff", always=True)
+    trial.coding.replies("fixed", when="*is this project's gate*", always=True)
+    trial.shell.replies(when=LABELS, stdout=_labels("pr::thermo"))
+    gates = ["gate_check"] * (2 * bound + 1)
+    return [*gates, "stand_down", "push_work", "quality_review"]
+
+
+# `cover`'s worst after `take_pass`: lines missing, a test written, the fast
+# measurement covered, round to the bound, then missing once more and stood
+# down. Answers with the steps that walks.
+def _worst_gap(trial: Trial, bound: int) -> list[str]:
+    trial.shell.replies(when=board(), exit_code=1, stderr="no board")
+    for _ in range(bound + 1):
+        trial.shell.replies(when="CI=1 mise run diff-cover", stdout=_MISSING)
+    trial.shell.replies(
+        when="CI=1 mise run test:py:cov:diff", stdout=_COVERED, always=True
+    )
+    trial.coding.replies("wrote a test", when="*Missing lines*", always=True)
+    gaps = ["close_gap"] * (2 * bound + 1)
+    return ["finish_merge", "check_ci", *gaps, "stand_down", "push_work"]
+
+
+_PASSES = {"refresh": refresh, "cover": cover}
+
+# Each pass, its worst walk, and how far under its share that walk falls:
+# `refresh` stands down out of the gate's loop, before `finish_merge`, so it
+# never walks both, and `check_ci` is `cover`'s alone.
+_WORST = [
+    pytest.param("refresh", _worst_gate, 1, id="refresh"),
+    pytest.param("cover", _worst_gap, 0, id="cover"),
+]
 
 
 class TestWholeCast:
@@ -456,6 +521,63 @@ class TestWholeCast:
         assert "CI=1 mise run pr-fix" not in trial.shell.commands
         assert trial.shell.commands[-2] == _COVER_DONE
         assert not trial.coding.prompts
+
+    # Every attempt the bound allows on both loops, each with its free extra
+    # run, and the stand-down after the pass's own loop: the longest a branch
+    # can run, and what its share spoke for.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    @pytest.mark.parametrize("bound", [1, 2])
+    @pytest.mark.parametrize(("mode", "loop", "spare"), _WORST)
+    def test_the_worst_a_branch_can_spend_is_what_was_reserved(
+        trial: Trial,
+        mode: str,
+        loop: Callable[[Trial, int], list[str]],
+        spare: int,
+        bound: int,
+    ) -> None:
+        trial.shell.replies(
+            when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
+        )
+        trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+        trial.shell.replies(when=LIST, stdout=listing(row(7)))
+        trial.shell.replies(when=STATUS, always=True)
+        trial.shell.replies(when="git fetch*")
+        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(when="git merge --ff-only*")
+        trial.shell.replies(when="gh pr edit 7*", always=True)
+        trial.shell.replies(when="git merge-base*", exit_code=1)
+        trial.shell.replies(when="git merge --no-edit main", exit_code=1)
+        trial.shell.replies(when="git add -A*", always=True)
+        trial.shell.replies(when="git push origin feature")
+        trial.shell.replies(when=_AHEAD, stdout="0\n")
+        for _ in range(bound):
+            trial.shell.replies(when=_UNMERGED, stdout="a.py\n")
+        trial.shell.replies(when=_UNMERGED)
+        trial.coding.replies("resolved", when="Merging main into feature*", always=True)
+        trial.shell.replies(when="if git rev-parse*", always=True)
+
+        walked = loop(trial, bound)
+
+        result = trial.cast(_PASSES[mode], Sweep(bound=bound))
+
+        assert [row.outcome for row in result.checked] == ["blocked"]
+        assert trial.steps == [
+            "list_prs",
+            "next_pr",
+            "check_clean",
+            "sync_branch",
+            "merge_base",
+            *["resolve_conflicts"] * (bound + 1),
+            "take_pass",
+            *walked,
+            "finish_pr",
+            "next_pr",
+            "report",
+        ]
+        share = services().steps.sweep_share(Run(project=Project(), bound=bound))
+        assert share is not None
+        assert len(trial.steps) == services().steps.opening(1) + share - spare
 
     @staticmethod
     def test_a_gitlab_project_speaks_glab(trial: Trial, here: Path) -> None:

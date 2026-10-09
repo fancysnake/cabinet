@@ -114,8 +114,8 @@ async def queue_up(picking: QueueUp) -> Recap | Pick:
         pull for pull in carrying if pull.branch != mine
     ]
     # Every step that works no branch, spoken for now that the queue is known.
-    reserved = services().steps.opening(len(ordered))
-    return picking.but(queue=ordered, reserved=reserved).to(Pick)
+    opening = services().steps.opening(len(ordered))
+    return picking.but(queue=ordered).spoke_for(opening).to(Pick)
 
 
 # `None` where the forge would not say, which is not "nothing to do": `pick`
@@ -143,7 +143,7 @@ async def pick(picking: Pick) -> Recap | Pick | Look:
         return after.to(Pick)
     # Not a failure: nothing went wrong, and the report names what is left for
     # the next cast, this branch first.
-    if (share := services().steps.share(after, left)) is None:
+    if (share := services().steps.review_share(after, left)) is None:
         return picking.to(Recap)
     return await _clean(after.take(pull, share))
 

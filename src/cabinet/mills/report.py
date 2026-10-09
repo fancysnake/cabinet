@@ -115,11 +115,14 @@ class Report(ReportProtocol):
         lines += [_line(row) for row in run.checked] or ["  (none)"]
         # Only when there are any, unlike the rows: a pass that reached every
         # pull request is the normal night, and a line saying "none" on every
-        # one of them trains the eye past it.
-        if not_reached := [pull.branch for pull in run.queue]:
-            lines += ["", f"not reached: {', '.join(not_reached)}"]
+        # one of them trains the eye past it. A run that failed left them
+        # behind; one out of steps left them for the next run.
+        not_reached = ", ".join(pull.branch for pull in run.queue)
         if run.stopped:
+            lines += ["", f"not reached: {not_reached}"] if not_reached else []
             lines += ["", f"the run failed: {run.stopped}"]
+        elif not_reached:
+            lines += ["", f"out of steps, left for the next run: {not_reached}"]
         return "\n".join(lines) + "\n"
 
     @override

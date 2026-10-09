@@ -35,16 +35,11 @@ from cabinet.gates.ritual.vekna.sweep import (
 from cabinet.pacts.pulls import Sweep
 from cabinet.pacts.services import services
 from cabinet.pacts.sweep import ListPrs
-
-# The backstop, not the control — the per-step bounds are. Six pull requests
-# through ~9 steps each, with three repair loops that may each burn two turns
-# per `--bound`, comes to a little over 200 at the maximum bound; this sits
-# above that, because tripping it costs the report as well as the run.
-_MAX_STEPS = 240
+from cabinet.specs import SWEEP_STEPS
 
 
 # Merge the base in, make the gate green, push, review.
-@ritual("refresh", max_steps=_MAX_STEPS)
+@ritual("refresh", max_steps=SWEEP_STEPS)
 def refresh(components: Sweep) -> ListPrs:
     return ListPrs(
         project=services().project(),

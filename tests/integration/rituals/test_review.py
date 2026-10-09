@@ -34,7 +34,7 @@ from cabinet.pacts.reviews import (
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Answer, Answered, IssueDraft, TriageItem, TriageNotes
 from cabinet.rituals.review import review
-from cabinet.specs import STEPS
+from cabinet.specs import REVIEW_STEPS
 from tests.conftest import (
     HERE,
     LIST,
@@ -84,7 +84,7 @@ def _gave_up(transition: Transition) -> str:
 
 # A branch taken with whatever share of the budget `pick` would give it.
 def _taken(picking: Picking, pull: PullRequest, left: int) -> Branch:
-    share = services().steps.share(picking, left)
+    share = services().steps.review_share(picking, left)
     assert share is not None
     return picking.take(pull, share)
 
@@ -161,7 +161,7 @@ class TestPick:
         trial: Trial, project: Project, pull: PullRequest
     ) -> None:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
-        full = Picking(project=project, bound=2, queue=[pull], reserved=STEPS)
+        full = Picking(project=project, bound=2, queue=[pull], reserved=REVIEW_STEPS)
 
         assert trial.walk(pick, full.to(Pick)) == full.to(Recap)
         assert len(trial.shell.commands) == 1
@@ -859,7 +859,9 @@ class TestWholeCast:
             "pick",
             "recap",
         ]
-        share = services().steps.share(Picking(project=Project(), bound=2, batch=1), 2)
+        share = services().steps.review_share(
+            Picking(project=Project(), bound=2, batch=1), 2
+        )
         assert share is not None
         assert len(trial.steps[2:-2]) == share.steps
         assert len(trial.steps) == services().steps.opening(1) + share.steps

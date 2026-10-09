@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Self, TypeAlias, TypeVar
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import Budgeted
+from cabinet.pacts.budgets import Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 
@@ -93,7 +93,7 @@ def joined(*parts: str) -> str:
 
 
 # Every step carries this, because the report is owed however the cast ends.
-class Run(Hop):
+class Run(Reserving, Hop):
     project: Project
     bound: int
     mode: Mode = "refresh"
@@ -132,6 +132,11 @@ class Run(Hop):
         if seen is not None:
             update["seen"] = seen
         return self.model_copy(update=update)
+
+    # `pull` taken, with the worst it can spend spoken for. A fresh `Work`
+    # per pull request, so no budget survives the branch change.
+    def take(self, pull: PullRequest, steps: int) -> "Work":
+        return Work(run=self.spoke_for(steps), pr=pull)
 
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])

@@ -38,14 +38,11 @@ from cabinet.gates.ritual.vekna.sweep import (
 from cabinet.pacts.pulls import Sweep
 from cabinet.pacts.services import services
 from cabinet.pacts.sweep import ListPrs
-
-# The same backstop `refresh` has: the walk is the same length, the loops
-# the same shape.
-_MAX_STEPS = 240
+from cabinet.specs import SWEEP_STEPS
 
 
 # Where CI is unhappy about coverage or tests, close the gap.
-@ritual("cover", max_steps=_MAX_STEPS)
+@ritual("cover", max_steps=SWEEP_STEPS)
 def cover(components: Sweep) -> ListPrs:
     return ListPrs(
         project=services().project(),
