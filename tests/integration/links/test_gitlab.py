@@ -23,6 +23,7 @@ _DISCUSSIONS = (
     "glab api 'projects/:id/merge_requests/7/discussions?per_page=100&page=1'"
 )
 _SECOND = "glab api 'projects/:id/merge_requests/7/discussions?per_page=100&page=2'"
+_USER = "glab api user"
 _STATUSES = "glab api 'projects/:id/repository/commits/feature/statuses?per_page=100'"
 _MR = "glab api projects/:id/merge_requests/7"
 _THREAD = Thread(
@@ -73,6 +74,11 @@ def _opened(numbers: Iterable[int]) -> list[Thread]:
         )
         for one in numbers
     ]
+
+
+# Whoever glab is logged in as, asked before the discussions are read.
+def _logged_in(trial: Trial) -> None:
+    trial.shell.replies(when=_USER, stdout=json.dumps({"id": 1}))
 
 
 class TestPulls:
@@ -149,6 +155,7 @@ class TestLabels:
 class TestThreads:
     @staticmethod
     def test_resolvable_discussions_become_threads(trial: Trial) -> None:
+        _logged_in(trial)
         answer = [
             {
                 "id": "d1",
@@ -171,34 +178,62 @@ class TestThreads:
 
     @staticmethod
     def test_discussions_past_a_full_page_are_asked_for(trial: Trial) -> None:
+        _logged_in(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
         trial.shell.replies(when=_SECOND, stdout=_discussions([100]))
 
         assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(101))
-        assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
+        assert trial.shell.commands == [_USER, _DISCUSSIONS, _SECOND]
 
     # The next-page headers go unread, so a full last page costs one
     # more ask, which comes back empty.
     @staticmethod
     def test_an_exactly_full_last_page(trial: Trial) -> None:
+        _logged_in(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
         trial.shell.replies(when=_SECOND, stdout="[]")
 
         assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(100))
-        assert trial.shell.commands == [_DISCUSSIONS, _SECOND]
+        assert trial.shell.commands == [_USER, _DISCUSSIONS, _SECOND]
 
     @staticmethod
     def test_a_short_page_is_the_last(trial: Trial) -> None:
+        _logged_in(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(3)))
 
         assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(3))
-        assert trial.shell.commands == [_DISCUSSIONS]
+        assert trial.shell.commands == [_USER, _DISCUSSIONS]
 
     @staticmethod
     def test_discussions_that_will_not_parse(trial: Trial) -> None:
+        _logged_in(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout='[{"notes": []}]')
 
         with pytest.raises(ForgeError, match="discussions this could not read"):
+            drive(trial, lambda: _FORGE.threads(7))
+
+    # By id rather than username: an author with no id is nobody's.
+    @staticmethod
+    def test_a_note_by_whoever_glab_is_logged_in_as_is_yours(trial: Trial) -> None:
+        _logged_in(trial)
+        notes = [
+            {"id": 101, "author": {"id": 1}, "resolvable": True},
+            {"id": 102, "author": {"id": 2}},
+            {"id": 103},
+        ]
+        trial.shell.replies(
+            when=_DISCUSSIONS, stdout=json.dumps([{"id": "d1", "notes": notes}])
+        )
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert [comment.mine for comment in thread.comments] == [True, False, False]
+
+    @staticmethod
+    def test_a_user_with_no_id_stops_the_link(trial: Trial) -> None:
+        trial.shell.replies(when=_USER, stdout="{}")
+
+        with pytest.raises(ForgeError, match="a user this could not read"):
             drive(trial, lambda: _FORGE.threads(7))
 
     @staticmethod
@@ -527,6 +562,7 @@ class TestIssues:
                     url="https://gitlab.example/o/r/-/issues/9",
                     body="why",
                     labels=["S"],
+                    mine=True,
                 ),
             ]
         )

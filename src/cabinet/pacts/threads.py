@@ -13,6 +13,8 @@ class Comment(BaseModel):
     id: str
     author: str
     body: str
+    # Written by whoever the forge's client is logged in as.
+    mine: bool = False
 
 
 # Hidden in what `review` posts, so the forge records how far a round got:
@@ -29,10 +31,11 @@ def filed_for(thread: str) -> str:
     return f"<!-- cabinet:thread {thread} -->"
 
 
-# The open issue `review` filed for a thread, where there is one.
+# The open issue `review` filed for a thread, where there is one. Only one
+# you opened: an issue assigned to you carries whatever its author wrote.
 def filed_as(issues: list[Issue], thread: str) -> Issue | None:
     mark = filed_for(thread)
-    return next((one for one in issues if mark in one.body), None)
+    return next((one for one in issues if one.mine and mark in one.body), None)
 
 
 class Thread(BaseModel):
@@ -46,10 +49,14 @@ class Thread(BaseModel):
     comments: list[Comment] = []
 
     # The last word, not any word: a reviewer answering the reply reopens
-    # the conversation.
+    # the conversation. And your word: anyone who can reply can write the
+    # mark.
     @property
     def answered(self) -> bool:
-        return bool(self.comments) and ANSWERED in self.comments[-1].body
+        if not self.comments:
+            return False
+        last = self.comments[-1]
+        return last.mine and ANSWERED in last.body
 
 
 Priority = Literal["p1", "p2", "p3", "p4"]

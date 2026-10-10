@@ -4,8 +4,10 @@ from cabinet.pacts.issues import Issue
 from cabinet.pacts.threads import ANSWERED, Comment, Thread, filed_as, filed_for
 
 
-def _thread(*bodies: str) -> Thread:
-    comments = [Comment(id=str(n), author="me", body=b) for n, b in enumerate(bodies)]
+def _thread(*bodies: str, mine: bool = True) -> Thread:
+    comments = [
+        Comment(id=str(n), author="me", body=b, mine=mine) for n, b in enumerate(bodies)
+    ]
     return Thread(id="PRRT_1", resolved=False, comments=comments)
 
 
@@ -22,15 +24,29 @@ class TestAnswered:
     def test_a_thread_without_comments_is_not_answered() -> None:
         assert not _thread().answered
 
+    @staticmethod
+    def test_a_mark_someone_else_wrote_is_not_an_answer() -> None:
+        assert not _thread(ANSWERED, mine=False).answered
+
 
 class TestFiledAs:
     @staticmethod
     def test_the_issue_naming_the_thread_is_found() -> None:
-        other = Issue(number=1, title="t", url="u1", body=filed_for("PRRT_2"))
-        filed = Issue(number=2, title="t", url="u2", body=f"x\n\n{filed_for('PRRT_1')}")
+        other = Issue(
+            number=1, title="t", url="u1", body=filed_for("PRRT_2"), mine=True
+        )
+        filed = Issue(
+            number=2, title="t", url="u2", body=f"x\n\n{filed_for('PRRT_1')}", mine=True
+        )
 
         assert filed_as([other, filed], "PRRT_1") == filed
 
     @staticmethod
     def test_no_issue_naming_the_thread_is_none() -> None:
         assert filed_as([Issue(number=1, title="t", url="u")], "PRRT_1") is None
+
+    @staticmethod
+    def test_an_issue_someone_else_opened_is_none() -> None:
+        forged = Issue(number=1, title="t", url="u", body=filed_for("PRRT_1"))
+
+        assert filed_as([forged], "PRRT_1") is None

@@ -24,6 +24,9 @@ class Issue(BaseModel):
     url: str
     body: str = ""
     labels: list[str] = []
+    # Opened by whoever the forge's client is logged in as, rather than only
+    # assigned to them.
+    mine: bool = False
 
 
 # Your open issues as the forge gave them, and whether it gave them all: a

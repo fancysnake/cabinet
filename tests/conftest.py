@@ -78,9 +78,14 @@ def page(nodes: list[dict[str, object]], cursor: str = "") -> dict[str, object]:
 
 
 def comment(
-    number: int, author: str = "reviewer", body: str = "hm"
+    number: int, author: str = "reviewer", body: str = "hm", *, mine: bool = False
 ) -> dict[str, object]:
-    return {"databaseId": number, "author": {"login": author}, "body": body}
+    return {
+        "databaseId": number,
+        "author": {"login": author},
+        "body": body,
+        "viewerDidAuthor": mine,
+    }
 
 
 # A review thread, its `comments` one page of them.

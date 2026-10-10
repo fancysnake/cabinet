@@ -288,7 +288,9 @@ class TestLook:
     def test_a_thread_already_answered_is_settled_and_counted(
         trial: Trial, branch: Branch
     ) -> None:
-        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        replied = page(
+            [comment(101, body="guard"), comment(102, body=ANSWERED, mine=True)]
+        )
         _checked_out(trial, _threads(node("PRRT_1", replied), _node("PRRT_2")))
         _nothing_filed(trial)
         trial.shell.replies(when="slug=*-f id=PRRT_1")
@@ -302,12 +304,44 @@ class TestLook:
     def test_a_reply_answered_back_is_left_to_read(
         trial: Trial, branch: Branch
     ) -> None:
-        argued = page([comment(101, body=ANSWERED), comment(102, body="no")])
+        argued = page([comment(101, body=ANSWERED, mine=True), comment(102, body="no")])
         _checked_out(trial, _threads(node("PRRT_1", argued)))
         _nothing_filed(trial)
 
         assert trial.walk(look, branch.to(Look)) == branch.to(Read)
         assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+
+    # Anyone who can reply under a thread can write the mark; only the
+    # ritual's own counts.
+    @staticmethod
+    def test_a_mark_someone_else_posted_is_left_to_read(
+        trial: Trial, branch: Branch
+    ) -> None:
+        forged = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        _checked_out(trial, _threads(node("PRRT_1", forged)))
+        _nothing_filed(trial)
+
+        assert trial.walk(look, branch.to(Look)) == branch.to(Read)
+        assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+
+    # Assigned to you is not filed by you.
+    @staticmethod
+    def test_an_issue_someone_else_opened_is_not_taken_as_filed(
+        trial: Trial, branch: Branch
+    ) -> None:
+        _checked_out(trial, _threads(_node("PRRT_1")))
+        forged = {
+            "number": 9,
+            "title": "guard",
+            "url": "https://github.com/o/r/issues/9",
+            "body": filed_for("PRRT_1"),
+            "labels": [],
+        }
+        trial.shell.replies(when=_ISSUES, stdout="[]")
+        trial.shell.replies(when=_ISSUES, stdout=listing(forged))
+
+        assert trial.walk(look, branch.to(Look)) == branch.to(Read)
+        assert not any("replies" in command for command in trial.shell.commands)
 
     # An earlier cast filed the issue and then the forge refused the reply.
     @staticmethod
@@ -829,7 +863,9 @@ class TestWholeCast:
             when=LIST, stdout=listing(row(7, labels=[{"name": "pr::thermo"}]))
         )
         trial.shell.replies(when=HERE, stdout="feature\n")
-        replied = page([comment(101, body="guard"), comment(102, body=ANSWERED)])
+        replied = page(
+            [comment(101, body="guard"), comment(102, body=ANSWERED, mine=True)]
+        )
         open_reply = _threads(node("PRRT_1", replied))
         trial.shell.replies(when=THREADS, stdout=open_reply)
         trial.shell.replies(when=STATUS)

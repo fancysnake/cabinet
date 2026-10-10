@@ -157,6 +157,18 @@ class TestThreads:
         ]
         assert trial.shell.commands[0].endswith(' -f repo="${slug#*/}" -F number=7')
 
+    # The server says whose a comment is, so no login is compared here.
+    @staticmethod
+    def test_a_comment_gh_says_you_wrote_is_yours(trial: Trial) -> None:
+        mine = page([comment(101, body="done", mine=True)])
+        trial.shell.replies(
+            when=_GRAPHQL, stdout=threads_page(page([node("PRRT_1", mine)]))
+        )
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert thread.comments[0].mine
+
     @staticmethod
     def test_threads_past_the_first_page_are_asked_for(trial: Trial) -> None:
         first = page([node("PRRT_1", page([comment(101)]))], cursor="c1")
@@ -561,12 +573,18 @@ class TestIssues:
         assert drive(trial, _FORGE.issues) == Listing(
             issues=[
                 Issue(number=2, title="issue 2", url="https://github.com/o/r/issues/2"),
-                Issue(number=4, title="issue 4", url="https://github.com/o/r/issues/4"),
+                Issue(
+                    number=4,
+                    title="issue 4",
+                    url="https://github.com/o/r/issues/4",
+                    mine=True,
+                ),
                 Issue(
                     number=9,
                     title="issue 9",
                     url="https://github.com/o/r/issues/9",
                     labels=["bug"],
+                    mine=True,
                 ),
             ]
         )
