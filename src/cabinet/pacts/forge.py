@@ -22,10 +22,6 @@ class ForgeError(RitualError):
 
 
 class ForgeProtocol(Protocol):
-    # Who the forge's client is logged in as: the `@me` every listing here
-    # means, and the only author whose marks the ritual takes as its own.
-    async def operator(self) -> str: ...
-
     # Every open pull request of yours, as the forge lists them.
     async def pulls(self) -> list[PullRequest]: ...
 

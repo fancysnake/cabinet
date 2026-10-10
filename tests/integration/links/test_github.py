@@ -157,6 +157,18 @@ class TestThreads:
         ]
         assert trial.shell.commands[0].endswith(' -f repo="${slug#*/}" -F number=7')
 
+    # The server says whose a comment is, so no login is compared here.
+    @staticmethod
+    def test_a_comment_gh_says_you_wrote_is_yours(trial: Trial) -> None:
+        mine = page([comment(101, body="done", mine=True)])
+        trial.shell.replies(
+            when=_GRAPHQL, stdout=threads_page(page([node("PRRT_1", mine)]))
+        )
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert thread.comments[0].mine
+
     @staticmethod
     def test_threads_past_the_first_page_are_asked_for(trial: Trial) -> None:
         first = page([node("PRRT_1", page([comment(101)]))], cursor="c1")
@@ -528,11 +540,11 @@ class TestLinks:
 
 _AUTHORED = (
     "gh issue list --author @me --state open --limit 200"
-    " --json number,title,url,body,labels,author"
+    " --json number,title,url,body,labels"
 )
 _ASSIGNED = (
     "gh issue list --assignee @me --state open --limit 200"
-    " --json number,title,url,body,labels,author"
+    " --json number,title,url,body,labels"
 )
 
 
@@ -554,22 +566,25 @@ class TestIssues:
     ) -> None:
         trial.shell.replies(
             when=_AUTHORED,
-            stdout=json.dumps(
-                [_issue(9, labels=[{"name": "bug"}], author={"login": "me"}), _issue(4)]
-            ),
+            stdout=json.dumps([_issue(9, labels=[{"name": "bug"}]), _issue(4)]),
         )
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4), _issue(2)]))
 
         assert drive(trial, _FORGE.issues) == Listing(
             issues=[
                 Issue(number=2, title="issue 2", url="https://github.com/o/r/issues/2"),
-                Issue(number=4, title="issue 4", url="https://github.com/o/r/issues/4"),
+                Issue(
+                    number=4,
+                    title="issue 4",
+                    url="https://github.com/o/r/issues/4",
+                    mine=True,
+                ),
                 Issue(
                     number=9,
                     title="issue 9",
                     url="https://github.com/o/r/issues/9",
                     labels=["bug"],
-                    author="me",
+                    mine=True,
                 ),
             ]
         )
@@ -594,29 +609,3 @@ class TestIssues:
 
         with pytest.raises(ForgeError, match="issues this could not read"):
             drive(trial, _FORGE.issues)
-
-
-_OPERATOR = "gh api user --jq .login"
-
-
-class TestOperator:
-    @staticmethod
-    def test_the_login_gh_is_using(trial: Trial) -> None:
-        trial.shell.replies(when=_OPERATOR, stdout="me\n")
-
-        assert drive(trial, _FORGE.operator) == "me"
-
-    # An empty login would match every comment a deleted account left.
-    @staticmethod
-    def test_no_login_stops_the_link(trial: Trial) -> None:
-        trial.shell.replies(when=_OPERATOR, stdout="\n")
-
-        with pytest.raises(ForgeError, match="you are nobody"):
-            drive(trial, _FORGE.operator)
-
-    @staticmethod
-    def test_a_client_logged_out_stops_the_link(trial: Trial) -> None:
-        trial.shell.replies(when=_OPERATOR, exit_code=1, stderr="not logged in")
-
-        with pytest.raises(ForgeError, match="could not say who you are"):
-            drive(trial, _FORGE.operator)

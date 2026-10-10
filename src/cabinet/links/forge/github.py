@@ -53,14 +53,14 @@ query($owner: String!, $repo: String!, $number: Int!, $after: String) {
           id isResolved path line
           comments(first: 100) {
             pageInfo { hasNextPage endCursor }
-            nodes { databaseId author { login } body } } } } } } }"""
+            nodes { databaseId author { login } body viewerDidAuthor } } } } } } }"""
 
 _COMMENTS = """\
 query($id: ID!, $after: String) {
   node(id: $id) { ... on PullRequestReviewThread {
     comments(first: 100, after: $after) {
       pageInfo { hasNextPage endCursor }
-      nodes { databaseId author { login } body } } } } }"""
+      nodes { databaseId author { login } body viewerDidAuthor } } } } }"""
 
 _RESOLVE = """\
 mutation($id: ID!) {
@@ -78,10 +78,8 @@ _ISSUE_PAGE = 200
 # and `--assignee` per listing and ANDs them when given both.
 _ISSUES = (
     f"gh issue list {{who}} @me --state open --limit {_ISSUE_PAGE} "
-    "--json number,title,url,body,labels,author"
+    "--json number,title,url,body,labels"
 )
-
-_OPERATOR = "gh api user --jq .login"
 
 # A relationship endpoint takes the issue's database id, which is not the
 # number anything else here names an issue by.
@@ -143,6 +141,7 @@ class _Comment(BaseModel):
     id: int = Field(alias="databaseId")
     author: _Author | None = None
     body: str = ""
+    mine: bool = Field(default=False, alias="viewerDidAuthor")
 
 
 # Required wherever a connection is read: without it a full page and the
@@ -205,8 +204,6 @@ class _Issue(BaseModel):
     url: str
     body: str = ""
     labels: list[_Label] = []
-    # Null for a deleted account.
-    author: _Author | None = None
 
 
 # The REST answer to opening one, which spells its URL the API's way.
@@ -378,6 +375,7 @@ async def _thread(found: _Thread) -> Thread:
                 id=str(comment.id),
                 author=comment.author.login if comment.author else "",
                 body=comment.body,
+                mine=comment.mine,
             )
             for comment in nodes
         ],
@@ -385,14 +383,6 @@ async def _thread(found: _Thread) -> Thread:
 
 
 class GithubForge(ForgeProtocol):
-    @override
-    async def operator(self) -> str:
-        login = (await asked(_OPERATOR, "gh could not say who you are")).strip()
-        if not login:
-            msg = "gh said you are nobody"
-            raise ForgeError(msg)
-        return login
-
     @override
     async def pulls(self) -> list[PullRequest]:
         listed = await asked(_LIST, "gh could not list your pull requests")
@@ -512,17 +502,19 @@ class GithubForge(ForgeProtocol):
             # A full listing may be a full backlog, and there is no total to
             # compare against: either way the rest of it is unaccounted for.
             truncated = truncated or len(rows) >= _ISSUE_PAGE
-            found |= {
+            # The first listing to name an issue keeps it: an issue you opened
+            # and are assigned stays yours.
+            found = {
                 row.number: Issue(
                     number=row.number,
                     title=row.title,
                     url=row.url,
                     body=row.body,
                     labels=[label.name for label in row.labels],
-                    author=row.author.login if row.author else "",
+                    mine=who == "--author",
                 )
                 for row in rows
-            }
+            } | found
         return Listing(
             issues=[found[number] for number in sorted(found)], truncated=truncated
         )

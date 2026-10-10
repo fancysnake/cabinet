@@ -30,9 +30,6 @@ LABELS = "gh pr view 7 --json labels"
 # The graphql call's jq holds brackets a glob would read as a character class,
 # so the pattern names the two ends of the command and nothing in between.
 THREADS = "slug=*gh api graphql*-F number=7"
-OPERATOR = "gh api user --jq .login"
-# Who the forge says is casting: the only author whose marks count.
-ME = "me"
 
 # The one pull request most tests are about.
 _NUMBER = 7
@@ -81,9 +78,14 @@ def page(nodes: list[dict[str, object]], cursor: str = "") -> dict[str, object]:
 
 
 def comment(
-    number: int, author: str = "reviewer", body: str = "hm"
+    number: int, author: str = "reviewer", body: str = "hm", *, mine: bool = False
 ) -> dict[str, object]:
-    return {"databaseId": number, "author": {"login": author}, "body": body}
+    return {
+        "databaseId": number,
+        "author": {"login": author},
+        "body": body,
+        "viewerDidAuthor": mine,
+    }
 
 
 # A review thread, its `comments` one page of them.

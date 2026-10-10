@@ -30,7 +30,14 @@ _PENDING = ("pending", "running", "created", "waiting_for_resource", "preparing"
 
 
 class _Author(BaseModel):
+    id: int | None = None
     username: str = ""
+
+
+# Whoever glab is logged in as. Required: a note whose author has no id is
+# nobody's, and would be yours if you had none either.
+class _User(BaseModel):
+    id: int
 
 
 class _MergeRequest(BaseModel):
@@ -109,7 +116,6 @@ class _Listed(BaseModel):
     # Null on an issue opened without one.
     description: str | None = None
     labels: list[str] = []
-    author: _Author = _Author()
 
 
 _LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
@@ -118,7 +124,7 @@ _MERGE_REQUEST: TypeAdapter[_MergeRequest] = TypeAdapter(_MergeRequest)
 _ANCHORED: TypeAdapter[_Anchored] = TypeAdapter(_Anchored)
 _ISSUE: TypeAdapter[_Issue] = TypeAdapter(_Issue)
 _PROJECT: TypeAdapter[_Project] = TypeAdapter(_Project)
-_USER: TypeAdapter[_Author] = TypeAdapter(_Author)
+_USER: TypeAdapter[_User] = TypeAdapter(_User)
 
 _T = TypeVar("_T")
 
@@ -178,7 +184,7 @@ def _check(found: _Status) -> Check:
 
 # A discussion is a review thread when its first note can be resolved; the
 # rest are system notes and plain remarks, which nobody triages.
-def _thread(found: _Discussion) -> Thread | None:
+def _thread(found: _Discussion, me: int) -> Thread | None:
     if not found.notes or not found.notes[0].resolvable:
         return None
     first = found.notes[0]
@@ -189,7 +195,12 @@ def _thread(found: _Discussion) -> Thread | None:
         path=position.new_path,
         line=position.new_line,
         comments=[
-            Comment(id=str(note.id), author=note.author.username, body=note.body)
+            Comment(
+                id=str(note.id),
+                author=note.author.username,
+                body=note.body,
+                mine=note.author.id == me,
+            )
             for note in found.notes
         ],
     )
@@ -294,16 +305,6 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
 
 class GitlabForge(ForgeProtocol):
     @override
-    async def operator(self) -> str:
-        user = await _read(
-            _USER, _api("user"), "glab could not say who you are", "a user"
-        )
-        if not user.username:
-            msg = "glab said you are nobody"
-            raise ForgeError(msg)
-        return user.username
-
-    @override
     async def pulls(self) -> list[PullRequest]:
         listed = await _read(
             _MERGE_REQUESTS,
@@ -337,13 +338,16 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def threads(self, number: int) -> list[Thread]:
+        me = await _read(
+            _USER, _api("user"), "glab could not say who you are", "a user"
+        )
         found = await _pages(
             _DISCUSSIONS,
             f"projects/:id/merge_requests/{number}/discussions?per_page={_PAGE}",
             "glab could not read the discussions",
             "discussions",
         )
-        return [thread for one in found if (thread := _thread(one)) is not None]
+        return [thread for one in found if (thread := _thread(one, me.id)) is not None]
 
     @override
     async def reply(self, number: int, thread: Thread, body: str) -> None:
@@ -425,17 +429,19 @@ class GitlabForge(ForgeProtocol):
             # A full page may be a short page, as it is for the board: what is
             # past it is not asked for, so the cast never sees it.
             truncated = truncated or len(rows) >= _PAGE
-            found |= {
+            # The first listing to name an issue keeps it: an issue you opened
+            # and are assigned stays yours.
+            found = {
                 row.iid: Issue(
                     number=row.iid,
                     title=row.title,
                     url=row.web_url,
                     body=row.description or "",
                     labels=row.labels,
-                    author=row.author.username,
+                    mine=scope == "created_by_me",
                 )
                 for row in rows
-            }
+            } | found
         return Listing(
             issues=[found[number] for number in sorted(found)], truncated=truncated
         )

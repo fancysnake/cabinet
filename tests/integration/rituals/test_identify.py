@@ -24,11 +24,11 @@ from cabinet.rituals.identify import identify
 
 _AUTHORED = (
     "gh issue list --author @me --state open --limit 200"
-    " --json number,title,url,body,labels,author"
+    " --json number,title,url,body,labels"
 )
 _ASSIGNED = (
     "gh issue list --assignee @me --state open --limit 200"
-    " --json number,title,url,body,labels,author"
+    " --json number,title,url,body,labels"
 )
 
 
