@@ -4,9 +4,10 @@ import tomllib
 from pathlib import Path
 from typing import get_args
 
-from pydantic import BaseModel
+import pytest
+from pydantic import BaseModel, ValidationError
 
-from cabinet.pacts.project import Labels, Marked, Project
+from cabinet.pacts.project import Ci, CiJob, Labels, Marked, Project
 from cabinet.pacts.pulls import Mode
 
 # A hex triplet without the hash, the way GitHub takes it.
@@ -103,3 +104,28 @@ class TestLongTasks:
         project = Project(coverage=same, fast_coverage=same)
 
         assert project.long_tasks().count(same) == 1
+
+
+class TestCiJobs:
+    @staticmethod
+    def test_a_check_belongs_to_the_job_its_name_starts_with() -> None:
+        assert Project().ci.job("test-postgres") == CiJob()
+
+    @staticmethod
+    def test_the_longest_key_wins() -> None:
+        ci = Ci.model_validate(
+            {"jobs": {"codecov/": {}, "codecov/patch": {"covering": True}}}
+        )
+
+        assert ci.covering("codecov/patch")
+        assert not ci.covering("codecov/project")
+
+    @staticmethod
+    def test_a_check_no_key_matches_has_no_job() -> None:
+        assert Project().ci.job("docs") is None
+        assert not Project().ci.covering("docs")
+
+    @staticmethod
+    def test_a_job_refuses_a_key_it_does_not_know() -> None:
+        with pytest.raises(ValidationError):
+            CiJob.model_validate({"gates": "mise run fullcheck"})

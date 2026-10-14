@@ -23,12 +23,19 @@ identify_skill = "~/.claude/skills/issues/SKILL.md"
 [cabinet.labels]
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
 wait = "pr::wait"                     # hands off this pull request
+qa = "v:guide:done"                   # the guide was posted; take it off to ask again
 marker = "v"                          # checkpoints: v:refresh:started, v:cover:done, ...
 
-[cabinet.ci]
-gate_checks = ["checks", "test"]      # prefixes of the jobs the gate reruns
-cover_checks = ["codecov/", "test"]   # prefixes of the jobs the slow pass reads
-patch_check = "codecov/patch"         # whose summary says "N% of diff hit"
+[cabinet.ci.jobs.checks]              # one table per CI job, keyed by a prefix of its check name
+gate = ""                             # what proves a fix before the push; empty: the push does
+fast = ""                             # the gate narrowed, run between repair rounds
+rerun = false                         # rerun the job once before fixing it
+covering = false                      # red here is missing coverage
+
+[cabinet.ci.jobs.test]
+
+[cabinet.ci.jobs."codecov/patch"]
+covering = true
 
 [cabinet.agent]
 model = "opus"
@@ -58,17 +65,26 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | ---------- | ----------------------------------------------------------------------------- |
 | `reviewed` | on means a review was posted; take it off to ask for another                  |
 | `wait`     | hands off: a pull request wearing it is never taken, touched or reported on   |
+| `qa`       | on means the guide was posted; take it off to ask for it again                |
 | `marker`   | the prefix of every checkpoint label, `<marker>:<ritual>:started` and `:done` |
 
-### `[cabinet.ci]`
+### `[cabinet.ci.jobs]`
 
-Prefixes, matched against the check's name as the forge reports it.
+One table per CI job the rituals may fix, keyed by a prefix of the check's
+name as the forge reports it; where two keys match a check, the longer wins.
+A red check no key matches is never a `ci` todo. Listing `jobs` replaces the
+defaults, so a project lists every job it wants read. Each key is optional:
 
-| key            | what it is                                                          |
-| -------------- | ------------------------------------------------------------------- |
-| `gate_checks`  | red here means the gate is worth running                            |
-| `cover_checks` | red here means the coverage pass is worth its hour                  |
-| `patch_check`  | the check whose summary names the patch coverage, "96.84% of diff hit" |
+| key        | what it is                                                                     |
+| ---------- | ------------------------------------------------------------------------------ |
+| `gate`     | the task that proves a fix before it is pushed; empty, and the next cast reads what CI made of the push |
+| `fast`     | the same check narrowed, run between repair rounds                             |
+| `rerun`    | `true` reruns the job once before an agent is spent on it                      |
+| `covering` | red here is missing coverage, and the check's summary may name the patch coverage, "96.84% of diff hit" |
+
+`refresh` reads the jobs that are not `covering` to decide whether CI already
+ran the gate green; `cover` reads every listed job, and the patch coverage off
+the `covering` ones.
 
 ### `[cabinet.agent]`
 

@@ -1,11 +1,44 @@
 # Rituals
 
-Seven rituals, one facade each under `cabinet.rituals`, each named for a D&D
-spell. Two of them sweep every open pull request of yours; one works a single
-branch with you at the terminal; one identifies your open issues; three
+Nine rituals, one facade each under `cabinet.rituals`, each named for a D&D
+spell. Two of them sweep every open pull request of yours; two survey what
+your pull requests need next; one works a single branch with you at the
+terminal; one identifies your open issues; three
 prepare the ground by making the labels the others wear.
 
 --8<-- "README.md:cast"
+
+## heal.mine and heal.this
+
+*Evocation.* Each pull request is read once and turned into a todo list, in
+the order a cast works it:
+
+| fact                                         | label that removes it | todo     |
+| -------------------------------------------- | --------------------- | -------- |
+| conflicts with its base                      | none                  | `merge`  |
+| a red check whose job is in `ci.jobs`        | none                  | `ci`     |
+| unresolved review threads, whoever wrote them | none                 | `answer` |
+| an open pull request                         | `labels.reviewed`     | `review` |
+| nothing else to do                           | `labels.qa`           | `guide`  |
+
+Facts make todos; labels only remove them. A branch behind its base but
+without a conflict needs no merge. Where the forge has not worked out whether
+a branch conflicts, git does, in memory, against the remote's refs.
+
+`heal.mine` takes every open pull request of yours not wearing the wait label,
+oldest-modified first. `heal.this` takes the pull request for the branch at
+the cwd, and fails when there is none.
+
+Only `--plan-only true` casts so far. It prints one line per pull request and
+writes nothing:
+
+```text
+#7 feature: merge, ci (checks), answer (3 threads), review
+#9 docs: guide
+```
+
+A pull request the forge would not answer about gets a line saying why, and
+the cast goes on.
 
 ## refresh
 
@@ -155,6 +188,7 @@ not. The names are fixed, because the `issues` skill names them too.
 | ------------ | ------------------- | ------------------------------------------------------ |
 | `--bound N`  | the sweeps, `review` | how many times one step may be retried on one branch, 1 to 5, default 3 |
 | `--attended true` | `refresh`, `cover` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
+| `--plan-only true` | `heal.mine`, `heal.this` | survey and print each pull request's todos; change nothing |
 | `--batch N`  | `review`, `identify`  | `review`: how many open threads are read and answered in one round. `identify`: how many issues go on one page. Default 7 |
 
 `--batch` keeps a review within reach: a forty-thread review is six triages

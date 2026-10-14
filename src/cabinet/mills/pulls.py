@@ -39,10 +39,9 @@ class Pulls(PullsProtocol):
     # coverage is fine, and the slow pass is the thing that finds out.
     @override
     def wants_cover(self, board: Board, project: Project) -> bool:
-        patch = project.ci.patch_check
-        if board.truncated or any(_names_a_gap(check, patch) for check in board.checks):
+        watched = _watched(board, project)
+        if board.truncated or any(_names_a_gap(check, project) for check in watched):
             return True
-        watched = _watched(board, project.ci.cover_checks)
         return not watched or any(check.passed is not True for check in watched)
 
     # False where nobody has said — an empty board, a check still running —
@@ -52,16 +51,22 @@ class Pulls(PullsProtocol):
     def gates_green(self, board: Board, project: Project) -> bool:
         if board.truncated:
             return False
-        watched = _watched(board, project.ci.gate_checks)
+        watched = [
+            check
+            for check in _watched(board, project)
+            if not project.ci.covering(check.name)
+        ]
         return bool(watched) and all(check.passed is True for check in watched)
 
 
-def _watched(board: Board, prefixes: list[str]) -> list[Check]:
-    return [check for check in board.checks if check.name.startswith(tuple(prefixes))]
+# The checks whose job is configured: red anywhere else is not the rituals'
+# business.
+def _watched(board: Board, project: Project) -> list[Check]:
+    return [check for check in board.checks if project.ci.job(check.name) is not None]
 
 
-def _names_a_gap(check: Check, patch: str) -> bool:
-    if check.name != patch or not check.title:
+def _names_a_gap(check: Check, project: Project) -> bool:
+    if not project.ci.covering(check.name) or not check.title:
         return False
     found = _DIFF_HIT.search(check.title)
     return found is not None and float(found.group(1)) < WHOLE

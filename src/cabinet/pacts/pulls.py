@@ -46,6 +46,9 @@ class PullRequest(BaseModel):
     # only once: everything later asks the forge again, because a ritual adds
     # labels of its own as it goes.
     labels: list[str] = []
+    # Whether the branch conflicts with its base, as the forge last worked
+    # out. None while the forge has not worked it out: git can, locally.
+    conflicted: bool | None = None
 
     def wears(self, label: str) -> bool:
         return label in self.labels

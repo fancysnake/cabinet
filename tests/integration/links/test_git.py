@@ -17,6 +17,8 @@ _GITLAB = GitScm(Project(forge="gitlab", remote="lab"))
 _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
+_FETCH = "git fetch origin main feature"
+_MERGE_TREE = "git merge-tree --write-tree --quiet origin/main origin/feature"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 _COMMIT = f"git add -A && (git diff --cached --quiet || {_GPG_TTY} git commit -m fix)"
 _RELEASE = (
@@ -188,6 +190,34 @@ class TestMoving:
 
         with pytest.raises(ScmError, match="could not push feature: rejected"):
             drive(trial, lambda: _SCM.push("feature"))
+
+
+class TestConflicts:
+    @staticmethod
+    @pytest.mark.parametrize(("exit_code", "conflicts"), [(0, False), (1, True)])
+    def test_merged_in_memory_against_the_remote(
+        trial: Trial, exit_code: int, *, conflicts: bool
+    ) -> None:
+        trial.shell.replies(when=_FETCH)
+        trial.shell.replies(when=_MERGE_TREE, exit_code=exit_code)
+
+        assert drive(trial, lambda: _SCM.conflicts("main", "feature")) is conflicts
+        assert trial.shell.commands == [_FETCH, _MERGE_TREE]
+
+    @staticmethod
+    def test_a_fetch_that_fails(trial: Trial) -> None:
+        trial.shell.replies(when=_FETCH, exit_code=128, stderr="gone")
+
+        with pytest.raises(ScmError, match="could not fetch main and feature: gone"):
+            drive(trial, lambda: _SCM.conflicts("main", "feature"))
+
+    @staticmethod
+    def test_a_merge_git_could_not_try(trial: Trial) -> None:
+        trial.shell.replies(when=_FETCH)
+        trial.shell.replies(when=_MERGE_TREE, exit_code=128, stderr="bad ref")
+
+        with pytest.raises(ScmError, match="could not try the merge: bad ref"):
+            drive(trial, lambda: _SCM.conflicts("main", "feature"))
 
 
 class TestCommit:

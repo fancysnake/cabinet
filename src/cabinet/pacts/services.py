@@ -15,6 +15,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
+    from cabinet.pacts.healing import Facts, Surveyed, Todo
     from cabinet.pacts.issues import Identifying, Issue
     from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Board, PullRequest, Run
@@ -36,6 +37,14 @@ class PullsProtocol(Protocol):
 
     # False unless the board positively says the gate jobs are green.
     def gates_green(self, board: Board, project: Project) -> bool: ...
+
+
+class TodosProtocol(Protocol):
+    # What the pull request needs next, in the order a cast does it.
+    def todos(self, facts: Facts, project: Project) -> list[Todo]: ...
+
+    # The red checks whose job is configured, each named once.
+    def red(self, board: Board, project: Project) -> list[str]: ...
 
 
 class BacklogProtocol(Protocol):
@@ -120,6 +129,9 @@ class ReportProtocol(Protocol):
 
     def identify(self, identifying: Identifying) -> str: ...
 
+    # One pull request's todos, on one line.
+    def surveyed(self, row: Surveyed) -> str: ...
+
     def triage(self, items: list[TriageItem]) -> list[str]: ...
 
     def shown(self, index: int, item: TriageItem) -> str: ...
@@ -128,6 +140,9 @@ class ReportProtocol(Protocol):
 class ServicesProtocol(Protocol):
     @property
     def pulls(self) -> PullsProtocol: ...
+
+    @property
+    def todos(self) -> TodosProtocol: ...
 
     @property
     def backlog(self) -> BacklogProtocol: ...

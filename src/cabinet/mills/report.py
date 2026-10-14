@@ -5,6 +5,7 @@ from itertools import starmap
 
 from typing_extensions import override
 
+from cabinet.pacts.healing import Surveyed, Todo
 from cabinet.pacts.issues import (
     EPIC,
     Identification,
@@ -79,6 +80,15 @@ def triage_line(index: int, item: TriageItem) -> str:
         f"{index}. [{item.priority}/{item.action}] {item.where} — {item.raised}\n"
         f"   -> {item.what}"
     )
+
+
+# A todo with what it would work through, where that is more than its name.
+def _todo(row: Surveyed, todo: Todo) -> str:
+    if todo == "ci":
+        return f"ci ({', '.join(row.red)})"
+    if todo == "answer":
+        return f"answer ({row.threads} threads)"
+    return todo
 
 
 def _line(row: Checked) -> str:
@@ -172,6 +182,15 @@ class Report(ReportProtocol):
             if left := identifying.queue:
                 lines += [f"not reached:    {_numbers([one.number for one in left])}"]
         return "\n".join(lines)
+
+    # `#7 feature: merge, ci (checks), answer (3 threads), review`.
+    @override
+    def surveyed(self, row: Surveyed) -> str:
+        head = f"#{row.number} {row.branch}"
+        if row.note:
+            return f"{head}: could not survey: {row.note}"
+        todos = [_todo(row, todo) for todo in row.todos]
+        return f"{head}: {', '.join(todos) or 'nothing to do'}"
 
     # The whole triage, headed by a tally, for the terminal.
     @override

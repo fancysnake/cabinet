@@ -115,6 +115,25 @@ class TestPulls:
         with pytest.raises(ForgeError, match="merge requests this could not read"):
             drive(trial, _FORGE.pulls)
 
+    # `has_conflicts` is stale while GitLab is still working the merge out.
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("status", "has_conflicts", "conflicted"),
+        [
+            ("conflict", True, True),
+            ("mergeable", False, False),
+            ("checking", False, None),
+            ("unchecked", True, None),
+        ],
+    )
+    def test_whether_it_conflicts_waits_for_gitlab(
+        trial: Trial, status: str, *, has_conflicts: bool, conflicted: bool | None
+    ) -> None:
+        found = _mr(7, detailed_merge_status=status, has_conflicts=has_conflicts)
+        trial.shell.replies(when=_LIST, stdout=json.dumps([found]))
+
+        assert drive(trial, _FORGE.pulls)[0].conflicted is conflicted
+
 
 class TestLabels:
     @staticmethod
