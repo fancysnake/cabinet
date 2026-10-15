@@ -1,7 +1,7 @@
 """What a pull request needs next: facts make a todo, labels only take one away."""
 
 from cabinet.mills.todos import Todos
-from cabinet.pacts.healing import Facts
+from cabinet.pacts.healing import Facts, Surveyed, Todo
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Thread
@@ -35,40 +35,48 @@ def _facts(
     )
 
 
+def _todos(facts: Facts) -> list[Todo]:
+    return _TODOS.surveyed(facts, _PROJECT).todos
+
+
+def _red(board: Board, project: Project) -> list[str]:
+    return _TODOS.surveyed(_facts().model_copy(update={"board": board}), project).red
+
+
 class TestTodos:
     @staticmethod
     def test_a_conflict_is_a_merge() -> None:
-        assert _TODOS.todos(_facts(conflicted=True), _PROJECT) == ["merge"]
+        assert _todos(_facts(conflicted=True)) == ["merge"]
 
     @staticmethod
     def test_a_red_configured_job_is_ci() -> None:
         facts = _facts(checks=[Check(name="test-postgres", passed=False)])
 
-        assert _TODOS.todos(facts, _PROJECT) == ["ci"]
+        assert _todos(facts) == ["ci"]
 
     @staticmethod
     def test_an_unresolved_thread_is_an_answer() -> None:
         facts = _facts(threads=[Thread(id="1", resolved=False)])
 
-        assert _TODOS.todos(facts, _PROJECT) == ["answer"]
+        assert _todos(facts) == ["answer"]
 
     @staticmethod
     def test_an_unreviewed_branch_is_a_review() -> None:
-        assert _TODOS.todos(_facts(labels=["v:guide:done"]), _PROJECT) == ["review"]
+        assert _todos(_facts(labels=["v:guide:done"])) == ["review"]
 
     @staticmethod
     def test_nothing_else_to_do_is_a_guide() -> None:
-        assert _TODOS.todos(_facts(), _PROJECT) == ["guide"]
+        assert _todos(_facts()) == ["guide"]
 
     @staticmethod
     def test_guide_waits_for_everything_else() -> None:
         facts = _facts(labels=[], threads=[Thread(id="1", resolved=False)])
 
-        assert _TODOS.todos(facts, _PROJECT) == ["answer", "review"]
+        assert _todos(facts) == ["answer", "review"]
 
     @staticmethod
     def test_the_qa_label_takes_the_guide_away() -> None:
-        assert not _TODOS.todos(_facts(labels=_DONE), _PROJECT)
+        assert not _todos(_facts(labels=_DONE))
 
     @staticmethod
     def test_every_todo_in_the_order_a_cast_works_them() -> None:
@@ -79,7 +87,7 @@ class TestTodos:
             conflicted=True,
         )
 
-        assert _TODOS.todos(facts, _PROJECT) == ["merge", "ci", "answer", "review"]
+        assert _todos(facts) == ["merge", "ci", "answer", "review"]
 
     # Labels only stop a repeat: the same facts under any label are the same
     # todos or fewer.
@@ -87,17 +95,17 @@ class TestTodos:
     def test_no_label_adds_a_todo() -> None:
         labels = [*_DONE, "pr::wait", "v:refresh:started", "v:refresh:done"]
 
-        assert not _TODOS.todos(_facts(labels=labels), _PROJECT)
+        assert not _todos(_facts(labels=labels))
 
     @staticmethod
     def test_a_branch_behind_its_base_is_not_a_merge() -> None:
-        assert "merge" not in _TODOS.todos(_facts(conflicted=False), _PROJECT)
+        assert "merge" not in _todos(_facts(conflicted=False))
 
     @staticmethod
     def test_a_resolved_thread_is_not_an_answer() -> None:
         facts = _facts(labels=_DONE, threads=[Thread(id="1", resolved=True)])
 
-        assert not _TODOS.todos(facts, _PROJECT)
+        assert not _todos(facts)
 
 
 class TestRed:
@@ -111,17 +119,17 @@ class TestRed:
             ]
         )
 
-        assert _TODOS.red(board, _PROJECT) == ["checks"]
+        assert _red(board, _PROJECT) == ["checks"]
 
     @staticmethod
     def test_a_running_check_is_not_red() -> None:
-        assert not _TODOS.red(Board(checks=[Check(name="checks")]), _PROJECT)
+        assert not _red(Board(checks=[Check(name="checks")]), _PROJECT)
 
     @staticmethod
     def test_a_check_named_twice_is_named_once() -> None:
         red = Check(name="test", passed=False)
 
-        assert _TODOS.red(Board(checks=[red, red]), _PROJECT) == ["test"]
+        assert _red(Board(checks=[red, red]), _PROJECT) == ["test"]
 
     @staticmethod
     def test_the_jobs_are_the_projects() -> None:
@@ -130,4 +138,22 @@ class TestRed:
             checks=[Check(name="docs", passed=False), Check(name="test", passed=False)]
         )
 
-        assert _TODOS.red(board, project) == ["docs"]
+        assert _red(board, project) == ["docs"]
+
+
+class TestSurveyed:
+    @staticmethod
+    def test_the_row_says_what_ci_and_answer_would_work_through() -> None:
+        facts = _facts(
+            checks=[Check(name="checks", passed=False)],
+            threads=[Thread(id="1", resolved=False), Thread(id="2", resolved=True)],
+        )
+
+        assert _TODOS.surveyed(facts, _PROJECT) == Surveyed(
+            number=7,
+            branch="feature",
+            url="https://example.test/pull/7",
+            todos=["ci", "answer"],
+            red=["checks"],
+            threads=1,
+        )

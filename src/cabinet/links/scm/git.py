@@ -148,10 +148,11 @@ class GitScm(ScmProtocol):
         await _asked(
             f"git fetch {remote} {_quoted(base)} {_quoted(branch)}",
             f"could not fetch {base} and {branch}",
+            stream=False,
         )
         theirs, ours = (_quoted(f"{self._remote}/{ref}") for ref in (base, branch))
         merged = await shell(
-            f"git merge-tree --write-tree --quiet {theirs} {ours}", stream=False
+            f"git merge-tree --write-tree {theirs} {ours} > /dev/null", stream=False
         )
         if merged.exit_code > 1:
             msg = f"git could not try the merge: {_said(merged)}"

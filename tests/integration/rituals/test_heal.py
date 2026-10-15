@@ -6,10 +6,10 @@ import pytest
 from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import chart, muster, survey
+from cabinet.gates.ritual.vekna.heal import chart, muster_mine, muster_this, survey
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.heal import Chart, Muster, Survey
-from cabinet.pacts.healing import Heal, Plan, Surveyed
+from cabinet.pacts.heal import Chart, MusterMine, MusterThis, Survey
+from cabinet.pacts.healing import Heal, Plan, Surveyed, Unsurveyed
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.rituals.heal_mine import heal_mine
@@ -40,13 +40,13 @@ _RED = json.dumps(
 _GREEN = json.dumps({"total_count": 0, "check_runs": []})
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
-_MERGE_TREE = "git merge-tree --write-tree --quiet origin/main origin/feature"
+_MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 # The listing, the board and the threads.
 _READS = 3
 
 
 def _surveying(pull: PullRequest, project: Project) -> Survey:
-    return Survey(project=project, scope="mine", queue=[pull])
+    return Survey(project=project, queue=[pull])
 
 
 def _labelled(*names: str) -> list[dict[str, str]]:
@@ -67,7 +67,7 @@ class TestMuster:
             ),
         )
 
-        transition = trial.walk(muster, Muster(project=project, scope="mine"))
+        transition = trial.walk(muster_mine, MusterMine(project=project))
 
         assert isinstance(transition, Survey)
         assert [pull.number for pull in transition.queue] == [7, 8]
@@ -77,7 +77,7 @@ class TestMuster:
         trial.shell.replies(when=LIST, stdout=listing(row(8), row(7)))
         trial.shell.replies(when=HERE, stdout="feature\n")
 
-        transition = trial.walk(muster, Muster(project=project, scope="this"))
+        transition = trial.walk(muster_this, MusterThis(project=project))
 
         assert isinstance(transition, Survey)
         assert [pull.number for pull in transition.queue] == [7]
@@ -90,7 +90,7 @@ class TestMuster:
         trial.shell.replies(when=HERE, stdout="feature\n")
 
         with pytest.raises(RitualError, match="has feature as its branch"):
-            trial.walk(muster, Muster(project=project, scope="this"))
+            trial.walk(muster_this, MusterThis(project=project))
 
     @staticmethod
     def test_a_forge_that_will_not_list_ends_the_cast(
@@ -99,13 +99,13 @@ class TestMuster:
         trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
 
         with pytest.raises(ForgeError, match="not logged in"):
-            trial.walk(muster, Muster(project=project, scope="mine"))
+            trial.walk(muster_mine, MusterMine(project=project))
 
 
 class TestSurvey:
     @staticmethod
     def test_an_empty_queue_is_charted(trial: Trial, project: Project) -> None:
-        healing = Survey(project=project, scope="mine")
+        healing = Survey(project=project)
 
         assert trial.walk(survey, healing) == healing.to(Chart)
 
@@ -132,7 +132,7 @@ class TestSurvey:
             )
         ]
         assert trial.deltas == [
-            "#7 feature: merge, ci (checks), answer (1 threads), review"
+            "#7 feature: merge, ci (checks), answer (1 thread), review"
         ]
 
     @staticmethod
@@ -173,16 +173,18 @@ class TestSurvey:
         transition = trial.walk(survey, _surveying(pull, project))
 
         assert isinstance(transition, Survey)
-        assert transition.surveyed[0].todos == []
-        assert "rate limited" in transition.surveyed[0].note
+        assert isinstance(unread := transition.surveyed[0], Unsurveyed)
+        assert "rate limited" in unread.note
         assert trial.deltas[0].startswith("#7 feature: could not survey:")
 
 
 class TestChart:
     @staticmethod
     def test_the_plan_is_every_row(trial: Trial, project: Project) -> None:
-        reviewing = Surveyed(number=7, branch="feature", url=_URL, todos=["review"])
-        healing = Chart(project=project, scope="mine", surveyed=[reviewing])
+        reviewing = Surveyed(
+            number=7, branch="feature", url=_URL, todos=["review"], red=[], threads=0
+        )
+        healing = Chart(project=project, surveyed=[reviewing])
 
         assert trial.walk(chart, healing) == Done(Plan(surveyed=[reviewing]))
         assert trial.deltas == []
@@ -201,9 +203,18 @@ class TestWholeCast:
         result = trial.cast(heal_mine, Heal(plan_only=True))
 
         assert result == Plan(
-            surveyed=[Surveyed(number=7, branch="feature", url=_URL, todos=["review"])]
+            surveyed=[
+                Surveyed(
+                    number=7,
+                    branch="feature",
+                    url=_URL,
+                    todos=["review"],
+                    red=[],
+                    threads=0,
+                )
+            ]
         )
-        assert trial.steps == ["muster", "survey", "survey", "chart"]
+        assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
         # Every other command, a write among them, would have found nothing
         # scripted to answer it.
         assert len(trial.shell.commands) == _READS
@@ -221,6 +232,7 @@ class TestWholeCast:
         result = trial.cast(heal_this, Heal(plan_only=True))
 
         assert [one.number for one in result.surveyed] == [7]
+        assert trial.steps == ["muster_this", "survey", "survey", "chart"]
         assert trial.deltas == ["#7 feature: review"]
 
     @staticmethod

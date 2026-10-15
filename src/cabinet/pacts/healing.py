@@ -16,9 +16,6 @@ _HealingT = TypeVar("_HealingT", bound="Healing")
 # the smoke-test instructions, as a comment.
 Todo = Literal["merge", "ci", "answer", "review", "guide"]
 
-# `this` is the branch at the cwd; `mine` is every open pull request of yours.
-Scope = Literal["this", "mine"]
-
 
 class Heal(BaseModel):
     # Survey, say what each branch needs, and change nothing.
@@ -34,29 +31,35 @@ class Facts(BaseModel):
     conflicted: bool
 
 
-# What the survey made of one pull request. `note` is why it could not tell,
-# where it could not: such a row has no todos, because none were read.
+# What the survey made of one pull request.
 class Surveyed(BaseModel):
     number: int
     branch: str
     url: str
-    todos: list[Todo] = []
+    todos: list[Todo]
     # The configured CI jobs whose checks are red, and the open threads: what
     # `ci` and `answer` would work through.
-    red: list[str] = []
-    threads: int = 0
-    note: str = ""
+    red: list[str]
+    threads: int
+
+
+# A pull request the forge or git would not answer about, and what it said.
+# No todos, because none were read.
+class Unsurveyed(BaseModel):
+    number: int
+    branch: str
+    url: str
+    note: str
 
 
 class Plan(BaseModel):
-    surveyed: list[Surveyed] = []
+    surveyed: list[Surveyed | Unsurveyed] = []
 
 
 class Healing(Hop):
     project: Project
-    scope: Scope
     queue: list[PullRequest] = Field(default_factory=list)
-    surveyed: list[Surveyed] = Field(default_factory=list)
+    surveyed: list[Surveyed | Unsurveyed] = Field(default_factory=list)
 
     def to(self, kind: type[_HealingT]) -> _HealingT:
         return self._rebuilt(kind)
@@ -66,8 +69,8 @@ class Healing(Hop):
         return self.model_copy(update=update)
 
     # The head of the queue taken off it, its row added.
-    def took(self, row: Surveyed) -> Self:
-        update: dict[str, list[PullRequest] | list[Surveyed]] = {
+    def took(self, row: Surveyed | Unsurveyed) -> Self:
+        update: dict[str, list[PullRequest] | list[Surveyed | Unsurveyed]] = {
             "queue": self.queue[1:],
             "surveyed": [*self.surveyed, row],
         }

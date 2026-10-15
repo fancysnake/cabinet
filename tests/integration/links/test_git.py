@@ -18,7 +18,7 @@ _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
 _FETCH = "git fetch origin main feature"
-_MERGE_TREE = "git merge-tree --write-tree --quiet origin/main origin/feature"
+_MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 _COMMIT = f"git add -A && (git diff --cached --quiet || {_GPG_TTY} git commit -m fix)"
 _RELEASE = (

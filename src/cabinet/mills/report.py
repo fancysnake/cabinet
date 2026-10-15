@@ -5,7 +5,7 @@ from itertools import starmap
 
 from typing_extensions import override
 
-from cabinet.pacts.healing import Surveyed, Todo
+from cabinet.pacts.healing import Surveyed, Todo, Unsurveyed
 from cabinet.pacts.issues import (
     EPIC,
     Identification,
@@ -87,7 +87,8 @@ def _todo(row: Surveyed, todo: Todo) -> str:
     if todo == "ci":
         return f"ci ({', '.join(row.red)})"
     if todo == "answer":
-        return f"answer ({row.threads} threads)"
+        noun = "thread" if row.threads == 1 else "threads"
+        return f"answer ({row.threads} {noun})"
     return todo
 
 
@@ -185,10 +186,14 @@ class Report(ReportProtocol):
 
     # `#7 feature: merge, ci (checks), answer (3 threads), review`.
     @override
-    def surveyed(self, row: Surveyed) -> str:
+    def surveyed(self, row: Surveyed | Unsurveyed) -> str:
         head = f"#{row.number} {row.branch}"
-        if row.note:
-            return f"{head}: could not survey: {row.note}"
+        # Indented the way a sweep row's note is: git's complaint is often
+        # stdout and stderr on lines of their own, and one in column zero
+        # reads as the next pull request.
+        if isinstance(row, Unsurveyed):
+            wrapped = row.note.replace("\n", "\n    ")
+            return f"{head}: could not survey: {wrapped}"
         todos = [_todo(row, todo) for todo in row.todos]
         return f"{head}: {', '.join(todos) or 'nothing to do'}"
 

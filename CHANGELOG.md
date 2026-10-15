@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning].
 ### Changed
 
 - **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
-  tables with optional `gate`, `fast`, `rerun` and `covering` keys, replacing
-  `gate_checks`, `cover_checks` and `patch_check`. `refresh` reads the jobs
-  that are not `covering`; `cover` reads every job, and the patch coverage off
-  the `covering` ones.
+  tables with an optional `covering` key, replacing `gate_checks`,
+  `cover_checks` and `patch_check`. `refresh` reads the jobs that are not
+  `covering`; `cover` reads every job, and the patch coverage off the
+  `covering` ones.
 
 ### Fixed
 

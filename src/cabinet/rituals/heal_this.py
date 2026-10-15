@@ -9,18 +9,18 @@ the ritual itself and the surface vekna sweeps.
 
 from vekna.lexicon import RitualError, ritual
 
-from cabinet.gates.ritual.vekna.heal import chart, muster, survey
-from cabinet.pacts.heal import Muster
+from cabinet.gates.ritual.vekna.heal import chart, muster_mine, muster_this, survey
+from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
 from cabinet.pacts.services import services
 
 
 @ritual("heal.this")
-def heal_this(components: Heal) -> Muster:
+def heal_this(components: Heal) -> MusterThis:
     if not components.plan_only:
         msg = "heal.this only surveys so far: cast it with --plan-only true"
         raise RitualError(msg)
-    return Muster(project=services().project(), scope="this")
+    return MusterThis(project=services().project())
 
 
-__all__ = ["chart", "heal_this", "muster", "survey"]
+__all__ = ["chart", "heal_this", "muster_mine", "muster_this", "survey"]

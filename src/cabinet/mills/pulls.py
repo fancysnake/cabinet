@@ -34,12 +34,18 @@ class Pulls(PullsProtocol):
         wait = project.labels.wait
         return sorted((pull for pull in pulls if not pull.wears(wait)), key=_modified)
 
+    # Every one, not the first: the same head opened against two bases is two
+    # pull requests, and both are yours to hear about.
+    @override
+    def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]:
+        return [pull for pull in pulls if pull.branch == branch]
+
     # True unless the board positively says otherwise: a short board, a branch
     # CI has not reported on yet — all of them mean nobody has said the
     # coverage is fine, and the slow pass is the thing that finds out.
     @override
     def wants_cover(self, board: Board, project: Project) -> bool:
-        watched = _watched(board, project)
+        watched = board.watched(project.ci)
         if board.truncated or any(_names_a_gap(check, project) for check in watched):
             return True
         return not watched or any(check.passed is not True for check in watched)
@@ -53,16 +59,10 @@ class Pulls(PullsProtocol):
             return False
         watched = [
             check
-            for check in _watched(board, project)
+            for check in board.watched(project.ci)
             if not project.ci.covering(check.name)
         ]
         return bool(watched) and all(check.passed is True for check in watched)
-
-
-# The checks whose job is configured: red anywhere else is not the rituals'
-# business.
-def _watched(board: Board, project: Project) -> list[Check]:
-    return [check for check in board.checks if project.ci.job(check.name) is not None]
 
 
 def _names_a_gap(check: Check, project: Project) -> bool:

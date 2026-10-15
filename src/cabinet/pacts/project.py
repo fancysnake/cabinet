@@ -95,18 +95,11 @@ class Labelled(BaseModel):
     names: list[str]
 
 
-# One CI job the rituals may fix. Every key optional: a job listed bare is
-# still one whose red makes a `ci` todo.
+# One CI job the rituals may fix. A job listed bare is still one whose red
+# makes a `ci` todo.
 class CiJob(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # What says the fix worked before it is pushed. Empty: the push does, and
-    # the next cast reads what CI made of it.
-    gate: str = ""
-    # The same check narrowed, re-run between repair rounds.
-    fast: str = ""
-    # Rerun once before spending an agent: a flaky job is red for nothing.
-    rerun: bool = False
     # Red here is missing coverage; its summary may name the patch coverage
     # ("96.84% of diff hit").
     covering: bool = False

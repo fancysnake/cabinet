@@ -58,6 +58,25 @@ class TestWanted:
         assert _PULLS.wanted([parked, not_parked], project) == [not_parked]
 
 
+class TestAt:
+    @staticmethod
+    def test_only_the_branch_asked_for() -> None:
+        here = _pull(1, updated_at="2026-08-01T00:00:00Z")
+        elsewhere = _pull(2, updated_at="2026-08-01T00:00:00Z")
+
+        assert _PULLS.at([elsewhere, here], "feature-1") == [here]
+
+    @staticmethod
+    def test_one_head_against_two_bases_is_both() -> None:
+        into_main = _pull(1, updated_at="2026-08-01T00:00:00Z")
+        into_release = into_main.model_copy(update={"number": 2, "base": "release"})
+
+        assert _PULLS.at([into_main, into_release], "feature-1") == [
+            into_main,
+            into_release,
+        ]
+
+
 class TestWantsCover:
     @staticmethod
     def test_a_green_board_with_a_whole_patch_buys_the_skip() -> None:

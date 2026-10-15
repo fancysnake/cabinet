@@ -22,23 +22,29 @@ remote's refs.
 from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.heal import Chart, Muster, Survey
-from cabinet.pacts.healing import Facts, Plan, Surveyed
+from cabinet.pacts.heal import Chart, MusterMine, MusterThis, Survey
+from cabinet.pacts.healing import Facts, Plan, Surveyed, Unsurveyed
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 
 
-# Ask the forge what is open, and queue what this cast takes.
+# Every open pull request of yours the forge lists, bar the parked ones.
 @step
-async def muster(healing: Muster) -> Survey:
+async def muster_mine(healing: MusterMine) -> Survey:
     project = healing.project
     pulls = await services().forge(project).pulls()
-    if healing.scope == "mine":
-        return healing.queued(services().pulls.wanted(pulls, project)).to(Survey)
+    return healing.queued(services().pulls.wanted(pulls, project)).to(Survey)
+
+
+# The open pull request of yours for the branch at the cwd.
+@step
+async def muster_this(healing: MusterThis) -> Survey:
+    project = healing.project
+    pulls = await services().forge(project).pulls()
     here = await services().scm(project).here()
-    if not (queue := [pull for pull in pulls if pull.branch == here]):
+    if not (queue := services().pulls.at(pulls, here)):
         msg = f"no open pull request of yours has {here} as its branch"
         raise RitualError(msg)
     return healing.queued(queue).to(Survey)
@@ -61,7 +67,7 @@ def chart(healing: Chart) -> Done[Plan]:
 
 # One pull request the forge or git would not answer about is a row saying
 # so, not the end of the cast: the next one may answer fine.
-async def _surveyed(project: Project, pull: PullRequest) -> Surveyed:
+async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveyed:
     forge = services().forge(project)
     try:
         board = await forge.board(pull.branch)
@@ -69,16 +75,8 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed:
         if (conflicted := pull.conflicted) is None:
             conflicted = await services().scm(project).conflicts(pull.base, pull.branch)
     except (ForgeError, ScmError) as error:
-        return Surveyed(
+        return Unsurveyed(
             number=pull.number, branch=pull.branch, url=pull.url, note=str(error)
         )
     facts = Facts(pull=pull, board=board, threads=threads, conflicted=conflicted)
-    todos = services().todos
-    return Surveyed(
-        number=pull.number,
-        branch=pull.branch,
-        url=pull.url,
-        todos=todos.todos(facts, project),
-        red=todos.red(board, project),
-        threads=sum(not thread.resolved for thread in threads),
-    )
+    return services().todos.surveyed(facts, project)

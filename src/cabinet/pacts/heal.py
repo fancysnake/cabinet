@@ -7,7 +7,11 @@ these rebuild is in `pacts/healing.py`.
 from cabinet.pacts.healing import Healing
 
 
-class Muster(Healing):
+class MusterMine(Healing):
+    pass
+
+
+class MusterThis(Healing):
     pass
 
 

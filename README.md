@@ -13,7 +13,8 @@ Grouped by school, the way a spellbook is.
 ### Evocation
 
 - **`heal.mine`** and **`heal.this`** — what each pull request needs next.
-  `heal.mine` takes every open pull request of yours, oldest-modified first;
+  `heal.mine` takes every open pull request of yours not wearing the wait
+  label, oldest-modified first;
   `heal.this` takes the one for the branch at the cwd. So far they only
   survey: cast with `--plan-only true`, each prints one line per pull request
   naming its todos (merge, ci, answer, review, guide) and changes nothing.

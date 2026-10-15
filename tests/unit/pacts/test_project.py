@@ -128,4 +128,4 @@ class TestCiJobs:
     @staticmethod
     def test_a_job_refuses_a_key_it_does_not_know() -> None:
         with pytest.raises(ValidationError):
-            CiJob.model_validate({"gates": "mise run fullcheck"})
+            CiJob.model_validate({"cover": True})
