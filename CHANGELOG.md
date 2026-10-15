@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `modern-python` plugin: a skill that writes Python with the newest idioms
+  the project's minimum Python version allows, from 3.11 to 3.15, and avoids
+  APIs removed at that version.
+
 ### Fixed
 
 - `review` finishes a cut-short round only from marks you wrote: a thread
