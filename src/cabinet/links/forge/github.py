@@ -27,7 +27,7 @@ from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 # what the GitLab adapter pages at.
 _LIST = (
     "gh pr list --author @me --state open --limit 100 "
-    "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
+    "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 
 # The endpoint pages at thirty by default and a board can run to twenty-odd,
@@ -67,6 +67,8 @@ mutation($id: ID!) {
   resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }"""
 
 _PASSED = "success"
+
+_CONFLICTED = {"CONFLICTING": True, "MERGEABLE": False}
 
 # Where a listing of issues stops. Twice what the GitLab adapter pages at,
 # because gh takes a limit rather than a page size and the endpoint behind it
@@ -111,6 +113,8 @@ class _Pull(BaseModel):
     base: str = Field(alias="baseRefName")
     updated_at: str = Field(alias="updatedAt")
     labels: list[_Label] = []
+    # `UNKNOWN` until GitHub has tried the merge, which it does lazily.
+    mergeable: str = "UNKNOWN"
 
 
 class _Check(BaseModel):
@@ -237,6 +241,7 @@ def _pull(found: _Pull) -> PullRequest:
         base=found.base,
         updated_at=found.updated_at,
         labels=[label.name for label in found.labels],
+        conflicted=_CONFLICTED.get(found.mergeable),
     )
 
 

@@ -4,6 +4,7 @@ from types import ModuleType
 
 from vekna.lexicon._pacts import Ritual, Step
 
+from cabinet.gates.ritual.vekna import heal as heal_steps
 from cabinet.gates.ritual.vekna import identify as identify_steps
 from cabinet.gates.ritual.vekna import labels as labels_steps
 from cabinet.gates.ritual.vekna import review as review_steps
@@ -12,6 +13,8 @@ from cabinet.inits.services import Services
 from cabinet.pacts.services import services
 from cabinet.rituals import (
     cover,
+    heal_mine,
+    heal_this,
     identify,
     labels,
     labels_identify,
@@ -64,6 +67,21 @@ class TestFacade:
     def test_identify_exports_its_ritual_and_every_step() -> None:
         assert set(identify.__all__) == _steps(identify_steps) | {"identify"}
         assert _registered(identify) == set(identify.__all__)
+
+    @staticmethod
+    def test_heal_this_exports_its_ritual_and_every_step() -> None:
+        assert set(heal_this.__all__) == _steps(heal_steps) | {"heal_this"}
+        assert _registered(heal_this) == _steps(heal_steps) | {"heal.this"}
+
+    @staticmethod
+    def test_heal_mine_exports_its_ritual_and_every_step() -> None:
+        assert set(heal_mine.__all__) == _steps(heal_steps) | {"heal_mine"}
+        assert _registered(heal_mine) == _steps(heal_steps) | {"heal.mine"}
+
+    # One step object behind both, so loading them registers each step once.
+    @staticmethod
+    def test_the_heal_rituals_share_their_steps() -> None:
+        assert heal_this.survey is heal_mine.survey
 
     @staticmethod
     def test_importing_a_facade_wires_the_services() -> None:

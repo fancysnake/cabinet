@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `heal.mine` and `heal.this`, cast with `--plan-only true`, print what each
+  pull request needs next: merge, ci, answer, review or guide. They change
+  nothing.
+- `[cabinet.labels] qa`, default `v:guide:done`: a pull request wearing it
+  needs no guide.
+
+### Changed
+
+- **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
+  tables with an optional `covering` key, replacing `gate_checks`,
+  `cover_checks` and `patch_check`. `refresh` reads the jobs that are not
+  `covering`; `cover` reads every job, and the patch coverage off the
+  `covering` ones.
+
 ### Fixed
 
 - `review` finishes a cut-short round only from marks you wrote: a thread

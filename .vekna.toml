@@ -24,13 +24,14 @@ identify_skill = "plugins/issues/skills/issues/SKILL.md"
 [cabinet.labels]
 reviewed = "pr::thermo"
 wait = "pr::wait"
+qa = "v:guide:done"
 marker = "v"
 
 # The job names in .github/workflows/ci.yml, plus what Codecov posts.
-[cabinet.ci]
-gate_checks = ["checks", "test"]
-cover_checks = ["codecov/", "test"]
-patch_check = "codecov/patch"
+[cabinet.ci.jobs.checks]
+[cabinet.ci.jobs.test]
+[cabinet.ci.jobs."codecov/patch"]
+covering = true
 
 [cabinet.agent]
 model = "opus"

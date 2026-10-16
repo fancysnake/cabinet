@@ -22,6 +22,7 @@ from cabinet.mills.pulls import Pulls
 from cabinet.mills.repairs import Repairs
 from cabinet.mills.report import Report
 from cabinet.mills.steps import Steps
+from cabinet.mills.todos import Todos
 from cabinet.mills.verdicts import Verdicts
 from cabinet.pacts.agent import AgentProtocol
 from cabinet.pacts.forge import ForgeProtocol
@@ -36,6 +37,11 @@ class Services(ServicesProtocol):
     @override
     def pulls(self) -> Pulls:
         return Pulls()
+
+    @cached_property
+    @override
+    def todos(self) -> Todos:
+        return Todos()
 
     @cached_property
     @override
