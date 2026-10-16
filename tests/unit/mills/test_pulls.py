@@ -58,6 +58,25 @@ class TestWanted:
         assert _PULLS.wanted([parked, not_parked], project) == [not_parked]
 
 
+class TestAt:
+    @staticmethod
+    def test_only_the_branch_asked_for() -> None:
+        here = _pull(1, updated_at="2026-08-01T00:00:00Z")
+        elsewhere = _pull(2, updated_at="2026-08-01T00:00:00Z")
+
+        assert _PULLS.at([elsewhere, here], "feature-1") == [here]
+
+    @staticmethod
+    def test_one_head_against_two_bases_is_both() -> None:
+        into_main = _pull(1, updated_at="2026-08-01T00:00:00Z")
+        into_release = into_main.model_copy(update={"number": 2, "base": "release"})
+
+        assert _PULLS.at([into_main, into_release], "feature-1") == [
+            into_main,
+            into_release,
+        ]
+
+
 class TestWantsCover:
     @staticmethod
     def test_a_green_board_with_a_whole_patch_buys_the_skip() -> None:
@@ -82,7 +101,7 @@ class TestWantsCover:
     @staticmethod
     def test_a_check_still_running_wants_cover() -> None:
         board = _green_board()
-        board.checks[3] = Check(name="codecov/project")
+        board.checks[2] = Check(name="test-postgres")
 
         assert _PULLS.wants_cover(board, _PROJECT)
 
@@ -109,7 +128,7 @@ class TestWantsCover:
     @staticmethod
     def test_the_watched_names_are_the_projects() -> None:
         project = Project.model_validate(
-            {"ci": {"cover_checks": ["suite"], "patch_check": "patch"}}
+            {"ci": {"jobs": {"suite": {}, "patch": {"covering": True}}}}
         )
         board = Board(checks=[Check(name="suite", passed=True)])
 
@@ -118,6 +137,12 @@ class TestWantsCover:
 
 
 class TestGatesGreen:
+    @staticmethod
+    def test_a_covering_job_is_not_a_gate_job() -> None:
+        board = Board(checks=[Check(name="codecov/patch", passed=True)])
+
+        assert not _PULLS.gates_green(board, _PROJECT)
+
     @staticmethod
     def test_green_gate_jobs_are_green() -> None:
         assert _PULLS.gates_green(_green_board(), _PROJECT)

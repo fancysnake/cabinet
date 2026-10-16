@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import Budgeted, Reserving
 from cabinet.pacts.hops import Hop
-from cabinet.pacts.project import Project
+from cabinet.pacts.project import Ci, Project
 
 # A bound counts attempts at one step, so zero would mean a step that may never
 # be tried at all; past five a repair loop has stopped being a repair loop.
@@ -46,6 +46,9 @@ class PullRequest(BaseModel):
     # only once: everything later asks the forge again, because a ritual adds
     # labels of its own as it goes.
     labels: list[str] = []
+    # Whether the branch conflicts with its base, as the forge last worked
+    # out. None while the forge has not worked it out: git can, locally.
+    conflicted: bool | None = None
 
     def wears(self, label: str) -> bool:
         return label in self.labels
@@ -68,6 +71,11 @@ class Board(BaseModel):
     # be the check either reader turns on, and a page that does not say is not
     # a page saying yes.
     truncated: bool = False
+
+    # The checks whose job is configured: red anywhere else is not the
+    # rituals' business.
+    def watched(self, ci: Ci) -> list[Check]:
+        return [check for check in self.checks if ci.job(check.name) is not None]
 
 
 Outcome = Literal["green", "blocked", "skipped"]

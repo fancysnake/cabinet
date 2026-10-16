@@ -41,6 +41,10 @@ class ScmProtocol(Protocol):
     # rather than read off git's prose afterwards.
     async def contains(self, base: str) -> bool: ...
 
+    # Whether `branch` would conflict with `base`, as the remote has both,
+    # without touching the worktree.
+    async def conflicts(self, base: str, branch: str) -> bool: ...
+
     # A merge that failed is not always a conflict, so what git said rides
     # along for the step that reads the index.
     async def merge(self, base: str) -> Ran: ...

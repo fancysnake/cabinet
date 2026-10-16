@@ -44,6 +44,8 @@ class Labels(BaseModel):
     # Hands off. Read at the listing and nowhere else, so a branch wearing it is
     # never taken, never touched, never reported on.
     wait: str = "pr::wait"
+    # The guide was posted; remove to ask for it again.
+    qa: str = "v:guide:done"
     # The prefix a ritual's checkpoints wear: `v:refresh:started`.
     marker: str = "v"
 
@@ -93,18 +95,36 @@ class Labelled(BaseModel):
     names: list[str]
 
 
-# The names CI gives the jobs the rituals read. Prefixes, matched against the
-# check's name as the forge reports it.
+# One CI job the rituals may fix. A job listed bare is still one whose red
+# makes a `ci` todo.
+class CiJob(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Red here is missing coverage; its summary may name the patch coverage
+    # ("96.84% of diff hit").
+    covering: bool = False
+
+
+def _jobs() -> dict[str, CiJob]:
+    return {"checks": CiJob(), "test": CiJob(), "codecov/patch": CiJob(covering=True)}
+
+
+# The CI jobs the rituals read, keyed by a prefix of the check's name as the
+# forge reports it. A check no key matches is not the rituals' business.
 class Ci(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # Red here means `gate` is worth running; anything else on the board is not
-    # this pass's business.
-    gate_checks: list[str] = ["checks", "test"]
-    # Red here means the coverage pass is worth its hour.
-    cover_checks: list[str] = ["codecov/", "test"]
-    # The check whose summary names the patch coverage ("96.84% of diff hit").
-    patch_check: str = "codecov/patch"
+    jobs: dict[str, CiJob] = Field(default_factory=_jobs)
+
+    # The job a check belongs to: the longest key it starts with, so
+    # `codecov/patch` beats `codecov/` for the check both would match.
+    def job(self, check: str) -> CiJob | None:
+        keys = [key for key in self.jobs if check.startswith(key)]
+        return self.jobs[max(keys, key=len)] if keys else None
+
+    def covering(self, check: str) -> bool:
+        job = self.job(check)
+        return job is not None and job.covering
 
 
 class Agent(BaseModel):

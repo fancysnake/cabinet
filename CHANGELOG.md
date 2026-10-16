@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning].
 - `modern-python` plugin: a skill that writes Python with the newest idioms
   the project's minimum Python version allows, from 3.11 to 3.15, and avoids
   APIs removed at that version.
+- `heal.mine` and `heal.this`, cast with `--plan-only true`, print what each
+  pull request needs next: merge, ci, answer, review or guide. They change
+  nothing.
+- `[cabinet.labels] qa`, default `v:guide:done`: a pull request wearing it
+  needs no guide.
+
+### Changed
+
+- **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
+  tables with an optional `covering` key, replacing `gate_checks`,
+  `cover_checks` and `patch_check`. `refresh` reads the jobs that are not
+  `covering`; `cover` reads every job, and the patch coverage off the
+  `covering` ones.
 
 ### Fixed
 
