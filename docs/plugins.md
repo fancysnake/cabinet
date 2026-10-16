@@ -199,17 +199,18 @@ Python is written, edited, refactored, reviewed or generated, even when
 nobody mentions a version.
 
 1. **Finds the target** once per project: a version the user names, else the
-   floor of `requires-python` (or `python_requires`, or Poetry's `python`),
-   else the pinned interpreter, else the tooling targets and the CI floor.
-   `.python-version` saying 3.14 does not lift a `>=3.11` floor.
-2. **Writes at the target**: a quick table of the swaps that come up most
-   (`Optional[X]` → `X | None`, `TypeVar` → `def f[T]`, `datetime.utcnow()`
-   → `datetime.now(UTC)`), then per-version notes from 3.11 to 3.15 on
-   language, typing, stdlib, removals and behaviour changes. Nothing above
+   lowest of the `requires-python` floor (or `python_requires`, or Poetry's
+   `python`), the tooling targets and the CI floor, else the pinned
+   interpreter. `.python-version` saying 3.14 does not lift a `>=3.11` floor.
+2. **Writes at the target**: a quick table of swaps (`Optional[X]` →
+   `X | None`, `TypeVar` → `def f[T]`, `datetime.utcnow()` →
+   `datetime.now(UTC)`), then per-version notes from 3.11 to 3.15 on the
+   rest of language, typing, stdlib, removals and behaviour changes. Nothing above
    the floor is used; a feature that would help is named as a reason to raise
    it.
 3. **Keeps the diff reviewable**: new and rewritten lines get modern idioms,
    untouched code stays as it is unless the ask is to modernize, and a very
-   dated file gets one line pointing at `ruff check --select UP --fix`.
+   dated file gets one line pointing at
+   `ruff check --select UP --target-version pyXY --fix`.
 4. **Reports** at most one line about the version, and only when it shaped
    the code, was guessed, or conflicts with a tool's target.
