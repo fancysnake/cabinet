@@ -1,0 +1,12 @@
+{
+  "name": "modern-python",
+  "description": "Write Python with the newest idioms the project's minimum Python version allows, and nothing newer: target found from requires-python and other pins, removed APIs avoided, 3.11 through 3.15.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/modern-python",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["python", "typing", "stdlib", "versions", "linting"]
+}
