@@ -1,0 +1,12 @@
+{
+  "name": "lean-stories",
+  "description": "Write lean one-line user stories and probe them for loopholes: edge cases, abuse paths, missing actors, conflicting rules and ambiguous terms, with open questions instead of invented answers.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/lean-stories",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["user-stories", "requirements", "edge-cases", "product"]
+}

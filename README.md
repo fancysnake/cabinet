@@ -138,6 +138,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 | `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
 | `smoke-test`   | a skill that writes the fifteen-minute manual check for a web or CLI change |
 | `modern-python` | a skill that writes Python for the project's minimum version |
+| `lean-stories` | a skill that writes one-line user stories and hunts their loopholes |
 
 <!-- --8<-- [start:plugins-install] -->
 Add the marketplace once, then install what you want:

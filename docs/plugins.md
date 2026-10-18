@@ -12,6 +12,7 @@ you already have open.
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 | `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
 | `modern-python` | `modern-python` | writes Python with the newest idioms the project's floor version allows |
+| `lean-stories` | `lean-stories` | writes one-line user stories and hunts their edge cases and loopholes |
 
 --8<-- "README.md:plugins-install"
 
@@ -214,3 +215,24 @@ nobody mentions a version.
    `ruff check --select UP --target-version pyXY --fix`.
 4. **Reports** at most one line about the version, and only when it shaped
    the code, was guessed, or conflicts with a tool's target.
+
+## lean-stories
+
+Writes user stories one line each, then spends its effort on the gaps. It
+triggers when someone asks for user stories, wants a feature split into
+them, or asks what could go wrong with a feature or requirement.
+
+1. **Writes the stories**: "As a X, I want Y, so that Z", with a named actor,
+   never "a user", one goal per story, and a benefit that does not restate
+   the goal.
+2. **Sweeps for actors** that are easy to forget: the anonymous visitor, the
+   operator, an integration, a lapsed account, an attacker, a second user
+   at the same moment.
+3. **Probes each story** through nine lenses: boundaries, bad input, unhappy
+   paths, state and timing, permissions, abuse, conflicting rules, ambiguous
+   terms, lifecycle. `reference.md` holds deeper questions per lens. Only
+   plausible findings that would change behaviour are kept, three to seven
+   per story, tagged Gap, Ambiguity, Abuse, Conflict or Edge.
+4. **Asks instead of inventing**: unknown behaviour becomes an open question
+   with a recommended answer. No epics, points or personas; Given/When/Then
+   only on request.

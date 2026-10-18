@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning].
 - `modern-python` plugin: a skill that writes Python with the newest idioms
   the project's minimum Python version allows, from 3.11 to 3.15, and avoids
   APIs removed at that version.
+- `lean-stories` plugin: a skill that writes one-line user stories and
+  probes each for edge cases, abuse paths, missing actors and conflicting
+  rules, turning unknowns into open questions with a recommended answer.
 - `heal.mine` and `heal.this`, cast with `--plan-only true`, print what each
   pull request needs next: merge, ci, answer, review or guide. They change
   nothing.
