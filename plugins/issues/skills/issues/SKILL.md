@@ -53,7 +53,7 @@ the code it touches before judging.
    plan. Ask about conceptual ambiguities, not implementation details.
 4. Set what the repo offers, create nothing, and report what is missing in one
    line:
-   - type and size labels, as above, and `shape` on a shape-changing Slice;
+   - type and size labels, as above, and `shape` on a shape-changing issue;
    - `backlog` and a priority label (`P1`–`P3`) where they exist, asking the
      user for the priority;
    - issue fields or Project fields where they exist. Discover them with
@@ -72,11 +72,18 @@ exception is a bug's observed error text, quoted as it appeared. There is no
 solution section: the design is written when the work starts, as interfaces,
 a spike or tests.
 
-A **STAGE** is the body of an epic and of any issue that is not a sub-issue:
-Status (the situation), Target (intent and end state), Assets (what already
-exists to reuse or copy), Guards (no-gos) and Ellipsis (open questions). Fill
-every field and keep it under 15 lines of content; headings and blank lines
-do not count.
+A **STAGE** is the body of any issue that ships on its own: a standalone
+issue, an epic, or a feature-sized part of an epic. A sub-issue's Target
+opens with one sentence on how it serves its parent. A STAGE holds Status
+(the situation now), Target (the outcome once done), Assets (what already
+exists to reuse or copy), Guards (no-gos) and Ellipsis (open questions).
+Fill every field and keep it under 15 lines of content; headings and blank
+lines do not count.
+
+Status and Target split by tense. Status is the present: the situation and
+why it hurts now. Target is the future: what is true once the work lands,
+with no word on how things are today. A sentence about today in Target
+belongs in Status.
 
 - **bug**: Status is how to reproduce it and what happens; Target is what
   should happen instead.
@@ -90,10 +97,10 @@ Write "none known" when nothing fits.
 
 ```markdown
 ## Status (the situation now)
-When <situation>, <what happens now>.
+When <situation>, <what happens now, and why it hurts>.
 
-## Target (why, and what done looks like)
-<why this matters>
+## Target (the outcome, once done)
+<what is true once this lands>
 Done looks like: <one observable sentence>
 
 ## Assets (what exists to reuse or copy)
@@ -107,7 +114,9 @@ Done looks like: <one observable sentence>
 - <unknowns and rabbit holes; any solution hunch marked non-binding>
 ```
 
-A **Slice** is the body of a sub-issue:
+A **Slice** is the body of a step that does not ship on its own, such as
+plumbing or one part of a split M or L issue. It matters only through its
+parent:
 
 ```markdown
 ## Serves parent because
@@ -117,9 +126,9 @@ A **Slice** is the body of a sub-issue:
 <one observable sentence>
 ```
 
-A Slice that changes the shape of the system wears the `shape` label: it
-goes to the user, who writes its spine, spike or acceptance tests first. One
-without it can go straight to an agent. Under `identify`, say `shape` in your
+A STAGE or Slice that changes the shape of the system wears the `shape`
+label: it goes to the user, who writes its spine, spike or acceptance tests
+first. One without it can go straight to an agent. Under `identify`, say `shape` in your
 answer and the ritual puts the label on.
 
 The fields are the user's. On an existing issue you may comment, append to

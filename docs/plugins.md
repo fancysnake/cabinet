@@ -41,12 +41,14 @@ its agent read it too, from `identify_skill`.
    it.
 3. **Writing one**: the task is checked against the code first, duplicates are
    searched for by keyword, and the body is a short form, never a plan. An
-   epic or a standalone issue gets a **STAGE**: Status (the situation),
-   Target (intent and what done looks like), Assets (a mention of what the
-   code already has to reuse or copy), Guards (no-gos) and Ellipsis (open
-   questions). A bug's Status is the repro and what happens, its Target what
-   should; a spike is done when its question is answered. A sub-issue gets a
-   **Slice**: how it serves its parent and what done looks like. One that
+   issue that ships on its own, including an epic or a feature-sized part of
+   one, gets a **STAGE**: Status (the situation now, in the present tense),
+   Target (the outcome once done, in the future tense), Assets (a mention of
+   what the code already has to reuse or copy), Guards (no-gos) and Ellipsis
+   (open questions). A bug's Status is the repro and what happens, its Target what
+   should; a spike is done when its question is answered. A step that does
+   not ship on its own gets a **Slice**: how it serves its parent and what
+   done looks like. One that
    changes the shape of the system wears the `shape` label and is the user's
    to design first. Neither names files, classes or APIs, so it survives the
    repository moving on. Agents may comment and add open questions but never

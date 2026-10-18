@@ -21,8 +21,8 @@ and this project adheres to [Semantic Versioning].
 ### Changed
 
 - `issues` skill: an issue body is a STAGE (Status, Target, Assets,
-  Guards, Ellipsis) or, for a sub-issue, a Slice (why it serves the
-  parent, done when), never a plan.
+  Guards, Ellipsis) when it ships on its own, or a Slice (why it serves
+  the parent, done when) for a step that does not, never a plan.
 - `identify` puts a `shape` label on an issue or sub-issue that changes the
   shape of the system, so the user designs it before an agent takes it.
   `labels.identify` makes the label.
