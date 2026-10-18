@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
+- `issues` skill: an issue body is a STAGE (Status, Target, Assets,
+  Guards, Ellipsis) or, for a sub-issue, a Slice (why it serves the
+  parent, whether it changes the system's shape, done when), never a plan.
 - **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
   tables with an optional `covering` key, replacing `gate_checks`,
   `cover_checks` and `patch_check`. `refresh` reads the jobs that are not

@@ -40,9 +40,16 @@ its agent read it too, from `identify_skill`.
    a size, split into sub-issues that are each typed, sized and attached under
    it.
 3. **Writing one**: the task is checked against the code first, duplicates are
-   searched for by keyword, and the issue is written at feature level so it
-   survives the repository moving on. Conceptual ambiguities are asked about;
-   implementation details are not. `backlog`, a priority and any issue or
+   searched for by keyword, and the body is a short form, never a plan. An
+   epic or a standalone issue gets a **STAGE**: Status (the situation),
+   Target (intent and what done looks like), Assets (a mention of what the
+   code already has to reuse or copy), Guards (no-gos) and Ellipsis (open
+   questions). A sub-issue gets a **Slice**: how it serves its parent, whether it changes the shape of the
+   system (if so, it is the user's to design first), and what done looks
+   like. Neither names files, classes or APIs, so it survives the repository
+   moving on. Agents may comment and add open questions but never rewrite the
+   fields. Conceptual ambiguities are asked about; implementation details are
+   not. `backlog`, a priority and any issue or
    Project fields are set where the repository has them, and nothing is
    created.
 4. **Links**: sub-issue for a part of an epic, blocked-by only when the order

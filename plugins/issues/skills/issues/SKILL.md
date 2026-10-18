@@ -49,14 +49,8 @@ the code it touches before judging.
    matter.
 2. Search the open issues by keyword (`gh issue list --search "<words>"`). If
    something similar exists, ask what to do.
-3. Write at feature level: the issue may sit for months while the repo moves.
-   - Cover the features added, the bugs fixed and the operations changed.
-   - Generic terms are fine: "needs a Trello API adapter", "a new view",
-     "refactor the enrollment mill".
-   - Use bullets and sections, and emphasize open questions and decisions.
-   - Ask about conceptual ambiguities, not implementation details.
-   - When updating an issue, start from its current body and ask about
-     contradictions.
+3. Write the body as a STAGE or a Slice (see [Bodies](#bodies)), never a
+   plan. Ask about conceptual ambiguities, not implementation details.
 4. Set what the repo offers, create nothing, and report what is missing in one
    line:
    - type and size labels, as above;
@@ -69,6 +63,66 @@ the code it touches before judging.
    This step is the interactive path, where you run `gh` yourself. Under
    cabinet's `identify` you reach no forge client at all: name the type, the size
    and the links in your answer and the ritual puts on what it can.
+
+## Bodies
+
+An issue says why and what done looks like, never how. Name no files,
+classes or APIs, so the body stays true while the code moves. There is no
+solution section: the design is written when the work starts, as interfaces,
+a spike or tests.
+
+A **STAGE** is the body of an epic and of any issue that is not a sub-issue:
+Status (the situation), Target (intent and end state), Assets (what already
+exists to reuse or copy), Guards (no-gos) and Ellipsis (open questions). Fill
+every field and keep the whole under 15 lines.
+
+Assets are hints, not a guide. Mention, in a few words, what the code already
+has that the work can use (a mailer, for a newsletter) or that does something
+similar to copy (the existing CRUD views, for a new one). Say what it is, not
+where: no names, modules or lines, which rot as soon as they are written.
+Write "none known" when nothing fits.
+
+```markdown
+## Status (the situation now)
+When <situation>, I want to <motivation>, so I can <outcome>.
+
+## Target (why, and what done looks like)
+<why this matters>
+Done looks like: <one observable sentence>
+
+## Assets (what exists to reuse or copy)
+- use: <something that exists, e.g. "a Discord integration">
+- like: <a similar feature, e.g. "the other CRUD views">
+
+## Guards (what this will not do)
+- <a no-go>
+
+## Ellipsis (open questions)
+- <unknowns and rabbit holes; any solution hunch marked non-binding>
+```
+
+A **Slice** is the body of a sub-issue:
+
+```markdown
+## Serves parent because
+<one sentence tying this step to the parent's intent>
+
+## Changes the shape of the system?
+<yes | no>
+
+## Done when
+<a demo, or a test name>
+```
+
+A Slice that changes the shape of the system goes to the user, who writes
+its spine, spike or acceptance tests first: assign it to them
+(`gh issue edit <n> --add-assignee @me`). One that does not can go straight
+to an agent.
+
+The fields are the user's. On an existing issue you may comment and append
+to Ellipsis; never rewrite the other fields. When the intent changes,
+open a new issue and say which one it replaces, rather than editing the old
+one into it.
 
 ## Links
 
