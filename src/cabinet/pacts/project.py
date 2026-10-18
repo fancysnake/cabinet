@@ -157,11 +157,17 @@ class Project(BaseModel):
     # Off for a repository whose commits are signed with a key nobody can
     # unlock at 3am: the commit then runs with `commit.gpgsign=false`.
     sign_commits: bool = True
-    review_skill: str = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
+    # Skills by the name the agent invokes them with, so they resolve wherever
+    # the casting repository installed them: user or project scope bare, a
+    # plugin as `<plugin>:<skill>`.
+    review_skill: str = "thermo-nuclear-code-quality-review"
     review_title: str = "Thermo-nuclear code quality review"
-    # The skill file `identify` has the agent read once, at the top of its
-    # session: what the types and sizes mean and how issues are linked.
-    identify_skill: str = "~/.claude/skills/issues/SKILL.md"
+    # Invoked once, at the top of `identify`'s session: what the types and
+    # sizes mean and how issues are linked.
+    identify_skill: str = "issues"
+    # What a feature issue's body is written by, wherever an agent writes one:
+    # an `identify` sub-issue, an issue `review` files for a thread.
+    stories_skill: str = "lean-stories"
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()

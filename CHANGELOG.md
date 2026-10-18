@@ -20,9 +20,17 @@ and this project adheres to [Semantic Versioning].
   nothing.
 - `[cabinet.labels] qa`, default `v:guide:done`: a pull request wearing it
   needs no guide.
+- `stories_skill`, default `lean-stories`: the skill a feature issue's body
+  is written by, for `identify`'s feature sub-issues and the issues `review`
+  files. The `issues` skill writes feature bodies with `lean-stories` too.
 
 ### Changed
 
+- **Breaking:** `review_skill` and `identify_skill` name a skill rather than
+  a file, defaults `thermo-nuclear-code-quality-review` and `issues`, and
+  agents get the `Skill` tool to invoke it. A skill installed in user or
+  project scope, or by a plugin as `<plugin>:<skill>`, now resolves in any
+  casting repository.
 - **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
   tables with an optional `covering` key, replacing `gate_checks`,
   `cover_checks` and `patch_check`. `refresh` reads the jobs that are not

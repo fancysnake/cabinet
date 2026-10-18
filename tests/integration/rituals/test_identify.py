@@ -500,8 +500,8 @@ class TestCast:
             "tally",
         ]
         first, second = trial.coding.prompts
-        assert "SKILL.md" in first
-        assert "SKILL.md" not in second
+        assert "skill and follow it" in first
+        assert "skill and follow it" not in second
         assert trial.coding.calls[0].resume is None
         assert trial.coding.calls[1].resume == "s1"
         assert trial.deltas[-1].startswith("identify — 3 issues")

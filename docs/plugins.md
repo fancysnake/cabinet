@@ -28,7 +28,7 @@ it gets, when it becomes an epic, and how issues are linked. Knowledge only:
 it triggers on "make an issue for this", "put that in the backlog", any ask to
 file, open, raise or write an issue or ticket, and any ask to refine, type,
 size, split or link the backlog. The [`identify`](rituals.md#identify) ritual has
-its agent read it too, from `identify_skill`.
+its agent invoke it too, by the name in `identify_skill`.
 
 1. **Types**: `feature` for something a user can see, `edit` for a refactor
    with no feature change, `chore` for docs, CI, tooling and tests, `spike`
@@ -43,7 +43,8 @@ its agent read it too, from `identify_skill`.
 3. **Writing one**: the task is checked against the code first, duplicates are
    searched for by keyword, and the issue is written at feature level so it
    survives the repository moving on. Conceptual ambiguities are asked about;
-   implementation details are not. `backlog`, a priority and any issue or
+   implementation details are not. A feature's body comes from
+   [`lean-stories`](#lean-stories). `backlog`, a priority and any issue or
    Project fields are set where the repository has them, and nothing is
    created.
 4. **Links**: sub-issue for a part of an epic, blocked-by only when the order
@@ -235,3 +236,7 @@ them, or asks what could go wrong with a feature or requirement.
 4. **Asks instead of inventing**: unknown behaviour becomes an open question
    with a recommended answer. No epics, points or personas; Given/When/Then
    only on request.
+
+The [`issues`](#issues) skill writes every feature issue's body with it, and
+so do `identify`'s feature sub-issues and the issues `review` files, by the
+name in `stories_skill`.

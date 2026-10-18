@@ -85,7 +85,7 @@ class PromptsProtocol(Protocol):
     def triage_read(self, number: int, threads: list[Thread]) -> str: ...
 
     def triage_work(
-        self, number: int, items: list[TriageItem], told: list[str]
+        self, project: Project, number: int, items: list[TriageItem], told: list[str]
     ) -> str: ...
 
     def review(

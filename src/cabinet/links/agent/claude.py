@@ -25,7 +25,7 @@ _LOG = logging.getLogger(__name__)
 AnsweredT = TypeVar("AnsweredT")
 _OutputT = TypeVar("_OutputT", bound=BaseModel)
 
-_READER = ["Read", "Grep", "Glob", "Bash"]
+_READER = ["Read", "Grep", "Glob", "Bash", "Skill"]
 _WRITER = ["Edit", "Write", "MultiEdit"]
 
 

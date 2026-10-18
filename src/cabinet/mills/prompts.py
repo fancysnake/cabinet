@@ -185,9 +185,10 @@ One item per issue in `items`, carrying its number:
 - `epic: true` and no size instead, where it will not fit one pull request:
 {_meanings(EPIC)}
   Then `parts`: one per sub-issue to open, each with a `title`, a `body`, and a
-  `kind` and `size` of its own, so no part is left behind unidentified. An open
-  issue that is already a part of it goes in `children` by number, rather than
-  being opened again.
+  `kind` and `size` of its own, so no part is left behind unidentified. A
+  `feature` part's body is its stories, by the stories skill named above. An
+  open issue that is already a part of it goes in `children` by number, rather
+  than being opened again.
 - `blocked_by`: the open issues this one cannot start until they land. Only
   where the order is real; a wrong link is noise somebody has to undo.
 - no `size` and no `epic` where you could not size it, which is not the same
@@ -231,6 +232,13 @@ def _fence(text: str) -> str:
 
 def _fenced(threads: list[Thread]) -> str:
     return _fence("\n\n".join(_thread(thread) for thread in threads))
+
+
+def _stories(project: Project) -> str:
+    return (
+        "An issue you file that adds a feature has its stories for a body:"
+        f" invoke the `{project.stories_skill}` skill and follow it.\n"
+    )
 
 
 # One triaged item: what the thread says inside the markers, what you said
@@ -289,7 +297,9 @@ class Prompts(PromptsProtocol):
         )
 
     @override
-    def triage_work(self, number: int, items: list[TriageItem], told: list[str]) -> str:
+    def triage_work(
+        self, project: Project, number: int, items: list[TriageItem], told: list[str]
+    ) -> str:
         # The terminal's own lines, with your answer under each: the agent is
         # told what you were looking at when you said it.
         shown = "\n\n".join(
@@ -301,7 +311,7 @@ class Prompts(PromptsProtocol):
         return (
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"
-            f"{_FENCE}\n{_TRIAGE_WORK}\nThe triage:\n\n{shown}"
+            f"{_FENCE}\n{_TRIAGE_WORK}{_stories(project)}\nThe triage:\n\n{shown}"
         )
 
     # `reason`, not `blocked`: what this takes is the sentence saying what
@@ -312,7 +322,8 @@ class Prompts(PromptsProtocol):
     ) -> str:
         return (
             f"Review the changes this pull request adds ({base}...HEAD) with the"
-            f" {project.review_title}: read {project.review_skill} and follow it.\n"
+            f" {project.review_title}: invoke the `{project.review_skill}` skill"
+            " and follow it.\n"
             f"{_already_known(reason)}\n{_REVIEW}\n"
             f"The review threads already on the pull request:\n\n{_FENCE}\n"
             f"{_fenced(threads)}"
@@ -325,9 +336,11 @@ class Prompts(PromptsProtocol):
         opening = (
             "The next page of open issues, by the same skill and the same rules."
             if briefed
-            else "Say how each of the open issues below should be identified: read"
-            f" {project.identify_skill} and follow it. It says what each type and"
-            " size means, when an issue is an epic, and how issues are linked."
+            else "Say how each of the open issues below should be identified:"
+            f" invoke the `{project.identify_skill}` skill and follow it. It says"
+            " what each type and size means, when an issue is an epic, and how"
+            " issues are linked. Write a feature sub-issue's body by the"
+            f" `{project.stories_skill}` skill, invoked the first time you open one."
         )
         shown = _fence("\n\n".join(_issue(issue) for issue in issues))
         return f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\nThe issues:\n\n{shown}"

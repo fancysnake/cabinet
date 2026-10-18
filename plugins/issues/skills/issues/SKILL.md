@@ -57,6 +57,10 @@ the code it touches before judging.
    - Ask about conceptual ambiguities, not implementation details.
    - When updating an issue, start from its current body and ask about
      contradictions.
+   - A `feature` gets its body from the `lean-stories` skill: the stories,
+     their findings, missing actors and open questions. Updating one re-runs
+     it over the stories that changed. Under cabinet's rituals, invoke the
+     skill the prompt names.
 4. Set what the repo offers, create nothing, and report what is missing in one
    line:
    - type and size labels, as above;
@@ -99,7 +103,8 @@ undo.
 For each issue, set one type, then one size or `epic`, then the links, and
 nothing else. Do not close, delete or retitle anything, and do not remove a
 label you did not add. Give a sub-issue you open a type and a size in the same
-breath, so it is not left behind unrefined.
+breath, so it is not left behind unrefined, and write a feature's body as in
+[Writing an issue](#writing-an-issue).
 
 Under cabinet's `identify` ritual you only read: say what each issue is and what
 should be opened, labelled and linked, and the ritual makes every one of those

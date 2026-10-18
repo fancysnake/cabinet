@@ -19,10 +19,10 @@ asked.
 
 ## Roles
 
-| role   | may use                               |
-| ------ | ------------------------------------- |
-| reader | `Read`, `Grep`, `Glob`, `Bash`        |
-| writer | reader + `Edit`, `Write`, `MultiEdit` |
+| role   | may use                                 |
+| ------ | --------------------------------------- |
+| reader | `Read`, `Grep`, `Glob`, `Bash`, `Skill` |
+| writer | reader + `Edit`, `Write`, `MultiEdit`   |
 
 A reader gets no edit tools, but it is not read-only: its shell writes. The
 role says what the call is for.

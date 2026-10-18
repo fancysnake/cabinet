@@ -10,7 +10,7 @@ from cabinet.pacts.threads import TriageNotes
 from tests.conftest import drive
 
 _PROJECT = Project.model_validate({"agent": {"max_turns": 30}})
-_READER = ["Read", "Grep", "Glob", "Bash"]
+_READER = ["Read", "Grep", "Glob", "Bash", "Skill"]
 _WRITER = [*_READER, "Edit", "Write", "MultiEdit"]
 _AGENT = ClaudeAgent(_PROJECT)
 

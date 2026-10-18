@@ -16,9 +16,10 @@ gate = "mise run pr-fix"
 coverage = "mise run diff-cover"
 fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
-review_skill = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
+review_skill = "thermo-nuclear-code-quality-review"
 review_title = "Thermo-nuclear code quality review"
-identify_skill = "~/.claude/skills/issues/SKILL.md"
+identify_skill = "issues"
+stories_skill = "lean-stories"
 
 [cabinet.labels]
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
@@ -52,9 +53,10 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `coverage`      | the full diff coverage measurement `cover` runs once at the end             |
 | `fast_coverage` | the same measurement without the slow suites, re-run between repair rounds  |
 | `sign_commits`  | `false` commits with `commit.gpgsign=false`, for casts nobody can unlock a key for |
-| `review_skill`  | the skill file `refresh` reviews with; see [the review skill](#the-review-skill) |
+| `review_skill`  | the skill `refresh` reviews with, by name; see [skills](#skills)           |
 | `review_title`  | the heading its review comments open with                                   |
-| `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
+| `identify_skill`  | the skill `identify` has its agent invoke, by name; see [skills](#skills) |
+| `stories_skill`   | the skill a feature issue's body is written by, in `identify` and `review`; see [skills](#skills) |
 
 ### `[cabinet.labels]`
 
@@ -90,41 +92,41 @@ the `covering` ones.
 | `max_turns`   | the turn limit per agent call; `0` is unbounded                                |
 | `may_not_run` | slow tasks the prompt asks an agent to leave alone, beside the gate and coverage commands; see [Agents](agents.md) |
 
-## The review skill
+## Skills
 
-`refresh` reviews with the thermo-nuclear code quality review, which is not
-part of this tome: it is Cursor's, from the
-[cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review)
-plugin. Put it where `review_skill` points before the first cast:
+The agents invoke three skills by name, so each resolves wherever the casting
+repository's Claude finds skills: user scope (`~/.claude/skills/<name>`),
+project scope (`.claude/skills/<name>`), or an installed plugin, named
+`<plugin>:<skill>`. A name that resolves nowhere leaves the agent without its
+rules.
+
+| key              | default                              | where it comes from |
+| ---------------- | ------------------------------------ | ------------------- |
+| `review_skill`   | `thermo-nuclear-code-quality-review` | Cursor's [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review), not this tome |
+| `identify_skill` | `issues`                             | the [`issues`](plugins.md#issues) plugin |
+| `stories_skill`  | `lean-stories`                       | the [`lean-stories`](plugins.md#lean-stories) plugin |
+
+`identify` follows `identify_skill`. A feature issue an agent writes, an
+`identify` sub-issue or an issue `review` files for a thread, gets its body
+from `stories_skill`. `review_title` is the heading `review_skill`'s comments
+open with; point both at another review skill to swap it.
+
+Installed from this repository's [marketplace](plugins.md), the plugin skills
+carry their plugin's prefix, so name them that way:
+
+```toml
+[cabinet]
+identify_skill = "issues:issues"
+stories_skill = "lean-stories:lean-stories"
+```
+
+The defaults name the bare skill, as a user- or project-scope copy is named.
+The review skill is not a Claude plugin; copy it into user scope:
 
 ```bash
 mkdir -p ~/.claude/skills/thermo-nuclear-code-quality-review
 curl -fsSL -o ~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md \
   https://raw.githubusercontent.com/cursor/plugins/refs/heads/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md
-```
-
-Or point `review_skill` at any other skill file and `review_title` at the
-heading its comments should open with.
-
-## The issues skill
-
-`identify` has its agent read the `issues` skill, which lives in this
-repository's [plugins](plugins.md). Put a copy where `identify_skill` points
-before the first cast:
-
-```bash
-mkdir -p ~/.claude/skills/issues
-curl -fsSL -o ~/.claude/skills/issues/SKILL.md \
-  https://raw.githubusercontent.com/fancysnake/cabinet/refs/heads/main/plugins/issues/skills/issues/SKILL.md
-```
-
-Or point `identify_skill` at the copy the plugin install left, or at a skill of
-your own that names the same labels. A repository that already carries the
-skill in its own tree can name that path instead, which is what this one does:
-
-```toml
-[cabinet]
-identify_skill = "plugins/issues/skills/issues/SKILL.md"
 ```
 
 ## The remote

@@ -310,9 +310,12 @@ async def plan(triage: Triage) -> Instructed:
         # answer agrees with the reading's own proposal.
         said = await decide(f"{report.shown(number, item)}\n->", free=True)
         told.append(said or f"{item.action} it, as the reading says")
-    prompt = services().prompts.triage_work(triage.branch.number, triage.items, told)
+    branch = triage.branch
+    prompt = services().prompts.triage_work(
+        branch.project, branch.number, triage.items, told
+    )
     threads = [item.thread for item in triage.items]
-    return Instructed(branch=triage.branch, prompt=prompt, threads=threads)
+    return Instructed(branch=branch, prompt=prompt, threads=threads)
 
 
 # The agent edits code and drafts every reply; it reaches the forge for

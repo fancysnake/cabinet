@@ -154,9 +154,10 @@ number first:
 4. The next page continues the same agent session, so the skill it follows is
    read once per cast.
 
-The agent follows the skill at `identify_skill` (see
-[Configuration](configuration.md)): the `issues` skill from the
-[plugins](plugins.md). It reaches the forge for nothing and edits no files, as
+The agent invokes the skill named by `identify_skill` (see
+[Configuration](configuration.md#skills)): the `issues` skill from the
+[plugins](plugins.md). A feature sub-issue's body is written by the one named
+by `stories_skill`, `lean-stories`. It reaches the forge for nothing and edits no files, as
 every other agent here — the writes are the ritual's, one step of their own.
 The issue bodies reach it fenced as data, the same as review threads. The
 report says what each issue came to, and says so when the forge would not list
