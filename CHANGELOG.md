@@ -21,8 +21,8 @@ and this project adheres to [Semantic Versioning].
 ### Changed
 
 - `issues` skill: an issue body is a STAGE (Status, Target, Assets,
-  Guards, Ellipsis) when it ships on its own, or a Slice (why it serves
-  the parent, done when) for a step that does not, never a plan, so
+  Guards, Ellipsis) when it ships on its own, or a Slice (a STAGE cut
+  down to its Target) for a part that does not, never a plan, so
   you or an agent can start one from it.
 - **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
   tables with an optional `covering` key, replacing `gate_checks`,

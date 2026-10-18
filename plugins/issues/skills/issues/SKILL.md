@@ -60,25 +60,23 @@ the code it touches before judging.
      `gh label list`, `issueTypes` / `issueFields` over `gh api graphql`, and
      `gh project field-list`.
 
-   This step is the interactive path, where you run `gh` yourself. Under
-   cabinet's `identify` you reach no forge client at all: name the type, the size
-   and the links in your answer and the ritual puts on what it can.
+   Under cabinet's `identify`, see [Identifying a backlog](#identifying-a-backlog).
 
 ## Bodies
 
-An issue says why and what done looks like, never how. Name no files,
-classes or APIs, so the body stays true while the code moves. The one
+An issue says why and what done looks like, never how. Anyone may take any
+issue, the user or an agent, so write it for either to start a plan from the
+issue alone: the problem, the outcome and the limits are all there. Name no
+files, classes or APIs, so the body stays true while the code moves. The one
 exception is a bug's observed error text, quoted as it appeared. There is no
 solution section: the design is written when the work starts, as interfaces,
 a spike or tests.
 
 A **STAGE** is the body of any issue that ships on its own: a standalone
-issue, an epic, or a feature-sized part of an epic. A sub-issue's Target
-opens with one sentence on how it serves its parent. A STAGE holds Status
-(the situation now), Target (the outcome once done), Assets (what already
-exists to reuse or copy), Guards (no-gos) and Ellipsis (open questions).
-Fill every field and keep it under 15 lines of content; headings and blank
-lines do not count.
+issue, an epic, or a part of an epic that does. A sub-issue's Target opens
+with one sentence on how it serves its parent. Fill every field, writing
+"none" in Guards or Ellipsis rather than inventing one, and keep it under 15
+lines of content; headings and blank lines do not count.
 
 Status and Target split by tense. Status is the present: the situation and
 why it hurts now. Target is the future: what is true once the work lands,
@@ -92,8 +90,7 @@ belongs in Status.
 Assets are hints, not a guide. Mention, in a few words, what the code already
 has that the work can use (a mailer, for a newsletter) or that does something
 similar to copy (the existing CRUD views, for a new one). Say what it is, not
-where: no names, modules or lines, which rot as soon as they are written.
-Write "none known" when nothing fits.
+where. Write "none known" when nothing fits.
 
 ```markdown
 ## Status (the situation now)
@@ -114,21 +111,10 @@ Done looks like: <one observable sentence>
 - <unknowns and rabbit holes; any solution hunch marked non-binding>
 ```
 
-A **Slice** is the body of a step that does not ship on its own, such as
-plumbing or one part of a split M or L issue. It matters only through its
-parent:
-
-```markdown
-## Serves parent because
-<one sentence tying this step to the parent's intent>
-
-## Done when
-<one observable sentence>
-```
-
-Anyone may take any issue, the user or an agent. Write it so either can start
-a plan from the issue alone: the problem, the outcome and the limits are
-there, and the design is left to whoever picks it up.
+A **Slice** is the body of a part of an epic that does not ship on its own,
+such as plumbing. It matters only through its parent, so it is a STAGE cut
+down to Target: the sentence on how it serves the parent, then `Done looks
+like:`.
 
 The fields are the user's. On an existing issue you may comment, append to
 Ellipsis, and append link lines (`Part of #<n>`, `Related: #<n>`); never
@@ -162,10 +148,9 @@ undo.
 ## Identifying a backlog
 
 For each issue, set one type, then one size or `epic`, then the links, and
-nothing else. Do not
-close, delete or retitle anything, and do not remove a label you did not add.
-Give a sub-issue you open a type and a size in the same breath, so it is not
-left behind unrefined.
+nothing else. Do not close, delete or retitle anything, and do not remove a
+label you did not add. Give a sub-issue you open a type and a size in the same
+breath, so it is not left behind unrefined.
 
 Under cabinet's `identify` ritual you only read: say what each issue is and what
 should be opened, labelled and linked, and the ritual makes every one of those

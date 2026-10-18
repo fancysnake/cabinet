@@ -40,28 +40,21 @@ its agent read it too, from `identify_skill`.
    a size, split into sub-issues that are each typed, sized and attached under
    it.
 3. **Writing one**: the task is checked against the code first, duplicates are
-   searched for by keyword, and the body is a short form, never a plan. An
-   issue that ships on its own, including an epic or a feature-sized part of
-   one, gets a **STAGE**: Status (the situation now, in the present tense),
-   Target (the outcome once done, in the future tense), Assets (a mention of
-   what the code already has to reuse or copy), Guards (no-gos) and Ellipsis
-   (open questions). A bug's Status is the repro and what happens, its Target what
-   should; a spike is done when its question is answered. A step that does
-   not ship on its own gets a **Slice**: how it serves its parent and what
-   done looks like. Either holds enough for you or an agent to start a plan
-   from, and leaves the design to whoever picks it up. Neither names files, classes or APIs, so it survives the
-   repository moving on. Agents may comment and add open questions but never
-   rewrite the fields. Conceptual ambiguities are asked about; implementation
-   details are not. `backlog`, a priority and any issue or Project fields are
-   set where the repository has them, and nothing is created.
+   searched for by keyword, and the body is a short form, never a plan: a
+   **STAGE** for an issue that ships on its own, a **Slice** for a part of an
+   epic that does not. The skill's
+   [Bodies](https://github.com/fancysnake/cabinet/blob/main/plugins/issues/skills/issues/SKILL.md#bodies)
+   holds the fields of each. Conceptual ambiguities are asked about;
+   implementation details are not. `backlog`, a priority and any issue or
+   Project fields are set where the repository has them, and nothing is
+   created.
 4. **Links**: sub-issue for a part of an epic, blocked-by only when the order
    is real, a `Related: #n` line otherwise. A likely duplicate is named in a
    comment, never closed. On GitLab, whose epics are Premium, parts are linked
    and named in the body.
 
-`vekna cast labels.identify` makes the type, size and epic labels.
-Needs `gh` (or `glab`) logged in; setting Project fields needs the `project`
-token scope.
+`vekna cast labels.identify` makes the type, size and epic labels. Needs `gh`
+(or `glab`) logged in; setting Project fields needs the `project` token scope.
 
 ## release-bump
 
