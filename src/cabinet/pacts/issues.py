@@ -52,6 +52,10 @@ Size = Literal["S", "M", "L"]
 KINDS: tuple[Kind, ...] = get_args(Kind)
 SIZES: tuple[Size, ...] = get_args(Size)
 EPIC = "epic"
+# Changes the shape of the system: the user writes its spine, spike or
+# acceptance tests before an agent takes it. A label rather than an assignee,
+# so the ritual can put it on from a reading and the forge needs no account.
+SHAPE = "shape"
 
 # Every label identification reads or writes, with what it means, for the forge.
 # Read by `labels.identify` to make them and by the prompt to say what they mean,
@@ -92,6 +96,11 @@ ISSUE_LABELS = [
         color="5319e7",
         description="Too big for one PR: split into sub-issues, carries no size",
     ),
+    LabelSpec(
+        name=SHAPE,
+        color="fbca04",
+        description="Changes the shape of the system: the user designs it first",
+    ),
 ]
 
 
@@ -107,6 +116,11 @@ class Part(BaseModel):
     body: str
     kind: Kind
     size: Size
+    # Changes the shape of the system, so it wears the shape label.
+    shape: bool = False
+
+    def wanted(self) -> list[str]:
+        return [self.kind, self.size, *([SHAPE] if self.shape else [])]
 
 
 # What the agent read one issue as. A reading and not a report: nothing here
@@ -120,6 +134,8 @@ class IdentifiedItem(BaseModel):
     size: Size | None = None
     # Too big for one pull request: the epic label goes on in place of a size.
     epic: bool = False
+    # Changes the shape of the system: the shape label goes on beside the rest.
+    shape: bool = False
     # Sub-issues to open under it.
     parts: list[Part] = []
     # Open issues that are already parts of it, to attach rather than reopen.
@@ -128,12 +144,14 @@ class IdentifiedItem(BaseModel):
     blocked_by: list[int] = []
     note: str = ""
 
-    # The type, and then a size or the epic label: the labels this reading
-    # asks for and no others, so a label the agent did not put on stays on.
+    # The type, then a size or the epic label, then the shape label: the
+    # labels this reading asks for and no others, so a label the agent did not
+    # put on stays on.
     def wanted(self) -> list[str]:
+        shape = [SHAPE] if self.shape else []
         if self.epic:
-            return [self.kind, EPIC]
-        return [self.kind, *([self.size] if self.size is not None else [])]
+            return [self.kind, EPIC, *shape]
+        return [self.kind, *([self.size] if self.size is not None else []), *shape]
 
 
 class Identified(BaseModel):

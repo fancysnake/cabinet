@@ -53,7 +53,7 @@ the code it touches before judging.
    plan. Ask about conceptual ambiguities, not implementation details.
 4. Set what the repo offers, create nothing, and report what is missing in one
    line:
-   - type and size labels, as above;
+   - type and size labels, as above, and `shape` on a shape-changing Slice;
    - `backlog` and a priority label (`P1`–`P3`) where they exist, asking the
      user for the priority;
    - issue fields or Project fields where they exist. Discover them with
@@ -67,14 +67,20 @@ the code it touches before judging.
 ## Bodies
 
 An issue says why and what done looks like, never how. Name no files,
-classes or APIs, so the body stays true while the code moves. There is no
+classes or APIs, so the body stays true while the code moves. The one
+exception is a bug's observed error text, quoted as it appeared. There is no
 solution section: the design is written when the work starts, as interfaces,
 a spike or tests.
 
 A **STAGE** is the body of an epic and of any issue that is not a sub-issue:
 Status (the situation), Target (intent and end state), Assets (what already
 exists to reuse or copy), Guards (no-gos) and Ellipsis (open questions). Fill
-every field and keep the whole under 15 lines.
+every field and keep it under 15 lines of content; headings and blank lines
+do not count.
+
+- **bug**: Status is how to reproduce it and what happens; Target is what
+  should happen instead.
+- **spike**: Target's done is the question answered, whichever way.
 
 Assets are hints, not a guide. Mention, in a few words, what the code already
 has that the work can use (a mailer, for a newsletter) or that does something
@@ -84,7 +90,7 @@ Write "none known" when nothing fits.
 
 ```markdown
 ## Status (the situation now)
-When <situation>, I want to <motivation>, so I can <outcome>.
+When <situation>, <what happens now>.
 
 ## Target (why, and what done looks like)
 <why this matters>
@@ -107,22 +113,19 @@ A **Slice** is the body of a sub-issue:
 ## Serves parent because
 <one sentence tying this step to the parent's intent>
 
-## Changes the shape of the system?
-<yes | no>
-
 ## Done when
-<a demo, or a test name>
+<one observable sentence>
 ```
 
-A Slice that changes the shape of the system goes to the user, who writes
-its spine, spike or acceptance tests first: assign it to them
-(`gh issue edit <n> --add-assignee @me`). One that does not can go straight
-to an agent.
+A Slice that changes the shape of the system wears the `shape` label: it
+goes to the user, who writes its spine, spike or acceptance tests first. One
+without it can go straight to an agent. Under `identify`, say `shape` in your
+answer and the ritual puts the label on.
 
-The fields are the user's. On an existing issue you may comment and append
-to Ellipsis; never rewrite the other fields. When the intent changes,
-open a new issue and say which one it replaces, rather than editing the old
-one into it.
+The fields are the user's. On an existing issue you may comment, append to
+Ellipsis, and append link lines (`Part of #<n>`, `Related: #<n>`); never
+rewrite the other fields. When the intent changes, open a new issue and say
+which one it replaces, rather than editing the old one into it.
 
 ## Links
 
@@ -150,10 +153,11 @@ undo.
 
 ## Identifying a backlog
 
-For each issue, set one type, then one size or `epic`, then the links, and
-nothing else. Do not close, delete or retitle anything, and do not remove a
-label you did not add. Give a sub-issue you open a type and a size in the same
-breath, so it is not left behind unrefined.
+For each issue, set one type, then one size or `epic`, then `shape` where it
+changes the shape of the system, then the links, and nothing else. Do not
+close, delete or retitle anything, and do not remove a label you did not add.
+Give a sub-issue you open a type and a size in the same breath, so it is not
+left behind unrefined.
 
 Under cabinet's `identify` ritual you only read: say what each issue is and what
 should be opened, labelled and linked, and the ritual makes every one of those

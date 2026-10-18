@@ -4,7 +4,16 @@ from typing import get_args
 
 import pytest
 
-from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, IdentifiedItem, Kind
+from cabinet.pacts.issues import (
+    EPIC,
+    ISSUE_LABELS,
+    KINDS,
+    SHAPE,
+    SIZES,
+    IdentifiedItem,
+    Kind,
+    Part,
+)
 
 # A hex triplet without the hash, the way GitHub takes it.
 _HEX = 6
@@ -15,8 +24,8 @@ class TestVocabulary:
     # types a reading may carry are one list, or a cast asks for a label the
     # forge has never been told about.
     @staticmethod
-    def test_every_type_size_and_the_epic_label_is_conjured() -> None:
-        assert [spec.name for spec in ISSUE_LABELS] == [*KINDS, *SIZES, EPIC]
+    def test_every_type_size_the_epic_and_the_shape_label_is_conjured() -> None:
+        assert [spec.name for spec in ISSUE_LABELS] == [*KINDS, *SIZES, EPIC, SHAPE]
 
     @staticmethod
     def test_each_label_says_what_it_means_in_a_colour() -> None:
@@ -53,3 +62,31 @@ class TestWanted:
         item = IdentifiedItem(number=1, kind="feature", size="L", epic=True)
 
         assert item.wanted() == ["feature", EPIC]
+
+    @staticmethod
+    def test_a_shape_changing_issue_asks_for_the_shape_label_last() -> None:
+        item = IdentifiedItem(number=1, kind="feature", size="M", shape=True)
+
+        assert item.wanted() == ["feature", "M", SHAPE]
+
+    @staticmethod
+    def test_a_shape_changing_epic_keeps_the_shape_label() -> None:
+        item = IdentifiedItem(number=1, kind="feature", epic=True, shape=True)
+
+        assert item.wanted() == ["feature", EPIC, SHAPE]
+
+
+class TestPartWanted:
+    @staticmethod
+    def test_a_part_asks_for_its_type_and_its_size() -> None:
+        part = Part(title="t", body="b", kind="edit", size="S")
+
+        assert part.wanted() == ["edit", "S"]
+
+    # Opened by the ritual, so the label is the only way the user hears the
+    # part is theirs to design before an agent takes it.
+    @staticmethod
+    def test_a_shape_changing_part_asks_for_the_shape_label() -> None:
+        part = Part(title="t", body="b", kind="feature", size="M", shape=True)
+
+        assert part.wanted() == ["feature", "M", SHAPE]

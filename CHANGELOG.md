@@ -22,7 +22,10 @@ and this project adheres to [Semantic Versioning].
 
 - `issues` skill: an issue body is a STAGE (Status, Target, Assets,
   Guards, Ellipsis) or, for a sub-issue, a Slice (why it serves the
-  parent, whether it changes the system's shape, done when), never a plan.
+  parent, done when), never a plan.
+- `identify` puts a `shape` label on an issue or sub-issue that changes the
+  shape of the system, so the user designs it before an agent takes it.
+  `labels.identify` makes the label.
 - **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
   tables with an optional `covering` key, replacing `gate_checks`,
   `cover_checks` and `patch_check`. `refresh` reads the jobs that are not

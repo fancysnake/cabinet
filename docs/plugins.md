@@ -44,21 +44,23 @@ its agent read it too, from `identify_skill`.
    epic or a standalone issue gets a **STAGE**: Status (the situation),
    Target (intent and what done looks like), Assets (a mention of what the
    code already has to reuse or copy), Guards (no-gos) and Ellipsis (open
-   questions). A sub-issue gets a **Slice**: how it serves its parent, whether it changes the shape of the
-   system (if so, it is the user's to design first), and what done looks
-   like. Neither names files, classes or APIs, so it survives the repository
-   moving on. Agents may comment and add open questions but never rewrite the
-   fields. Conceptual ambiguities are asked about; implementation details are
-   not. `backlog`, a priority and any issue or
-   Project fields are set where the repository has them, and nothing is
-   created.
+   questions). A bug's Status is the repro and what happens, its Target what
+   should; a spike is done when its question is answered. A sub-issue gets a
+   **Slice**: how it serves its parent and what done looks like. One that
+   changes the shape of the system wears the `shape` label and is the user's
+   to design first. Neither names files, classes or APIs, so it survives the
+   repository moving on. Agents may comment and add open questions but never
+   rewrite the fields. Conceptual ambiguities are asked about; implementation
+   details are not. `backlog`, a priority and any issue or Project fields are
+   set where the repository has them, and nothing is created.
 4. **Links**: sub-issue for a part of an epic, blocked-by only when the order
    is real, a `Related: #n` line otherwise. A likely duplicate is named in a
    comment, never closed. On GitLab, whose epics are Premium, parts are linked
    and named in the body.
 
-`vekna cast labels.identify` makes the type, size and epic labels. Needs `gh`
-(or `glab`) logged in; setting Project fields needs the `project` token scope.
+`vekna cast labels.identify` makes the type, size, epic and shape labels.
+Needs `gh` (or `glab`) logged in; setting Project fields needs the `project`
+token scope.
 
 ## release-bump
 

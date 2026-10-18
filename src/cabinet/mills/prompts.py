@@ -9,7 +9,7 @@ the boundary.
 from typing_extensions import override
 
 from cabinet.mills.report import triage_line
-from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
+from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SHAPE, SIZES, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
 from cabinet.pacts.threads import Thread, TriageItem
@@ -188,6 +188,9 @@ One item per issue in `items`, carrying its number:
   `kind` and `size` of its own, so no part is left behind unidentified. An open
   issue that is already a part of it goes in `children` by number, rather than
   being opened again.
+- `shape: true`, on an issue or a part, where it changes the shape of the
+  system:
+{_meanings(SHAPE)}
 - `blocked_by`: the open issues this one cannot start until they land. Only
   where the order is real; a wrong link is noise somebody has to undo.
 - no `size` and no `epic` where you could not size it, which is not the same
