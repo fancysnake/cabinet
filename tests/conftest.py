@@ -21,7 +21,7 @@ _ResultT = TypeVar("_ResultT")
 # The same rows the real forge would list, in gh's own spelling.
 LIST = (
     "gh pr list --author @me --state open --limit 100 "
-    "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
+    "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 STATUS = "git status --porcelain"
 HERE = "git rev-parse --abbrev-ref HEAD"

@@ -17,7 +17,7 @@ _FORGE = GithubForge()
 
 _LIST = (
     "gh pr list --author @me --state open --limit 100 "
-    "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
+    "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 _BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100'"
 _THREAD = Thread(
@@ -100,6 +100,20 @@ class TestPulls:
 
         with pytest.raises(ForgeError, match="unreadable"):
             drive(trial, _FORGE.pulls)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("mergeable", "conflicted"),
+        [("CONFLICTING", True), ("MERGEABLE", False), ("UNKNOWN", None)],
+    )
+    def test_whether_it_conflicts_is_read_off_mergeable(
+        trial: Trial, mergeable: str, *, conflicted: bool | None
+    ) -> None:
+        trial.shell.replies(
+            when=_LIST, stdout=json.dumps([_row(7, mergeable=mergeable)])
+        )
+
+        assert drive(trial, _FORGE.pulls)[0].conflicted is conflicted
 
 
 class TestLabels:

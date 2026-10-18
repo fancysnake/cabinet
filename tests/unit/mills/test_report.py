@@ -1,6 +1,7 @@
 """What the morning reads."""
 
 from cabinet.mills.report import Report
+from cabinet.pacts.healing import Surveyed, Unsurveyed
 from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Checked, PullRequest, Run
@@ -267,4 +268,45 @@ class TestIdentify:
             "\n"
             "the cast stopped: the agent stopped mid-flight\n"
             "not reached:    #5"
+        )
+
+
+class TestSurveyed:
+    @staticmethod
+    def test_each_todo_with_what_it_would_work_through() -> None:
+        row = Surveyed(
+            number=7,
+            branch="feature",
+            url=_PULL.url,
+            todos=["merge", "ci", "answer", "review"],
+            red=["checks", "test"],
+            threads=3,
+        )
+
+        assert _REPORT.surveyed(row) == (
+            "#7 feature: merge, ci (checks, test), answer (3 threads), review"
+        )
+
+    @staticmethod
+    def test_nothing_to_do_says_so() -> None:
+        row = Surveyed(
+            number=7, branch="feature", url=_PULL.url, todos=[], red=[], threads=0
+        )
+
+        assert _REPORT.surveyed(row) == "#7 feature: nothing to do"
+
+    @staticmethod
+    def test_a_branch_that_could_not_be_read_says_why() -> None:
+        row = Unsurveyed(number=7, branch="feature", url=_PULL.url, note="gh is down")
+
+        assert _REPORT.surveyed(row) == "#7 feature: could not survey: gh is down"
+
+    @staticmethod
+    def test_a_note_on_several_lines_is_indented() -> None:
+        row = Unsurveyed(
+            number=7, branch="feature", url=_PULL.url, note="fatal:\nno such ref"
+        )
+
+        assert _REPORT.surveyed(row) == (
+            "#7 feature: could not survey: fatal:\n    no such ref"
         )

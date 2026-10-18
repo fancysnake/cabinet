@@ -11,6 +11,7 @@ you already have open.
 | `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
 | `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
 | `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
+| `modern-python` | `modern-python` | writes Python with the newest idioms the project's floor version allows |
 
 --8<-- "README.md:plugins-install"
 
@@ -189,3 +190,27 @@ skips the clicks in between. The whole path fits in fifteen minutes.
 arrives, the command exits 0 and prints the line. Pixels, copy and layout
 are not the point, and expected text is quoted only when the text is the
 feature.
+
+## modern-python
+
+Writes Python with the newest language and stdlib idioms the project's
+minimum supported version allows, and nothing newer. It triggers whenever
+Python is written, edited, refactored, reviewed or generated, even when
+nobody mentions a version.
+
+1. **Finds the target** once per project: a version the user names, else the
+   lowest of the `requires-python` floor (or `python_requires`, or Poetry's
+   `python`), the tooling targets and the CI floor, else the pinned
+   interpreter. `.python-version` saying 3.14 does not lift a `>=3.11` floor.
+2. **Writes at the target**: a quick table of swaps (`Optional[X]` →
+   `X | None`, `TypeVar` → `def f[T]`, `datetime.utcnow()` →
+   `datetime.now(UTC)`), then per-version notes from 3.11 to 3.15 on the
+   rest of language, typing, stdlib, removals and behaviour changes. Nothing above
+   the floor is used; a feature that would help is named as a reason to raise
+   it.
+3. **Keeps the diff reviewable**: new and rewritten lines get modern idioms,
+   untouched code stays as it is unless the ask is to modernize, and a very
+   dated file gets one line pointing at
+   `ruff check --select UP --target-version pyXY --fix`.
+4. **Reports** at most one line about the version, and only when it shaped
+   the code, was guessed, or conflicts with a tool's target.

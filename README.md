@@ -10,6 +10,15 @@ Documentation is at [cabinet.fancysnake.dev](https://cabinet.fancysnake.dev).
 
 Grouped by school, the way a spellbook is.
 
+### Evocation
+
+- **`heal.mine`** and **`heal.this`** — what each pull request needs next.
+  `heal.mine` takes every open pull request of yours not wearing the wait
+  label, oldest-modified first;
+  `heal.this` takes the one for the branch at the cwd. So far they only
+  survey: cast with `--plan-only true`, each prints one line per pull request
+  naming its todos (merge, ci, answer, review, guide) and changes nothing.
+
 ### Transmutation
 
 - **`refresh`** — the night's fast pass. Every open pull request of yours
@@ -52,6 +61,8 @@ casting one twice is as safe as once.
 
 <!-- --8<-- [start:cast] -->
 ```bash
+vekna cast heal.mine --plan-only true
+vekna cast heal.this --plan-only true
 vekna cast refresh [--bound N] [--attended true]
 vekna cast cover [--bound N] [--attended true]
 vekna cast review [--bound N] [--batch N]
@@ -126,6 +137,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 | `release-bump` | a skill that cuts a release                  |
 | `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
 | `smoke-test`   | a skill that writes the fifteen-minute manual check for a web or CLI change |
+| `modern-python` | a skill that writes Python for the project's minimum version |
 
 <!-- --8<-- [start:plugins-install] -->
 Add the marketplace once, then install what you want:

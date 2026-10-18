@@ -15,6 +15,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
+    from cabinet.pacts.healing import Facts, Surveyed, Unsurveyed
     from cabinet.pacts.issues import Identifying, Issue
     from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import Board, PullRequest, Run
@@ -31,11 +32,20 @@ class PullsProtocol(Protocol):
         self, pulls: list[PullRequest], project: Project
     ) -> list[PullRequest]: ...
 
+    # The open pull requests whose head is `branch`.
+    def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]: ...
+
     # True unless the board positively says the coverage is fine.
     def wants_cover(self, board: Board, project: Project) -> bool: ...
 
     # False unless the board positively says the gate jobs are green.
     def gates_green(self, board: Board, project: Project) -> bool: ...
+
+
+class TodosProtocol(Protocol):
+    # What the pull request needs next, in the order a cast does it, and what
+    # each todo would work through.
+    def surveyed(self, facts: Facts, project: Project) -> Surveyed: ...
 
 
 class BacklogProtocol(Protocol):
@@ -120,6 +130,9 @@ class ReportProtocol(Protocol):
 
     def identify(self, identifying: Identifying) -> str: ...
 
+    # One pull request's todos, on one line, or why it could not be read.
+    def surveyed(self, row: Surveyed | Unsurveyed) -> str: ...
+
     def triage(self, items: list[TriageItem]) -> list[str]: ...
 
     def shown(self, index: int, item: TriageItem) -> str: ...
@@ -128,6 +141,9 @@ class ReportProtocol(Protocol):
 class ServicesProtocol(Protocol):
     @property
     def pulls(self) -> PullsProtocol: ...
+
+    @property
+    def todos(self) -> TodosProtocol: ...
 
     @property
     def backlog(self) -> BacklogProtocol: ...

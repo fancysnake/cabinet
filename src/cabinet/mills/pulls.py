@@ -34,15 +34,20 @@ class Pulls(PullsProtocol):
         wait = project.labels.wait
         return sorted((pull for pull in pulls if not pull.wears(wait)), key=_modified)
 
+    # Every one, not the first: the same head opened against two bases is two
+    # pull requests, and both are yours to hear about.
+    @override
+    def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]:
+        return [pull for pull in pulls if pull.branch == branch]
+
     # True unless the board positively says otherwise: a short board, a branch
     # CI has not reported on yet — all of them mean nobody has said the
     # coverage is fine, and the slow pass is the thing that finds out.
     @override
     def wants_cover(self, board: Board, project: Project) -> bool:
-        patch = project.ci.patch_check
-        if board.truncated or any(_names_a_gap(check, patch) for check in board.checks):
+        watched = board.watched(project.ci)
+        if board.truncated or any(_names_a_gap(check, project) for check in watched):
             return True
-        watched = _watched(board, project.ci.cover_checks)
         return not watched or any(check.passed is not True for check in watched)
 
     # False where nobody has said — an empty board, a check still running —
@@ -52,16 +57,16 @@ class Pulls(PullsProtocol):
     def gates_green(self, board: Board, project: Project) -> bool:
         if board.truncated:
             return False
-        watched = _watched(board, project.ci.gate_checks)
+        watched = [
+            check
+            for check in board.watched(project.ci)
+            if not project.ci.covering(check.name)
+        ]
         return bool(watched) and all(check.passed is True for check in watched)
 
 
-def _watched(board: Board, prefixes: list[str]) -> list[Check]:
-    return [check for check in board.checks if check.name.startswith(tuple(prefixes))]
-
-
-def _names_a_gap(check: Check, patch: str) -> bool:
-    if check.name != patch or not check.title:
+def _names_a_gap(check: Check, project: Project) -> bool:
+    if not project.ci.covering(check.name) or not check.title:
         return False
     found = _DIFF_HIT.search(check.title)
     return found is not None and float(found.group(1)) < WHOLE

@@ -5,6 +5,7 @@ from itertools import starmap
 
 from typing_extensions import override
 
+from cabinet.pacts.healing import Surveyed, Todo, Unsurveyed
 from cabinet.pacts.issues import (
     EPIC,
     Identification,
@@ -79,6 +80,16 @@ def triage_line(index: int, item: TriageItem) -> str:
         f"{index}. [{item.priority}/{item.action}] {item.where} — {item.raised}\n"
         f"   -> {item.what}"
     )
+
+
+# A todo with what it would work through, where that is more than its name.
+def _todo(row: Surveyed, todo: Todo) -> str:
+    if todo == "ci":
+        return f"ci ({', '.join(row.red)})"
+    if todo == "answer":
+        noun = "thread" if row.threads == 1 else "threads"
+        return f"answer ({row.threads} {noun})"
+    return todo
 
 
 def _line(row: Checked) -> str:
@@ -172,6 +183,19 @@ class Report(ReportProtocol):
             if left := identifying.queue:
                 lines += [f"not reached:    {_numbers([one.number for one in left])}"]
         return "\n".join(lines)
+
+    # `#7 feature: merge, ci (checks), answer (3 threads), review`.
+    @override
+    def surveyed(self, row: Surveyed | Unsurveyed) -> str:
+        head = f"#{row.number} {row.branch}"
+        # Indented the way a sweep row's note is: git's complaint is often
+        # stdout and stderr on lines of their own, and one in column zero
+        # reads as the next pull request.
+        if isinstance(row, Unsurveyed):
+            wrapped = row.note.replace("\n", "\n    ")
+            return f"{head}: could not survey: {wrapped}"
+        todos = [_todo(row, todo) for todo in row.todos]
+        return f"{head}: {', '.join(todos) or 'nothing to do'}"
 
     # The whole triage, headed by a tally, for the terminal.
     @override
