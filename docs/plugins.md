@@ -226,13 +226,12 @@ them, or asks what could go wrong with a feature or requirement.
    never "a user", one goal per story, and a benefit that does not restate
    the goal.
 2. **Sweeps for actors** that are easy to forget: the anonymous visitor, the
-   operator, an integration, a lapsed account, an attacker, a second user
-   at the same moment.
+   operator, an integration. One with no story is listed as a missing actor.
 3. **Probes each story** through nine lenses: boundaries, bad input, unhappy
    paths, state and timing, permissions, abuse, conflicting rules, ambiguous
    terms, lifecycle. `reference.md` holds deeper questions per lens. Only
-   plausible findings that would change behaviour are kept, three to seven
-   per story, tagged Gap, Ambiguity, Abuse, Conflict or Edge.
+   plausible findings that would change behaviour are kept, at most seven
+   per story, each tagged with the lens that found it.
 4. **Asks instead of inventing**: unknown behaviour becomes an open question
    with a recommended answer. No epics, points or personas; Given/When/Then
    only on request.

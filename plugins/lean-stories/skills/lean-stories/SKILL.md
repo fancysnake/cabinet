@@ -21,7 +21,7 @@ One line each:
 Rules:
 - Name a real actor ("first-time buyer", "billing admin"). Never use "As a user".
 - The "so that" must state a benefit, not restate the goal.
-- Write one goal per story. If a story contains "and", split it.
+- Write one goal per story. If the goal joins two separate actions, split it.
 - Cover only what the feature needs. Don't pad with generic stories.
 
 ## Step 2: Sweep for actors
@@ -30,11 +30,8 @@ List who touches this feature, including the ones that are easy to forget:
 - unauthenticated visitor
 - admin, support, or other operator
 - an external system or integration
-- a deactivated, downgraded, or expired account
-- an attacker or bad-faith user
-- a second user acting at the same time
 
-If an actor has no story but plausibly matters, flag it as a **Gap**.
+If an actor has no story but plausibly matters, list it under **Missing actors**.
 
 ## Step 3: Probe each story
 
@@ -60,9 +57,10 @@ Use this format exactly. Add nothing else unless the user asks for it.
 ## Stories
 
 ### S1. As a [actor], I want [goal], so that [benefit].
-- [Abuse] <finding in one line>
-- [Edge] <finding>
-- [Conflict] <finding: name the rule or story it conflicts with>
+- [Abuse and misuse] <finding in one line>
+- [Boundaries] <finding>
+- [Conflicting rules] <finding: name the rule or story it conflicts with>
+Also consider: <overflow findings, one line>
 
 ### S2. ...
 
@@ -75,20 +73,15 @@ Use this format exactly. Add nothing else unless the user asks for it.
 2. ...
 ```
 
-Finding tags:
-- **Gap:** something isn't covered.
-- **Ambiguity:** two readings are possible.
-- **Abuse:** someone can exploit it.
-- **Conflict:** two rules clash.
-- **Edge:** a boundary, timing, or failure case.
+The findings under S1 are examples, not a fixed set. Tag each finding with the name of the lens that found it.
 
 Limits:
-- 3–7 findings per story, ranked by likelihood × impact.
-- If you have more, keep the top ones and put the rest in one line: "Also consider: …".
+- At most 7 findings per story, ranked by likelihood × impact.
+- Put any beyond 7 on the "Also consider" line; leave the line out when there are none.
 
 ## Rules
 
 - **Don't invent answers.** When the behavior is unknown, turn it into an open question with a recommended answer. The user makes the decision.
 - **Don't add scaffolding.** Leave out epics, story points, priorities, personas, and definitions of done.
 - **Given/When/Then is opt-in.** Write it only if the user asks, and then only for the riskiest findings.
-- **Iterate.** When the user answers open questions, update the stories and findings, then probe only what changed.
+- **Iterate.** When the user answers open questions, update the stories and findings, re-probe the stories that changed, then re-run the Conflicting rules lens across all stories.
