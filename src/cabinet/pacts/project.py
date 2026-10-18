@@ -159,15 +159,16 @@ class Project(BaseModel):
     sign_commits: bool = True
     # Skills by the name the agent invokes them with, so they resolve wherever
     # the casting repository installed them: user or project scope bare, a
-    # plugin as `<plugin>:<skill>`.
+    # plugin as `<plugin>:<skill>`. The two this tome ships default to their
+    # names as installed from its marketplace.
     review_skill: str = "thermo-nuclear-code-quality-review"
     review_title: str = "Thermo-nuclear code quality review"
     # Invoked once, at the top of `identify`'s session: what the types and
     # sizes mean and how issues are linked.
-    identify_skill: str = "issues"
+    identify_skill: str = "issues:issues"
     # What a feature issue's body is written by, wherever an agent writes one:
     # an `identify` sub-issue, an issue `review` files for a thread.
-    stories_skill: str = "lean-stories"
+    stories_skill: str = "lean-stories:lean-stories"
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()

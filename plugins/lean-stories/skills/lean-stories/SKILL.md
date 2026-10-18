@@ -10,7 +10,7 @@ Stories are one line. The value is in the gaps you find. Spend most of your effo
 
 ## Input
 
-Work from `$ARGUMENTS`, a file the user points to, or the conversation. If the feature is too vague to name an actor and a goal, ask up to 3 questions first and stop there.
+Work from `$ARGUMENTS`, a file the user points to, or the conversation. Where the feature is too vague to name an actor and a goal, write the stories you can name and put the rest under **Open questions**, each with a recommended answer.
 
 ## Step 1: Write the stories
 

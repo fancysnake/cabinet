@@ -157,8 +157,9 @@ number first:
 The agent invokes the skill named by `identify_skill` (see
 [Configuration](configuration.md#skills)): the `issues` skill from the
 [plugins](plugins.md). A feature sub-issue's body is written by the one named
-by `stories_skill`, `lean-stories`. It reaches the forge for nothing and edits no files, as
-every other agent here — the writes are the ritual's, one step of their own.
+by `stories_skill`, `lean-stories:lean-stories`. It reaches the forge for
+nothing and edits no files, as every other agent here — the writes are the
+ritual's, one step of their own.
 The issue bodies reach it fenced as data, the same as review threads. The
 report says what each issue came to, and says so when the forge would not list
 your whole backlog: past the listing's cap an issue is never swept, and it

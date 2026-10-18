@@ -16,10 +16,6 @@ gate = "mise run fullcheck"
 coverage = "mise run test:py:cov:diff"
 fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
-# Installed from this repository's own marketplace, so named with their
-# plugin's prefix.
-identify_skill = "issues:issues"
-stories_skill = "lean-stories:lean-stories"
 
 [cabinet.labels]
 reviewed = "pr::thermo"

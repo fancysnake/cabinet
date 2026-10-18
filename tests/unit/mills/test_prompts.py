@@ -8,6 +8,10 @@ from cabinet.pacts.threads import Comment, Thread, TriageItem
 _PROMPTS = Prompts()
 _PLAIN = Project()
 _E2E = Project.model_validate({"agent": {"may_not_run": ["mise run test:e2e"]}})
+# The one sentence every prompt that has an agent write an issue body carries.
+_STORIES = (
+    f"A `feature`'s body is its stories: invoke the `{_PLAIN.stories_skill}` skill"
+)
 
 _THREAD = Thread(
     id="T1",
@@ -137,7 +141,7 @@ class TestTriageWork:
     def test_a_filed_feature_is_written_by_the_stories_skill() -> None:
         prompt = _PROMPTS.triage_work(_PLAIN, 7, [_ITEM], ["file it"])
 
-        assert f"invoke the `{_PLAIN.stories_skill}` skill and follow it" in prompt
+        assert _STORIES in prompt
 
     # The prompt promises markers, so it has to emit them: the reading of a
     # thread goes inside, and the answer that is an instruction stays out.
@@ -212,7 +216,6 @@ class TestIdentify:
         prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=False)
 
         assert f"invoke the `{_PLAIN.identify_skill}` skill and follow it" in prompt
-        assert f"body by the `{_PLAIN.stories_skill}` skill" in prompt
         assert "issue #5: Add a thing\nlabels: backlog" in prompt
 
     # From `ISSUE_LABELS`, not spelled again here: a type added to the forge's
@@ -235,8 +238,15 @@ class TestIdentify:
         prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=True)
 
         assert f"`{_PLAIN.identify_skill}`" not in prompt
-        assert f"`{_PLAIN.stories_skill}`" not in prompt
         assert prompt.startswith("The next page of open issues")
+
+    # In the `parts` bullet, not the opening: a later page drops the opening.
+    @staticmethod
+    def test_every_page_names_the_stories_skill() -> None:
+        for briefed in (False, True):
+            prompt = _PROMPTS.identify(_PLAIN, [_ISSUE], briefed=briefed)
+
+            assert _STORIES in prompt
 
     @staticmethod
     def test_an_issue_cannot_close_its_own_fence() -> None:

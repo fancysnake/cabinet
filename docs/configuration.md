@@ -18,8 +18,8 @@ fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
 review_skill = "thermo-nuclear-code-quality-review"
 review_title = "Thermo-nuclear code quality review"
-identify_skill = "issues"
-stories_skill = "lean-stories"
+identify_skill = "issues:issues"
+stories_skill = "lean-stories:lean-stories"
 
 [cabinet.labels]
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
@@ -103,24 +103,14 @@ rules.
 | key              | default                              | where it comes from |
 | ---------------- | ------------------------------------ | ------------------- |
 | `review_skill`   | `thermo-nuclear-code-quality-review` | Cursor's [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review), not this tome |
-| `identify_skill` | `issues`                             | the [`issues`](plugins.md#issues) plugin |
-| `stories_skill`  | `lean-stories`                       | the [`lean-stories`](plugins.md#lean-stories) plugin |
+| `identify_skill` | `issues:issues`                      | the [`issues`](plugins.md#issues) plugin, from this tome's [marketplace](plugins.md) |
+| `stories_skill`  | `lean-stories:lean-stories`          | the [`lean-stories`](plugins.md#lean-stories) plugin, from the same marketplace |
 
 `identify` follows `identify_skill`. A feature issue an agent writes, an
 `identify` sub-issue or an issue `review` files for a thread, gets its body
 from `stories_skill`. `review_title` is the heading `review_skill`'s comments
 open with; point both at another review skill to swap it.
 
-Installed from this repository's [marketplace](plugins.md), the plugin skills
-carry their plugin's prefix, so name them that way:
-
-```toml
-[cabinet]
-identify_skill = "issues:issues"
-stories_skill = "lean-stories:lean-stories"
-```
-
-The defaults name the bare skill, as a user- or project-scope copy is named.
 The review skill is not a Claude plugin; copy it into user scope:
 
 ```bash

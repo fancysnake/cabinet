@@ -57,7 +57,8 @@ the code it touches before judging.
    - Ask about conceptual ambiguities, not implementation details.
    - When updating an issue, start from its current body and ask about
      contradictions.
-   - A `feature` gets its body from the `lean-stories` skill: the stories,
+   - A `feature` gets its body from the lean-stories skill
+     (`lean-stories:lean-stories` from cabinet's marketplace): the stories,
      their findings, missing actors and open questions. Updating one re-runs
      it over the stories that changed. Under cabinet's rituals, invoke the
      skill the prompt names.
