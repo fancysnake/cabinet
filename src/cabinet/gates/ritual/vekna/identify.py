@@ -121,7 +121,7 @@ async def _put(
         if (made := await _tried(forge.issue(part.title, part.body), said)) is None:
             continue
         opened.append(made.number)
-        await _tried(forge.label_issue(made.number, add=part.wanted()), said)
+        await _tried(forge.label_issue(made.number, add=[part.kind, part.size]), said)
         await _tried(forge.attach(item.number, made.number), said)
     for child in item.children:
         await _tried(forge.attach(item.number, child), said)

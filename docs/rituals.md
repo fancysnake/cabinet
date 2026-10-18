@@ -142,8 +142,7 @@ number first:
    what the issue is — a type (`feature`, `edit`, `chore`, `spike`, `bug`) and
    a size (`S`, `M`, `L`), or `epic` in place of a size with the sub-issues it
    should be split into, plus the open issues already part of it and the ones
-   blocking it, and `shape` on an issue or part that changes the shape of
-   the system. An issue it could not size is left unsized, which the report
+   blocking it. An issue it could not size is left unsized, which the report
    tells apart from an epic.
 3. The ritual puts that on the forge: the labels, then each sub-issue opened,
    labelled and attached under its epic, then the links. A write the forge
@@ -180,8 +179,8 @@ it before the first sweep when `labels` was not, and again after changing
 ## labels.identify
 
 *Conjuration.* Makes the labels `identify` puts on issues: the five types, the
-three sizes, `epic` and `shape`. Cast it before the first `identify` when
-`labels` was not. The names are fixed, because the `issues` skill names them too.
+three sizes and `epic`. Cast it before the first `identify` when `labels` was
+not. The names are fixed, because the `issues` skill names them too.
 
 ## Flags
 

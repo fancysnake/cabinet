@@ -48,9 +48,8 @@ its agent read it too, from `identify_skill`.
    (open questions). A bug's Status is the repro and what happens, its Target what
    should; a spike is done when its question is answered. A step that does
    not ship on its own gets a **Slice**: how it serves its parent and what
-   done looks like. One that
-   changes the shape of the system wears the `shape` label and is the user's
-   to design first. Neither names files, classes or APIs, so it survives the
+   done looks like. Either holds enough for you or an agent to start a plan
+   from, and leaves the design to whoever picks it up. Neither names files, classes or APIs, so it survives the
    repository moving on. Agents may comment and add open questions but never
    rewrite the fields. Conceptual ambiguities are asked about; implementation
    details are not. `backlog`, a priority and any issue or Project fields are
@@ -60,7 +59,7 @@ its agent read it too, from `identify_skill`.
    comment, never closed. On GitLab, whose epics are Premium, parts are linked
    and named in the body.
 
-`vekna cast labels.identify` makes the type, size, epic and shape labels.
+`vekna cast labels.identify` makes the type, size and epic labels.
 Needs `gh` (or `glab`) logged in; setting Project fields needs the `project`
 token scope.
 

@@ -53,7 +53,7 @@ the code it touches before judging.
    plan. Ask about conceptual ambiguities, not implementation details.
 4. Set what the repo offers, create nothing, and report what is missing in one
    line:
-   - type and size labels, as above, and `shape` on a shape-changing issue;
+   - type and size labels, as above;
    - `backlog` and a priority label (`P1`–`P3`) where they exist, asking the
      user for the priority;
    - issue fields or Project fields where they exist. Discover them with
@@ -126,10 +126,9 @@ parent:
 <one observable sentence>
 ```
 
-A STAGE or Slice that changes the shape of the system wears the `shape`
-label: it goes to the user, who writes its spine, spike or acceptance tests
-first. One without it can go straight to an agent. Under `identify`, say `shape` in your
-answer and the ritual puts the label on.
+Anyone may take any issue, the user or an agent. Write it so either can start
+a plan from the issue alone: the problem, the outcome and the limits are
+there, and the design is left to whoever picks it up.
 
 The fields are the user's. On an existing issue you may comment, append to
 Ellipsis, and append link lines (`Part of #<n>`, `Related: #<n>`); never
@@ -162,8 +161,8 @@ undo.
 
 ## Identifying a backlog
 
-For each issue, set one type, then one size or `epic`, then `shape` where it
-changes the shape of the system, then the links, and nothing else. Do not
+For each issue, set one type, then one size or `epic`, then the links, and
+nothing else. Do not
 close, delete or retitle anything, and do not remove a label you did not add.
 Give a sub-issue you open a type and a size in the same breath, so it is not
 left behind unrefined.

@@ -234,33 +234,6 @@ class TestPin:
             "gh api repos/{owner}/{repo}/issues/1/sub_issues -X POST -F sub_issue_id=99"
         )
 
-    # A part that changes the shape of the system wears the shape label, so the
-    # user sees it is theirs to design before an agent takes it.
-    @staticmethod
-    def test_a_shape_changing_part_wears_the_shape_label(
-        trial: Trial, project: Project
-    ) -> None:
-        trial.shell.replies(when="gh issue edit 1 --add-label edit --add-label epic")
-        trial.shell.replies(
-            when="gh api repos/{owner}/{repo}/issues -X POST*",
-            stdout='{"number": 10, "html_url": "https://github.com/o/r/issues/10"}',
-        )
-        shaped = f"{_labelled(10)} --add-label shape"
-        trial.shell.replies(when=shaped)
-        trial.shell.replies(
-            when="gh api repos/{owner}/{repo}/issues/10 --jq .id", stdout="99"
-        )
-        trial.shell.replies(
-            when="gh api repos/{owner}/{repo}/issues/1/sub_issues*", always=True
-        )
-        part = Part(title="spine", body="why", kind="feature", size="S", shape=True)
-        item = IdentifiedItem(number=1, kind="edit", epic=True, parts=[part])
-        page = Page(identifying=Identifying(project=project), issues=[_issue(1)])
-
-        trial.walk(pin, Pinning(page=page, items=[item]))
-
-        assert shaped in trial.shell.commands
-
     # An issue already part of the epic is attached rather than opened again,
     # and what blocks this one is recorded the same way round.
     @staticmethod

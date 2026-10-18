@@ -25,7 +25,6 @@ _NAMES = [
     "M",
     "L",
     "epic",
-    "shape",
 ]
 
 
