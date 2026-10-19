@@ -49,14 +49,8 @@ the code it touches before judging.
    matter.
 2. Search the open issues by keyword (`gh issue list --search "<words>"`). If
    something similar exists, ask what to do.
-3. Write at feature level: the issue may sit for months while the repo moves.
-   - Cover the features added, the bugs fixed and the operations changed.
-   - Generic terms are fine: "needs a Trello API adapter", "a new view",
-     "refactor the enrollment mill".
-   - Use bullets and sections, and emphasize open questions and decisions.
-   - Ask about conceptual ambiguities, not implementation details.
-   - When updating an issue, start from its current body and ask about
-     contradictions.
+3. Write the body as a STAGE or a Slice (see [Bodies](#bodies)), never a
+   plan. Ask about conceptual ambiguities, not implementation details.
 4. Set what the repo offers, create nothing, and report what is missing in one
    line:
    - type and size labels, as above;
@@ -66,9 +60,66 @@ the code it touches before judging.
      `gh label list`, `issueTypes` / `issueFields` over `gh api graphql`, and
      `gh project field-list`.
 
-   This step is the interactive path, where you run `gh` yourself. Under
-   cabinet's `identify` you reach no forge client at all: name the type, the size
-   and the links in your answer and the ritual puts on what it can.
+   Under cabinet's `identify`, see [Identifying a backlog](#identifying-a-backlog).
+
+## Bodies
+
+An issue says why and what done looks like, never how. Anyone may take any
+issue, the user or an agent, so write it for either to start a plan from the
+issue alone: the problem, the outcome and the limits are all there. Name no
+files, classes or APIs, so the body stays true while the code moves. The one
+exception is a bug's observed error text, quoted as it appeared. There is no
+solution section: the design is written when the work starts, as interfaces,
+a spike or tests.
+
+A **STAGE** is the body of any issue that ships on its own: a standalone
+issue, an epic, or a part of an epic that does. A sub-issue's Target opens
+with one sentence on how it serves its parent. Fill every field, writing
+"none" in Guards or Ellipsis rather than inventing one, and keep it under 15
+lines of content; headings and blank lines do not count.
+
+Status and Target split by tense. Status is the present: the situation and
+why it hurts now. Target is the future: what is true once the work lands,
+with no word on how things are today. A sentence about today in Target
+belongs in Status.
+
+- **bug**: Status is how to reproduce it and what happens; Target is what
+  should happen instead.
+- **spike**: Target's done is the question answered, whichever way.
+
+Assets are hints, not a guide. Mention, in a few words, what the code already
+has that the work can use (a mailer, for a newsletter) or that does something
+similar to copy (the existing CRUD views, for a new one). Say what it is, not
+where. Write "none known" when nothing fits.
+
+```markdown
+## Status (the situation now)
+When <situation>, <what happens now, and why it hurts>.
+
+## Target (the outcome, once done)
+<what is true once this lands>
+Done looks like: <one observable sentence>
+
+## Assets (what exists to reuse or copy)
+- use: <something that exists, e.g. "a Discord integration">
+- like: <a similar feature, e.g. "the other CRUD views">
+
+## Guards (what this will not do)
+- <a no-go>
+
+## Ellipsis (open questions)
+- <unknowns and rabbit holes; any solution hunch marked non-binding>
+```
+
+A **Slice** is the body of a part of an epic that does not ship on its own,
+such as plumbing. It matters only through its parent, so it is a STAGE cut
+down to Target: the sentence on how it serves the parent, then `Done looks
+like:`.
+
+The fields are the user's. On an existing issue you may comment, append to
+Ellipsis, and append link lines (`Part of #<n>`, `Related: #<n>`); never
+rewrite the other fields. When the intent changes, open a new issue and say
+which one it replaces, rather than editing the old one into it.
 
 ## Links
 

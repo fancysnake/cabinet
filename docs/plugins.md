@@ -40,8 +40,11 @@ its agent read it too, from `identify_skill`.
    a size, split into sub-issues that are each typed, sized and attached under
    it.
 3. **Writing one**: the task is checked against the code first, duplicates are
-   searched for by keyword, and the issue is written at feature level so it
-   survives the repository moving on. Conceptual ambiguities are asked about;
+   searched for by keyword, and the body is a short form, never a plan: a
+   **STAGE** for an issue that ships on its own, a **Slice** for a part of an
+   epic that does not. The skill's
+   [Bodies](https://github.com/fancysnake/cabinet/blob/main/plugins/issues/skills/issues/SKILL.md#bodies)
+   holds the fields of each. Conceptual ambiguities are asked about;
    implementation details are not. `backlog`, a priority and any issue or
    Project fields are set where the repository has them, and nothing is
    created.
