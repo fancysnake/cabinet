@@ -123,8 +123,12 @@ gate = "mise run pr-fix"
 Every `[cabinet]` key has a default; the
 [configuration reference](https://cabinet.fancysnake.dev/configuration/)
 lists them all, with the review skill to fetch and the remote to set up before
-the first cast. What an agent may do during one is at
-[Agents](https://cabinet.fancysnake.dev/agents/).
+the first cast.
+
+Run every cast in a sandbox, attended or not. Every agent has a shell and can
+read any file you can; nothing in cabinet keeps it to the repository. The
+[Agents](https://cabinet.fancysnake.dev/agents/#the-sandbox-is-the-only-boundary)
+page says why the sandbox is the only boundary.
 
 ## Claude Code plugins
 
