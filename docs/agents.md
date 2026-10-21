@@ -8,11 +8,13 @@ thread. Every agent has a shell, and cabinet denies it no command.
 
 A shell can run anything: `mise exec` or `sh -c` gets round any list of
 command prefixes. Nothing bounds paths either: `Read`, `Grep` and `Glob` reach
-any file the user can read, in every role. The prompts fence review text as
-untrusted and ask the agent to stay in the repository, but a prompt is an
-instruction, and the text it fences is written by other people.
+any file the user can read. The prompts that carry other people's text
+(review threads, issue bodies) fence it as untrusted and ask the agent to stay
+in the repository, but a prompt is an instruction, and the text it fences is
+written by other people.
 
-The sandbox the cast runs in, such as fence, is what bounds both the paths an
+The sandbox the cast runs in, such as
+[fence](https://github.com/fencesandbox/fence), is what bounds both the paths an
 agent reaches and the commands it runs. Run every cast, attended or not, inside one.
 
 ## Permission modes
