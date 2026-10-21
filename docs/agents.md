@@ -4,11 +4,18 @@ Every agent call in a ritual is one bounded piece of work: resolve this
 conflict, make this task pass, write tests for these lines, answer this
 thread. Every agent has a shell, and cabinet denies it no command.
 
-## Run every cast in a sandbox
+## The sandbox is the only boundary
 
 A shell can run anything: `mise exec` or `sh -c` gets round any list of
-command prefixes. The boundary is the sandbox the cast runs in, such as
-fence. Run every cast, attended or not, inside one.
+command prefixes. Nothing bounds paths either: `Read`, `Grep` and `Glob` reach
+any file the user can read. The prompts that carry other people's text
+(review threads, issue bodies) fence it as untrusted and ask the agent to stay
+in the repository, but a prompt is an instruction, and the text it fences is
+written by other people.
+
+The sandbox the cast runs in, such as
+[fence](https://github.com/fencesandbox/fence), is what bounds both the paths an
+agent reaches and the commands it runs. Run every cast, attended or not, inside one.
 
 ## Permission modes
 
@@ -25,7 +32,8 @@ asked.
 | writer | reader + `Edit`, `Write`, `MultiEdit` |
 
 A reader gets no edit tools, but it is not read-only: its shell writes. The
-role says what the call is for.
+role says what the call is for. It limits which tools the agent holds, never
+which paths they touch, so it is no substitute for the sandbox.
 
 ## What the ritual owns
 
