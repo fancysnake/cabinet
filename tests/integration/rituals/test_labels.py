@@ -19,7 +19,6 @@ _NAMES = [
     "feature",
     "edit",
     "chore",
-    "spike",
     "bug",
     "S",
     "M",

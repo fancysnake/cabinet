@@ -30,8 +30,8 @@ size, split or link the backlog. The [`identify`](rituals.md#identify) ritual ha
 its agent read it too, from `identify_skill`.
 
 1. **Types**: `feature` for something a user can see, `edit` for a refactor
-   with no feature change, `chore` for docs, CI, tooling and tests, `spike`
-   for an experiment that might not work, `bug` for behaviour that is wrong.
+   with no feature change, `chore` for docs, CI, tooling and tests, `bug`
+   for behaviour that is wrong.
    Each is a label, and also a GitHub issue type where the repository has
    them.
 2. **Sizes**: `S` is one module in a single sitting, `M` is several modules

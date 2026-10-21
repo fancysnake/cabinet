@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning].
   `covering`; `cover` reads every job, and the patch coverage off the
   `covering` ones.
 
+### Removed
+
+- The `spike` issue type. An investigation is typed by what it explores:
+  `feature`, `edit`, `chore` or `bug`. `labels.identify` no longer makes the
+  `spike` label and leaves an existing one in place; `identify` takes an issue
+  wearing only `spike` as untyped and types it again.
+
 ### Fixed
 
 - `review` finishes a cut-short round only from marks you wrote: a thread

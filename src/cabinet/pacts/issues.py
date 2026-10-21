@@ -47,7 +47,7 @@ class Opened(BaseModel):
 # What an issue is and how big, as identification labels it. Bare names rather
 # than prefixed ones: these are the labels a backlog already wears, and
 # GitHub's issue types carry the same words.
-Kind = Literal["feature", "edit", "chore", "spike", "bug"]
+Kind = Literal["feature", "edit", "chore", "bug"]
 Size = Literal["S", "M", "L"]
 KINDS: tuple[Kind, ...] = get_args(Kind)
 SIZES: tuple[Size, ...] = get_args(Size)
@@ -71,11 +71,6 @@ ISSUE_LABELS = [
         name="chore",
         color="ededed",
         description="No production code: docs, CI, tooling, tests, repo hygiene",
-    ),
-    LabelSpec(
-        name="spike",
-        color="d4c5f9",
-        description="Investigation or experiment that might not work",
     ),
     LabelSpec(name="bug", color="d73a4a", description="Doesn't behave as expected"),
     LabelSpec(name="S", color="c2e0c6", description="One module, one sitting"),

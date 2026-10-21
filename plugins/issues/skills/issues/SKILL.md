@@ -25,7 +25,6 @@ them). Where the repo also has GitHub issue types, set the matching one too.
   features.
 - **chore**: no production code: docs, deployment, CI, repo hygiene, dev
   tooling, tests, observability.
-- **spike**: an investigation or experiment that might not work.
 - **bug**: something doesn't behave as expected.
 
 ## Sizes
@@ -85,7 +84,6 @@ belongs in Status.
 
 - **bug**: Status is how to reproduce it and what happens; Target is what
   should happen instead.
-- **spike**: Target's done is the question answered, whichever way.
 
 Assets are hints, not a guide. Mention, in a few words, what the code already
 has that the work can use (a mailer, for a newsletter) or that does something

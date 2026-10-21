@@ -7,7 +7,7 @@ from vekna.trial import Trial
 from cabinet.pacts.project import Labelled
 from cabinet.rituals.labels_identify import labels_identify
 
-_NAMES = ["feature", "edit", "chore", "spike", "bug", "S", "M", "L", "epic"]
+_NAMES = ["feature", "edit", "chore", "bug", "S", "M", "L", "epic"]
 
 
 class TestLabelsIdentify:

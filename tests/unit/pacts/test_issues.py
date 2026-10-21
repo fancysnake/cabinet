@@ -42,9 +42,9 @@ class TestWanted:
     # and the next cast asks about it again.
     @staticmethod
     def test_an_unsized_issue_asks_for_its_type_alone() -> None:
-        item = IdentifiedItem(number=1, kind="spike", note="need the metrics first")
+        item = IdentifiedItem(number=1, kind="chore", note="need the metrics first")
 
-        assert item.wanted() == ["spike"]
+        assert item.wanted() == ["chore"]
 
     # A size alongside `epic` is an answer that contradicts itself, and the
     # epic label is the half that decides: an epic is sized by its parts.
