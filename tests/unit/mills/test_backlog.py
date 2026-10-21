@@ -13,7 +13,8 @@ def _issue(*labels: str) -> Issue:
 class TestUnidentified:
     @staticmethod
     @pytest.mark.parametrize(
-        "labels", [(), ("feature",), ("M",), ("epic",), ("backlog", "P1")]
+        "labels",
+        [(), ("feature",), ("M",), ("epic",), ("spike", "M"), ("backlog", "P1")],
     )
     def test_missing_a_type_or_a_size_is_unidentified(labels: tuple[str, ...]) -> None:
         issue = _issue(*labels)

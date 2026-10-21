@@ -178,8 +178,8 @@ it before the first sweep when `labels` was not, and again after changing
 
 ## labels.identify
 
-*Conjuration.* Makes the labels `identify` puts on issues: the four types, the
-three sizes and `epic`. Cast it before the first `identify` when `labels` was
+*Conjuration.* Makes the labels `identify` puts on issues: the types, the
+sizes and `epic`. Cast it before the first `identify` when `labels` was
 not. The names are fixed, because the `issues` skill names them too.
 
 ## Flags
