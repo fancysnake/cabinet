@@ -195,7 +195,7 @@ class TestIdentify:
                     number=5,
                     outcome="identified",
                     item=IdentifiedItem(
-                        number=5, kind="spike", note="need the metrics"
+                        number=5, kind="chore", note="need the metrics"
                     ),
                 ),
                 Identification(
@@ -214,7 +214,7 @@ class TestIdentify:
             "identify — 5 issues\n"
             "  #3 feature/M, linked #4\n"
             "  #4 edit/epic, opened #10 #11, linked #12 — split by layer\n"
-            "  #5 spike/unsized — need the metrics\n"
+            "  #5 chore/unsized — need the metrics\n"
             "  #6 bug/S, linked #3 #5\n"
             "    refused: could not say #6 is blocked by #3: taken\n"
             "    refused: gh died\n"

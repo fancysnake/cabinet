@@ -139,7 +139,7 @@ number first:
 
 1. The page is shown as it is taken up.
 2. One agent reads the page: it reads the code each issue is about and says
-   what the issue is — a type (`feature`, `edit`, `chore`, `spike`, `bug`) and
+   what the issue is — a type (`feature`, `edit`, `chore`, `bug`) and
    a size (`S`, `M`, `L`), or `epic` in place of a size with the sub-issues it
    should be split into, plus the open issues already part of it and the ones
    blocking it. An issue it could not size is left unsized, which the report
@@ -178,8 +178,8 @@ it before the first sweep when `labels` was not, and again after changing
 
 ## labels.identify
 
-*Conjuration.* Makes the labels `identify` puts on issues: the five types, the
-three sizes and `epic`. Cast it before the first `identify` when `labels` was
+*Conjuration.* Makes the labels `identify` puts on issues: the types, the
+sizes and `epic`. Cast it before the first `identify` when `labels` was
 not. The names are fixed, because the `issues` skill names them too.
 
 ## Flags

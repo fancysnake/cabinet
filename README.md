@@ -53,7 +53,7 @@ Grouped by school, the way a spellbook is.
   checkpoints, created where missing and refreshed where present. Cast it
   again after changing `[cabinet.labels]`.
 - **`labels.identify`** — makes the labels `identify` puts on issues: the types
-  (`feature`, `edit`, `chore`, `spike`, `bug`), the sizes (`S`, `M`, `L`) and
+  (`feature`, `edit`, `chore`, `bug`), the sizes (`S`, `M`, `L`) and
   `epic`.
 
 Every label ritual creates what is missing and refreshes what is there, so
