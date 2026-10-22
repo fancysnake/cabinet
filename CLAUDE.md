@@ -86,35 +86,24 @@ call discards the previous `Services` caches).
 A step returns the next step's payload, or `Done(result)`, and its return
 annotation lists every exit; vekna routes by the payload's exact class, so each
 class belongs to one step. Every step has a class named for it that adds no
-fields, in a module of its own per ritual: `pacts/sweep.py` (`SetAside(Work)`,
-…), `pacts/review.py` (`Pick(Picking)`, `Read(Branch)`, …),
-`pacts/identify.py` (`Leaf(Identifying)`, …) and `pacts/heal.py`
-(`Survey(Healing)`, …), beside the carriers they rebuild in
-`pacts/pulls.py`, `pacts/reviews.py`, `pacts/issues.py` and `pacts/healing.py`.
-The carriers `Run`, `Work`, `Picking`, `Branch`, `Identifying` and `Healing`
-are `Hop`s (`pacts/hops.py`), and
-`payload.to(NextStep)` — declared per carrier, bound to that carrier's own
-steps — is the one way across. A new step gets a new class; mypy checks every
+fields, in `pacts/<ritual>.py`, subclassing a carrier: `SetAside(Work)` in
+`pacts/sweep.py` rebuilds the `Work` from `pacts/pulls.py`. Carriers are
+`Hop`s (`pacts/hops.py`), and `payload.to(NextStep)` — declared per carrier,
+bound to that carrier's own steps — is the one way across. A new step gets a new class; mypy checks every
 `return` against the annotation.
 
 ### Facades
 
-`rituals/refresh.py` and `rituals/cover.py` both wrap the shared sweep steps
-in `gates/ritual/vekna/sweep.py` and each re-export the **full** step list, so
-importing either registers the whole graph. A new sweep step must be added to
-both `__all__` lists (`test_facade.py` checks).
-`rituals/review.py` wraps `gates/ritual/vekna/review.py`; `rituals/identify.py`
-wraps `gates/ritual/vekna/identify.py`. `rituals/heal_mine.py` and
-`rituals/heal_this.py` share `gates/ritual/vekna/heal.py` and each re-export
-every heal step, like the sweep pair. `rituals/labels.py`, `rituals/labels_pr.py` and
-`rituals/labels_identify.py` share the one `conjure` step in
-`gates/ritual/vekna/labels.py`, each handing it its own label specs. A ritual's
+Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/`, and facades
+sharing one (`refresh` and `cover` share `sweep.py`) each re-export **every**
+step in it, so importing any of them registers the whole graph. A new step
+goes in every such facade's `__all__` (`test_facade.py` checks). A ritual's
 name is the `@ritual("...")` string, not the module, and holds no `:`: vekna
 reserves it for the tome prefix (`vekna cast cabinet:refresh` when another
 tome offers a `refresh`). A ritual is named for a D&D spell, and its facade's docstring opens
 with that spell's school (`identify` is Divination). Step names are global across the package, so a new step must not
-reuse one (`recap` is review's; identify's are `tally` and `pin`; heal's are
-`survey` and `chart`).
+reuse one already registered in `gates/ritual/vekna/*.py` (`recap` is
+review's).
 
 ### Who runs what
 

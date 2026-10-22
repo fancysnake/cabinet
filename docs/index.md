@@ -25,7 +25,8 @@ Each is named for a spell, and the school is that spell's.
 - **`heal.mine`**, **`heal.this`** (Evocation): when you want to know what
   your pull requests need next.
 - **`refresh`** (Transmutation): overnight, to bring your branches up to date.
-- **`cover`** (Abjuration): overnight, after `refresh`, to fix coverage.
+- **`cover`** (Abjuration): overnight, after `refresh`, to fix coverage and
+  a red suite.
 - **`review`** (Divination): in the morning, to settle review threads.
 - **`identify`** (Divination): when your backlog has piled up unrefined.
 - **`labels`**, **`labels.pr`**, **`labels.identify`** (Conjuration): once,
