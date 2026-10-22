@@ -213,4 +213,4 @@ repository with no coverage task casts `refresh` and `review` and never sees
 modules = ["cabinet.rituals.refresh", "cabinet.rituals.review"]
 ```
 
-`modules = ["cabinet.rituals"]` loads all seven.
+`modules = ["cabinet.rituals"]` loads every ritual.

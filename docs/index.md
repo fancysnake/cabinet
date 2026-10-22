@@ -20,23 +20,17 @@ act on. They run inside the agent session you already have open.
 
 ## The rituals
 
-Grouped by school, the way a spellbook is.
+Each is named for a spell, and the school is that spell's.
 
-- **`refresh`** (Transmutation) — the night's fast pass. Every open pull
-  request of yours gets the base branch merged in, conflicts resolved, the
-  gate made green, the work pushed and a quality review posted.
-- **`cover`** (Abjuration) — the night's slow pass. Where CI says the coverage
-  or the suite is unhappy, it measures, writes the tests for what the branch
-  left uncovered, repairs a red suite, and pushes.
-- **`review`** (Divination) — the morning after. Reads the review threads the
-  night left, triages them with you at the terminal, answers every one, makes
-  the gate green and ships the branch.
-- **`identify`** (Divination) — your open issues, a page at a time: each gets a
-  type and a size, one too big becomes an epic with sub-issues, related ones
-  get linked.
-- **`labels`** (Conjuration) — makes every label the pull request rituals and
-  `identify` wear; cast it once to set a project up. **`labels.pr`** and
-  **`labels.identify`** make one half each.
+- **`heal.mine`**, **`heal.this`** (Evocation): when you want to know what
+  your pull requests need next.
+- **`refresh`** (Transmutation): overnight, to bring your branches up to date.
+- **`cover`** (Abjuration): overnight, after `refresh`, to fix coverage and
+  a red suite.
+- **`review`** (Divination): in the morning, to settle review threads.
+- **`identify`** (Divination): when your backlog has piled up unrefined.
+- **`labels`**, **`labels.pr`**, **`labels.identify`** (Conjuration): once,
+  to set a project up.
 
 [Rituals](rituals.md) has each one in full, with its flags.
 
