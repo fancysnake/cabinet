@@ -2097,7 +2097,10 @@ ast-serialize = ">=0.11.2,<1.0.0"
 librt = {version = ">=0.16.0", markers = "platform_python_implementation != \"PyPy\""}
 mypy_extensions = ">=1.0.0"
 pathspec = ">=1.0.0"
-typing_extensions = {version = ">=4.6.0", markers = "python_version < \"3.15\""}
+typing_extensions = [
+    {version = ">=4.6.0", markers = "python_version < \"3.15\""},
+    {version = ">=4.14.0", markers = "python_version >= \"3.15\""},
+]
 
 [package.extras]
 dmypy = ["psutil (>=4.0)"]
@@ -3234,14 +3237,14 @@ syntax = ["tree-sitter (>=0.25.0) ; python_version >= \"3.10\"", "tree-sitter-ba
 
 [[package]]
 name = "tingle"
-version = "0.8.0"
+version = "0.9.0"
 description = "Constant refactoring monitoring tool"
 optional = false
-python-versions = "<3.15,>=3.11"
+python-versions = "<4,>=3.11"
 groups = ["dev"]
 files = [
-    {file = "tingle-0.8.0-py3-none-any.whl", hash = "sha256:7e1cd664988772ba35bea6aa90abc68e6332f6dea70107baa569dc64d4553196"},
-    {file = "tingle-0.8.0.tar.gz", hash = "sha256:bd3ba8b321f66a93b196b3c1673527434f37061b83b50e7cc310d501db5898f2"},
+    {file = "tingle-0.9.0-py3-none-any.whl", hash = "sha256:e4806c189de6d64c9feb2506745d84b48473116ba07f24cc4cbc04d3c35dd72c"},
+    {file = "tingle-0.9.0.tar.gz", hash = "sha256:541560038815f0070595e5b1f7d295ea2275cd288fead5a3a85e1bb75bf16409"},
 ]
 
 [package.dependencies]
@@ -3429,14 +3432,14 @@ standard = ["httptools (>=0.8.0)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "
 
 [[package]]
 name = "vekna"
-version = "0.13.0"
+version = "0.14.0"
 description = "Run coding agents as rituals: ordinary Python programs whose steps you control"
 optional = false
-python-versions = "<3.15,>=3.11"
+python-versions = "<3.16,>=3.11"
 groups = ["main"]
 files = [
-    {file = "vekna-0.13.0-py3-none-any.whl", hash = "sha256:c4313a3d3cfdfdbeb5e8269a83b3b50976e5313b9d6980aa832b3781d46b9da8"},
-    {file = "vekna-0.13.0.tar.gz", hash = "sha256:a470fc758c146baf4289499926544b2c63cedbd115a4afaf27746761e79f246f"},
+    {file = "vekna-0.14.0-py3-none-any.whl", hash = "sha256:1a91c8106b91655072de8d29d3826ac9debf1a6a41756301ad212529aa10c0ce"},
+    {file = "vekna-0.14.0.tar.gz", hash = "sha256:a0dff02a9f3691cb7af32df6b5cc19244890ffbc731e048b5077af9c50080f2a"},
 ]
 
 [package.dependencies]
@@ -3525,5 +3528,5 @@ dev = ["doc8", "flake8", "flake8-import-order", "rstcheck[sphinx]", "ruff", "sph
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.11,<3.15"
-content-hash = "275dd46d1437b9f78780f8623600c0ccf0b7920a4a291e63abb2b579d51d4017"
+python-versions = ">=3.11,<3.16"
+content-hash = "353979d566c061529f25cb6d8f2d22fee7d7b7aa005a30c84fe159ef7f858d02"
