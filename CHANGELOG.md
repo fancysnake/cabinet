@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
+- cabinet runs on Python 3.11 to 3.15.
+- cabinet requires vekna 0.14.
 - `issues` skill: an issue body is a STAGE (Status, Target, Assets,
   Guards, Ellipsis) when it ships on its own, or a Slice (a STAGE cut
   down to its Target) for a part that does not, never a plan, so
