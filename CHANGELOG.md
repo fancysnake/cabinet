@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning].
   tests where it is `covering`, one commit per job. `heal.mine` and
   `heal.this` work it after the merge.
 - `[cabinet.ci.jobs.<prefix>]` takes `rerun`, `gate` and `fast`.
+- `answer`: the review threads on your branch, attended only. An agent
+  triages them, you decide each item, another agent fixes what you said to
+  fix, and the ritual files the issues, posts the replies, settles the
+  threads and commits the fixes once the gate is green. `heal.mine` and
+  `heal.this` work it after ci when cast with `--attended true`; an
+  unattended cast reports how many threads wait for you. `--batch` sets how
+  many threads one round takes, three rounds a cast.
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.
 - `labels.heal` makes the reviewed, wait and qa labels.
@@ -27,7 +34,7 @@ and this project adheres to [Semantic Versioning].
 - **Breaking:** a merge happens only where the branch conflicts with its base;
   a branch that is merely behind is left alone.
 - **Breaking:** `review` posts the quality review on your branch; it no longer
-  answers review threads.
+  answers review threads; `answer` does.
 
 ### Removed
 

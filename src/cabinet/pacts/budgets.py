@@ -22,6 +22,12 @@ Batch = Annotated[int, Field(ge=1)]
 # Spelled once, so the flag's default is one number and not four.
 BATCH = 7
 
+# How many batches `answer` takes on one branch in one cast. A cast takes a
+# branch only where the worst it can spend fits the engine's step budget, so
+# the worst has to be a number: what is still open after the last round waits
+# for the next cast.
+ROUNDS = 3
+
 
 class Reserving(BaseModel):
     # Steps the cast has spoken for out of the engine's budget: every step that

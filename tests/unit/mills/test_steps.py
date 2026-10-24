@@ -22,9 +22,9 @@ class TestOpening:
 
 class TestHealShare:
     # A bound of three: fifteen steps walked once, four `resolve_conflicts`,
-    # seven runs of the gate's loop, and ten for each of the three default
-    # jobs plus the `pick_job` that finds none left.
-    _WORST = 57
+    # seven runs of the gate's loop, ten for each of the three default jobs
+    # plus the `pick_job` that finds none left, and twenty-five for `answer`.
+    _WORST = 82
 
     def test_the_worst_a_branch_can_spend(self) -> None:
         assert _STEPS.heal_share(_run()) == self._WORST

@@ -233,6 +233,22 @@ class TestSurvey:
         assert transition.run.reserved == share
         assert transition.run.queue == []
 
+    # Every item of a triage is the operator's to decide, so only a cast with
+    # somebody at the terminal answers threads.
+    @staticmethod
+    def test_an_attended_cast_takes_the_threads_too(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        clean = pull.model_copy(update={"conflicted": False})
+        run = Survey(project=project, attended=True, queue=[clean])
+
+        transition = trial.walk(survey, run)
+
+        assert isinstance(transition, CheckClean)
+        assert transition.todos == ["answer", "review"]
+
     @staticmethod
     def test_a_task_ritual_takes_only_its_task(
         trial: Trial, pull: PullRequest, project: Project
