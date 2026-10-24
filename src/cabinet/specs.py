@@ -16,15 +16,9 @@ VERDICT_LINES = 12
 # A patch below this is a patch with a gap in it.
 WHOLE = 100.0
 
-# The engine's step budget for one `review` cast. Running out of it raises past
-# `recap` and loses the report, so `pick` keeps the cast under it by the worst
-# case of every branch it takes, and the engine's own check never fires.
-REVIEW_STEPS = 400
-
-# The same for one `refresh` or `cover` cast, kept by `next_pr`. Big enough that
-# the most GitHub lists, a hundred branches, each fits at the default bound
-# of three: twenty steps a branch at worst, and a hundred and three around them.
-# `REVIEW_STEPS` has no such sum behind it: a review branch's share stretches
-# its rounds to whatever room is left, so there is no fixed worst case to size
-# it by.
-SWEEP_STEPS = 100 * 20 + 103
+# The engine's step budget for one heal cast. Running out of it raises past
+# `chart` and loses the report, so `survey` takes a branch only where the worst
+# it can spend still fits. Big enough that the most GitHub lists, a hundred
+# branches, each fits at the default bound of three: twenty-two steps a branch
+# at worst, and a hundred and three around them.
+HEAL_STEPS = 100 * 22 + 103

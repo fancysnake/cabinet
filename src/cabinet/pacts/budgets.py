@@ -7,8 +7,7 @@ The batch is the other half of the same question — how much of a queue one
 round takes — and it is here rather than in either domain's own pact because
 threads and issues both take their queues in rounds and neither owns the
 other's number. What a cast has spoken for out of the engine's step budget is
-the same count at the scale of a whole cast, and a sweep and `review` both
-keep it.
+the same count at the scale of a whole cast, and a heal cast keeps it.
 """
 
 from typing import Annotated, Self
@@ -16,7 +15,7 @@ from typing import Annotated, Self
 from pydantic import BaseModel, Field
 
 # How much one round takes before the next one asks what is left: open threads
-# for `review`, unidentified issues for `identify`. Forty at once is one reading
+# for `answer`, unidentified issues for `identify`. Forty at once is one reading
 # nobody holds in their head and one agent asked to do forty things before
 # anything lands. No ceiling: a batch bigger than the queue is the whole queue.
 Batch = Annotated[int, Field(ge=1)]

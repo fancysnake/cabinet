@@ -11,9 +11,9 @@ from vekna.lexicon import Done, step
 from vekna.trial import Trial
 
 from cabinet.inits.services import Services
-from cabinet.pacts.project import Labels, Project, State
-from cabinet.pacts.pulls import PullRequest, Run, Work
-from cabinet.pacts.reviews import Branch, Picking
+from cabinet.pacts.healing import Run, Work
+from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import bind
 
 _ResultT = TypeVar("_ResultT")
@@ -35,11 +35,6 @@ THREADS = "slug=*gh api graphql*-F number=7"
 _NUMBER = 7
 
 _LAST = {"hasNextPage": False}
-
-
-def checkpoint(ritual: str, state: State) -> str:
-    add, remove = Labels().pair(ritual, state)
-    return f"gh pr edit 7 --add-label {add} --remove-label {remove}"
 
 
 def board(name: str = "feature") -> str:
@@ -141,14 +136,7 @@ def pull() -> PullRequest:
 
 @pytest.fixture
 def work() -> Work:
-    return Work(run=Run(project=Project(), bound=3), pr=_pull())
-
-
-@pytest.fixture
-def branch() -> Branch:
-    return Branch(
-        picking=Picking(project=Project(), bound=2), name="feature", number=7, rounds=2
-    )
+    return Work(run=Run(project=Project()), pr=_pull())
 
 
 # A whole cast reads its project from the cwd, the way a real one does.

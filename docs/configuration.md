@@ -24,7 +24,6 @@ identify_skill = "~/.claude/skills/issues/SKILL.md"
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
 wait = "pr::wait"                     # hands off this pull request
 qa = "v:guide:done"                   # the guide was posted; take it off to ask again
-marker = "v"                          # checkpoints: v:refresh:started, v:cover:done, ...
 
 [cabinet.ci.jobs.checks]              # one table per CI job, keyed by a prefix of its check name
 covering = false                      # red here is missing coverage
@@ -48,11 +47,11 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `forge`         | `github` through `gh`, or `gitlab` through `glab`, hosted or self-hosted    |
 | `base`          | the branch every pull request is merged from                                |
 | `remote`        | pushed to and fetched from by name; must be https, see [the remote](#the-remote) |
-| `gate`          | the command that has to pass before a push; `refresh` and `review` repair until it does |
-| `coverage`      | the full diff coverage measurement `cover` runs once at the end             |
+| `gate`          | the command a merge has to pass before it is committed; the merge task repairs until it does |
+| `coverage`      | the full diff coverage measurement, named to agents as a task to leave alone |
 | `fast_coverage` | the same measurement without the slow suites, re-run between repair rounds  |
 | `sign_commits`  | `false` commits with `commit.gpgsign=false`, for casts nobody can unlock a key for |
-| `review_skill`  | the skill file `refresh` reviews with; see [the review skill](#the-review-skill) |
+| `review_skill`  | the skill file the review task reviews with; see [the review skill](#the-review-skill) |
 | `review_title`  | the heading its review comments open with                                   |
 | `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
 
@@ -63,7 +62,6 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `reviewed` | on means a review was posted; take it off to ask for another                  |
 | `wait`     | hands off: a pull request wearing it is never taken, touched or reported on   |
 | `qa`       | on means the guide was posted; take it off to ask for it again                |
-| `marker`   | the prefix of every checkpoint label, `<marker>:<ritual>:started` and `:done` |
 
 ### `[cabinet.ci.jobs]`
 
@@ -77,9 +75,8 @@ still read; its one key is optional:
 | ---------- | ------------------------------------------------------------------------------ |
 | `covering` | red here is missing coverage, and the check's summary may name the patch coverage, "96.84% of diff hit" |
 
-`refresh` reads the jobs that are not `covering` to decide whether CI already
-ran the gate green; `cover` reads every listed job, and the patch coverage off
-the `covering` ones.
+A red check on a listed job makes a `ci` todo in the survey. Nothing works that
+todo yet: the `ci` task is still to come.
 
 ### `[cabinet.agent]`
 
@@ -92,7 +89,7 @@ the `covering` ones.
 
 ## The review skill
 
-`refresh` reviews with the thermo-nuclear code quality review, which is not
+The review task uses the thermo-nuclear code quality review, which is not
 part of this tome: it is Cursor's, from the
 [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review)
 plugin. Put it where `review_skill` points before the first cast:

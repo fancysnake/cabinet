@@ -1,11 +1,11 @@
-"""What the morning reads, on the terminal and on the pull request."""
+"""What the report says, on the terminal and on the pull request."""
 
 from collections import Counter
 from itertools import starmap
 
 from typing_extensions import override
 
-from cabinet.pacts.healing import Surveyed, Todo, Unsurveyed
+from cabinet.pacts.healing import Checked, Run, Surveyed, Todo, Unsurveyed
 from cabinet.pacts.issues import (
     EPIC,
     Identification,
@@ -14,25 +14,11 @@ from cabinet.pacts.issues import (
     Issue,
 )
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Checked, Run
-from cabinet.pacts.reviews import Picking
 from cabinet.pacts.services import ReportProtocol
 from cabinet.pacts.threads import Finding, TriageItem
 
-_OUTCOME = {
-    "green": "green and reviewed",
-    "blocked": "blocked",
-    "skipped": "left alone",
-}
+_OUTCOME = {"green": "green", "blocked": "blocked", "skipped": "left alone"}
 
-_TOLD = {
-    "shipped": "shipped",
-    "declined": "left for later",
-    "elsewhere": "checked out elsewhere",
-    "unread": "the forge would not say what is open",
-    "nothing": "the reading found nothing",
-    "stopped": "stopped the cast",
-}
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")
 
@@ -105,10 +91,10 @@ def _line(row: Checked) -> str:
 
 class Report(ReportProtocol):
     # The heading is for whoever opens the pull request and finds a comment on
-    # their line: it says which review said it, so the night's items can be
-    # told from a colleague's by eye. Nothing reads it back — `review` triages
-    # every unresolved thread whoever wrote it — so it is a courtesy to a
-    # reader and not a marker anything matches on.
+    # their line: it says which review said it, so the ritual's items can be
+    # told from a colleague's by eye. Nothing reads it back — every unresolved
+    # thread is answered, whoever wrote it — so it is a courtesy to a reader
+    # and not a marker anything matches on.
     @override
     def findings(self, project: Project, found: list[Finding]) -> list[Finding]:
         return [
@@ -121,39 +107,20 @@ class Report(ReportProtocol):
         ]
 
     @override
-    def sweep(self, run: Run) -> str:
-        lines = [f"{run.mode} — {len(run.checked)} checked", ""]
+    def healed(self, run: Run) -> str:
+        lines = [f"heal — {len(run.checked)} worked", ""]
         lines += [_line(row) for row in run.checked] or ["  (none)"]
-        # Only when there are any, unlike the rows: a pass that reached every
-        # pull request is the normal night, and a line saying "none" on every
-        # one of them trains the eye past it. A run that failed left them
-        # behind; one out of steps left them for the next run.
+        # Only when there are any, unlike the rows: a cast that reached every
+        # pull request is the normal one, and a line saying "none" on every
+        # one of them trains the eye past it. A cast that failed left them
+        # behind; one out of steps left them for the next cast.
         not_reached = ", ".join(pull.branch for pull in run.queue)
         if run.stopped:
             lines += ["", f"not reached: {not_reached}"] if not_reached else []
-            lines += ["", f"the run failed: {run.stopped}"]
+            lines += ["", f"the cast failed: {run.stopped}"]
         elif not_reached:
-            lines += ["", f"out of steps, left for the next run: {not_reached}"]
+            lines += ["", f"out of steps, left for the next cast: {not_reached}"]
         return "\n".join(lines) + "\n"
-
-    @override
-    def review(self, picking: Picking) -> str:
-        lines = [f"review — {len(picking.reviewed)} branches"]
-        lines += [
-            f"  {row.branch}: {_TOLD[row.outcome]}"
-            + (f" — {row.note}" if row.note else "")
-            for row in picking.reviewed
-        ] or ["  (none had a review waiting)"]
-        # A cast that ran to the end left nothing in the queue. One that
-        # stopped left branches the forge was never asked about, not branches
-        # with work outstanding; one out of steps left branches that may have.
-        left = ", ".join(pull.branch for pull in picking.queue)
-        if picking.stopped:
-            lines += ["", f"the cast stopped: {picking.stopped}"]
-            lines += [f"not polled:     {left}"] if left else []
-        elif left:
-            lines += ["", f"out of steps, left for the next cast: {left}"]
-        return "\n".join(lines)
 
     # The page as it goes to the agent, before anything is read or written: the
     # same indent and the same `#n` as the rows that say what became of it, so
@@ -188,7 +155,7 @@ class Report(ReportProtocol):
     @override
     def surveyed(self, row: Surveyed | Unsurveyed) -> str:
         head = f"#{row.number} {row.branch}"
-        # Indented the way a sweep row's note is: git's complaint is often
+        # Indented the way a worked row's note is: git's complaint is often
         # stdout and stderr on lines of their own, and one in column zero
         # reads as the next pull request.
         if isinstance(row, Unsurveyed):

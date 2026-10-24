@@ -2,26 +2,32 @@
 
 from types import ModuleType
 
+import pytest
 from vekna.lexicon._pacts import Ritual, Step
 
 from cabinet.gates.ritual.vekna import heal as heal_steps
 from cabinet.gates.ritual.vekna import identify as identify_steps
 from cabinet.gates.ritual.vekna import labels as labels_steps
-from cabinet.gates.ritual.vekna import review as review_steps
-from cabinet.gates.ritual.vekna import sweep
 from cabinet.inits.services import Services
 from cabinet.pacts.services import services
 from cabinet.rituals import (
-    cover,
     heal_mine,
     heal_this,
     identify,
     labels,
+    labels_heal,
     labels_identify,
-    labels_pr,
-    refresh,
+    merge,
     review,
 )
+
+# Every facade over the heal graph, and the ritual each one casts.
+_HEALS = [
+    pytest.param(heal_mine, "heal.mine", id="heal.mine"),
+    pytest.param(heal_this, "heal.this", id="heal.this"),
+    pytest.param(merge, "merge", id="merge"),
+    pytest.param(review, "review", id="review"),
+]
 
 
 # A facade exports every step of the module behind it, so it names the whole
@@ -42,46 +48,24 @@ def _registered(facade: ModuleType) -> set[str]:
 # names it exports beside its ritual.
 class TestFacade:
     @staticmethod
-    def test_refresh_exports_its_ritual_and_the_whole_sweep() -> None:
-        assert set(refresh.__all__) == _steps(sweep) | {"refresh"}
-        assert _registered(refresh) == set(refresh.__all__)
+    @pytest.mark.parametrize(("facade", "name"), _HEALS)
+    def test_a_heal_facade_exports_its_ritual_and_every_step(
+        facade: ModuleType, name: str
+    ) -> None:
+        ritual = facade.__name__.rsplit(".", 1)[-1]
+        assert set(facade.__all__) == _steps(heal_steps) | {ritual}
+        assert _registered(facade) == _steps(heal_steps) | {name}
 
+    # One step object behind every one, so loading them registers each step
+    # once: a second step taking the same payload class would refuse to load.
     @staticmethod
-    def test_cover_exports_its_ritual_and_the_whole_sweep() -> None:
-        assert set(cover.__all__) == _steps(sweep) | {"cover"}
-        assert _registered(cover) == set(cover.__all__)
-
-    # The two facades name the same step objects, decorated once: a second
-    # step taking the same payload class would refuse to load.
-    @staticmethod
-    def test_the_two_sweeps_share_their_steps() -> None:
-        assert refresh.list_prs is cover.list_prs
-        assert refresh.close_gap is cover.close_gap
-
-    @staticmethod
-    def test_review_exports_its_ritual_and_every_step() -> None:
-        assert set(review.__all__) == _steps(review_steps) | {"review"}
-        assert _registered(review) == set(review.__all__)
+    def test_the_heal_rituals_share_their_steps() -> None:
+        assert heal_this.tend is heal_mine.tend is merge.tend is review.tend
 
     @staticmethod
     def test_identify_exports_its_ritual_and_every_step() -> None:
         assert set(identify.__all__) == _steps(identify_steps) | {"identify"}
         assert _registered(identify) == set(identify.__all__)
-
-    @staticmethod
-    def test_heal_this_exports_its_ritual_and_every_step() -> None:
-        assert set(heal_this.__all__) == _steps(heal_steps) | {"heal_this"}
-        assert _registered(heal_this) == _steps(heal_steps) | {"heal.this"}
-
-    @staticmethod
-    def test_heal_mine_exports_its_ritual_and_every_step() -> None:
-        assert set(heal_mine.__all__) == _steps(heal_steps) | {"heal_mine"}
-        assert _registered(heal_mine) == _steps(heal_steps) | {"heal.mine"}
-
-    # One step object behind both, so loading them registers each step once.
-    @staticmethod
-    def test_the_heal_rituals_share_their_steps() -> None:
-        assert heal_this.survey is heal_mine.survey
 
     @staticmethod
     def test_importing_a_facade_wires_the_services() -> None:
@@ -93,9 +77,9 @@ class TestFacade:
         assert _registered(labels) == {"labels", "conjure"}
 
     @staticmethod
-    def test_labels_pr_exports_its_ritual_and_its_step() -> None:
-        assert set(labels_pr.__all__) == _steps(labels_steps) | {"labels_pr"}
-        assert _registered(labels_pr) == {"labels.pr", "conjure"}
+    def test_labels_heal_exports_its_ritual_and_its_step() -> None:
+        assert set(labels_heal.__all__) == _steps(labels_steps) | {"labels_heal"}
+        assert _registered(labels_heal) == {"labels.heal", "conjure"}
 
     @staticmethod
     def test_labels_identify_exports_its_ritual_and_its_step() -> None:
@@ -107,4 +91,4 @@ class TestFacade:
     # One step object behind all three, so loading them registers `conjure` once.
     @staticmethod
     def test_the_label_rituals_share_their_step() -> None:
-        assert labels.conjure is labels_pr.conjure is labels_identify.conjure
+        assert labels.conjure is labels_heal.conjure is labels_identify.conjure

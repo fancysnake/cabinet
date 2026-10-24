@@ -1,4 +1,4 @@
-# This tome's own rituals, cast on itself: `vekna rituals show refresh` draws
+# This tome's own rituals, cast on itself: `vekna rituals show heal.mine` draws
 # the graph from here, and the `[cabinet]` section is what the rituals read
 # when they run over this repository's pull requests.
 [rituals]
@@ -25,7 +25,6 @@ identify_skill = "plugins/issues/skills/issues/SKILL.md"
 reviewed = "pr::thermo"
 wait = "pr::wait"
 qa = "v:guide:done"
-marker = "v"
 
 # The job names in .github/workflows/ci.yml, plus what Codecov posts.
 [cabinet.ci.jobs.checks]

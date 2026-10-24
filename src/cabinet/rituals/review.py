@@ -1,51 +1,68 @@
-"""Divination: ``review`` reads what the reviews found.
+"""Divination: ``review`` posts the quality review on your pull request.
 
-    vekna cast review [--bound N] [--batch N]
+    vekna cast review
 
-With you at the terminal, it answers every thread and ships the branch. The
-steps live in ``cabinet.gates.ritual.vekna.review``; this module is the ritual
+``heal.this`` that works the review task and no other. A pull request wearing
+the reviewed label has had its review; take the label off to ask again. The
+steps live in ``cabinet.gates.ritual.vekna.heal``; this module is the ritual
 itself and the surface vekna sweeps.
 """
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.review import (
-    answer,
-    gates,
-    land,
-    look,
-    pick,
-    plan,
-    queue_up,
-    read,
-    recap,
-    settle,
-    work,
+from cabinet.gates.ritual.vekna.heal import (
+    chart,
+    check_clean,
+    finish_merge,
+    finish_pr,
+    gate_check,
+    merge_base,
+    muster_mine,
+    muster_this,
+    push_work,
+    quality_review,
+    resolve_conflicts,
+    set_aside,
+    skip_pr,
+    stand_down,
+    survey,
+    sync_branch,
+    tend,
 )
-from cabinet.pacts.review import QueueUp
-from cabinet.pacts.reviews import Review
+from cabinet.pacts.heal import MusterThis
+from cabinet.pacts.healing import Heal
 from cabinet.pacts.services import services
-from cabinet.specs import REVIEW_STEPS
+from cabinet.specs import HEAL_STEPS
 
 
-@ritual("review", max_steps=REVIEW_STEPS)
-def review(components: Review) -> QueueUp:
-    return QueueUp(
-        project=services().project(), bound=components.bound, batch=components.batch
+@ritual("review", max_steps=HEAL_STEPS)
+def review(components: Heal) -> MusterThis:
+    return MusterThis(
+        project=services().project(),
+        plan_only=components.plan_only,
+        bound=components.bound,
+        attended=components.attended,
+        tasks=["review"],
     )
 
 
 __all__ = [
-    "answer",
-    "gates",
-    "land",
-    "look",
-    "pick",
-    "plan",
-    "queue_up",
-    "read",
-    "recap",
+    "chart",
+    "check_clean",
+    "finish_merge",
+    "finish_pr",
+    "gate_check",
+    "merge_base",
+    "muster_mine",
+    "muster_this",
+    "push_work",
+    "quality_review",
+    "resolve_conflicts",
     "review",
-    "settle",
-    "work",
+    "set_aside",
+    "skip_pr",
+    "stand_down",
+    "survey",
+    "sync_branch",
+    "tend",
 ]

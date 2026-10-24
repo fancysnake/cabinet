@@ -1,26 +1,68 @@
-"""Evocation: ``heal.mine`` says what each of your pull requests needs next.
+"""Evocation: ``heal.mine`` takes each of your pull requests as far as it goes.
 
-    vekna cast heal.mine --plan-only true
+    vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
 
-Only the survey so far, so only ``--plan-only true`` casts. The steps live in
-``cabinet.gates.ritual.vekna.heal``, shared with ``heal.this``; this module is
-the ritual itself and the surface vekna sweeps.
+Every open pull request of yours not wearing the wait label, oldest-modified
+first. The steps live in ``cabinet.gates.ritual.vekna.heal``, shared with
+``heal.this`` and the task rituals; this module is the ritual itself and the
+surface vekna sweeps. Every step is exported, so the facade names the whole
+graph it casts.
 """
 
-from vekna.lexicon import RitualError, ritual
+from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.heal import chart, muster_mine, muster_this, survey
+from cabinet.gates.ritual.vekna.heal import (
+    chart,
+    check_clean,
+    finish_merge,
+    finish_pr,
+    gate_check,
+    merge_base,
+    muster_mine,
+    muster_this,
+    push_work,
+    quality_review,
+    resolve_conflicts,
+    set_aside,
+    skip_pr,
+    stand_down,
+    survey,
+    sync_branch,
+    tend,
+)
 from cabinet.pacts.heal import MusterMine
 from cabinet.pacts.healing import Heal
 from cabinet.pacts.services import services
+from cabinet.specs import HEAL_STEPS
 
 
-@ritual("heal.mine")
+@ritual("heal.mine", max_steps=HEAL_STEPS)
 def heal_mine(components: Heal) -> MusterMine:
-    if not components.plan_only:
-        msg = "heal.mine only surveys so far: cast it with --plan-only true"
-        raise RitualError(msg)
-    return MusterMine(project=services().project())
+    return MusterMine(
+        project=services().project(),
+        plan_only=components.plan_only,
+        bound=components.bound,
+        attended=components.attended,
+    )
 
 
-__all__ = ["chart", "heal_mine", "muster_mine", "muster_this", "survey"]
+__all__ = [
+    "chart",
+    "check_clean",
+    "finish_merge",
+    "finish_pr",
+    "gate_check",
+    "heal_mine",
+    "merge_base",
+    "muster_mine",
+    "muster_this",
+    "push_work",
+    "quality_review",
+    "resolve_conflicts",
+    "set_aside",
+    "skip_pr",
+    "stand_down",
+    "survey",
+    "sync_branch",
+    "tend",
+]

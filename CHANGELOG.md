@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `heal.mine` and `heal.this` act: after the survey they merge a conflicting
+  branch and post the quality review, push what they committed, and report
+  each branch. `--plan-only true` still only surveys. Both take `--bound` and
+  `--attended`.
+- `merge` and `review`: `heal.this` with that one task, on the branch at the
+  cwd.
+- `labels.heal` makes the reviewed, wait and qa labels.
+
+### Changed
+
+- **Breaking:** a merge happens only where the branch conflicts with its base;
+  a branch that is merely behind is left alone.
+- **Breaking:** `review` posts the quality review on your branch; it no longer
+  answers review threads.
+
+### Removed
+
+- **Breaking:** `refresh` and `cover`; `heal.mine` replaces `refresh`. Fixing
+  coverage returns with the `ci` task, answering threads with the `answer`
+  task.
+- **Breaking:** `labels.pr`, replaced by `labels.heal`.
+- **Breaking:** the `started`/`done` checkpoint labels and
+  `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.
+
 ## [4.0.0] - 2026-10-24
 
 ### Added

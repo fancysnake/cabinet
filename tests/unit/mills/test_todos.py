@@ -93,7 +93,7 @@ class TestTodos:
     # todos or fewer.
     @staticmethod
     def test_no_label_adds_a_todo() -> None:
-        labels = [*_DONE, "pr::wait", "v:refresh:started", "v:refresh:done"]
+        labels = [*_DONE, "pr::wait", "v:merge:started", "v:merge:done"]
 
         assert not _todos(_facts(labels=labels))
 

@@ -1,36 +1,14 @@
-"""What a sweep carries, branch by branch, and what it leaves behind."""
+"""Pull requests as the forge lists them, and what CI says about them."""
 
-from typing import Annotated, Literal, Self, TypeAlias, TypeVar
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import Budgeted, Reserving
-from cabinet.pacts.hops import Hop
-from cabinet.pacts.project import Ci, Project
+from cabinet.pacts.project import Ci
 
 # A bound counts attempts at one step, so zero would mean a step that may never
 # be tried at all; past five a repair loop has stopped being a repair loop.
 Bound = Annotated[int, Field(ge=1, le=5)]
-
-_RunT = TypeVar("_RunT", bound="Run")
-_WorkT = TypeVar("_WorkT", bound="Work")
-
-
-class Sweep(BaseModel):
-    bound: Bound = 3
-    # Somebody is at the terminal: an agent runs in Claude's `auto` permission
-    # mode instead of refusing everything outside its allowlist, and another
-    # repair attempt is asked for rather than spent on the budget's say-so.
-    attended: bool = False
-
-
-# Which pass a cast is. The two share every step that takes a branch and writes
-# a row; they part at the gate — the fast pass merges and makes the gate green,
-# the slow one measures coverage and writes the tests.
-# A narrowing of `Marked`: a pass is also the name of the checkpoint it marks,
-# so every member here has to be one of those. Python cannot say "a subset of"
-# in a type, so what holds it is a test.
-Mode = Literal["refresh", "cover"]
 
 
 # One pull request as the forge lists it, in the rituals' own words: which
@@ -42,9 +20,8 @@ class PullRequest(BaseModel):
     branch: str
     base: str
     updated_at: str
-    # As they stood at the listing. Only the wait label is read from here, and
-    # only once: everything later asks the forge again, because a ritual adds
-    # labels of its own as it goes.
+    # As they stood at the listing. Read by the survey, once: a label a cast
+    # puts on later is that cast's own business.
     labels: list[str] = []
     # Whether the branch conflicts with its base, as the forge last worked
     # out. None while the forge has not worked it out: git can, locally.
@@ -57,8 +34,7 @@ class PullRequest(BaseModel):
 # What CI says about one thing it ran. `passed` is None while a run is still
 # going, which is why nothing reads it as anything but "not success yet".
 # `title` is the one-line summary a job writes for itself: absent for most of
-# the board, and for the patch check the coverage this branch achieved — the
-# number the slow pass would otherwise have to read out of prose.
+# the board, and for the patch check the coverage this branch achieved.
 class Check(BaseModel):
     name: str
     passed: bool | None = None
@@ -68,209 +44,11 @@ class Check(BaseModel):
 class Board(BaseModel):
     checks: list[Check] = []
     # A page that stopped short of the whole board. What fell off the end could
-    # be the check either reader turns on, and a page that does not say is not
-    # a page saying yes.
+    # be the check a reader turns on, and a page that does not say is not a
+    # page saying yes.
     truncated: bool = False
 
     # The checks whose job is configured: red anywhere else is not the
     # rituals' business.
     def watched(self, ci: Ci) -> list[Check]:
         return [check for check in self.checks if ci.job(check.name) is not None]
-
-
-Outcome = Literal["green", "blocked", "skipped"]
-
-
-class Checked(BaseModel):
-    number: int
-    branch: str
-    url: str
-    # What the night can say about the branch: whether the gates went green and
-    # the work went up. `skipped` is neither — the branch was never taken.
-    outcome: Outcome
-    # None when git could not say. Nothing to push and "we could not tell" are
-    # different answers, and the report prints them differently.
-    unpushed: int | None
-    note: str = ""
-
-
-# A note grows by joining rather than replacing, so no half of it writes over
-# another's. The separator is decided here and nowhere else.
-def joined(*parts: str) -> str:
-    return "; ".join(part for part in parts if part)
-
-
-# Every step carries this, because the report is owed however the cast ends.
-class Run(Reserving, Hop):
-    project: Project
-    bound: int
-    mode: Mode = "refresh"
-    attended: bool = False
-    queue: list[PullRequest] = Field(default_factory=list)
-    checked: list[Checked] = Field(default_factory=list)
-    stopped: str = ""
-    # Every verdict a gate on this run has given up on, carried across branches
-    # so the next one can recognise it: a night where the same thing is broken
-    # everywhere should pay for that answer once, not once per pull request.
-    seen: list[str] = Field(default_factory=list)
-
-    # The run's own steps and no others: `pacts/sweep.py` names one class per
-    # step, and the ones that take a branch are `Work`'s, not these.
-    def to(self, kind: type[_RunT]) -> _RunT:
-        return self._rebuilt(kind)
-
-    # Every step routes state forward by building the next payload from the
-    # last, and `model_copy` takes an untyped mapping — so the field list is
-    # spelled here once, typed, and `None` means "whatever this one had".
-    def but(
-        self,
-        *,
-        queue: list[PullRequest] | None = None,
-        checked: list[Checked] | None = None,
-        stopped: str | None = None,
-        seen: list[str] | None = None,
-    ) -> Self:
-        update: dict[str, list[PullRequest] | list[Checked] | list[str] | str] = {}
-        if queue is not None:
-            update["queue"] = queue
-        if checked is not None:
-            update["checked"] = checked
-        if stopped is not None:
-            update["stopped"] = stopped
-        if seen is not None:
-            update["seen"] = seen
-        return self.model_copy(update=update)
-
-    # `pull` taken, with the worst it can spend spoken for. A fresh `Work`
-    # per pull request, so no budget survives the branch change.
-    def take(self, pull: PullRequest, steps: int) -> "Work":
-        return Work(run=self.spoke_for(steps), pr=pull)
-
-    def rowed(self, row: Checked) -> Self:
-        return self.but(checked=[*self.checked, row])
-
-
-# Every field a step may route forward, in one annotation, so the copy that
-# carries them can be one method.
-_Update: TypeAlias = dict[str, Run | dict[str, int] | bool | str]
-
-
-# `budgets` dies with this payload, which is what "a branch change clears all
-# budgets" means — a fresh Work is built per pull request and inherits nothing.
-class Work(Budgeted, Hop):
-    run: Run
-    pr: PullRequest
-    merging: bool = False
-    # What the repair loop should run next, empty for the step's own gate: the
-    # narrow task named when the gate broke, so an agent's attempt is judged by
-    # the thing that was wrong rather than by the whole chain in front of it.
-    gate: str = ""
-    # The merge brought nothing in, so the tree is the one CI has already
-    # graded. Only ever true before any agent has touched the branch.
-    unchanged: bool = False
-    note: str = ""
-    # What stopped this branch, in the words of whatever stopped it. Written
-    # once, by the step that gave up, and never written over: read by the
-    # review agent, which is told not to raise it, and by the morning, which
-    # is told it first.
-    reason: str = ""
-    # This branch will not be made green tonight, and is being read anyway.
-    blocked: bool = False
-
-    # The steps that take a branch, and no others: ending a branch means
-    # routing the `Run` this carries, which has a `to` of its own.
-    def to(self, kind: type[_WorkT]) -> _WorkT:
-        return self._rebuilt(kind)
-
-    # The fields a step routes forward on its way through a branch, with
-    # `None` meaning "whatever this one had". The flags each have a builder of
-    # their own below, named for the decision they record rather than the
-    # field they set — and every one of them, this included, copies through
-    # `_copied`.
-    def but(
-        self,
-        *,
-        run: Run | None = None,
-        budgets: dict[str, int] | None = None,
-        gate: str | None = None,
-        note: str | None = None,
-    ) -> Self:
-        update: _Update = {}
-        if run is not None:
-            update["run"] = run
-        if budgets is not None:
-            update["budgets"] = budgets
-        if gate is not None:
-            update["gate"] = gate
-        if note is not None:
-            update["note"] = note
-        return self._copied(update)
-
-    # The merge brought nothing in, or it did.
-    def graded(self, *, unchanged: bool) -> Self:
-        return self._copied({"unchanged": unchanged})
-
-    # The merge stopped, and this is what git said about it.
-    def merging_on(self, note: str) -> Self:
-        return self._copied({"merging": True, "note": note})
-
-    def merged(self) -> Self:
-        return self._copied({"merging": False})
-
-    # The step that gives up on the branch says why, once.
-    def stopped_by(self, reason: str) -> Self:
-        return self._copied({"reason": reason})
-
-    # The worktree is released and the branch is read anyway.
-    def standing_down(self, note: str) -> Self:
-        return self._copied({"blocked": True, "note": note})
-
-    # The one way a `Work` is copied. Typed on the way in: a bare literal
-    # handed to `model_copy` is read as `dict[str, Any]`, which the checker
-    # here refuses.
-    def _copied(self, update: _Update) -> Self:
-        return self.model_copy(update=update)
-
-    # --- budgets ---------------------------------------------------------
-
-    # The counting is `Budgeted`'s, shared with every other loop; what a
-    # branch adds is the bound, which lives on the run.
-    def exhausted(self, name: str) -> bool:
-        return self.spent(name) >= self.run.bound
-
-    # --- endings ---------------------------------------------------------
-
-    # Why the branch stopped comes first, which is the order the morning wants
-    # it in. Every ending goes through here, so no ending can write over
-    # another's half.
-    def telling(self, *extra: str) -> str:
-        return joined(self.reason, self.note, *extra)
-
-    def checked(self, outcome: Outcome, *, unpushed: int | None, note: str) -> Checked:
-        return Checked(
-            number=self.pr.number,
-            branch=self.pr.branch,
-            url=self.pr.url,
-            outcome=outcome,
-            unpushed=unpushed,
-            note=note,
-        )
-
-    # The run gives up with a pull request in flight: it goes into the report
-    # as blocked, because the branch is left wherever the failure left it.
-    def abandoned(self, reason: str) -> Run:
-        row = self.checked("blocked", unpushed=None, note=f"left mid-flight: {reason}")
-        return self.run.rowed(row).but(stopped=reason)
-
-
-class Closed(BaseModel):
-    work: Work
-    outcome: Literal["green", "blocked"]
-
-
-# What the night did, branch by branch, and nothing sorted into work lists on
-# top: this pass refreshes pull requests, it does not triage them.
-class Report(BaseModel):
-    checked: list[Checked] = []
-    not_reached: list[str] = []
-    failed: str = ""

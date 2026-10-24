@@ -1,19 +1,19 @@
-"""Surveying pull requests into todo lists, and changing nothing."""
+"""Mustering pull requests, surveying them into todo lists, and planning."""
 
 import json
 
 import pytest
-from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import chart, muster_mine, muster_this, survey
-from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.heal import Chart, MusterMine, MusterThis, Survey
-from cabinet.pacts.healing import Heal, Plan, Surveyed, Unsurveyed
+from cabinet.gates.ritual.vekna.heal import muster_mine, muster_this, survey
+from cabinet.pacts.heal import Chart, CheckClean, MusterMine, MusterThis, Survey
+from cabinet.pacts.healing import Heal, Healed, Run, Surveyed, Unsurveyed
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.services import services
 from cabinet.rituals.heal_mine import heal_mine
 from cabinet.rituals.heal_this import heal_this
+from cabinet.specs import HEAL_STEPS
 from tests.conftest import (
     HERE,
     LIST,
@@ -41,12 +41,19 @@ _GREEN = json.dumps({"total_count": 0, "check_runs": []})
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
-# The listing, the board and the threads.
-_READS = 3
+# The preflight's two, the listing, the board and the threads.
+_READS = 5
 
 
-def _surveying(pull: PullRequest, project: Project) -> Survey:
-    return Survey(project=project, queue=[pull])
+def _preflight(trial: Trial) -> None:
+    trial.shell.replies(
+        when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
+    )
+    trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+
+
+def _surveying(pull: PullRequest, project: Project, *, plan_only: bool) -> Survey:
+    return Survey(project=project, plan_only=plan_only, queue=[pull])
 
 
 def _labelled(*names: str) -> list[dict[str, str]]:
@@ -58,6 +65,7 @@ class TestMuster:
     def test_mine_queues_what_is_wanted_oldest_first(
         trial: Trial, project: Project
     ) -> None:
+        _preflight(trial)
         trial.shell.replies(
             when=LIST,
             stdout=listing(
@@ -71,9 +79,11 @@ class TestMuster:
 
         assert isinstance(transition, Survey)
         assert [pull.number for pull in transition.queue] == [7, 8]
+        assert transition.reserved == services().steps.opening(2)
 
     @staticmethod
     def test_this_takes_the_branch_at_the_cwd(trial: Trial, project: Project) -> None:
+        _preflight(trial)
         trial.shell.replies(when=LIST, stdout=listing(row(8), row(7)))
         trial.shell.replies(when=HERE, stdout="feature\n")
 
@@ -83,31 +93,51 @@ class TestMuster:
         assert [pull.number for pull in transition.queue] == [7]
 
     @staticmethod
-    def test_this_without_a_pull_request_ends_the_cast(
+    def test_this_without_a_pull_request_goes_to_the_report(
         trial: Trial, project: Project
     ) -> None:
+        _preflight(trial)
         trial.shell.replies(when=LIST, stdout=listing(row(8)))
         trial.shell.replies(when=HERE, stdout="feature\n")
 
-        with pytest.raises(RitualError, match="has feature as its branch"):
-            trial.walk(muster_this, MusterThis(project=project))
+        assert trial.walk(muster_this, MusterThis(project=project)) == Run(
+            project=project,
+            stopped="no open pull request of yours has feature as its branch",
+        ).to(Chart)
 
     @staticmethod
-    def test_a_forge_that_will_not_list_ends_the_cast(
+    def test_a_forge_that_will_not_list_goes_to_the_report(
         trial: Trial, project: Project
     ) -> None:
+        _preflight(trial)
         trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
 
-        with pytest.raises(ForgeError, match="not logged in"):
-            trial.walk(muster_mine, MusterMine(project=project))
+        assert trial.walk(muster_mine, MusterMine(project=project)) == Run(
+            project=project,
+            stopped="gh could not list your pull requests: not logged in",
+        ).to(Chart)
+
+    @staticmethod
+    def test_an_ssh_remote_stops_before_anything_is_fetched(
+        trial: Trial, project: Project
+    ) -> None:
+        trial.shell.replies(
+            when="git remote get-url origin", stdout="git@github.com:o/r.git\n"
+        )
+
+        transition = trial.walk(muster_this, MusterThis(project=project))
+
+        assert isinstance(transition, Chart)
+        assert "not https" in transition.stopped
+        assert LIST not in trial.shell.commands
 
 
 class TestSurvey:
     @staticmethod
     def test_an_empty_queue_is_charted(trial: Trial, project: Project) -> None:
-        healing = Survey(project=project)
+        run = Survey(project=project)
 
-        assert trial.walk(survey, healing) == healing.to(Chart)
+        assert trial.walk(survey, run) == run.to(Chart)
 
     @staticmethod
     def test_the_facts_become_todos_and_a_line(
@@ -117,7 +147,7 @@ class TestSurvey:
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         conflicted = pull.model_copy(update={"conflicted": True})
 
-        transition = trial.walk(survey, _surveying(conflicted, project))
+        transition = trial.walk(survey, _surveying(conflicted, project, plan_only=True))
 
         assert isinstance(transition, Survey)
         assert transition.queue == []
@@ -145,7 +175,7 @@ class TestSurvey:
         trial.shell.replies(when=_MERGE_TREE, exit_code=1)
         reviewed = pull.model_copy(update={"labels": ["pr::thermo", "v:guide:done"]})
 
-        transition = trial.walk(survey, _surveying(reviewed, project))
+        transition = trial.walk(survey, _surveying(reviewed, project, plan_only=True))
 
         assert isinstance(transition, Survey)
         assert transition.surveyed[0].todos == ["merge"]
@@ -158,7 +188,7 @@ class TestSurvey:
         trial.shell.replies(when=THREADS, stdout=_NONE)
         clean = pull.model_copy(update={"conflicted": False, "labels": ["pr::thermo"]})
 
-        transition = trial.walk(survey, _surveying(clean, project))
+        transition = trial.walk(survey, _surveying(clean, project, plan_only=True))
 
         assert isinstance(transition, Survey)
         assert transition.surveyed[0].todos == ["guide"]
@@ -170,45 +200,93 @@ class TestSurvey:
     ) -> None:
         trial.shell.replies(when=board(), exit_code=1, stderr="rate limited")
 
-        transition = trial.walk(survey, _surveying(pull, project))
+        transition = trial.walk(survey, _surveying(pull, project, plan_only=False))
 
         assert isinstance(transition, Survey)
         assert isinstance(unread := transition.surveyed[0], Unsurveyed)
         assert "rate limited" in unread.note
         assert trial.deltas[0].startswith("#7 feature: could not survey:")
 
-
-class TestChart:
+    # Taken with what this cast works and nothing else, the worst it can
+    # spend spoken for.
     @staticmethod
-    def test_the_plan_is_every_row(trial: Trial, project: Project) -> None:
-        reviewing = Surveyed(
-            number=7, branch="feature", url=_URL, todos=["review"], red=[], threads=0
-        )
-        healing = Chart(project=project, surveyed=[reviewing])
+    def test_a_branch_with_work_is_taken(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = _surveying(conflicted, project, plan_only=False)
+        share = services().steps.heal_share(run)
+        assert share is not None
 
-        assert trial.walk(chart, healing) == Done(Plan(surveyed=[reviewing]))
-        assert trial.deltas == []
+        transition = trial.walk(survey, run)
+
+        assert isinstance(transition, CheckClean)
+        assert transition.todos == ["merge", "review"]
+        assert transition.run.reserved == share
+        assert transition.run.queue == []
+
+    @staticmethod
+    def test_a_task_ritual_takes_only_its_task(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = Survey(project=project, tasks=["review"], queue=[conflicted])
+
+        transition = trial.walk(survey, run)
+
+        assert isinstance(transition, CheckClean)
+        assert transition.todos == ["review"]
+
+    @staticmethod
+    def test_a_branch_with_nothing_this_cast_works_is_not_taken(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        clean = pull.model_copy(update={"conflicted": False})
+        run = Survey(project=project, tasks=["merge"], queue=[clean])
+
+        transition = trial.walk(survey, run)
+
+        assert isinstance(transition, Survey)
+        assert transition.surveyed[0].todos == ["review"]
+
+    # Nothing went wrong, so nothing fails: the branch stays on the queue,
+    # unread, for the report to name.
+    @staticmethod
+    def test_a_branch_the_budget_has_no_room_for_ends_the_cast(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        full = Survey(project=project, queue=[pull], reserved=HEAL_STEPS)
+
+        assert trial.walk(survey, full) == full.to(Chart)
+        assert not trial.shell.commands
 
 
 class TestWholeCast:
     @staticmethod
     @pytest.mark.usefixtures("here")
-    def test_mine_surveys_and_writes_nothing(trial: Trial) -> None:
+    def test_a_plan_surveys_and_writes_nothing(trial: Trial) -> None:
+        _preflight(trial)
         trial.shell.replies(
-            when=LIST, stdout=listing(row(mergeable="MERGEABLE", labels=[]))
+            when=LIST, stdout=listing(row(mergeable="CONFLICTING", labels=[]))
         )
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
 
         result = trial.cast(heal_mine, Heal(plan_only=True))
 
-        assert result == Plan(
+        assert result == Healed(
             surveyed=[
                 Surveyed(
                     number=7,
                     branch="feature",
                     url=_URL,
-                    todos=["review"],
+                    todos=["merge", "review"],
                     red=[],
                     threads=0,
                 )
@@ -221,7 +299,8 @@ class TestWholeCast:
 
     @staticmethod
     @pytest.mark.usefixtures("here")
-    def test_this_surveys_the_branch_at_the_cwd(trial: Trial) -> None:
+    def test_this_plans_the_branch_at_the_cwd(trial: Trial) -> None:
+        _preflight(trial)
         trial.shell.replies(
             when=LIST, stdout=listing(row(8), row(mergeable="MERGEABLE"))
         )
@@ -234,11 +313,3 @@ class TestWholeCast:
         assert [one.number for one in result.surveyed] == [7]
         assert trial.steps == ["muster_this", "survey", "survey", "chart"]
         assert trial.deltas == ["#7 feature: review"]
-
-    @staticmethod
-    @pytest.mark.usefixtures("here")
-    def test_only_a_plan_is_cast_so_far(trial: Trial) -> None:
-        with pytest.raises(RitualError, match=r"heal\.mine only surveys"):
-            trial.cast(heal_mine, Heal())
-        with pytest.raises(RitualError, match=r"heal\.this only surveys"):
-            trial.cast(heal_this, Heal())

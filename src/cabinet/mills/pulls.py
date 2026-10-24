@@ -1,4 +1,4 @@
-"""Which pull requests the night takes, and what the check board says."""
+"""Which pull requests a cast takes, and what the check board says."""
 
 import re
 
@@ -49,20 +49,6 @@ class Pulls(PullsProtocol):
         if board.truncated or any(_names_a_gap(check, project) for check in watched):
             return True
         return not watched or any(check.passed is not True for check in watched)
-
-    # False where nobody has said — an empty board, a check still running —
-    # because the gate is what finds out, and a skip granted on silence is a
-    # red branch pushed and reviewed as green.
-    @override
-    def gates_green(self, board: Board, project: Project) -> bool:
-        if board.truncated:
-            return False
-        watched = [
-            check
-            for check in board.watched(project.ci)
-            if not project.ci.covering(check.name)
-        ]
-        return bool(watched) and all(check.passed is True for check in watched)
 
 
 def _names_a_gap(check: Check, project: Project) -> bool:
