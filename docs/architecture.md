@@ -47,9 +47,10 @@ annotation.
 
 ## Facades
 
-`rituals/heal_mine.py`, `heal_this.py`, `merge.py`, `ci.py` and `review.py` all wrap
-the heal steps and each re-export the full step list, so importing any one
-registers the whole graph. A new heal step is added to all five. A task
+`rituals/heal_mine.py`, `heal_this.py`, `merge.py`, `ci.py`, `answer.py` and
+`review.py` all wrap the heal steps and each re-export the full step list, so
+importing any one registers the whole graph. A new heal step is added to all
+six. A task
 ritual is `heal.this` with `tasks` narrowed to one; `tend` hands a branch its
 next task, and every task ends back at `tend`.
 
