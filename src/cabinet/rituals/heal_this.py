@@ -38,7 +38,7 @@ from cabinet.specs import HEAL_STEPS
 def heal_this(components: Heal) -> MusterThis:
     return MusterThis(
         project=services().project(),
-        plan_only=components.plan_only,
+        tasks=components.working(),
         bound=components.bound,
         attended=components.attended,
     )

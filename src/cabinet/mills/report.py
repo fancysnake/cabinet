@@ -17,7 +17,7 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.services import ReportProtocol
 from cabinet.pacts.threads import Finding, TriageItem
 
-_OUTCOME = {"green": "green", "blocked": "blocked", "skipped": "left alone"}
+_OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")

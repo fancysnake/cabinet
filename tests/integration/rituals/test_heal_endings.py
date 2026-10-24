@@ -52,7 +52,9 @@ _AHEAD = f'test feature = "$({HERE})" && git rev-list --count origin/feature..HE
 _RELEASE = "if git rev-parse*"
 _UNMERGED = "git diff --name-only --diff-filter=U"
 _LABEL = "gh pr edit 7 --add-label pr::thermo"
-_GREEN_ROW = Checked(number=7, branch="feature", url=_URL, outcome="green", unpushed=0)
+_WORKED_ROW = Checked(
+    number=7, branch="feature", url=_URL, outcome="worked", unpushed=0
+)
 _NO_THREADS = threads_page(page([]))
 _GREEN_BOARD = json.dumps({"total_count": 0, "check_runs": []})
 
@@ -126,6 +128,19 @@ class TestQualityReview:
         assert isinstance(transition, SetAside)
         assert "502" in transition.note
         assert not trial.coding.prompts
+
+    @staticmethod
+    def test_a_review_set_aside_keeps_what_the_branch_already_said(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=THREADS, exit_code=1, stderr="502")
+        stood = work.stopped_by("red").standing_down('stashed as "wip"')
+
+        transition = trial.walk(quality_review, stood.to(QualityReview))
+
+        assert isinstance(transition, SetAside)
+        assert transition.note.startswith('stashed as "wip"; ')
+        assert "502" in transition.note
 
     @staticmethod
     def test_an_answer_in_the_wrong_shape_sets_the_branch_aside(
@@ -203,11 +218,11 @@ class TestQualityReview:
 
 class TestFinishPr:
     @staticmethod
-    def test_a_green_branch_is_counted(trial: Trial, work: Work) -> None:
+    def test_a_worked_branch_is_counted(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_AHEAD, stdout="0\n")
 
         assert trial.walk(finish_pr, work.to(FinishPr)) == work.run.rowed(
-            _GREEN_ROW
+            _WORKED_ROW
         ).to(Survey)
         assert trial.shell.commands == [_AHEAD]
 
@@ -217,7 +232,7 @@ class TestFinishPr:
         blocked = work.stopped_by("red").standing_down("")
 
         assert trial.walk(finish_pr, blocked.to(FinishPr)) == blocked.run.rowed(
-            _GREEN_ROW.model_copy(
+            _WORKED_ROW.model_copy(
                 update={"outcome": "blocked", "unpushed": None, "note": "red"}
             )
         ).to(Survey)
@@ -248,7 +263,7 @@ class TestSkipPr:
         skipped = work.but(note="could not take feature: busy")
 
         assert trial.walk(skip_pr, skipped.to(SkipPr)) == work.run.rowed(
-            _GREEN_ROW.model_copy(
+            _WORKED_ROW.model_copy(
                 update={
                     "outcome": "skipped",
                     "unpushed": None,
@@ -268,7 +283,7 @@ class TestSetAside:
         transition = trial.walk(set_aside, aside.to(SetAside))
 
         assert transition == work.run.rowed(
-            _GREEN_ROW.model_copy(
+            _WORKED_ROW.model_copy(
                 update={
                     "outcome": "blocked",
                     "unpushed": 2,
@@ -288,9 +303,9 @@ class TestChart:
     def test_the_summary_is_said_and_the_result_returned(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, checked=[_GREEN_ROW])
+        run = Run(project=project, checked=[_WORKED_ROW])
 
-        assert trial.walk(chart, run.to(Chart)) == Done(Healed(checked=[_GREEN_ROW]))
+        assert trial.walk(chart, run.to(Chart)) == Done(Healed(checked=[_WORKED_ROW]))
         assert trial.deltas[0].startswith("heal — 1 worked")
 
     @staticmethod
@@ -300,7 +315,7 @@ class TestChart:
         planned = Surveyed(
             number=7, branch="feature", url=_URL, todos=["review"], red=[], threads=0
         )
-        run = Run(project=project, plan_only=True, surveyed=[planned])
+        run = Run(project=project, tasks=[], surveyed=[planned])
 
         assert trial.walk(chart, run.to(Chart)) == Done(Healed(surveyed=[planned]))
         assert trial.deltas == []
@@ -318,7 +333,7 @@ class TestChart:
     def test_a_stopped_cast_is_said_before_it_fails(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, plan_only=True, stopped="gh died")
+        run = Run(project=project, tasks=[], stopped="gh died")
 
         with pytest.raises(RitualError, match="gh died"):
             trial.walk(chart, run.to(Chart))
@@ -383,7 +398,7 @@ class TestWholeCast:
 
         result = trial.cast(heal_mine, Heal())
 
-        assert result.checked == [_GREEN_ROW]
+        assert result.checked == [_WORKED_ROW]
         assert result.surveyed[0] == Surveyed(
             number=7,
             branch="feature",
@@ -516,7 +531,7 @@ class TestTaskRituals:
 
         result = trial.cast(merge, Heal())
 
-        assert result.checked == [_GREEN_ROW]
+        assert result.checked == [_WORKED_ROW]
         assert trial.steps == [
             "muster_this",
             "survey",
@@ -545,7 +560,7 @@ class TestTaskRituals:
 
         result = trial.cast(review, Heal())
 
-        assert result.checked == [_GREEN_ROW]
+        assert result.checked == [_WORKED_ROW]
         assert trial.steps == [
             "muster_this",
             "survey",

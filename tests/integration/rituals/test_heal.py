@@ -52,8 +52,12 @@ def _preflight(trial: Trial) -> None:
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
 
 
-def _surveying(pull: PullRequest, project: Project, *, plan_only: bool) -> Survey:
-    return Survey(project=project, plan_only=plan_only, queue=[pull])
+def _surveying(pull: PullRequest, project: Project) -> Survey:
+    return Survey(project=project, queue=[pull])
+
+
+def _planning(pull: PullRequest, project: Project) -> Survey:
+    return Survey(project=project, tasks=[], queue=[pull])
 
 
 def _labelled(*names: str) -> list[dict[str, str]]:
@@ -147,7 +151,7 @@ class TestSurvey:
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         conflicted = pull.model_copy(update={"conflicted": True})
 
-        transition = trial.walk(survey, _surveying(conflicted, project, plan_only=True))
+        transition = trial.walk(survey, _planning(conflicted, project))
 
         assert isinstance(transition, Survey)
         assert transition.queue == []
@@ -175,7 +179,7 @@ class TestSurvey:
         trial.shell.replies(when=_MERGE_TREE, exit_code=1)
         reviewed = pull.model_copy(update={"labels": ["pr::thermo", "v:guide:done"]})
 
-        transition = trial.walk(survey, _surveying(reviewed, project, plan_only=True))
+        transition = trial.walk(survey, _planning(reviewed, project))
 
         assert isinstance(transition, Survey)
         assert transition.surveyed[0].todos == ["merge"]
@@ -188,7 +192,7 @@ class TestSurvey:
         trial.shell.replies(when=THREADS, stdout=_NONE)
         clean = pull.model_copy(update={"conflicted": False, "labels": ["pr::thermo"]})
 
-        transition = trial.walk(survey, _surveying(clean, project, plan_only=True))
+        transition = trial.walk(survey, _planning(clean, project))
 
         assert isinstance(transition, Survey)
         assert transition.surveyed[0].todos == ["guide"]
@@ -200,7 +204,7 @@ class TestSurvey:
     ) -> None:
         trial.shell.replies(when=board(), exit_code=1, stderr="rate limited")
 
-        transition = trial.walk(survey, _surveying(pull, project, plan_only=False))
+        transition = trial.walk(survey, _surveying(pull, project))
 
         assert isinstance(transition, Survey)
         assert isinstance(unread := transition.surveyed[0], Unsurveyed)
@@ -216,7 +220,7 @@ class TestSurvey:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         conflicted = pull.model_copy(update={"conflicted": True})
-        run = _surveying(conflicted, project, plan_only=False)
+        run = _surveying(conflicted, project)
         share = services().steps.heal_share(run)
         assert share is not None
 

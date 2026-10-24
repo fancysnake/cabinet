@@ -19,7 +19,9 @@ _PULL = PullRequest(
     updated_at="2026-08-01T22:00:00Z",
 )
 
-_GREEN = Checked(number=7, branch="feature", url=_PULL.url, outcome="green", unpushed=0)
+_WORKED = Checked(
+    number=7, branch="feature", url=_PULL.url, outcome="worked", unpushed=0
+)
 
 
 def _run(**update: object) -> Run:
@@ -29,13 +31,13 @@ def _run(**update: object) -> Run:
 class TestHealed:
     @staticmethod
     def test_a_green_row() -> None:
-        assert _REPORT.healed(_run(checked=[_GREEN])) == (
-            "heal — 1 worked\n\n  #7 feature: green, 0 unpushed\n"
+        assert _REPORT.healed(_run(checked=[_WORKED])) == (
+            "heal — 1 worked\n\n  #7 feature: worked, 0 unpushed\n"
         )
 
     @staticmethod
     def test_a_blocked_row_indents_its_note() -> None:
-        row = _GREEN.model_copy(
+        row = _WORKED.model_copy(
             update={"outcome": "blocked", "unpushed": None, "note": "red:\n1 failed"}
         )
 
@@ -46,7 +48,7 @@ class TestHealed:
 
     @staticmethod
     def test_a_skipped_row() -> None:
-        row = _GREEN.model_copy(update={"outcome": "skipped", "unpushed": None})
+        row = _WORKED.model_copy(update={"outcome": "skipped", "unpushed": None})
 
         assert "  #7 feature: left alone, unknown\n" in _REPORT.healed(
             _run(checked=[row])

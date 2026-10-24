@@ -40,7 +40,7 @@ from cabinet.specs import HEAL_STEPS
 def heal_mine(components: Heal) -> MusterMine:
     return MusterMine(
         project=services().project(),
-        plan_only=components.plan_only,
+        tasks=components.working(),
         bound=components.bound,
         attended=components.attended,
     )

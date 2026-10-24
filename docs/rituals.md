@@ -123,11 +123,14 @@ one cast. Cast it once to set a project up.
 
 ## labels.heal
 
-*Conjuration.* Makes the three labels `heal` reads and puts on: the reviewed,
-wait and qa labels. Each exists only to stop a ritual repeating something it
-put on the pull request; a fact that goes away once fixed, such as a conflict
-or a red check, needs no label. Cast it before the first `heal` when `labels`
-was not, and again after changing `[cabinet.labels]`.
+*Conjuration.* Makes the three labels `heal` reads: the reviewed, wait and qa
+labels. The reviewed and qa labels are the ritual's own: each goes on once its
+task is done, so the next cast does not repeat it. A fact that goes away once
+fixed, such as a conflict or a red check, needs no label. The wait label is
+yours: put it on a pull request `heal.mine` should leave alone, such as a draft
+or one waiting on somebody else, and take it off to hand it back. Cast
+`labels.heal` before the first `heal` when `labels` was not, and again after
+changing `[cabinet.labels]`.
 
 ## labels.identify
 
@@ -140,7 +143,7 @@ not. The names are fixed, because the `issues` skill names them too.
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
 | `--bound N`  | `heal.*`, `merge`   | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended true` | `heal.*`, `merge` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
+| `--attended true` | `heal.*`, `merge`, `review` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
 | `--plan-only true` | `heal.*`, `merge`, `review` | survey and print each pull request's todos; change nothing |
 | `--batch N`  | `identify`          | how many issues go on one page, default 7               |
 

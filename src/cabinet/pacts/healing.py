@@ -29,13 +29,19 @@ def _tasks() -> list[Task]:
 
 
 class Heal(BaseModel):
-    # Survey, say what each branch needs, and change nothing.
+    # Survey, say what each branch needs, and change nothing: a cast that may
+    # work no task.
     plan_only: bool = False
     bound: Bound = 3
     # Somebody is at the terminal: an agent runs in Claude's `auto` permission
     # mode instead of refusing everything outside its allowlist, and another
     # repair attempt is asked for rather than spent on the budget's say-so.
     attended: bool = False
+
+    # The tasks a cast may work: the ones named, every one where none is, and
+    # none at all for a plan.
+    def working(self, *tasks: Task) -> list[Task]:
+        return [] if self.plan_only else list(tasks or TASKS)
 
 
 # Everything the survey reads about one pull request, read once.
@@ -68,14 +74,15 @@ class Unsurveyed(BaseModel):
     note: str
 
 
-Outcome = Literal["green", "blocked", "skipped"]
+Outcome = Literal["worked", "blocked", "skipped"]
 
 
 class Checked(BaseModel):
     number: int
     branch: str
     url: str
-    # Whether the merge's gate went green, or the branch was given up on.
+    # Whether the branch's tasks were worked through, or it was given up on.
+    # `worked` says nothing of the gate, which only the merge task runs.
     # `skipped` is neither: the branch was never taken.
     outcome: Outcome
     # None when git could not say. Nothing to push and "we could not tell" are
@@ -93,11 +100,10 @@ def joined(*parts: str) -> str:
 # Every step carries this, because the report is owed however the cast ends.
 class Run(Reserving, Hop):
     project: Project
-    plan_only: bool = False
-    bound: int = 3
+    bound: Bound = 3
     attended: bool = False
     # Which tasks this cast may work: every one for `heal`, one for a task
-    # ritual. The survey still says everything a branch needs.
+    # ritual, none for a plan. The survey still says everything a branch needs.
     tasks: list[Task] = Field(default_factory=_tasks)
     queue: list[PullRequest] = Field(default_factory=list)
     surveyed: list[Surveyed | Unsurveyed] = Field(default_factory=list)
@@ -189,9 +195,12 @@ class Work(Budgeted, Hop):
     # review agent, which is told not to raise it, and by the report, which
     # tells it first.
     reason: str = ""
+
     # This branch's gate will not be made green by this cast, and the rest of
-    # its tasks are worked anyway.
-    blocked: bool = False
+    # its tasks are worked anyway: only a step that gives up says why.
+    @property
+    def blocked(self) -> bool:
+        return bool(self.reason)
 
     # The steps that take a branch, and no others: ending a branch means
     # routing the `Run` this carries, which has a `to` of its own.
@@ -243,7 +252,7 @@ class Work(Budgeted, Hop):
     # The worktree is released and the rest of the tasks are worked anyway.
     # Whatever the merge had already committed is still to push.
     def standing_down(self, note: str) -> Self:
-        return self._copied({"blocked": True, "changed": True, "note": note})
+        return self._copied({"changed": True, "note": note})
 
     # The one way a `Work` is copied. Typed on the way in: a bare literal
     # handed to `model_copy` is read as `dict[str, Any]`, which the checker
@@ -289,4 +298,3 @@ class Healed(BaseModel):
     surveyed: list[Surveyed | Unsurveyed] = []
     checked: list[Checked] = []
     not_reached: list[str] = []
-    failed: str = ""

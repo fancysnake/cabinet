@@ -2,8 +2,8 @@
 
     vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
     vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
-    vekna cast merge [--bound N] [--attended true]
-    vekna cast review
+    vekna cast merge [--plan-only true] [--bound N] [--attended true]
+    vekna cast review [--plan-only true] [--attended true]
 
 ``heal.mine`` takes every open pull request of yours not wearing the wait
 label, oldest-modified first; ``heal.this`` and the task rituals take the pull
@@ -150,16 +150,14 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
     # room for is left for the next cast, unread. Not a failure, and the
     # report names it; running out of the engine's budget instead would raise
     # past `chart` with a branch half-merged.
-    share = services().steps.heal_share(run)
-    if share is None and not run.plan_only:
+    # A plan works no task, so it takes no branch and has no share to ask for.
+    if (share := services().steps.heal_share(run) if run.tasks else 0) is None:
         return run.to(Chart)
     pull = run.queue[0]
     row = await _surveyed(run.project, pull)
     emit_delta(services().report.surveyed(row))
     after = run.took(row)
-    if run.plan_only or share is None or isinstance(row, Unsurveyed):
-        return after.to(Survey)
-    if not (todos := after.worked(row.todos)):
+    if isinstance(row, Unsurveyed) or not (todos := after.worked(row.todos)):
         return after.to(Survey)
     return after.take(pull, todos, share).to(CheckClean)
 
@@ -187,7 +185,7 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
 # survey already said.
 @step
 def chart(run: Chart) -> Done[Healed]:
-    if run.stopped or not run.plan_only:
+    if run.stopped or run.tasks:
         emit_delta(services().report.healed(run))
     if run.stopped:
         raise RitualError(run.stopped)
@@ -196,7 +194,6 @@ def chart(run: Chart) -> Done[Healed]:
             surveyed=run.surveyed,
             checked=run.checked,
             not_reached=[pull.branch for pull in run.queue],
-            failed=run.stopped,
         )
     )
 
@@ -248,12 +245,12 @@ _FIRST: dict[Task, type[MergeBase | QualityReview]] = {
 }
 
 
-# Hand the branch its next task, or let it go. A push comes first where this
-# cast committed anything and the next thing is the review, whose comments
-# anchor to what the forge has, or the end of the branch.
+# Hand the branch its next task, or let it go. Whatever this cast committed is
+# pushed first: every task after the merge works on code the forge has, and a
+# branch is not left with commits only this worktree holds.
 @step
 def tend(work: Tend) -> PushWork | FinishPr | MergeBase | QualityReview:
-    if work.changed and (not work.todos or work.todos[0] == "review"):
+    if work.changed:
         return work.to(PushWork)
     if not work.todos:
         return work.to(FinishPr)
@@ -444,11 +441,12 @@ async def push_work(work: PushWork) -> Tend:
 # --- review ----------------------------------------------------------------
 
 
-# The one task with no budget and no loop, because there is nothing here to
-# retry against. An agent that found nothing to post is indistinguishable from
-# one that read badly, so the label goes on either way, and a review that came
-# out empty is yours to notice and ask for again by taking it off.
-# Post the review and label the branch.
+# Post the review and label the branch: the one task with no budget and no
+# loop, because there is nothing here to retry against. An agent that found
+# nothing to post is indistinguishable from one that read badly, so the label
+# goes on either way, and a review that came out empty is yours to notice and
+# ask for again by taking it off. What the branch already said stays in the
+# note: a stash or a failed push is still news when the review fails too.
 @step
 async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     project = work.run.project
@@ -456,7 +454,7 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     try:
         threads = await services().forge(project).threads(number)
     except ForgeError as error:
-        return work.but(note=str(error)).to(SetAside)
+        return work.but(note=joined(work.note, str(error))).to(SetAside)
     prompt = services().prompts.review(
         project, base=work.pr.base, threads=threads, reason=work.reason
     )
@@ -474,18 +472,18 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     if isinstance(read, Fallen):
         return work.abandoned(read.reason).to(Chart)
     if isinstance(read, Misread):
-        return work.but(note=read.reason).to(SetAside)
+        return work.but(note=joined(work.note, read.reason)).to(SetAside)
     findings = services().report.findings(project, read.items)
     if note := await _put_up(project, number, findings):
-        return work.but(note=note).to(SetAside)
+        return work.but(note=joined(work.note, note)).to(SetAside)
     return work.to(Tend)
 
 
-# A posting that got partway still earns the label: what is up cannot be taken
-# down, and an unlabelled branch is one the next cast reviews again, saying all
-# of it a second time. Only a posting that got nowhere is left unlabelled — an
-# empty review is labelled, for the reason above `quality_review`.
-# Put every item up, label the branch, and say what did not happen.
+# Put every item up, label the branch, and say what did not happen. A posting
+# that got partway still earns the label: what is up cannot be taken down, and
+# an unlabelled branch is one the next cast reviews again, saying all of it a
+# second time. Only a posting that got nowhere is left unlabelled — an empty
+# review is labelled, for the reason above `quality_review`.
 async def _put_up(project: Project, number: int, findings: list[Finding]) -> str:
     forge = services().forge(project)
     posted = await forge.comment(number, findings)
@@ -506,7 +504,7 @@ async def _put_up(project: Project, number: int, findings: list[Finding]) -> str
 @step
 async def finish_pr(work: FinishPr) -> Survey:
     row = work.checked(
-        "blocked" if work.blocked else "green",
+        "blocked" if work.blocked else "worked",
         # Asked of git rather than tracked in the payload: what needs pushing
         # is what the remote has not got, whoever put it there.
         unpushed=await services().scm(work.run.project).ahead(work.pr.branch),
@@ -515,10 +513,10 @@ async def finish_pr(work: FinishPr) -> Survey:
     return work.run.rowed(row).to(Survey)
 
 
-# Nothing to release and nothing to count: this is only reached where the
-# checkout itself would not go through, so the worktree never moved and the
-# branch is exactly as its owner left it.
-# Leave the branch where it is, and say so in the report.
+# Leave the branch where it is, and say so in the report. Nothing to release
+# and nothing to count: this is only reached where the checkout itself would
+# not go through, so the worktree never moved and the branch is exactly as its
+# owner left it.
 @step
 def skip_pr(work: SkipPr) -> Survey:
     row = work.checked("skipped", unpushed=None, note=work.telling())

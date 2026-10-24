@@ -55,8 +55,8 @@ casting one twice is as safe as once.
 ```bash
 vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
 vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
-vekna cast merge [--bound N] [--attended true]
-vekna cast review
+vekna cast merge [--plan-only true] [--bound N] [--attended true]
+vekna cast review [--plan-only true] [--attended true]
 vekna cast identify [--batch N]
 vekna cast labels
 vekna cast labels.heal

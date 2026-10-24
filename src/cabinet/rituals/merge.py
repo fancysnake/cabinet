@@ -1,6 +1,6 @@
 """Transmutation: ``merge`` brings the base into your branch, gate green.
 
-    vekna cast merge [--bound N] [--attended true]
+    vekna cast merge [--plan-only true] [--bound N] [--attended true]
 
 ``heal.this`` that works the merge task and no other, the way *Mending* joins
 what was split. Only a conflict makes a merge todo, so a branch that is merely
@@ -39,10 +39,9 @@ from cabinet.specs import HEAL_STEPS
 def merge(components: Heal) -> MusterThis:
     return MusterThis(
         project=services().project(),
-        plan_only=components.plan_only,
         bound=components.bound,
         attended=components.attended,
-        tasks=["merge"],
+        tasks=components.working("merge"),
     )
 
 
