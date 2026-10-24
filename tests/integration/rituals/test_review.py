@@ -1,7 +1,8 @@
 """Taking every reviewed branch in turn, answering it item by item, shipping it."""
 
 import pytest
-from vekna.lexicon import Done, RitualError, Transition
+from pydantic import BaseModel
+from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.review import (
@@ -100,7 +101,7 @@ def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
 # its reason into the picking and routes to `recap`, which says the report and
 # fails the cast there. What each of those steps owes is the reason, so that is
 # what comes back.
-def _gave_up(transition: Transition) -> str:
+def _gave_up(transition: BaseModel | Done[BaseModel | None]) -> str:
     assert isinstance(transition, Recap)
     return transition.stopped
 
