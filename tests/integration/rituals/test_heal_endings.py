@@ -30,6 +30,7 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Finding, Findings
+from cabinet.rituals.ci import ci
 from cabinet.rituals.heal_mine import heal_mine
 from cabinet.rituals.merge import merge
 from cabinet.rituals.review import review
@@ -343,13 +344,13 @@ class TestChart:
 
 # The forge's listing and git's preflight, the branch taken, and the count at
 # the end: what every acting cast here walks through.
-def _taken(trial: Trial, *, mergeable: str) -> None:
+def _taken(trial: Trial, *, mergeable: str, checks: str = _GREEN_BOARD) -> None:
     trial.shell.replies(
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
     trial.shell.replies(when=LIST, stdout=listing(row(7, mergeable=mergeable)))
-    trial.shell.replies(when=board(), stdout=_GREEN_BOARD)
+    trial.shell.replies(when=board(), stdout=checks)
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
     trial.shell.replies(when="git fetch*")
@@ -382,6 +383,36 @@ def _worst_gate(trial: Trial, bound: int) -> None:
         )
     trial.shell.replies(when="CI=1 mise run lint:ruff", always=True)
     trial.coding.replies("fixed", when="*is this project's gate*", always=True)
+
+
+_JOBS = ("a", "b", "c")
+_RED_JOBS = json.dumps(
+    {
+        "total_count": len(_JOBS),
+        "check_runs": [
+            {"id": index, "name": job, "conclusion": "failure"}
+            for index, job in enumerate(_JOBS, start=1)
+        ],
+    }
+)
+
+
+# Each job's log read and mended, then its gate red to the bound, the task it
+# named green, and the whole gate green on its last run.
+def _worst_jobs(trial: Trial, bound: int) -> None:
+    trial.coding.replies("fixed", when="The `*` CI job is red*", always=True)
+    trial.shell.replies(when="git add -A*", always=True)
+    for index, job in enumerate(_JOBS, start=1):
+        trial.shell.replies(when=f"gh run view --job {index} --log-failed")
+        for _ in range(bound):
+            trial.shell.replies(
+                when=f"CI=1 mise run {job}",
+                exit_code=1,
+                stdout=f"{job} broke",
+                stderr=f"[{job}:x] ERROR task failed",
+            )
+        trial.shell.replies(when=f"CI=1 mise run {job}")
+        trial.shell.replies(when=f"CI=1 mise run {job}:x", always=True)
 
 
 class TestWholeCast:
@@ -454,16 +485,21 @@ class TestWholeCast:
         assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
         assert trial.deltas[0] == "#7 feature: guide"
 
-    # Every attempt the bound allows on both loops, each with its free extra
-    # run, the stand-down, and the review after it: the longest a branch can
-    # run, and what its share spoke for.
+    # Every attempt the bound allows on every loop, each with its free extra
+    # run: the merge stood down, every configured job red and green only on
+    # its last run, and the review after it. The longest a branch can run,
+    # and what its share spoke for.
     @staticmethod
-    @pytest.mark.usefixtures("here")
     @pytest.mark.parametrize("bound", [1, 2])
     def test_the_worst_a_branch_can_spend_is_what_was_reserved(
-        trial: Trial, bound: int
+        trial: Trial, here: Path, bound: int
     ) -> None:
-        _taken(trial, mergeable="CONFLICTING")
+        (here / ".vekna.toml").write_text(
+            "".join(
+                f'[cabinet.ci.jobs.{job}]\ngate = "mise run {job}"\n' for job in _JOBS
+            )
+        )
+        _taken(trial, mergeable="CONFLICTING", checks=_RED_JOBS)
         trial.shell.replies(when="git merge-base*", exit_code=1)
         trial.shell.replies(when="git merge --no-edit main", exit_code=1)
         for _ in range(bound):
@@ -471,13 +507,15 @@ class TestWholeCast:
         trial.shell.replies(when=_UNMERGED)
         trial.coding.replies("resolved", when="Merging main into feature*", always=True)
         trial.shell.replies(when=_RELEASE, always=True)
-        trial.shell.replies(when="git push origin feature")
+        trial.shell.replies(when="git push origin feature", always=True)
         _worst_gate(trial, bound)
+        _worst_jobs(trial, bound)
         _reviewed(trial)
 
         result = trial.cast(heal_mine, Heal(bound=bound))
 
         assert [one.outcome for one in result.checked] == ["blocked"]
+        job = ["pick_job", "mend_job", *["job_gate"] * (2 * bound + 1), "land_job"]
         assert trial.steps == [
             "muster_mine",
             "survey",
@@ -491,13 +529,22 @@ class TestWholeCast:
             "tend",
             "push_work",
             "tend",
+            "rerun_jobs",
+            *job * len(_JOBS),
+            "pick_job",
+            "tend",
+            "push_work",
+            "tend",
             "quality_review",
             "tend",
             "finish_pr",
             "survey",
             "chart",
         ]
-        share = services().steps.heal_share(Run(project=Project(), bound=bound))
+        project = Project.model_validate(
+            {"ci": {"jobs": {job: {"gate": f"mise run {job}"} for job in _JOBS}}}
+        )
+        share = services().steps.heal_share(Run(project=project, bound=bound))
         assert share is not None
         assert len(trial.steps) == services().steps.opening(1) + share
 
@@ -568,6 +615,43 @@ class TestTaskRituals:
             "sync_branch",
             "tend",
             "quality_review",
+            "tend",
+            "finish_pr",
+            "survey",
+            "chart",
+        ]
+
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_ci_fixes_the_job_and_leaves_the_rest(trial: Trial) -> None:
+        red = {"id": 9, "name": "checks", "conclusion": "failure"}
+        _taken(
+            trial,
+            mergeable="CONFLICTING",
+            checks=json.dumps({"total_count": 1, "check_runs": [red]}),
+        )
+        trial.shell.replies(when=HERE, stdout="feature\n")
+        trial.shell.replies(when="gh run view --job 9 --log-failed", stdout="E501\n")
+        trial.coding.replies("fixed", when="The `checks` CI job is red*")
+        trial.shell.replies(when=commit("fix: make the checks job green"))
+        trial.shell.replies(when="git push origin feature")
+
+        result = trial.cast(ci, Heal())
+
+        assert result.checked == [_WORKED_ROW]
+        assert trial.steps == [
+            "muster_this",
+            "survey",
+            "check_clean",
+            "sync_branch",
+            "tend",
+            "rerun_jobs",
+            "pick_job",
+            "mend_job",
+            "land_job",
+            "pick_job",
+            "tend",
+            "push_work",
             "tend",
             "finish_pr",
             "survey",

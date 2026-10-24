@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.healing import Facts, Run, Surveyed, Unsurveyed
     from cabinet.pacts.issues import Identifying, Issue
     from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import Board, PullRequest
+    from cabinet.pacts.pulls import PullRequest
     from cabinet.pacts.repairs import Attempt, Ruling
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
@@ -33,9 +33,6 @@ class PullsProtocol(Protocol):
 
     # The open pull requests whose head is `branch`.
     def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]: ...
-
-    # True unless the board positively says the coverage is fine.
-    def wants_cover(self, board: Board, project: Project) -> bool: ...
 
 
 class TodosProtocol(Protocol):
@@ -52,6 +49,9 @@ class BacklogProtocol(Protocol):
 class VerdictsProtocol(Protocol):
     # Both streams, trimmed to the budget an agent is worth reading.
     def said(self, ran: Ran) -> str: ...
+
+    # A CI job's log, its end kept to the same budget.
+    def logged(self, log: str) -> str: ...
 
     # The last dozen lines of what the tool said, for a person.
     def verdict(self, ran: Ran) -> str: ...
@@ -77,6 +77,9 @@ class PromptsProtocol(Protocol):
     def fix_gates(self, project: Project, output: str, *, gate: str) -> str: ...
 
     def cover_gap(self, project: Project, report: str, *, partial: bool) -> str: ...
+
+    # `gate` is the command that reproduces the job here, empty where none does.
+    def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> str: ...
 
     def triage_read(self, number: int, threads: list[Thread]) -> str: ...
 

@@ -74,8 +74,18 @@ class CiJob(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # Red here is missing coverage; its summary may name the patch coverage
-    # ("96.84% of diff hit").
+    # ("96.84% of diff hit"). Fixed by the coverage loop, which measures with
+    # `gate` and `fast` where they are set and the project's own coverage
+    # commands where they are not.
     covering: bool = False
+    # Red here may be a flake: run it again once before anything is fixed.
+    rerun: bool = False
+    # The command that reproduces the job here. Empty is a job nothing runs
+    # locally: the agent gets one attempt from the log, and the next CI run is
+    # the check.
+    gate: str = ""
+    # The narrower command re-run between repair rounds; empty is `gate`.
+    fast: str = ""
 
 
 def _jobs() -> dict[str, CiJob]:

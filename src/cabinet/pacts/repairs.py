@@ -22,6 +22,9 @@ class Attempt(BaseModel):
     # The gate the loop owes green before it moves on. Anything else passing
     # is a reason to spend this one, not a reason to move on.
     whole: str
+    # What a repair round re-runs where the runner named no narrower task;
+    # empty is `whole`.
+    fast: str = ""
     spent: int
     bound: int
     # Every verdict this run has already given up on, for the loops that carry

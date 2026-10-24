@@ -4,7 +4,7 @@ from cabinet.mills.report import Report
 from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.threads import Finding, TriageItem
 
 _REPORT = Report()
@@ -240,7 +240,7 @@ class TestSurveyed:
             branch="feature",
             url=_PULL.url,
             todos=["merge", "ci", "answer", "review"],
-            red=["checks", "test"],
+            red=[Check(name="checks"), Check(name="test")],
             threads=3,
         )
 

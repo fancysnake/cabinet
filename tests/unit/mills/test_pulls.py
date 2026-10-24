@@ -1,8 +1,8 @@
-"""Which pull requests are taken, and what the check board buys."""
+"""Which pull requests are taken."""
 
 from cabinet.mills.pulls import Pulls
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Check, PullRequest
+from cabinet.pacts.pulls import PullRequest
 
 _PULLS = Pulls()
 _PROJECT = Project()
@@ -19,18 +19,6 @@ def _pull(
         base="main",
         updated_at=updated_at,
         labels=labels or [],
-    )
-
-
-def _green_board() -> Board:
-    return Board(
-        checks=[
-            Check(name="checks", passed=True),
-            Check(name="test", passed=True),
-            Check(name="test-postgres", passed=True),
-            Check(name="codecov/project", passed=True),
-            Check(name="codecov/patch", passed=True, title="100.00% of diff hit"),
-        ]
     )
 
 
@@ -75,62 +63,3 @@ class TestAt:
             into_main,
             into_release,
         ]
-
-
-class TestWantsCover:
-    @staticmethod
-    def test_a_green_board_with_a_whole_patch_buys_the_skip() -> None:
-        assert not _PULLS.wants_cover(_green_board(), _PROJECT)
-
-    @staticmethod
-    def test_a_patch_with_a_gap_wants_cover_even_when_green() -> None:
-        board = _green_board()
-        board.checks[-1] = Check(
-            name="codecov/patch", passed=True, title="96.84% of diff hit (target 96%)"
-        )
-
-        assert _PULLS.wants_cover(board, _PROJECT)
-
-    @staticmethod
-    def test_a_red_suite_wants_cover() -> None:
-        board = _green_board()
-        board.checks[1] = Check(name="test", passed=False)
-
-        assert _PULLS.wants_cover(board, _PROJECT)
-
-    @staticmethod
-    def test_a_check_still_running_wants_cover() -> None:
-        board = _green_board()
-        board.checks[2] = Check(name="test-postgres")
-
-        assert _PULLS.wants_cover(board, _PROJECT)
-
-    @staticmethod
-    def test_an_empty_board_wants_cover() -> None:
-        assert _PULLS.wants_cover(Board(), _PROJECT)
-
-    @staticmethod
-    def test_a_short_board_wants_cover() -> None:
-        board = _green_board()
-        board.truncated = True
-
-        assert _PULLS.wants_cover(board, _PROJECT)
-
-    @staticmethod
-    def test_a_patch_with_nothing_to_measure_names_no_gap() -> None:
-        board = _green_board()
-        board.checks[-1] = Check(
-            name="codecov/patch", passed=True, title="Coverage not affected"
-        )
-
-        assert not _PULLS.wants_cover(board, _PROJECT)
-
-    @staticmethod
-    def test_the_watched_names_are_the_projects() -> None:
-        project = Project.model_validate(
-            {"ci": {"jobs": {"suite": {}, "patch": {"covering": True}}}}
-        )
-        board = Board(checks=[Check(name="suite", passed=True)])
-
-        assert not _PULLS.wants_cover(board, project)
-        assert _PULLS.wants_cover(_green_board(), project)

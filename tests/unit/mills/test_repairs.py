@@ -46,11 +46,13 @@ def _attempt(
     covering: bool = False,
 ) -> Attempt:
     whole = _PROJECT.coverage if covering else _PROJECT.gate
+    fast = _PROJECT.fast_coverage if covering else ""
     return Attempt(
         project=_PROJECT,
         ran=ran,
         gate=gate or whole,
         whole=whole,
+        fast=fast,
         spent=spent,
         bound=_BOUND,
         seen=seen or [],

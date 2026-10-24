@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from cabinet.pacts.budgets import Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Bound, PullRequest
+from cabinet.pacts.pulls import Board, Bound, Check, PullRequest
 from cabinet.pacts.threads import Thread
 
 _RunT = TypeVar("_RunT", bound="Run")
@@ -20,7 +20,7 @@ Todo = Literal["merge", "ci", "answer", "review", "guide"]
 
 # The todos the graph has steps for, in the same order. A todo outside it is
 # surveyed and reported, and nothing works it.
-Task = Literal["merge", "review"]
+Task = Literal["merge", "ci", "review"]
 TASKS: tuple[Task, ...] = get_args(Task)
 
 
@@ -61,7 +61,7 @@ class Surveyed(BaseModel):
     todos: list[Todo]
     # The configured CI jobs whose checks are red, and the open threads: what
     # `ci` and `answer` would work through.
-    red: list[str]
+    red: list[Check]
     threads: int
 
 
@@ -82,7 +82,7 @@ class Checked(BaseModel):
     branch: str
     url: str
     # Whether the branch's tasks were worked through, or it was given up on.
-    # `worked` says nothing of the gate, which only the merge task runs.
+    # `worked` says nothing of the gate, which only merge and ci run.
     # `skipped` is neither: the branch was never taken.
     outcome: Outcome
     # None when git could not say. Nothing to push and "we could not tell" are
@@ -160,11 +160,12 @@ class Run(Reserving, Hop):
     def worked(self, todos: list[Todo]) -> list[Task]:
         return [task for task in self.tasks if task in todos]
 
-    # `pull` taken with the tasks it will get, and the worst it can spend
-    # spoken for. A fresh `Work` per pull request, so no budget survives the
-    # branch change.
-    def take(self, pull: PullRequest, todos: list[Task], steps: int) -> "Work":
-        return Work(run=self.spoke_for(steps), pr=pull, todos=todos)
+    # `pull` taken with the tasks it will get and the red checks `ci` works
+    # through, and the worst it can spend spoken for. A fresh `Work` per pull
+    # request, so no budget survives the branch change.
+    def take(self, row: Surveyed, pull: PullRequest, steps: int) -> "Work":
+        todos = self.worked(row.todos)
+        return Work(run=self.spoke_for(steps), pr=pull, todos=todos, red=row.red)
 
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])
@@ -172,7 +173,9 @@ class Run(Reserving, Hop):
 
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
-_Update: TypeAlias = dict[str, Run | dict[str, int] | list[Task] | bool | str]
+_Update: TypeAlias = dict[
+    str, Run | dict[str, int] | list[Task] | list[Check] | bool | str
+]
 
 
 # `budgets` dies with this payload, which is what "a branch change clears all
@@ -182,6 +185,8 @@ class Work(Budgeted, Hop):
     pr: PullRequest
     # The tasks still to work on this branch, the next one first.
     todos: list[Task] = Field(default_factory=list)
+    # The red checks `ci` has still to work, the one in hand first.
+    red: list[Check] = Field(default_factory=list)
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by
@@ -241,6 +246,14 @@ class Work(Budgeted, Hop):
     # The merge is closed and committed: there is something to push.
     def merged(self) -> Self:
         return self._copied({"merging": False, "changed": True})
+
+    # The check in hand is done with, and what fixed it is committed.
+    def landed(self) -> Self:
+        return self._copied({"red": self.red[1:], "changed": True})
+
+    # The check in hand is left red, and this says why.
+    def passed_over(self, note: str) -> Self:
+        return self._copied({"red": self.red[1:], "note": joined(self.note, note)})
 
     def pushed(self) -> Self:
         return self._copied({"changed": False})

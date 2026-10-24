@@ -3,6 +3,7 @@
     vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
     vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
     vekna cast merge [--plan-only true] [--bound N] [--attended true]
+    vekna cast ci [--plan-only true] [--bound N] [--attended true]
     vekna cast review [--plan-only true] [--attended true]
 
 ``heal.mine`` takes every open pull request of yours not wearing the wait
@@ -26,6 +27,13 @@ every task ends back at ``tend``:
   resolves the conflicts, and the gate is made green before the merge is
   committed. A branch the gate will not go green on stands down: the worktree
   is released and the rest of its tasks are worked anyway.
+- **ci**, one red check at a time, for the configured jobs: where a job has
+  ``rerun`` and has not been rerun on this head, it runs again, and the task
+  ends there for the next cast to read. Otherwise an agent reads the job's log
+  and fixes it; a job with a ``gate`` then goes round the repair loop against
+  it, ``fast`` between rounds, and one without is committed as the agent left
+  it. A ``covering`` job's gap is measured here and covered with tests. Each
+  job's fix is a commit of its own.
 - **review**: the quality review, as inline comments, then the reviewed label.
   Whatever this cast committed is pushed first, so the comments anchor to code
   the forge has.
@@ -58,6 +66,8 @@ step budget; one that does not ends the cast without failing it, and the report
 names what was not reached.
 """
 
+from typing import TypeVar
+
 from vekna.folio.flow import decide
 from vekna.lexicon import Done, RitualError, emit_delta, step
 
@@ -66,14 +76,20 @@ from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import (
     Chart,
     CheckClean,
+    CloseGap,
     FinishMerge,
     FinishPr,
     GateCheck,
+    JobGate,
+    LandJob,
+    MendJob,
     MergeBase,
     MusterMine,
     MusterThis,
+    PickJob,
     PushWork,
     QualityReview,
+    RerunJobs,
     ResolveConflicts,
     SetAside,
     SkipPr,
@@ -92,12 +108,14 @@ from cabinet.pacts.healing import (
     Work,
     joined,
 )
-from cabinet.pacts.project import Project
+from cabinet.pacts.project import CiJob, Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import Finding, Findings
+
+_WorkT = TypeVar("_WorkT", bound=Work)
 
 # --- the cast --------------------------------------------------------------
 
@@ -157,9 +175,9 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
     row = await _surveyed(run.project, pull)
     emit_delta(services().report.surveyed(row))
     after = run.took(row)
-    if isinstance(row, Unsurveyed) or not (todos := after.worked(row.todos)):
+    if isinstance(row, Unsurveyed) or not after.worked(row.todos):
         return after.to(Survey)
-    return after.take(pull, todos, share).to(CheckClean)
+    return after.take(row, pull, share).to(CheckClean)
 
 
 # One pull request the forge or git would not answer about is a row saying
@@ -239,8 +257,9 @@ async def sync_branch(work: SyncBranch) -> Chart | SkipPr | SetAside | Tend:
 
 # Each task's first step. Keyed by every `Task`, so a task added without a
 # step here fails the test that walks each one through `tend`.
-_FIRST: dict[Task, type[MergeBase | QualityReview]] = {
+_FIRST: dict[Task, type[MergeBase | RerunJobs | QualityReview]] = {
     "merge": MergeBase,
+    "ci": RerunJobs,
     "review": QualityReview,
 }
 
@@ -249,7 +268,7 @@ _FIRST: dict[Task, type[MergeBase | QualityReview]] = {
 # pushed first: every task after the merge works on code the forge has, and a
 # branch is not left with commits only this worktree holds.
 @step
-def tend(work: Tend) -> PushWork | FinishPr | MergeBase | QualityReview:
+def tend(work: Tend) -> PushWork | FinishPr | MergeBase | RerunJobs | QualityReview:
     if work.changed:
         return work.to(PushWork)
     if not work.todos:
@@ -339,51 +358,69 @@ async def _worth_another(work: Work, what: str) -> bool:
     return await decide(f"{what} on {work.pr.branch} (attempt {work.attempts() + 1})?")
 
 
-# Run the gate, and repair it until it is green or the budget is gone.
-@step
-async def gate_check(work: GateCheck) -> GateCheck | FinishMerge | StandDown | Chart:
+# One round of a repair loop, shared by every loop that runs a gate. The
+# branch comes back charged and pointed at what to run next, or green, or
+# given up on. `work.gate` is the task that broke last time round, where the
+# runner named one: an agent working on one linter is judged by that linter,
+# not by the whole chain in front of it.
+async def _repaired(
+    work: _WorkT, *, name: str, whole: str, fast: str = "", covering: bool = False
+) -> Fixed | _WorkT | StandDown | Chart:
     project = work.run.project
-    # The task that broke last time round, where the runner named one: an
-    # agent working on one linter is judged by that linter, not by the whole
-    # chain in front of it.
-    gate = work.gate or project.gate
+    gate = work.gate or whole
     ran = await services().tasks(project).run(gate)
     ruling = services().repairs.ruling(
         Attempt(
             project=project,
             ran=ran,
             gate=gate,
-            whole=project.gate,
-            spent=work.spent(gate_check.name),
+            whole=whole,
+            fast=fast,
+            spent=work.spent(name),
             bound=work.run.bound,
             seen=work.run.seen,
+            covering=covering,
         )
     )
     if isinstance(ruling, Fixed):
-        # A task passing on its own is not the gate passing — it is the reason
-        # to spend the gate. The whole chain runs once more.
-        if not ruling.whole:
-            return work.but(gate="")
-        return work.but(gate="").cleared(gate_check.name).to(FinishMerge)
+        return ruling
     if isinstance(ruling, Stalled):
         return _gave_up(work, ruling.reason, ruling.seen).to(StandDown)
     # The budget had its say; the operator gets the last one, and a verdict
     # nobody will pay for again is remembered either way.
     if not await _worth_another(work, f"repair `{gate}`"):
         return _gave_up(work, ruling.declined, ruling.seen).to(StandDown)
-    fallen = (
+    if fallen := await _asked(work, ruling.asking, key=name):
+        return work.abandoned(fallen.reason).to(Chart)
+    return work.but(gate=ruling.next_gate).charged(name)
+
+
+# A writer, in the session `key` names on this branch: every round of a loop
+# continues the one before it.
+async def _asked(work: Work, prompt: str, *, key: str) -> Fallen | None:
+    return (
         await services()
-        .agent(project)
+        .agent(work.run.project)
         .ask(
-            ruling.asking,
+            prompt,
             role="writer",
-            key=f"gates-{work.pr.number}",
+            key=f"{key}-{work.pr.number}",
             attended=work.run.attended,
         )
     )
-    if fallen:
-        return work.abandoned(fallen.reason).to(Chart)
-    return work.but(gate=ruling.next_gate).charged(gate_check.name)
+
+
+# Run the gate, and repair it until it is green or the budget is gone.
+@step
+async def gate_check(work: GateCheck) -> GateCheck | FinishMerge | StandDown | Chart:
+    went = await _repaired(work, name=gate_check.name, whole=work.run.project.gate)
+    if not isinstance(went, Fixed):
+        return went
+    # A task passing on its own is not the gate passing — it is the reason to
+    # spend the gate. The whole chain runs once more.
+    if not went.whole:
+        return work.but(gate="")
+    return work.but(gate="").cleared(gate_check.name).to(FinishMerge)
 
 
 # Close an open merge and commit whatever the repairs left behind.
@@ -436,6 +473,131 @@ async def push_work(work: PushWork) -> Tend:
     except ScmError as error:
         work = work.but(note=joined(work.note, str(error)))
     return work.pushed().to(Tend)
+
+
+# --- ci --------------------------------------------------------------------
+
+
+# The job the check in hand belongs to. Every red check has one: the survey
+# reads only the checks a job is configured for.
+def _job(work: Work) -> CiJob:
+    return work.run.project.ci.job(work.red[0].name) or CiJob()
+
+
+# Rerun first, wherever the job asks for it. Whatever went again is CI's to
+# answer, so the task ends there: a fix pushed on top would start a run of its
+# own and waste the rerun. The next cast reads the result. A check the forge
+# has already run twice on this head is fixed instead.
+@step
+async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
+    project = work.run.project
+    forge = services().forge(project)
+    went: list[str] = []
+    notes: list[str] = []
+    for check in work.red:
+        job = project.ci.job(check.name)
+        if job is None or not job.rerun:
+            continue
+        try:
+            if await forge.rerun(work.pr.branch, check):
+                went.append(check.name)
+        except ForgeError as error:
+            notes.append(str(error))
+    if went:
+        notes.append(f"reran {', '.join(went)}")
+        return work.but(note=joined(work.note, *notes)).to(Tend)
+    return work.but(note=joined(work.note, *notes)).to(PickJob)
+
+
+# The next red check, handed to the loop that fixes its kind of job.
+@step
+def pick_job(work: PickJob) -> Tend | CloseGap | MendJob:
+    if not work.red:
+        return work.to(Tend)
+    if _job(work).covering:
+        return work.to(CloseGap)
+    return work.to(MendJob)
+
+
+# The agent reads how the job failed on CI and fixes it. A job with a gate
+# then goes round the repair loop against it, in the same session; one without
+# is committed as the agent left it, and the push is what checks it.
+@step
+async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
+    project = work.run.project
+    check = work.red[0]
+    gate = _job(work).gate
+    try:
+        log = await services().forge(project).log(check)
+    except ForgeError as error:
+        # The gate can still find what the log would have said.
+        if gate:
+            return work.but(note=joined(work.note, str(error))).to(JobGate)
+        return work.passed_over(str(error)).to(PickJob)
+    if not await _worth_another(work, f"fix the `{check.name}` job"):
+        return work.passed_over(f"`{check.name}` was left red, as you decided").to(
+            PickJob
+        )
+    prompt = services().prompts.fix_job(
+        project, services().verdicts.logged(log), job=check.name, gate=gate
+    )
+    if fallen := await _asked(work, prompt, key=job_gate.name):
+        return work.abandoned(fallen.reason).to(Chart)
+    return work.to(JobGate) if gate else work.to(LandJob)
+
+
+# The job's gate, repaired until it is green: the merge's loop, run against
+# the job's own commands.
+@step
+async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
+    job = _job(work)
+    went = await _repaired(work, name=job_gate.name, whole=job.gate, fast=job.fast)
+    if not isinstance(went, Fixed):
+        return went
+    if not went.whole:
+        return work.but(gate="")
+    return work.but(gate="").cleared(job_gate.name).to(LandJob)
+
+
+# Close the coverage gap, repairing a red suite like any other gate. The first
+# measurement is the whole one, because it decides whether there is a gap at
+# all; a repair round re-runs the fast one, or the single task that broke.
+@step
+async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
+    project = work.run.project
+    job = _job(work)
+    went = await _repaired(
+        work,
+        name=close_gap.name,
+        whole=job.gate or project.coverage,
+        fast=job.fast or project.fast_coverage,
+        covering=True,
+    )
+    if not isinstance(went, Fixed):
+        return went
+    # Anything but the full measurement is a reason to spend the full
+    # measurement, not a branch that is covered.
+    if not went.whole:
+        return work.but(gate="")
+    return work.but(gate="").cleared(close_gap.name).to(LandJob)
+
+
+# Each job's fix is a commit of its own, and a fix that changed nothing is no
+# commit at all.
+@step
+async def land_job(work: LandJob) -> PickJob | SetAside:
+    name = work.red[0].name
+    message = (
+        "test: cover the lines this branch changes"
+        if _job(work).covering
+        else f"fix: make the {name} job green"
+    )
+    try:
+        await services().scm(work.run.project).commit(message)
+    except ScmError as error:
+        note = joined(work.note, f"could not commit the {name} fix: {error}")
+        return work.but(note=note).to(SetAside)
+    return work.landed().to(PickJob)
 
 
 # --- review ----------------------------------------------------------------

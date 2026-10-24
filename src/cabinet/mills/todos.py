@@ -5,12 +5,23 @@ already posted and `v:guide:done` a guide already posted, and no label ever
 adds work.
 """
 
+import re
+
 from typing_extensions import override
 
 from cabinet.pacts.healing import Facts, Surveyed, Todo
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board
+from cabinet.pacts.pulls import Board, Check
 from cabinet.pacts.services import TodosProtocol
+from cabinet.specs import WHOLE
+
+# The patch check's own summary, which its check carries whether the check
+# went green or not: "96.84% of diff hit (target 96.00%)". That green is the
+# reason to read the number at all — a patch target below 100 passes a branch
+# carrying lines no test touched, and this field is the only place that gap
+# is named. A patch with nothing to measure says "Coverage not affected"
+# instead and matches nothing here, which is the right reading.
+_DIFF_HIT = re.compile(r"([\d.]+)% of diff hit")
 
 
 class Todos(TodosProtocol):
@@ -44,8 +55,19 @@ class Todos(TodosProtocol):
         )
 
 
-# A check still running is not red: the next cast reads what it came to.
-def _red(board: Board, project: Project) -> list[str]:
-    named = (check.name for check in board.watched(project.ci) if check.passed is False)
-    # A value spelled out: with none, or `None`, its values type as `Any`.
-    return list(dict.fromkeys(named, True))
+# A check still running is not red: the next cast reads what it came to. A
+# green patch check naming a gap is, because the coverage is not right yet.
+# One per name, the first the board lists.
+def _red(board: Board, project: Project) -> list[Check]:
+    red: dict[str, Check] = {}
+    for check in board.watched(project.ci):
+        if check.passed is False or _names_a_gap(check, project):
+            red.setdefault(check.name, check)
+    return list(red.values())
+
+
+def _names_a_gap(check: Check, project: Project) -> bool:
+    if not project.ci.covering(check.name) or not check.title:
+        return False
+    found = _DIFF_HIT.search(check.title)
+    return found is not None and float(found.group(1)) < WHOLE
