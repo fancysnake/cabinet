@@ -40,7 +40,8 @@ def _todos(facts: Facts) -> list[Todo]:
 
 
 def _red(board: Board, project: Project) -> list[str]:
-    return _TODOS.surveyed(_facts().model_copy(update={"board": board}), project).red
+    row = _TODOS.surveyed(_facts().model_copy(update={"board": board}), project)
+    return [check.name for check in row.red]
 
 
 class TestTodos:
@@ -140,6 +141,30 @@ class TestRed:
 
         assert _red(board, project) == ["docs"]
 
+    @staticmethod
+    def test_a_green_patch_naming_a_gap_is_red() -> None:
+        patch = Check(name="codecov/patch", passed=True, title="96.84% of diff hit")
+
+        assert _red(Board(checks=[patch]), _PROJECT) == ["codecov/patch"]
+
+    @staticmethod
+    def test_a_whole_patch_is_not_red() -> None:
+        patch = Check(name="codecov/patch", passed=True, title="100.00% of diff hit")
+
+        assert not _red(Board(checks=[patch]), _PROJECT)
+
+    @staticmethod
+    def test_a_patch_with_nothing_to_measure_names_no_gap() -> None:
+        patch = Check(name="codecov/patch", passed=True, title="Coverage not affected")
+
+        assert not _red(Board(checks=[patch]), _PROJECT)
+
+    @staticmethod
+    def test_only_a_covering_job_names_a_gap() -> None:
+        suite = Check(name="test", passed=True, title="96.84% of diff hit")
+
+        assert not _red(Board(checks=[suite]), _PROJECT)
+
 
 class TestSurveyed:
     @staticmethod
@@ -154,6 +179,6 @@ class TestSurveyed:
             branch="feature",
             url="https://example.test/pull/7",
             todos=["ci", "answer"],
-            red=["checks"],
+            red=[Check(name="checks", passed=False)],
             threads=1,
         )

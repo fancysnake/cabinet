@@ -55,6 +55,30 @@ class PushWork(Work):
     pass
 
 
+class RerunJobs(Work):
+    pass
+
+
+class PickJob(Work):
+    pass
+
+
+class MendJob(Work):
+    pass
+
+
+class JobGate(Work):
+    pass
+
+
+class CloseGap(Work):
+    pass
+
+
+class LandJob(Work):
+    pass
+
+
 class QualityReview(Work):
     pass
 

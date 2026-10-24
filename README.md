@@ -16,8 +16,8 @@ Grouped by school, the way a spellbook is.
   goes. `heal.mine` takes every open pull request of yours not wearing the
   wait label, oldest-modified first; `heal.this` takes the one for the branch
   at the cwd. Each pull request is surveyed into its todos (merge, ci, answer,
-  review, guide) and printed on one line; then the merge and review tasks are
-  worked, and what was committed is pushed. `--plan-only true` stops after the
+  review, guide) and printed on one line; then the merge, ci and review tasks
+  are worked, and what was committed is pushed. `--plan-only true` stops after the
   survey and changes nothing.
 
 ### Transmutation
@@ -26,6 +26,13 @@ Grouped by school, the way a spellbook is.
   conflicts with its base, it merges the base in, has an agent resolve the
   conflicts, makes the gate green, and pushes. Like *Mending*: what was split
   is joined.
+
+### Abjuration
+
+- **`ci`**: `heal.this` with the ci task alone. Reruns a flaky job once, or
+  has an agent fix each red job from its log, against the job's own `gate`
+  where it has one, and covers the lines a coverage job names with tests.
+  Like *Lesser Restoration*: one condition ended at a time.
 
 ### Divination
 
@@ -56,6 +63,7 @@ casting one twice is as safe as once.
 vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
 vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
 vekna cast merge [--plan-only true] [--bound N] [--attended true]
+vekna cast ci [--plan-only true] [--bound N] [--attended true]
 vekna cast review [--plan-only true] [--attended true]
 vekna cast identify [--batch N]
 vekna cast labels

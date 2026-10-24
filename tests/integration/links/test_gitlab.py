@@ -286,7 +286,7 @@ class TestBoard:
     @staticmethod
     def test_statuses_become_checks(trial: Trial) -> None:
         answer = [
-            {"name": "test", "status": "success"},
+            {"id": 5, "name": "test", "status": "success"},
             {"name": "checks", "status": "failed"},
             {"name": "lint", "status": "canceled"},
             {"name": "codecov/patch", "status": "running", "description": "96% hit"},
@@ -295,7 +295,7 @@ class TestBoard:
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[
-                Check(name="test", passed=True),
+                Check(name="test", passed=True, id=5),
                 Check(name="checks", passed=False),
                 Check(name="lint", passed=False),
                 Check(name="codecov/patch", title="96% hit"),
@@ -318,6 +318,60 @@ class TestBoard:
 
         with pytest.raises(ForgeError, match="statuses this could not read"):
             drive(trial, lambda: _FORGE.board("feature"))
+
+
+_JOB = Check(name="test 1/2", passed=False, id=42)
+_RUNS = (
+    "glab api 'projects/:id/repository/commits/feature/statuses"
+    "?name=test%201%2F2&all=true&per_page=100'"
+)
+_RETRY = "glab api projects/:id/jobs/42/retry -X POST"
+
+
+def _runs(count: int) -> str:
+    return json.dumps([{"name": "test 1/2", "status": "failed"}] * count)
+
+
+class TestRerun:
+    @staticmethod
+    def test_a_job_run_once_is_retried(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(1))
+        trial.shell.replies(when=_RETRY)
+
+        assert drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+        assert trial.shell.commands == [_RUNS, _RETRY]
+
+    @staticmethod
+    def test_a_job_already_retried_is_left(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(2))
+
+        assert not drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+        assert trial.shell.commands == [_RUNS]
+
+    @staticmethod
+    def test_a_retry_glab_refuses(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(1))
+        trial.shell.replies(when=_RETRY, exit_code=1, stderr="403")
+
+        with pytest.raises(ForgeError, match=r"could not retry test 1/2: 403"):
+            drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+
+
+class TestLog:
+    @staticmethod
+    def test_the_trace_is_read(trial: Trial) -> None:
+        trial.shell.replies(when="glab api projects/:id/jobs/42/trace", stdout="E501")
+
+        assert drive(trial, lambda: _FORGE.log(_JOB)) == "E501"
+
+    @staticmethod
+    def test_a_trace_glab_would_not_give(trial: Trial) -> None:
+        trial.shell.replies(
+            when="glab api projects/:id/jobs/42/trace", exit_code=1, stderr="gone"
+        )
+
+        with pytest.raises(ForgeError, match=r"could not read the log.*gone"):
+            drive(trial, lambda: _FORGE.log(_JOB))
 
 
 class TestComment:

@@ -1,6 +1,7 @@
 """GitHub through `gh`."""
 
 from collections.abc import Sequence
+from urllib.parse import quote
 
 from pydantic import (
     AliasPath,
@@ -36,6 +37,13 @@ _LIST = (
 # the head the branch has now. `filter=latest` is the endpoint's own default,
 # so a re-run's earlier attempt is never the answer.
 _BOARD = "repos/{{owner}}/{{repo}}/commits/{branch}/check-runs?per_page=100"
+
+# Every run of one check on the head, earlier attempts included: the count is
+# the answer, so a page of one carries it.
+_RUNS = (
+    "repos/{{owner}}/{{repo}}/commits/{branch}/check-runs"
+    "?check_name={name}&filter=all&per_page=1"
+)
 
 # GraphQL rather than `pulls/<number>/comments`, because the REST endpoint
 # carries no resolution state: it answers a settled thread and a live one
@@ -120,6 +128,7 @@ class _Pull(BaseModel):
 class _Check(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    id: int = 0
     name: str
     # Null while a run is still going.
     conclusion: str | None = None
@@ -247,7 +256,7 @@ def _pull(found: _Pull) -> PullRequest:
 
 def _check(found: _Check) -> Check:
     passed = None if found.conclusion is None else found.conclusion == _PASSED
-    return Check(name=found.name, passed=passed, title=found.title or "")
+    return Check(name=found.name, passed=passed, title=found.title or "", id=found.id)
 
 
 # Asked once for a whole review rather than once per item: every anchored
@@ -461,6 +470,35 @@ class GithubForge(ForgeProtocol):
         return Board(
             checks=[_check(check) for check in found.check_runs],
             truncated=len(found.check_runs) < found.total_count,
+        )
+
+    # A check run GitHub Actions made shares its id with the job, which is
+    # what `gh run` takes. A check some other app posted has no job, and gh
+    # says so.
+    @override
+    async def rerun(self, branch: str, check: Check) -> bool:
+        path = _RUNS.format(branch=branch, name=quote(check.name, safe=""))
+        answered = await asked(
+            f"gh api {quoted(path)}", f"gh could not count the runs of {check.name}"
+        )
+        try:
+            runs = _Board.model_validate_json(answered)
+        except ValidationError as error:
+            msg = f"gh returned runs this could not read: {error}"
+            raise ForgeError(msg) from error
+        if runs.total_count > 1:
+            return False
+        await asked(
+            f"gh run rerun --job {check.id}", f"gh could not rerun {check.name}"
+        )
+        return True
+
+    # The failed steps only: the rest of a job is setup that went fine.
+    @override
+    async def log(self, check: Check) -> str:
+        return await asked(
+            f"gh run view --job {check.id} --log-failed",
+            f"gh could not read the log of {check.name}",
         )
 
     # One head commit for the whole review, and one pass down the items.

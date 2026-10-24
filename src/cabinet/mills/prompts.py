@@ -280,6 +280,19 @@ class Prompts(PromptsProtocol):
             f"The report:\n\n{report}"
         )
 
+    # Concatenated for the reason `fix_gates` is: a log is full of braces.
+    @override
+    def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> str:
+        judged = (
+            f"The ritual runs `{gate}` after you, which reproduces the job here."
+            if gate
+            else "Nothing reproduces the job here: the next CI run is the check."
+        )
+        return (
+            f"The `{job}` CI job is red on this branch.\n\n{_FIX_GATES}\n"
+            f"{judged}\n\n{_may_not_run(project)}\nThe end of its log:\n\n{log}"
+        )
+
     @override
     def triage_read(self, number: int, threads: list[Thread]) -> str:
         return (

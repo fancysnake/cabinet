@@ -292,7 +292,7 @@ class TestBoard:
         answer = {
             "total_count": 3,
             "check_runs": [
-                {"name": "test", "conclusion": "success"},
+                {"id": 5, "name": "test", "conclusion": "success"},
                 {"name": "checks", "conclusion": "failure", "output": {"title": None}},
                 {
                     "name": "codecov/patch",
@@ -305,7 +305,7 @@ class TestBoard:
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[
-                Check(name="test", passed=True),
+                Check(name="test", passed=True, id=5),
                 Check(name="checks", passed=False),
                 Check(name="codecov/patch", title="96.84% of diff hit"),
             ]
@@ -334,6 +334,66 @@ class TestBoard:
 
         with pytest.raises(ForgeError, match=r"check board.*502"):
             drive(trial, lambda: _FORGE.board("feature"))
+
+
+_JOB = Check(name="test (3.11)", passed=False, id=42)
+_RUNS = (
+    "gh api 'repos/{owner}/{repo}/commits/feature/check-runs"
+    "?check_name=test%20%283.11%29&filter=all&per_page=1'"
+)
+
+
+def _runs(count: int) -> str:
+    return json.dumps({"total_count": count, "check_runs": []})
+
+
+class TestRerun:
+    @staticmethod
+    def test_a_check_run_once_is_run_again(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(1))
+        trial.shell.replies(when="gh run rerun --job 42")
+
+        assert drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+        assert trial.shell.commands == [_RUNS, "gh run rerun --job 42"]
+
+    @staticmethod
+    def test_a_check_already_rerun_is_left(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(2))
+
+        assert not drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+        assert trial.shell.commands == [_RUNS]
+
+    @staticmethod
+    def test_runs_that_will_not_parse(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout='{"total_count": "many"}')
+
+        with pytest.raises(ForgeError, match="runs this could not read"):
+            drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+
+    @staticmethod
+    def test_a_rerun_gh_refuses(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(1))
+        trial.shell.replies(when="gh run rerun --job 42", exit_code=1, stderr="404")
+
+        with pytest.raises(ForgeError, match=r"could not rerun test \(3.11\): 404"):
+            drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+
+
+class TestLog:
+    @staticmethod
+    def test_the_failed_steps_are_read(trial: Trial) -> None:
+        trial.shell.replies(when="gh run view --job 42 --log-failed", stdout="E501\n")
+
+        assert drive(trial, lambda: _FORGE.log(_JOB)) == "E501\n"
+
+    @staticmethod
+    def test_a_log_gh_would_not_give(trial: Trial) -> None:
+        trial.shell.replies(
+            when="gh run view --job 42 --log-failed", exit_code=1, stderr="expired"
+        )
+
+        with pytest.raises(ForgeError, match=r"could not read the log.*expired"):
+            drive(trial, lambda: _FORGE.log(_JOB))
 
 
 class TestComment:

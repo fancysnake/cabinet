@@ -39,6 +39,9 @@ class Check(BaseModel):
     name: str
     passed: bool | None = None
     title: str = ""
+    # The forge's id for the run, which a rerun and a log are asked by: the
+    # job, for a check CI ran itself.
+    id: int = 0
 
 
 class Board(BaseModel):

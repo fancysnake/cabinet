@@ -80,8 +80,5 @@ class Repairs(RepairsProtocol):
     # is a test, and the fast suite is the one that runs it.
     def _next_gate(self, attempt: Attempt, *, missing: bool) -> str:
         if missing:
-            return attempt.project.fast_coverage
-        narrowed = self._verdicts.narrowed(attempt.ran)
-        if attempt.covering:
-            return narrowed or attempt.project.fast_coverage
-        return narrowed
+            return attempt.fast
+        return self._verdicts.narrowed(attempt.ran) or attempt.fast

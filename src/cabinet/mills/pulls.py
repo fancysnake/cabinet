@@ -1,21 +1,10 @@
-"""Which pull requests a cast takes, and what the check board says."""
-
-import re
+"""Which pull requests a cast takes."""
 
 from typing_extensions import override
 
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Check, PullRequest
+from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import PullsProtocol
-from cabinet.specs import WHOLE
-
-# The patch check's own summary, which its check carries whether the check
-# went green or not: "96.84% of diff hit (target 96.00%)". That green is the
-# reason to read the number at all — a patch target below 100 passes a branch
-# carrying lines no test touched, and this field is the only place that gap
-# is named. A patch with nothing to measure says "Coverage not affected"
-# instead and matches nothing here, which is the right reading.
-_DIFF_HIT = re.compile(r"([\d.]+)% of diff hit")
 
 
 # A sort key, spelled out: `attrgetter` is `attrgetter[Any]` and a lambda's
@@ -39,20 +28,3 @@ class Pulls(PullsProtocol):
     @override
     def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]:
         return [pull for pull in pulls if pull.branch == branch]
-
-    # True unless the board positively says otherwise: a short board, a branch
-    # CI has not reported on yet — all of them mean nobody has said the
-    # coverage is fine, and the slow pass is the thing that finds out.
-    @override
-    def wants_cover(self, board: Board, project: Project) -> bool:
-        watched = board.watched(project.ci)
-        if board.truncated or any(_names_a_gap(check, project) for check in watched):
-            return True
-        return not watched or any(check.passed is not True for check in watched)
-
-
-def _names_a_gap(check: Check, project: Project) -> bool:
-    if not project.ci.covering(check.name) or not check.title:
-        return False
-    found = _DIFF_HIT.search(check.title)
-    return found is not None and float(found.group(1)) < WHOLE

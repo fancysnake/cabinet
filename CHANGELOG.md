@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning].
   branch and post the quality review, push what they committed, and report
   each branch. `--plan-only true` still only surveys. Both take `--bound` and
   `--attended`.
+- `ci`: the red CI jobs in `[cabinet.ci.jobs]`, rerun once where `rerun` is
+  set, otherwise fixed from the job's log against its `gate` or covered with
+  tests where it is `covering`, one commit per job. `heal.mine` and
+  `heal.this` work it after the merge.
+- `[cabinet.ci.jobs.<prefix>]` takes `rerun`, `gate` and `fast`.
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.
 - `labels.heal` makes the reviewed, wait and qa labels.
@@ -26,9 +31,9 @@ and this project adheres to [Semantic Versioning].
 
 ### Removed
 
-- **Breaking:** `refresh` and `cover`; `heal.mine` replaces `refresh`. Fixing
-  coverage returns with the `ci` task, answering threads with the `answer`
-  task.
+- **Breaking:** `refresh` and `cover`; `heal.mine` replaces `refresh`, and
+  the `ci` task's `covering` jobs replace `cover`. Answering threads returns
+  with the `answer` task.
 - **Breaking:** `labels.pr`, replaced by `labels.heal`.
 - **Breaking:** the `started`/`done` checkpoint labels and
   `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.

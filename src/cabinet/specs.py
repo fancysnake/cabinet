@@ -19,6 +19,7 @@ WHOLE = 100.0
 # The engine's step budget for one heal cast. Running out of it raises past
 # `chart` and loses the report, so `survey` takes a branch only where the worst
 # it can spend still fits. Big enough that the most GitHub lists, a hundred
-# branches, each fits at the default bound of three: twenty-two steps a branch
-# at worst, and a hundred and three around them.
-HEAL_STEPS = 100 * 22 + 103
+# branches, each fits at the default bound of three and the three default CI
+# jobs: fifty-seven steps a branch at worst, and a hundred and three around
+# them.
+HEAL_STEPS = 100 * 57 + 103
