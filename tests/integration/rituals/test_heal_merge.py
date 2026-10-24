@@ -82,8 +82,9 @@ class TestGateCheck:
         trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
         trial.coding.replies("fixed")
 
-        trial.walk(gate_check, work.to(GateCheck))
-
+        assert trial.walk(gate_check, work.to(GateCheck)) == work.charged(
+            gate_check.name
+        ).to(GateCheck)
         assert not trial.decide.prompts
         assert "permission_mode='dontAsk'" in str(trial.coding.calls[0].focus_options)
 
@@ -192,8 +193,9 @@ class TestGateCheck:
         trial.shell.replies(when=_GATE, exit_code=1, stdout=f"{passed}\n1 failed")
         trial.coding.replies("fixed")
 
-        trial.walk(gate_check, work.to(GateCheck))
-
+        assert trial.walk(gate_check, work.to(GateCheck)) == work.charged(
+            gate_check.name
+        ).to(GateCheck)
         prompt = trial.coding.prompts[0]
         assert "1 failed" in prompt
         assert "tests/test_0.py PASSED" not in prompt
