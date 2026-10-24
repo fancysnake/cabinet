@@ -625,17 +625,18 @@ files = [
 
 [[package]]
 name = "claude-agent-sdk"
-version = "0.2.163"
+version = "0.2.168"
 description = "Python SDK for Claude Code"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "claude_agent_sdk-0.2.163-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b025dcc3f9c52779bcd9e9c088b1a587d96afbffb8355b5d3053850796735ede"},
-    {file = "claude_agent_sdk-0.2.163-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:e10d48657f01cc53801cdd8ec3d0a6c8c680b82da083da42493f82feb99d04e6"},
-    {file = "claude_agent_sdk-0.2.163-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:e3be00eeb9fc156a3308a2e8fb58390768fdcb2ff16683fac385b4d98e99233c"},
-    {file = "claude_agent_sdk-0.2.163-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:260cb955d237b7e1897f1dbf9ee5efbf815d8622d0c7459a05409c56432d8501"},
-    {file = "claude_agent_sdk-0.2.163.tar.gz", hash = "sha256:269821ad5acff5967522ff15f444b0598840fd9bdc45c645de569a5478061a53"},
+    {file = "claude_agent_sdk-0.2.168-py3-none-macosx_11_0_arm64.whl", hash = "sha256:2ef1e7fc442c5abdc1e698027bf1b5faa8ea2130134a14364e2ae3c53bf31fdd"},
+    {file = "claude_agent_sdk-0.2.168-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:653fc7bbe56630e6ddd9601a7cfe50586667e74102da3fb90571456c63655a62"},
+    {file = "claude_agent_sdk-0.2.168-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:77ae66b10edfd07b6ea3dec2af106ad47a9d616f8eb52d4f9b385e1b00bb2a27"},
+    {file = "claude_agent_sdk-0.2.168-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:be197be92549909ec62a2cee04c27f4b0a38c80f723735538a3efc352507f81d"},
+    {file = "claude_agent_sdk-0.2.168-py3-none-win_amd64.whl", hash = "sha256:ed1814b0dd1c113bdaf3e51e6a67aa5b96b8f5c5839a43aeb6ae1e6ed23a5b35"},
+    {file = "claude_agent_sdk-0.2.168.tar.gz", hash = "sha256:80388054a09c137d76fc29caa6e46bc90d2ae2ef09fac5ee1c38fc36d2762fda"},
 ]
 
 [package.dependencies]
