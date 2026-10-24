@@ -85,7 +85,7 @@ commit. On `identify` it is how many issues go on one page, default 7.
 ## Install
 
 cabinet is not on PyPI; it is installed straight from this repository, and
-runs on Python 3.11 through 3.14. In the repository that wants the rituals:
+runs on Python 3.11 through 3.15. In the repository that wants the rituals:
 
 ```bash
 poetry add --group dev git+https://github.com/fancysnake/cabinet.git

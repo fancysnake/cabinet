@@ -53,7 +53,7 @@ graph. A new sweep step is added to both.
 
 ## Development
 
-Python 3.11 through 3.14 via mise; `mise tasks` lists everything.
+Python 3.11 through 3.15 via mise; `mise tasks` lists everything.
 
 --8<-- "README.md:development"
 

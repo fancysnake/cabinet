@@ -1,7 +1,9 @@
 """Taking every reviewed branch in turn, answering it item by item, shipping it."""
 
 import pytest
-from vekna.lexicon import Done, RitualError, Transition
+from pydantic import BaseModel
+from vekna.lexicon import Done, RitualError
+from vekna.lexicon._pacts import Step
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.review import (
@@ -100,7 +102,8 @@ def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
 # its reason into the picking and routes to `recap`, which says the report and
 # fails the cast there. What each of those steps owes is the reason, so that is
 # what comes back.
-def _gave_up(transition: Transition) -> str:
+def _gave_up(trial: Trial, step: Step, payload: BaseModel) -> str:
+    transition = trial.walk(step, payload)
     assert isinstance(transition, Recap)
     return transition.stopped
 
@@ -152,9 +155,9 @@ class TestQueueUp:
 
         transition = trial.walk(queue_up, Picking(project=project, bound=2).to(QueueUp))
 
-        assert "could not list" in _gave_up(transition)
-        # No branch was taken, so there is no row to write — only the report.
         assert isinstance(transition, Recap)
+        assert "could not list" in transition.stopped
+        # No branch was taken, so there is no row to write — only the report.
         assert not transition.reviewed
 
 
@@ -238,11 +241,9 @@ class TestPick:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.shell.replies(when=STATUS, exit_code=128, stderr="not a repo")
 
-        transition = trial.walk(
-            pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
+        assert "git status failed" in _gave_up(
+            trial, pick, Picking(project=project, bound=2, queue=[pull]).to(Pick)
         )
-
-        assert "git status failed" in _gave_up(transition)
 
 
 class TestLook:
@@ -279,9 +280,7 @@ class TestLook:
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when=THREADS, exit_code=1, stderr="502")
 
-        assert "could not read the threads" in _gave_up(
-            trial.walk(look, branch.to(Look))
-        )
+        assert "could not read the threads" in _gave_up(trial, look, branch.to(Look))
 
     # An earlier cast replied and then the forge failed to settle the thread.
     @staticmethod
@@ -382,7 +381,7 @@ class TestLook:
         trial.shell.replies(when=_ISSUES, stdout="[]")
 
         assert "would not list every open issue" in _gave_up(
-            trial.walk(look, branch.to(Look))
+            trial, look, branch.to(Look)
         )
         assert not any("id=PRRT_1" in command for command in trial.shell.commands)
 
@@ -441,9 +440,7 @@ class TestRead:
     ) -> None:
         trial.shell.replies(when=THREADS, exit_code=1, stderr="502")
 
-        assert "could not read the threads" in _gave_up(
-            trial.walk(read, branch.to(Read))
-        )
+        assert "could not read the threads" in _gave_up(trial, read, branch.to(Read))
 
     @staticmethod
     def test_a_reading_that_found_nothing_is_said(trial: Trial, branch: Branch) -> None:
@@ -498,9 +495,7 @@ class TestRead:
         trial.shell.replies(when=THREADS, stdout=_threads(_node("PRRT_1")))
         trial.coding.replies("no idea, sorry")
 
-        assert "did not answer in the shape" in _gave_up(
-            trial.walk(read, branch.to(Read))
-        )
+        assert "did not answer in the shape" in _gave_up(trial, read, branch.to(Read))
 
 
 class TestPlan:
@@ -565,7 +560,7 @@ class TestWork:
         trial.shell.replies(when="gh pr edit 7*")
         instructed = Instructed(branch=branch, prompt="x", threads=[])
 
-        assert "stopped mid-flight" in _gave_up(trial.walk(work, instructed))
+        assert "stopped mid-flight" in _gave_up(trial, work, instructed)
 
 
 class TestAnswer:
@@ -665,7 +660,7 @@ class TestAnswer:
             threads=["PRRT_1"],
         )
 
-        assert "could not reply" in _gave_up(trial.walk(answer, answering))
+        assert "could not reply" in _gave_up(trial, answer, answering)
 
 
 class TestGates:
@@ -705,9 +700,7 @@ class TestGates:
         falling()
         trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
 
-        transition = trial.walk(gates, Landing(branch=branch))
-
-        assert "stopped mid-flight" in _gave_up(transition)
+        assert "stopped mid-flight" in _gave_up(trial, gates, Landing(branch=branch))
 
     @staticmethod
     def test_a_spent_bound_ends_the_cast_with_the_work_in_place(
@@ -741,9 +734,7 @@ class TestLand:
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature", exit_code=1, stderr="no")
 
-        assert "could not push feature: no" in _gave_up(
-            trial.walk(land, branch.to(Land))
-        )
+        assert "could not push feature: no" in _gave_up(trial, land, branch.to(Land))
 
 
 class TestSettle:

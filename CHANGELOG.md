@@ -7,35 +7,36 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-24
+
 ### Added
 
-- `modern-python` plugin: a skill that writes Python with the newest idioms
-  the project's minimum Python version allows, from 3.11 to 3.15, and avoids
-  APIs removed at that version.
+- `modern-python` plugin: writes Python with the newest idioms the project's
+  minimum Python version allows, 3.11 to 3.15, and avoids the APIs it removed.
 - `heal.mine` and `heal.this`, cast with `--plan-only true`, print what each
-  pull request needs next: merge, ci, answer, review or guide. They change
-  nothing.
-- `[cabinet.labels] qa`, default `v:guide:done`: a pull request wearing it
+  pull request needs next and change nothing: merge, ci, answer, review or
+  guide.
+- `[cabinet.labels] qa`, default `v:guide:done`, marks a pull request that
   needs no guide.
 
 ### Changed
 
-- `issues` skill: an issue body is a STAGE (Status, Target, Assets,
-  Guards, Ellipsis) when it ships on its own, or a Slice (a STAGE cut
-  down to its Target) for a part that does not, never a plan, so
-  you or an agent can start one from it.
 - **Breaking:** `[cabinet.ci]` lists jobs as `[cabinet.ci.jobs.<prefix>]`
   tables with an optional `covering` key, replacing `gate_checks`,
   `cover_checks` and `patch_check`. `refresh` reads the jobs that are not
   `covering`; `cover` reads every job, and the patch coverage off the
   `covering` ones.
+- cabinet runs on Python 3.11 to 3.15 and requires vekna 0.14.
+- `issues` skill: an issue body is a STAGE (Status, Target, Assets, Guards,
+  Ellipsis) when it ships on its own, or a Slice (a STAGE cut down to its
+  Target) when it does not, never a plan.
 
 ### Removed
 
-- The `spike` issue type. An investigation is typed by what it explores:
-  `feature`, `edit`, `chore` or `bug`. `labels.identify` no longer makes the
-  `spike` label and leaves an existing one in place; `identify` takes an issue
-  wearing only `spike` as untyped and types it again.
+- **Breaking:** the `spike` issue type; type an investigation by what it
+  explores: `feature`, `edit`, `chore` or `bug`. `labels.identify` leaves an
+  existing `spike` label in place and creates none; `identify` types an issue
+  wearing only `spike` again.
 
 ### Fixed
 
@@ -214,7 +215,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v3.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/fancysnake/cabinet/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/fancysnake/cabinet/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/fancysnake/cabinet/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/fancysnake/cabinet/compare/v1.0.0...v1.0.1

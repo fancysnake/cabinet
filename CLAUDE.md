@@ -18,7 +18,7 @@ a broken internal link fails both `site:build` and `site:dev`.
 
 ## Commands
 
-Python 3.11 - 3.14 via mise; never call python tools directly, always `mise run`.
+Python 3.11 - 3.15 via mise; never call python tools directly, always `mise run`.
 The local interpreter, mypy and pylint are pinned to the 3.11 floor on
 purpose — that is where a syntax or stdlib break shows first — and CI's test
 matrix covers the rest of the range.
