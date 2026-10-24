@@ -34,15 +34,7 @@ Each is filed under a school of magic, the way a spellbook is.
 
 ## The skills
 
-- **`issues`** — how issues are written, typed, sized and linked: files or
-  updates an issue checked against the code and the open issues first, and is
-  the knowledge `identify` hands its agent.
-- **`release-bump`** — cuts a release: the version by semver from what
-  changed since the last tag, the changelog compacted, the docs and skills
-  brought in line. Commits and tags nothing unless asked.
-- **`mkdocs-site`** — sets a repository's manual up on MkDocs Material, or
-  brings one that drifted back to the standard: the config, the palette, the
-  pages, the dependency, the tasks and the Pages workflow.
+--8<-- "README.md:plugins"
 
 [Plugins](plugins.md) has what each does, step by step.
 

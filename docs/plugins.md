@@ -5,13 +5,7 @@ plugins live under `plugins/`, one skill each, and carry no Python: they are
 the chores around a repository that are not worth a ritual, done by the agent
 you already have open.
 
-| plugin         | skill          | what it does                                                 |
-| -------------- | -------------- | ------------------------------------------------------------ |
-| `issues`       | `issues`       | how issues are written, typed, sized and linked; what `identify` follows |
-| `release-bump` | `release-bump` | cuts a release: the version, the changelog, the docs         |
-| `mkdocs-site`  | `mkdocs-site`  | sets up a MkDocs site, or upgrades one to the standard       |
-| `smoke-test`   | `smoke-test`   | writes the fifteen-minute manual check for a web or CLI change |
-| `modern-python` | `modern-python` | writes Python with the newest idioms the project's floor version allows |
+--8<-- "README.md:plugins"
 
 --8<-- "README.md:plugins-install"
 

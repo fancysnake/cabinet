@@ -9,7 +9,9 @@ maintenance rituals (`heal.mine`, `heal.this`, `merge`, `review`,
 `identify`, `labels`, `labels.heal`, `labels.identify`) packaged under `src/cabinet` and cast from other
 repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
 marketplace (`.claude-plugin/marketplace.json`) whose
-plugins live under `plugins/<name>/` as skills only, no Python. `docs/` is the
+plugins live under `plugins/<name>/` as skills only, no Python. A new plugin
+is an entry there plus a row in README's `plugins` snippet, which `docs/`
+includes. `docs/` is the
 manual, built by mkdocs-material into <https://cabinet.fancysnake.dev> by
 `.github/workflows/site.yml` on every push to `main`; README.md is the front
 door and points there. Keep both in step with code and config changes: a new

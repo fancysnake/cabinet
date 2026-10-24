@@ -123,13 +123,15 @@ page says why the sandbox is the only boundary.
 The repository is also a Claude Code plugin marketplace, named `cabinet`.
 Its plugins live under `plugins/`, each with its own manifest and skills.
 
-| plugin         | what it adds                                 |
-| -------------- | -------------------------------------------- |
-| `issues`       | a skill for writing, typing, sizing and linking issues |
-| `release-bump` | a skill that cuts a release                  |
-| `mkdocs-site`  | a skill that sets up or upgrades a MkDocs site |
-| `smoke-test`   | a skill that writes the fifteen-minute manual check for a web or CLI change |
-| `modern-python` | a skill that writes Python for the project's minimum version |
+<!-- --8<-- [start:plugins] -->
+| plugin          | what it does                                                            |
+| --------------- | ----------------------------------------------------------------------- |
+| `issues`        | writes, types, sizes and links issues; what `identify` follows          |
+| `release-bump`  | cuts a release: the version, the changelog, the docs                    |
+| `mkdocs-site`   | sets up a MkDocs site, or upgrades one to the standard                  |
+| `smoke-test`    | writes the fifteen-minute manual check for a web or CLI change          |
+| `modern-python` | writes Python with the newest idioms the project's floor version allows |
+<!-- --8<-- [end:plugins] -->
 
 <!-- --8<-- [start:plugins-install] -->
 Add the marketplace once, then install what you want:
