@@ -10,12 +10,7 @@ from cabinet.rituals.labels import labels
 _NAMES = [
     "pr::thermo",
     "pr::wait",
-    "v:refresh:started",
-    "v:refresh:done",
-    "v:cover:started",
-    "v:cover:done",
-    "v:review:started",
-    "v:review:done",
+    "v:guide:done",
     "feature",
     "edit",
     "chore",

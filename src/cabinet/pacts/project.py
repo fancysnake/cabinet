@@ -5,14 +5,13 @@ at the boundary so a misspelled key dies before a branch is checked out. The
 values are strings: a task name is only tested by running it.
 """
 
-from typing import Annotated, Literal, get_args
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from vekna.lexicon import RitualError
 
 Forge = Literal["github", "gitlab"]
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
-State = Literal["started", "done"]
 
 
 class ConfigError(RitualError):
@@ -27,13 +26,9 @@ class LabelSpec(BaseModel):
     description: str
 
 
-# The rituals that mark checkpoints: the type a marking call takes, and the
-# set whose labels `labels.pr` conjures. Spelled once, so a ritual that marks
-# cannot be one the forge has no labels for.
-Marked = Literal["refresh", "cover", "review"]
-_MARKED: tuple[Marked, ...] = get_args(Marked)
-
-
+# A label exists only to stop a ritual repeating something it put on the pull
+# request. A fact that goes away once it is fixed (a conflict, a red check)
+# needs none.
 class Labels(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -46,23 +41,10 @@ class Labels(BaseModel):
     wait: str = "pr::wait"
     # The guide was posted; remove to ask for it again.
     qa: str = "v:guide:done"
-    # The prefix a ritual's checkpoints wear: `v:refresh:started`.
-    marker: str = "v"
 
-    def checkpoint(self, ritual: Marked, state: State) -> str:
-        return f"{self.marker}:{ritual}:{state}"
-
-    # A ritual's checkpoint is one claim at a time: `started` means the ritual
-    # may have changed this branch and has not finished, `done` that it ended
-    # clean. What goes on and what comes off, in that order, so a pull request
-    # never wears both halves of a pair.
-    def pair(self, ritual: Marked, state: State) -> tuple[str, str]:
-        other: State = "started" if state == "done" else "done"
-        return (self.checkpoint(ritual, state), self.checkpoint(ritual, other))
-
-    # Every label the rituals read or write, with what it means, for the forge.
+    # Every label `heal` reads or puts on, with what it means, for the forge.
     def conjured(self) -> list[LabelSpec]:
-        named = [
+        return [
             LabelSpec(
                 name=self.reviewed,
                 color="0e8a16",
@@ -73,21 +55,12 @@ class Labels(BaseModel):
                 color="d93f0b",
                 description="Hands off: the rituals leave this one alone",
             ),
+            LabelSpec(
+                name=self.qa,
+                color="c5def5",
+                description="The smoke-test guide was posted; remove to ask again",
+            ),
         ]
-        for ritual in _MARKED:
-            named += [
-                LabelSpec(
-                    name=self.checkpoint(ritual, "started"),
-                    color="fbca04",
-                    description=f"{ritual} began on this branch and has not finished",
-                ),
-                LabelSpec(
-                    name=self.checkpoint(ritual, "done"),
-                    color="c5def5",
-                    description=f"{ritual} ended clean on this branch",
-                ),
-            ]
-        return named
 
 
 # What a label ritual leaves behind: every label it made or refreshed.

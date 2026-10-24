@@ -2,13 +2,11 @@
 
 import tomllib
 from pathlib import Path
-from typing import get_args
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from cabinet.pacts.project import Ci, CiJob, Labels, Marked, Project
-from cabinet.pacts.pulls import Mode
+from cabinet.pacts.project import Ci, CiJob, Labels, Project
 
 # A hex triplet without the hash, the way GitHub takes it.
 _HEX = 6
@@ -39,47 +37,32 @@ class TestDocumented:
         assert _Documented.model_validate(tomllib.loads(_shown())).cabinet == Project()
 
 
-# `Mode` says it is a narrowing of `Marked` and no type can hold it to that:
-# a pass is also the name of the checkpoint it marks, so a pass whose name is
-# not in `Marked` would mark a label `labels.pr` never made.
-class TestMarked:
-    @staticmethod
-    def test_every_pass_is_a_ritual_that_marks() -> None:
-        assert set(get_args(Mode)) <= set(get_args(Marked))
-
-
 class TestConjured:
     @staticmethod
-    def test_every_label_the_rituals_touch_with_the_defaults() -> None:
+    def test_every_label_heal_touches_with_the_defaults() -> None:
         assert [spec.name for spec in Labels().conjured()] == [
             "pr::thermo",
             "pr::wait",
-            "v:refresh:started",
-            "v:refresh:done",
-            "v:cover:started",
-            "v:cover:done",
-            "v:review:started",
-            "v:review:done",
+            "v:guide:done",
         ]
 
     @staticmethod
     def test_the_names_follow_the_config() -> None:
-        labels = Labels(reviewed="cabinet::reviewed", wait="hold", marker="c")
+        labels = Labels(reviewed="cabinet::reviewed", wait="hold", qa="qa")
 
-        names = [spec.name for spec in labels.conjured()]
-
-        assert names[:2] == ["cabinet::reviewed", "hold"]
-        assert names[2] == "c:refresh:started"
+        assert [spec.name for spec in labels.conjured()] == [
+            "cabinet::reviewed",
+            "hold",
+            "qa",
+        ]
 
     @staticmethod
     def test_each_label_says_what_it_means() -> None:
-        reviewed, wait, started, *_ = Labels().conjured()
+        reviewed, wait, qa = Labels().conjured()
 
         assert "remove to ask again" in reviewed.description
         assert "Hands off" in wait.description
-        assert (
-            started.description == "refresh began on this branch and has not finished"
-        )
+        assert "guide was posted" in qa.description
         assert all(len(spec.color) == _HEX for spec in Labels().conjured())
 
 

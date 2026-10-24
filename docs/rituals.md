@@ -1,10 +1,10 @@
 # Rituals
 
-Nine rituals, one facade each under `cabinet.rituals`, each named for a D&D
-spell. Two of them sweep every open pull request of yours; two survey what
-your pull requests need next; one works a single branch with you at the
-terminal; one identifies your open issues; three
-prepare the ground by making the labels the others wear.
+Nine rituals, one facade each under `cabinet.rituals`. Four work your pull
+requests through one graph: `heal.mine` sweeps every open pull request of
+yours, `heal.this` takes your branch's, and `merge` and `review` each run a
+single task on your branch. One identifies your open issues, and three make
+the labels the others read and put on.
 
 --8<-- "README.md:cast"
 
@@ -27,10 +27,8 @@ a branch conflicts, git does, in memory, against the remote's refs.
 
 `heal.mine` takes every open pull request of yours not wearing the wait label,
 oldest-modified first. `heal.this` takes the pull request for the branch at
-the cwd, and fails when there is none.
-
-Only `--plan-only true` casts so far. It prints one line per pull request and
-writes nothing:
+the cwd, and reports that there is none when there is none. Each prints one
+line per pull request as it reads it:
 
 ```text
 #7 feature: merge, ci (checks), answer (3 threads), review
@@ -38,97 +36,51 @@ writes nothing:
 ```
 
 A pull request the forge would not answer about gets a line saying why, and
-the cast goes on.
+the cast goes on. With `--plan-only true` that is all: nothing is checked out,
+committed or labelled.
 
-## refresh
+Otherwise each branch with a task the cast works is taken: the worktree must
+be clean, the base is brought up to date, and the branch is checked out and
+fast-forwarded to the remote. The tasks then run in order, and each one hands
+the branch back for the next:
 
-*Transmutation.* The night's fast pass. Every open pull request of yours
-that is not wearing the wait label is taken in turn, oldest-modified first:
+- **merge**: the base merged in, conflicts resolved, the gate made green. See
+  [merge](#merge).
+- **review**: the quality review posted. See [review](#review).
 
-1. Fetch and merge the base branch in. A conflict goes to an agent, which
-   stages what it resolved; the ritual makes the commit.
-2. Run the gate: lint, types, the fast suites, with no coverage measurement
-   anywhere in it. Red means a repair attempt: the agent gets the task's
-   output and edits, the ritual re-runs the task that broke, up to `--bound`
-   times, and the whole gate once more when it comes back green. A branch the
-   merge brought nothing to, and whose gate jobs CI is happy with, skips the
-   gate: the server has run it over that tree already.
-3. Push.
-4. Post the quality review, one inline comment per action item anchored to
-   the code it is about, unless the branch already wears the reviewed label.
-   The label goes on once the review is posted; take it off after changing
-   the branch meaningfully and the next run reviews it again.
+`ci`, `answer` and `guide` are surveyed and reported; their tasks are still
+to come. Whatever the cast committed is pushed before the review, so the
+comments anchor to code the forge has, and before the branch is left. Nothing
+waits for CI after a push.
 
-A branch the gate would not go green on stands down rather than stopping: the
-worktree is released and the branch is reviewed on its last good commit, then
-reported blocked. Like *Purify Food and Drink*: what was there is still there,
-only fit to use.
+A cast takes the next branch only while the worst that branch can spend still
+fits its step budget. One that does not fit ends the cast without failing it,
+and the report names the branches left for the next cast. The budget fits a
+hundred branches at the default `--bound`.
 
-A run takes the next branch only while the worst that branch can spend still
-fits its step budget. One that does not fit ends the run without failing it,
-and the report names the branches left for the next run. The budget fits a
-hundred branches at the default `--bound`. `cover` keeps the same budget.
+## merge
 
-## cover
+*Transmutation.* `heal.this` with the merge task alone, the way *Mending*
+joins what was split. Only a conflict makes a merge todo:
 
-*Abjuration.* The night's slow pass, and it asks before it spends. It takes
-a branch the same way `refresh` does, then reads what CI made of it: the check
-board, including the patch coverage the coverage service's own check
-carries. Where coverage or the suite is unhappy:
+1. Merge the base in. A conflict goes to an agent, which stages what it
+   resolved; the ritual makes the commit.
+2. Run the gate. Red means a repair attempt: the agent gets the task's output
+   and edits, the ritual re-runs the task that broke, up to `--bound` times,
+   and the whole gate once more when it comes back green.
+3. Commit the merge and the repairs, and push.
 
-1. Run the project's `coverage` task.
-2. Hand the agent what the branch left uncovered; it writes the tests, or
-   repairs the suite where it is the suite that is broken.
-3. Re-measure with `fast_coverage` between rounds, up to `--bound` times. The
-   full measurement runs once more at the end, and that is the one that
-   counts.
-4. Push.
-
-It posts no review: `refresh` runs first and that is where the review comes
-from. Building the defences up.
+A branch the gate will not go green on stands down: the worktree is released,
+the rest of its tasks are worked anyway, and the report calls it blocked.
 
 ## review
 
-*Divination.* The morning after, and the opposite of the sweeps: nothing is
-done without you saying so, and it is what commits the result.
-
-A branch is a candidate when its pull request is open, yours, wearing the
-reviewed label, not wearing the wait label, and carrying a review thread
-nobody has settled. They are offered one after another, longest-waiting first,
-except that the branch you are standing on goes first. Saying no to one moves
-on to the next. For each branch you take:
-
-1. The ritual fetches the open threads, `--batch` at a time, and an agent
-   reads them against the code as it stands: one item per thread, with a
-   priority and what it would do about it.
-2. You answer the items one at a time, in your own words; saying nothing
-   takes the reading's own proposal.
-3. One agent fixes what you said to fix and writes a reply for every item.
-   The ritual, the only thing that can reach the forge, opens the issues you
-   said to file, posts the replies, and settles the threads.
-4. Another round fetches what the forge still holds open, until nothing is
-   or the branch has had one round per batch it held when it was taken. A
-   thread that appears meanwhile waits for the next cast.
-5. The gate runs once, after the last round, repaired up to `--bound` times,
-   and what came out is committed and pushed. No question in between: the
-   answers you gave were the decision.
-
-A gate that will not go green ends the cast rather than moving on, because the
-repair work is sitting uncommitted in the worktree. Discovering what was
-found, and settling it.
-
-Every reply and filed issue carries a hidden mark, so a cast the forge cut
-short between filing, replying and settling is finished by the next one: a
-thread whose last reply is yours and marked is settled, and one with an issue
-you opened for it gets the reply naming the issue, without either being read
-again. "Yours" is whoever the forge's client is logged in as: a mark someone
-else wrote is read like any other comment. A forge that will
-not list every open issue ends the cast instead, since an issue it left out
-could be filed twice. Commit or set aside the cut-short round's work first; the
-next cast wants a clean worktree.
-
-A cast with no room left in its step budget for the next branch ends there
-without failing, and its report names the branches left for the next cast.
+*Divination.* `heal.this` with the review task alone. It posts the quality
+review as inline comments, one per action item and anchored to the code it is
+about, then puts the reviewed label on. A pull request already wearing the
+label has had its review: take the label off after changing the branch
+meaningfully, and the next cast reviews it again. A branch whose gate stood
+down is reviewed all the same, and the agent is told why it is not green.
 
 ## identify
 
@@ -166,15 +118,19 @@ looks from here exactly like one nothing wanted doing to.
 ## labels
 
 *Conjuration.* Makes every label cabinet uses, created where missing and
-refreshed where present: what `labels.pr` and `labels.identify` each make, in one
-cast. Cast it once to set a project up.
+refreshed where present: what `labels.heal` and `labels.identify` each make, in
+one cast. Cast it once to set a project up.
 
-## labels.pr
+## labels.heal
 
-*Conjuration.* Makes every label the pull request rituals read and write: the
-reviewed and wait labels and each ritual's `started`/`done` checkpoints. Cast
-it before the first sweep when `labels` was not, and again after changing
-`[cabinet.labels]`.
+*Conjuration.* Makes the three labels `heal` reads: the reviewed, wait and qa
+labels. The reviewed and qa labels are the ritual's own: each goes on once its
+task is done, so the next cast does not repeat it. A fact that goes away once
+fixed, such as a conflict or a red check, needs no label. The wait label is
+yours: put it on a pull request `heal.mine` should leave alone, such as a draft
+or one waiting on somebody else, and take it off to hand it back. Cast
+`labels.heal` before the first `heal` when `labels` was not, and again after
+changing `[cabinet.labels]`.
 
 ## labels.identify
 
@@ -186,31 +142,19 @@ not. The names are fixed, because the `issues` skill names them too.
 
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
-| `--bound N`  | the sweeps, `review` | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended true` | `refresh`, `cover` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
-| `--plan-only true` | `heal.mine`, `heal.this` | survey and print each pull request's todos; change nothing |
-| `--batch N`  | `review`, `identify`  | `review`: how many open threads are read and answered in one round. `identify`: how many issues go on one page. Default 7 |
-
-`--batch` keeps a review within reach: a forty-thread review is six triages
-you can hold in your head, and still one commit.
-
-## Checkpoints
-
-`refresh`, `cover` and `review` mark the branch they work. `v:refresh:started` goes on when
-`refresh` begins and may have changed the branch; `v:refresh:done` replaces it
-when the ritual ends clean. The two halves of a pair are never worn together,
-so a label is a true claim about the branch at any moment. The prefix is
-`labels.marker`; see [Configuration](configuration.md).
+| `--bound N`  | `heal.*`, `merge`   | how many times one step may be retried on one branch, 1 to 5, default 3 |
+| `--attended true` | `heal.*`, `merge`, `review` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
+| `--plan-only true` | `heal.*`, `merge`, `review` | survey and print each pull request's todos; change nothing |
+| `--batch N`  | `identify`          | how many issues go on one page, default 7               |
 
 ## Using only some of them
 
 Each ritual has a facade of its own, so a project names the ones it wants. A
-repository with no coverage task casts `refresh` and `review` and never sees
-`cover`:
+repository that only wants reviews casts `review` and never sees the rest:
 
 ```toml
 [rituals]
-modules = ["cabinet.rituals.refresh", "cabinet.rituals.review"]
+modules = ["cabinet.rituals.review"]
 ```
 
 `modules = ["cabinet.rituals"]` loads every ritual.

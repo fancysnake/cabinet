@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
-maintenance rituals (`heal.mine`, `heal.this`, `refresh`, `cover`, `review`,
-`identify`, `labels`, `labels.pr`, `labels.identify`) packaged under `src/cabinet` and cast from other
+maintenance rituals (`heal.mine`, `heal.this`, `merge`, `review`,
+`identify`, `labels`, `labels.heal`, `labels.identify`) packaged under `src/cabinet` and cast from other
 repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
 marketplace (`.claude-plugin/marketplace.json`) whose
 plugins live under `plugins/<name>/` as skills only, no Python. A new plugin
@@ -38,7 +38,7 @@ mise run lint:py              # every linter (black, ruff, mypy, pylint, vulture
 mise run lint:mypy            # or lint:ruff, lint:import-linter, ... one at a time
 mise run lint:tingle          # advisory: suppression debt vs main; not in fullcheck
 mise run site:build           # the docs site; site:dev serves it with live reload
-vekna rituals show refresh    # draw a ritual's step graph
+vekna rituals show heal.mine  # draw a ritual's step graph
 ```
 
 Tests use `pytest -n auto`; `.env.test` is loaded for test and mypy tasks.
@@ -62,10 +62,10 @@ moving modules.
 | layer      | holds                                                         | may import               |
 | ---------- | ------------------------------------------------------------- | ------------------------ |
 | `pacts/`   | pydantic payloads, `Project` config, protocols (forge/scm/tasks/agent/services) | nothing internal |
-| `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`, `STEPS`) | pacts                 |
+| `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`, `HEAL_STEPS`) | pacts                 |
 | `mills/`   | pure logic: `Pulls`, `Backlog`, `Verdicts`, `Prompts`, `Repairs`, `Report`, `Steps` | pacts, specs  |
 | `links/`   | adapters: `forge/{github,gitlab}`, `scm/git`, `tasks/mise`, `agent/claude`, `config/vekna_toml` | pacts only; `links/*` subpackages independent of each other |
-| `gates/`   | `@step` bodies (`gates/ritual/vekna/{heal,sweep,review,identify,labels,marking}.py`) | pacts only            |
+| `gates/`   | `@step` bodies (`gates/ritual/vekna/{heal,identify,labels}.py`) | pacts only            |
 | `inits/`   | `Services` binds concrete adapters, `wire()`                   | everything               |
 | `rituals/` | one facade per ritual: the `@ritual` entrypoint + re-exported steps | layers; nothing imports it back |
 | `edges/`   | reserved, empty, excluded from coverage                        | nothing                  |
@@ -89,7 +89,7 @@ A step returns the next step's payload, or `Done(result)`, and its return
 annotation lists every exit; vekna routes by the payload's exact class, so each
 class belongs to one step. Every step has a class named for it that adds no
 fields, in `pacts/<ritual>.py`, subclassing a carrier: `SetAside(Work)` in
-`pacts/sweep.py` rebuilds the `Work` from `pacts/pulls.py`. Carriers are
+`pacts/heal.py` rebuilds the `Work` from `pacts/healing.py`. Carriers are
 `Hop`s (`pacts/hops.py`), and `payload.to(NextStep)` — declared per carrier,
 bound to that carrier's own steps — is the one way across. A new step gets a new class; mypy checks every
 `return` against the annotation.
@@ -97,15 +97,15 @@ bound to that carrier's own steps — is the one way across. A new step gets a n
 ### Facades
 
 Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/`, and facades
-sharing one (`refresh` and `cover` share `sweep.py`) each re-export **every**
+sharing one (`heal.mine`, `heal.this`, `merge` and `review` share `heal.py`) each re-export **every**
 step in it, so importing any of them registers the whole graph. A new step
 goes in every such facade's `__all__` (`test_facade.py` checks). A ritual's
 name is the `@ritual("...")` string, not the module, and holds no `:`: vekna
-reserves it for the tome prefix (`vekna cast cabinet:refresh` when another
-tome offers a `refresh`). A ritual is named for a D&D spell, and its facade's docstring opens
+reserves it for the tome prefix (`vekna cast cabinet:review` when another
+tome offers a `review`). A ritual is named for a D&D spell or a heal task, and its facade's docstring opens
 with that spell's school (`identify` is Divination). Step names are global across the package, so a new step must not
-reuse one already registered in `gates/ritual/vekna/*.py` (`recap` is
-review's).
+reuse one already registered in `gates/ritual/vekna/*.py` (`tend` is
+heal's).
 
 ### Who runs what
 

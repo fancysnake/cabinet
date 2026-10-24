@@ -1,26 +1,66 @@
-"""Evocation: ``heal.this`` says what your branch's pull request needs next.
+"""Evocation: ``heal.this`` takes your branch's pull request as far as it goes.
 
-    vekna cast heal.this --plan-only true
+    vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
 
-Only the survey so far, so only ``--plan-only true`` casts. The steps live in
-``cabinet.gates.ritual.vekna.heal``, shared with ``heal.mine``; this module is
-the ritual itself and the surface vekna sweeps.
+The pull request of the branch at the cwd. The steps live in
+``cabinet.gates.ritual.vekna.heal``, shared with ``heal.mine`` and the task
+rituals; this module is the ritual itself and the surface vekna sweeps.
 """
 
-from vekna.lexicon import RitualError, ritual
+from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.heal import chart, muster_mine, muster_this, survey
+from cabinet.gates.ritual.vekna.heal import (
+    chart,
+    check_clean,
+    finish_merge,
+    finish_pr,
+    gate_check,
+    merge_base,
+    muster_mine,
+    muster_this,
+    push_work,
+    quality_review,
+    resolve_conflicts,
+    set_aside,
+    skip_pr,
+    stand_down,
+    survey,
+    sync_branch,
+    tend,
+)
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
 from cabinet.pacts.services import services
+from cabinet.specs import HEAL_STEPS
 
 
-@ritual("heal.this")
+@ritual("heal.this", max_steps=HEAL_STEPS)
 def heal_this(components: Heal) -> MusterThis:
-    if not components.plan_only:
-        msg = "heal.this only surveys so far: cast it with --plan-only true"
-        raise RitualError(msg)
-    return MusterThis(project=services().project())
+    return MusterThis(
+        project=services().project(),
+        tasks=components.working(),
+        bound=components.bound,
+        attended=components.attended,
+    )
 
 
-__all__ = ["chart", "heal_this", "muster_mine", "muster_this", "survey"]
+__all__ = [
+    "chart",
+    "check_clean",
+    "finish_merge",
+    "finish_pr",
+    "gate_check",
+    "heal_this",
+    "merge_base",
+    "muster_mine",
+    "muster_this",
+    "push_work",
+    "quality_review",
+    "resolve_conflicts",
+    "set_aside",
+    "skip_pr",
+    "stand_down",
+    "survey",
+    "sync_branch",
+    "tend",
+]

@@ -17,7 +17,7 @@ class Comment(BaseModel):
     mine: bool = False
 
 
-# Hidden in what `review` posts, so the forge records how far a round got:
+# Hidden in what `answer` posts, so the forge records how far a round got:
 # a reply carrying it answered its thread, and an issue body naming a thread
 # was filed for it.
 ANSWERED = "<!-- cabinet:answered -->"
@@ -31,7 +31,7 @@ def filed_for(thread: str) -> str:
     return f"<!-- cabinet:thread {thread} -->"
 
 
-# The open issue `review` filed for a thread, where there is one. Only one
+# The open issue `answer` filed for a thread, where there is one. Only one
 # you opened: an issue assigned to you carries whatever its author wrote.
 def filed_as(issues: list[Issue], thread: str) -> Issue | None:
     mark = filed_for(thread)

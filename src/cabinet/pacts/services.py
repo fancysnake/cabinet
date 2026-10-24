@@ -15,12 +15,11 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
-    from cabinet.pacts.healing import Facts, Surveyed, Unsurveyed
+    from cabinet.pacts.healing import Facts, Run, Surveyed, Unsurveyed
     from cabinet.pacts.issues import Identifying, Issue
     from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import Board, PullRequest, Run
+    from cabinet.pacts.pulls import Board, PullRequest
     from cabinet.pacts.repairs import Attempt, Ruling
-    from cabinet.pacts.reviews import Picking, Share
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
     from cabinet.pacts.threads import Finding, Thread, TriageItem
@@ -37,9 +36,6 @@ class PullsProtocol(Protocol):
 
     # True unless the board positively says the coverage is fine.
     def wants_cover(self, board: Board, project: Project) -> bool: ...
-
-    # False unless the board positively says the gate jobs are green.
-    def gates_green(self, board: Board, project: Project) -> bool: ...
 
 
 class TodosProtocol(Protocol):
@@ -107,13 +103,9 @@ class StepsProtocol(Protocol):
     # Steps a cast spends on a queue of `queue` branches outside any branch.
     def opening(self, queue: int) -> int: ...
 
-    # What the next review branch, with `left` threads open, may spend; `None`
-    # where the budget has no room for it.
-    def review_share(self, picking: Picking, left: int) -> Share | None: ...
-
-    # What the next sweep branch may spend; `None` where the budget has no
-    # room for it.
-    def sweep_share(self, run: Run) -> int | None: ...
+    # What the next branch may spend; `None` where the budget has no room
+    # for it.
+    def heal_share(self, run: Run) -> int | None: ...
 
 
 class ReportProtocol(Protocol):
@@ -121,9 +113,7 @@ class ReportProtocol(Protocol):
     # review's own title.
     def findings(self, project: Project, found: list[Finding]) -> list[Finding]: ...
 
-    def sweep(self, run: Run) -> str: ...
-
-    def review(self, picking: Picking) -> str: ...
+    def healed(self, run: Run) -> str: ...
 
     # The page `identify` hands its agent, before it is identified.
     def page(self, issues: list[Issue]) -> str: ...

@@ -20,8 +20,8 @@ agent reaches and the commands it runs. Run every cast, attended or not, inside 
 ## Permission modes
 
 Unattended, every agent call runs under Claude's `dontAsk` permission mode,
-so a cast at 3am never hangs on a prompt. Attended — `review` always, the
-sweeps with `--attended true` — the mode is `auto`, with somebody there to be
+so a cast at 3am never hangs on a prompt. Attended — `identify` always, `heal`
+and `merge` with `--attended true` — the mode is `auto`, with somebody there to be
 asked.
 
 ## Roles

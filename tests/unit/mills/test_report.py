@@ -1,11 +1,10 @@
-"""What the morning reads."""
+"""What the report says, on the terminal and on the pull request."""
 
 from cabinet.mills.report import Report
-from cabinet.pacts.healing import Surveyed, Unsurveyed
+from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Checked, PullRequest, Run
-from cabinet.pacts.reviews import Picking, Reviewed
+from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.threads import Finding, TriageItem
 
 _REPORT = Report()
@@ -20,95 +19,57 @@ _PULL = PullRequest(
     updated_at="2026-08-01T22:00:00Z",
 )
 
-_GREEN = Checked(number=7, branch="feature", url=_PULL.url, outcome="green", unpushed=0)
+_WORKED = Checked(
+    number=7, branch="feature", url=_PULL.url, outcome="worked", unpushed=0
+)
 
 
 def _run(**update: object) -> Run:
-    return Run(project=_PROJECT, bound=3).model_copy(update=update)
+    return Run(project=_PROJECT).model_copy(update=update)
 
 
-class TestSweep:
+class TestHealed:
     @staticmethod
     def test_a_green_row() -> None:
-        assert _REPORT.sweep(_run(checked=[_GREEN])) == (
-            "refresh — 1 checked\n\n  #7 feature: green and reviewed, 0 unpushed\n"
+        assert _REPORT.healed(_run(checked=[_WORKED])) == (
+            "heal — 1 worked\n\n  #7 feature: worked, 0 unpushed\n"
         )
 
     @staticmethod
     def test_a_blocked_row_indents_its_note() -> None:
-        row = _GREEN.model_copy(
+        row = _WORKED.model_copy(
             update={"outcome": "blocked", "unpushed": None, "note": "red:\n1 failed"}
         )
 
-        assert _REPORT.sweep(_run(checked=[row])) == (
-            "refresh — 1 checked\n\n"
+        assert _REPORT.healed(_run(checked=[row])) == (
+            "heal — 1 worked\n\n"
             "  #7 feature: blocked, unknown — red:\n      1 failed\n"
         )
 
     @staticmethod
     def test_a_skipped_row() -> None:
-        row = _GREEN.model_copy(update={"outcome": "skipped", "unpushed": None})
+        row = _WORKED.model_copy(update={"outcome": "skipped", "unpushed": None})
 
-        assert "  #7 feature: left alone, unknown\n" in _REPORT.sweep(
+        assert "  #7 feature: left alone, unknown\n" in _REPORT.healed(
             _run(checked=[row])
         )
 
     @staticmethod
-    def test_nothing_checked() -> None:
-        assert _REPORT.sweep(_run(mode="cover")) == "cover — 0 checked\n\n  (none)\n"
+    def test_nothing_worked() -> None:
+        assert _REPORT.healed(_run()) == "heal — 0 worked\n\n  (none)\n"
 
     @staticmethod
     def test_what_was_not_reached_and_why() -> None:
-        assert _REPORT.sweep(_run(queue=[_PULL], stopped="gh died")) == (
-            "refresh — 0 checked\n\n  (none)\n\n"
-            "not reached: feature\n\nthe run failed: gh died\n"
+        assert _REPORT.healed(_run(queue=[_PULL], stopped="gh died")) == (
+            "heal — 0 worked\n\n  (none)\n\n"
+            "not reached: feature\n\nthe cast failed: gh died\n"
         )
 
     @staticmethod
-    def test_what_was_left_for_the_next_run() -> None:
-        assert _REPORT.sweep(_run(queue=[_PULL])) == (
-            "refresh — 0 checked\n\n  (none)\n\n"
-            "out of steps, left for the next run: feature\n"
-        )
-
-
-class TestReview:
-    @staticmethod
-    def test_rows_and_their_notes() -> None:
-        picking = Picking(
-            project=_PROJECT,
-            bound=2,
-            reviewed=[
-                Reviewed(branch="a", outcome="shipped"),
-                Reviewed(branch="b", outcome="elsewhere", note="worktree"),
-            ],
-        )
-
-        assert _REPORT.review(picking) == (
-            "review — 2 branches\n  a: shipped\n"
-            "  b: checked out elsewhere — worktree"
-        )
-
-    @staticmethod
-    def test_nothing_reviewed() -> None:
-        assert _REPORT.review(Picking(project=_PROJECT, bound=2)) == (
-            "review — 0 branches\n  (none had a review waiting)"
-        )
-
-    @staticmethod
-    def test_a_stopped_cast_names_what_it_never_polled() -> None:
-        picking = Picking(project=_PROJECT, bound=2, queue=[_PULL], stopped="red")
-
-        assert _REPORT.review(picking).endswith(
-            "\n\nthe cast stopped: red\nnot polled:     feature"
-        )
-
-    @staticmethod
-    def test_a_cast_out_of_steps_names_what_it_left() -> None:
-        picking = Picking(project=_PROJECT, bound=2, queue=[_PULL])
-
-        assert _REPORT.review(picking).endswith(
-            "\n\nout of steps, left for the next cast: feature"
+    def test_what_was_left_for_the_next_cast() -> None:
+        assert _REPORT.healed(_run(queue=[_PULL])) == (
+            "heal — 0 worked\n\n  (none)\n\n"
+            "out of steps, left for the next cast: feature\n"
         )
 
 

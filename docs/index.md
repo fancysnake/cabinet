@@ -20,16 +20,14 @@ act on. They run inside the agent session you already have open.
 
 ## The rituals
 
-Each is named for a spell, and the school is that spell's.
+Each is filed under a school of magic, the way a spellbook is.
 
-- **`heal.mine`**, **`heal.this`** (Evocation): when you want to know what
-  your pull requests need next.
-- **`refresh`** (Transmutation): overnight, to bring your branches up to date.
-- **`cover`** (Abjuration): overnight, after `refresh`, to fix coverage and
-  a red suite.
-- **`review`** (Divination): in the morning, to settle review threads.
+- **`heal.mine`**, **`heal.this`** (Evocation): to take your pull requests as
+  far as they go, or with `--plan-only true` to see what each needs next.
+- **`merge`** (Transmutation): to merge the base into a conflicting branch.
+- **`review`** (Divination): to post the quality review on your branch.
 - **`identify`** (Divination): when your backlog has piled up unrefined.
-- **`labels`**, **`labels.pr`**, **`labels.identify`** (Conjuration): once,
+- **`labels`**, **`labels.heal`**, **`labels.identify`** (Conjuration): once,
   to set a project up.
 
 [Rituals](rituals.md) has each one in full, with its flags.
@@ -60,7 +58,7 @@ them all. With that in place:
 
 ```bash
 vekna cast labels
-vekna cast refresh
+vekna cast heal.mine
 ```
 
 ### The cabinet

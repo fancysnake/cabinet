@@ -1,21 +1,16 @@
 """How much of a cast's step budget each part of it spends."""
 
-from math import ceil
-
 from typing_extensions import override
 
-from cabinet.pacts.pulls import Run
-from cabinet.pacts.reviews import Picking, Share
+from cabinet.pacts.healing import Run
 from cabinet.pacts.services import StepsProtocol
-from cabinet.specs import REVIEW_STEPS, SWEEP_STEPS
+from cabinet.specs import HEAL_STEPS
 
-# One round is `read`, `plan`, `work` and `answer`.
-_ROUND = 4
-
-# The steps every sweep branch walks at most once: `check_clean`,
-# `sync_branch`, `merge_base`, `take_pass`, `finish_merge`, `stand_down`,
-# `push_work`, `check_ci` or `quality_review`, and `finish_pr`.
-_ONCE = 9
+# The steps every branch walks at most once: `check_clean`, `sync_branch`,
+# `merge_base`, `finish_merge` or `stand_down`, `push_work`, `quality_review`
+# and `finish_pr`, and `tend` once before each of the four that follow it.
+# One push at most: only the merge commits, and the push clears it.
+_ONCE = 11
 
 
 # A gate's loop: a whole run and a narrowed one for every repair the bound
@@ -30,31 +25,18 @@ def _attempts(bound: int) -> int:
 
 
 class Steps(StepsProtocol):
-    # Every step that works no branch. For `review`: `queue_up`, a `pick` per
-    # branch and the one that finds the queue empty, and `recap`; for a sweep,
-    # `list_prs`, a `next_pr` per branch and the last one, and `report`.
+    # Every step that works no branch: the muster, a `survey` per branch and
+    # the one that finds the queue empty, and `chart`.
     @override
     def opening(self, queue: int) -> int:
         return queue + 3
 
-    # One round per batch of the `left` threads open, as far as the budget
-    # reaches. `None` is a branch the budget has no room for.
+    # The worst one branch can spend, or `None` where the budget has no room
+    # for it: the steps walked once, `resolve_conflicts`, and the loop of
+    # `gate_check`.
     @override
-    def review_share(self, picking: Picking, left: int) -> Share | None:
-        # What a branch spends besides its rounds: `look`, `land`, `settle`,
-        # and the loop of `gates`.
-        around = 3 + _gates(picking.bound)
-        room = (REVIEW_STEPS - picking.reserved - around) // _ROUND
-        if (rounds := min(ceil(left / picking.batch), room)) < 1:
-            return None
-        return Share(rounds=rounds, steps=around + _ROUND * rounds)
-
-    # The worst one sweep branch can spend, or `None` where the budget has no
-    # room for it: the steps walked once, `resolve_conflicts`, and the loop of
-    # `gate_check` or `close_gap`.
-    @override
-    def sweep_share(self, run: Run) -> int | None:
+    def heal_share(self, run: Run) -> int | None:
         steps = _ONCE + _attempts(run.bound) + _gates(run.bound)
-        if run.reserved + steps > SWEEP_STEPS:
+        if run.reserved + steps > HEAL_STEPS:
             return None
         return steps

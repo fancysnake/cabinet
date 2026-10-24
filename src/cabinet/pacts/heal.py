@@ -1,23 +1,75 @@
 """One class per heal step, named for it.
 
-A step is reached by returning its class, as in `pacts/sweep.py`. The carrier
-these rebuild is in `pacts/healing.py`.
+A step is reached by returning its class. The carriers these rebuild are in
+`pacts/healing.py`: the cast's steps take a `Run`, a branch's take a `Work`.
 """
 
-from cabinet.pacts.healing import Healing
+from cabinet.pacts.healing import Run, Work
 
 
-class MusterMine(Healing):
+class MusterMine(Run):
     pass
 
 
-class MusterThis(Healing):
+class MusterThis(Run):
     pass
 
 
-class Survey(Healing):
+class Survey(Run):
     pass
 
 
-class Chart(Healing):
+class Chart(Run):
+    pass
+
+
+class CheckClean(Work):
+    pass
+
+
+class SyncBranch(Work):
+    pass
+
+
+class Tend(Work):
+    pass
+
+
+class MergeBase(Work):
+    pass
+
+
+class ResolveConflicts(Work):
+    pass
+
+
+class GateCheck(Work):
+    pass
+
+
+class FinishMerge(Work):
+    pass
+
+
+class PushWork(Work):
+    pass
+
+
+class QualityReview(Work):
+    pass
+
+
+class StandDown(Work):
+    pass
+
+
+class FinishPr(Work):
+    pass
+
+
+class SkipPr(Work):
+    pass
+
+
+class SetAside(Work):
     pass

@@ -12,32 +12,26 @@ Grouped by school, the way a spellbook is.
 
 ### Evocation
 
-- **`heal.mine`** and **`heal.this`** — what each pull request needs next.
-  `heal.mine` takes every open pull request of yours not wearing the wait
-  label, oldest-modified first;
-  `heal.this` takes the one for the branch at the cwd. So far they only
-  survey: cast with `--plan-only true`, each prints one line per pull request
-  naming its todos (merge, ci, answer, review, guide) and changes nothing.
+- **`heal.mine`** and **`heal.this`**: take each pull request as far as it
+  goes. `heal.mine` takes every open pull request of yours not wearing the
+  wait label, oldest-modified first; `heal.this` takes the one for the branch
+  at the cwd. Each pull request is surveyed into its todos (merge, ci, answer,
+  review, guide) and printed on one line; then the merge and review tasks are
+  worked, and what was committed is pushed. `--plan-only true` stops after the
+  survey and changes nothing.
 
 ### Transmutation
 
-- **`refresh`** — the night's fast pass. Every open pull request of yours
-  gets the base branch merged in, conflicts resolved, the gate made green, the
-  work pushed and a quality review posted. Like *Purify Food and Drink*: what
-  was there is still there, only fit to use.
-
-### Abjuration
-
-- **`cover`** — the night's slow pass. Where CI says the coverage or the
-  suite is unhappy, it measures, writes the tests for what the branch left
-  uncovered, repairs a red suite, and pushes. Building the defences up.
+- **`merge`**: `heal.this` with the merge task alone. Where your branch
+  conflicts with its base, it merges the base in, has an agent resolve the
+  conflicts, makes the gate green, and pushes. Like *Mending*: what was split
+  is joined.
 
 ### Divination
 
-- **`review`** — the morning after. Reads the review threads the night left,
-  triages them with you at the terminal, answers every one, makes the gate
-  green and ships the branch. Discovering what was found, and settling it.
-- **`identify`** — the backlog, a page at a time. Takes your open issues that
+- **`review`**: `heal.this` with the review task alone. Posts the quality
+  review as inline comments and puts the reviewed label on.
+- **`identify`**: the backlog, a page at a time. Takes your open issues that
   lack a type or a size; an agent reads each one and says what it is, and the
   ritual puts that on the forge: a type and a size, or an epic split into
   sub-issues, and the links between them. A write the forge refuses is
@@ -46,13 +40,11 @@ Grouped by school, the way a spellbook is.
 
 ### Conjuration
 
-- **`labels`** — makes every label cabinet uses: what `labels.pr` and
+- **`labels`**: makes every label cabinet uses: what `labels.heal` and
   `labels.identify` make, in one cast. Cast it once to set a project up.
-- **`labels.pr`** — makes every label the pull request rituals read and
-  write: the reviewed and wait labels and each ritual's `started`/`done`
-  checkpoints, created where missing and refreshed where present. Cast it
-  again after changing `[cabinet.labels]`.
-- **`labels.identify`** — makes the labels `identify` puts on issues: the types
+- **`labels.heal`**: makes the labels `heal` reads and puts on: reviewed,
+  wait and qa. Cast it again after changing `[cabinet.labels]`.
+- **`labels.identify`**: makes the labels `identify` puts on issues: the types
   (`feature`, `edit`, `chore`, `bug`), the sizes (`S`, `M`, `L`) and
   `epic`.
 
@@ -61,26 +53,22 @@ casting one twice is as safe as once.
 
 <!-- --8<-- [start:cast] -->
 ```bash
-vekna cast heal.mine --plan-only true
-vekna cast heal.this --plan-only true
-vekna cast refresh [--bound N] [--attended true]
-vekna cast cover [--bound N] [--attended true]
-vekna cast review [--bound N] [--batch N]
+vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
+vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
+vekna cast merge [--plan-only true] [--bound N] [--attended true]
+vekna cast review [--plan-only true] [--attended true]
 vekna cast identify [--batch N]
 vekna cast labels
-vekna cast labels.pr
+vekna cast labels.heal
 vekna cast labels.identify
 ```
 <!-- --8<-- [end:cast] -->
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
-default 3. `--attended true` says somebody is at the terminal: the sweep asks
+default 3. `--attended true` says somebody is at the terminal: the cast asks
 before every repair attempt instead of letting the budget decide, and its
-agents run in Claude's `auto` permission mode. `review` is always attended, and
-`identify` asks you about every page. `--batch` is how many open threads `review`
-reads and answers in one round before fetching what is still open, default 7:
-a forty-thread review is six triages you can hold in your head, and still one
-commit. On `identify` it is how many issues go on one page, default 7.
+agents run in Claude's `auto` permission mode. `identify` asks you about every
+page, and `--batch` is how many issues go on one page, default 7.
 
 ## Install
 
@@ -175,6 +163,6 @@ mise run lint:py       # every linter
 mise run fullcheck     # the gate before a commit
 mise run site:dev      # the docs site, with live reload
 mise run site:build    # the docs site, as the Pages workflow builds it
-vekna rituals show refresh
+vekna rituals show heal.mine
 ```
 <!-- --8<-- [end:development] -->

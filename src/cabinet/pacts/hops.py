@@ -2,7 +2,7 @@
 
 vekna routes a returned payload to the one step that takes its exact class, so
 each step has a class of its own. Those classes add no fields to what they
-carry: a sweep step's is a `Work` by another name, and the next hop is the
+carry: a heal step's is a `Work` by another name, and the next hop is the
 same fields rebuilt under the next step's class.
 
 The rebuilding lives here; where a hop may land does not. Each carrier below

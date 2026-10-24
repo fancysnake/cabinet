@@ -39,7 +39,7 @@ directory; `forge()` picks GitHub or GitLab from `project.forge`.
 A step returns the next step's payload, or `Done(result)`, and its return
 annotation names every exit. vekna routes by the payload's exact class, so
 every step has a class of its own, named for it and adding no fields:
-`SetAside(Work)` in `pacts/sweep.py`, `Pick(Picking)` in `pacts/review.py`,
+`SetAside(Work)` and `Survey(Run)` in `pacts/heal.py`,
 `Leaf(Identifying)` in `pacts/identify.py`.
 `payload.to(NextStep)` rebuilds one as another — one `to` per carrier, taking
 only that carrier's own steps — and mypy checks every `return` against the
@@ -47,9 +47,11 @@ annotation.
 
 ## Facades
 
-`rituals/refresh.py` and `rituals/cover.py` both wrap the shared sweep steps
-and each re-export the full step list, so importing either registers the whole
-graph. A new sweep step is added to both.
+`rituals/heal_mine.py`, `heal_this.py`, `merge.py` and `review.py` all wrap
+the heal steps and each re-export the full step list, so importing any one
+registers the whole graph. A new heal step is added to all four. A task
+ritual is `heal.this` with `tasks` narrowed to one; `tend` hands a branch its
+next task, and every task ends back at `tend`.
 
 ## Development
 

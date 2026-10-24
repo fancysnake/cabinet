@@ -1,6 +1,6 @@
-"""Conjuration: ``labels.pr`` makes the labels the pull request rituals wear.
+"""Conjuration: ``labels.heal`` makes the labels ``heal`` reads and puts on.
 
-    vekna cast labels.pr
+    vekna cast labels.heal
 
 The step lives in ``cabinet.gates.ritual.vekna.labels``; this module is the
 ritual itself and the surface vekna sweeps.
@@ -13,10 +13,10 @@ from cabinet.pacts.project import Conjure
 from cabinet.pacts.services import services
 
 
-@ritual("labels.pr")
-def labels_pr(_: NoComponents) -> Conjure:
+@ritual("labels.heal")
+def labels_heal(_: NoComponents) -> Conjure:
     project = services().project()
     return Conjure(project=project, specs=project.labels.conjured())
 
 
-__all__ = ["conjure", "labels_pr"]
+__all__ = ["conjure", "labels_heal"]
