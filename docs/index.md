@@ -25,6 +25,9 @@ Each is filed under a school of magic, the way a spellbook is.
 - **`heal.mine`**, **`heal.this`** (Evocation): to take your pull requests as
   far as they go, or with `--plan-only true` to see what each needs next.
 - **`merge`** (Transmutation): to merge the base into a conflicting branch.
+- **`ci`** (Abjuration): to rerun, fix or cover your branch's red CI jobs.
+- **`answer`** (Enchantment): to work through the review threads on your
+  branch with you.
 - **`review`** (Divination): to post the quality review on your branch.
 - **`identify`** (Divination): when your backlog has piled up unrefined.
 - **`labels`**, **`labels.heal`**, **`labels.identify`** (Conjuration): once,

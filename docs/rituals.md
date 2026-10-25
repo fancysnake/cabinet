@@ -1,9 +1,9 @@
 # Rituals
 
-Nine rituals, one facade each under `cabinet.rituals`. Four work your pull
+Eleven rituals, one facade each under `cabinet.rituals`. Six work your pull
 requests through one graph: `heal.mine` sweeps every open pull request of
-yours, `heal.this` takes your branch's, and `merge` and `review` each run a
-single task on your branch. One identifies your open issues, and three make
+yours, `heal.this` takes your branch's, and `merge`, `ci`, `answer` and
+`review` each run a single task on your branch. One identifies your open issues, and three make
 the labels the others read and put on.
 
 --8<-- "README.md:cast"
@@ -46,12 +46,14 @@ the branch back for the next:
 
 - **merge**: the base merged in, conflicts resolved, the gate made green. See
   [merge](#merge).
+- **ci**: the red CI jobs rerun, fixed or covered. See [ci](#ci).
+- **answer**: the review threads triaged with you, fixed, replied to and
+  settled. Attended casts only. See [answer](#answer).
 - **review**: the quality review posted. See [review](#review).
 
-`ci`, `answer` and `guide` are surveyed and reported; their tasks are still
-to come. Whatever the cast committed is pushed before the review, so the
-comments anchor to code the forge has, and before the branch is left. Nothing
-waits for CI after a push.
+`guide` is surveyed and reported; its task is still to come. Whatever the cast committed is pushed before the next task and before
+the branch is left, so the review's comments anchor to code the forge has.
+Nothing waits for CI after a push.
 
 A cast takes the next branch only while the worst that branch can spend still
 fits its step budget. One that does not fit ends the cast without failing it,
@@ -72,6 +74,75 @@ joins what was split. Only a conflict makes a merge todo:
 
 A branch the gate will not go green on stands down: the worktree is released,
 the rest of its tasks are worked anyway, and the report calls it blocked.
+
+## ci
+
+*Abjuration.* `heal.this` with the ci task alone, the way *Lesser
+Restoration* ends one condition at a time. A red check on a job listed in
+`[cabinet.ci.jobs]` makes a ci todo, and so does a green `covering` check
+whose summary names a gap. The task works the red checks one at a time:
+
+1. **Rerun.** A job with `rerun = true` runs again if this head has run it
+   only once. If anything was rerun, the task ends there: a fix pushed on top
+   would start a new CI run and waste the rerun. The next cast reads the
+   result.
+2. **Fix with a gate.** An agent reads the end of the failed job's log and
+   edits. Then the job's `gate` runs and is repaired the way the merge's gate
+   is, with `fast` re-run between rounds, up to `--bound` times.
+3. **Fix without a gate.** An agent reads the log and makes one attempt. The
+   ritual commits it; the next CI run checks it.
+4. **Cover.** A `covering` job runs the coverage measurement here, and the
+   agent writes tests for the lines it names, with the fast measurement re-run
+   between rounds.
+
+Each job's fix is a commit of its own, and all of them go up in one push. A
+job gets one check fixed per cast: when several of a matrix job's entries are
+red, the first is fixed and the rest are named for the next cast. A job whose
+gate will not go green stands the branch down, as a merge does, and the task
+names the checks it did not reach. A fix that changes nothing is no fix:
+the job stays red, and the report says it passes here while CI is still red.
+
+In `heal.mine` and `heal.this`, a branch whose merge was committed leaves ci
+for the next cast. The merge's push starts a new CI run, so the red checks the
+survey read belong to the old head.
+
+## answer
+
+*Enchantment.* `heal.this` with the answer task alone, the way *Command* puts
+one word to each listener. Every unresolved review thread makes an answer
+todo, whoever wrote it. Every item is yours to decide, so only a cast with
+`--attended true` works it. An unattended cast leaves the threads alone and
+ends its report with what waits for you:
+
+```text
+waiting for you, cast with --attended true:
+  #7 feature: 11 threads
+```
+
+Attended, the task goes round in batches of `--batch` open threads:
+
+1. **Finish what was left.** A thread whose last word is the ritual's own
+   reply is settled. A thread with an issue already filed for it gets the
+   reply naming the issue. Both happen when the forge failed partway through
+   an earlier cast.
+2. **Read.** An agent reads the open threads against the code and returns a
+   triage: one item per thread, with a priority (p1 to p4) and what it would
+   do (fix, reject or file).
+3. **Decide.** Each item is put to you. Answer in your own words, or press
+   return to take the reading's proposal.
+4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
+   every item. The ritual opens the issues you said to file, posts the
+   replies and settles the threads.
+
+Then the next batch is read, up to three rounds a cast; what is still open
+after that waits for the next one. What the answers changed goes through the
+gate, repaired as the merge's is, and is committed as one commit and pushed.
+A gate that will not go green stands the branch down, as a merge does.
+
+A round that finds no thread open puts the answered label on, so the pull
+request tells you its review is answered. The next answer task takes it off
+before it starts. The label is only for you to read: open threads decide
+whether there is answering to do.
 
 ## review
 
@@ -123,9 +194,11 @@ one cast. Cast it once to set a project up.
 
 ## labels.heal
 
-*Conjuration.* Makes the three labels `heal` reads: the reviewed, wait and qa
-labels. The reviewed and qa labels are the ritual's own: each goes on once its
-task is done, so the next cast does not repeat it. A fact that goes away once
+*Conjuration.* Makes the four labels `heal` reads and puts on: the reviewed,
+wait, qa and answered labels. The reviewed and qa labels are the ritual's own:
+each goes on once its task is done, so the next cast does not repeat it. The
+answered label tells you the review threads are settled; see
+[answer](#answer). A fact that goes away once
 fixed, such as a conflict or a red check, needs no label. The wait label is
 yours: put it on a pull request `heal.mine` should leave alone, such as a draft
 or one waiting on somebody else, and take it off to hand it back. Cast
@@ -142,10 +215,10 @@ not. The names are fixed, because the `issues` skill names them too.
 
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
-| `--bound N`  | `heal.*`, `merge`   | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended true` | `heal.*`, `merge`, `review` | somebody is at the terminal: ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
-| `--plan-only true` | `heal.*`, `merge`, `review` | survey and print each pull request's todos; change nothing |
-| `--batch N`  | `identify`          | how many issues go on one page, default 7               |
+| `--bound N`  | `heal.*`, `merge`, `ci`, `answer` | how many times one step may be retried on one branch, 1 to 5, default 3 |
+| `--attended true` | `heal.*`, `merge`, `ci`, `answer`, `review` | somebody is at the terminal: answer the review threads, ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
+| `--plan-only true` | `heal.*`, `merge`, `ci`, `answer`, `review` | survey and print each pull request's todos; change nothing |
+| `--batch N`  | `identify`, `heal.*`, `answer` | how many issues go on one page, or open threads in one round of answers, default 7 |
 
 ## Using only some of them
 

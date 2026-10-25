@@ -9,7 +9,7 @@ from vekna.trial import Trial
 from cabinet.pacts.project import Labelled
 from cabinet.rituals.labels_heal import labels_heal
 
-_NAMES = ["pr::thermo", "pr::wait", "v:guide:done"]
+_NAMES = ["pr::thermo", "pr::wait", "v:guide:done", "v:answer:done"]
 
 
 class TestLabelsHeal:

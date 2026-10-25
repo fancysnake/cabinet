@@ -69,6 +69,12 @@ class Verdicts(VerdictsProtocol):
             _tail(_plain(part)) for part in (ran.stdout, ran.stderr) if part.strip()
         )
 
+    # The end of a job is where it failed, and a log of a whole job runs to
+    # megabytes.
+    @override
+    def logged(self, log: str) -> str:
+        return _tail(_plain(log))
+
     # For the report rather than for an agent, so only one stream: stdout is
     # where every tool in these chains says how it ended, while stderr carries
     # mise's chatter and, under e2e, a web server logging every request.

@@ -44,25 +44,30 @@ class TestConjured:
             "pr::thermo",
             "pr::wait",
             "v:guide:done",
+            "v:answer:done",
         ]
 
     @staticmethod
     def test_the_names_follow_the_config() -> None:
-        labels = Labels(reviewed="cabinet::reviewed", wait="hold", qa="qa")
+        labels = Labels(
+            reviewed="cabinet::reviewed", wait="hold", qa="qa", answered="said"
+        )
 
         assert [spec.name for spec in labels.conjured()] == [
             "cabinet::reviewed",
             "hold",
             "qa",
+            "said",
         ]
 
     @staticmethod
     def test_each_label_says_what_it_means() -> None:
-        reviewed, wait, qa = Labels().conjured()
+        reviewed, wait, qa, answered = Labels().conjured()
 
         assert "remove to ask again" in reviewed.description
         assert "Hands off" in wait.description
         assert "guide was posted" in qa.description
+        assert "answered" in answered.description
         assert all(len(spec.color) == _HEX for spec in Labels().conjured())
 
 

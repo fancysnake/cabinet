@@ -1,5 +1,9 @@
 """What is said to git, and what is made of the answer."""
 
+import os
+import subprocess
+from pathlib import Path
+
 import pytest
 from vekna.trial import Trial
 
@@ -13,6 +17,18 @@ from tests.conftest import drive
 _SCM = GitScm(Project())
 _UNSIGNED = GitScm(Project(sign_commits=False))
 _GITLAB = GitScm(Project(forge="gitlab", remote="lab"))
+_ELSEWHERE = set(
+    subprocess.run(
+        ["git", "rev-parse", "--local-env-vars"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+)
+_ISOLATED = {k: v for k, v in os.environ.items() if k not in _ELSEWHERE} | {
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_NOSYSTEM": "1",
+}
 
 _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
@@ -20,7 +36,10 @@ _AHEAD = 2
 _FETCH = "git fetch origin main feature"
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
-_COMMIT = f"git add -A && (git diff --cached --quiet || {_GPG_TTY} git commit -m fix)"
+_COMMIT = (
+    "git add -A && (git diff --cached --quiet || ("
+    f"{_GPG_TTY} git commit -m fix && echo committed))"
+)
 _RELEASE = (
     "if git rev-parse -q --verify MERGE_HEAD >/dev/null; then git merge --abort; fi; "
     f'if [ -n "$({_STATUS})" ]; then git stash push -u -m '
@@ -223,11 +242,18 @@ class TestConflicts:
 class TestCommit:
     @staticmethod
     def test_stages_everything_and_names_the_tty(trial: Trial) -> None:
+        trial.shell.replies(
+            when="git add -A*", stdout="[feature 1a2b] fix\ncommitted\n"
+        )
+
+        assert drive(trial, lambda: _SCM.commit("fix"))
+        assert trial.shell.commands == [_COMMIT]
+
+    @staticmethod
+    def test_nothing_staged_is_nothing_committed(trial: Trial) -> None:
         trial.shell.replies(when="git add -A*")
 
-        drive(trial, lambda: _SCM.commit("fix"))
-
-        assert trial.shell.commands == [_COMMIT]
+        assert not drive(trial, lambda: _SCM.commit("fix"))
 
     @staticmethod
     def test_unsigned_where_the_project_says_so(trial: Trial) -> None:
@@ -245,6 +271,60 @@ class TestCommit:
 
         with pytest.raises(ScmError, match="could not commit: gpg failed"):
             drive(trial, lambda: _SCM.commit("fix"))
+
+
+# The scripted shell answers whatever it is told, so what bash makes of the
+# operators in the commit command only shows when bash runs it.
+class TestCommitInBash:
+    @staticmethod
+    @pytest.fixture
+    def repo(tmp_path: Path) -> Path:
+        for argv in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.name", "cabinet"],
+            ["git", "config", "user.email", "cabinet@example.com"],
+            ["git", "commit", "-q", "--allow-empty", "-m", "root"],
+        ):
+            subprocess.run(argv, cwd=tmp_path, env=_ISOLATED, check=True)
+        return tmp_path
+
+    @staticmethod
+    def test_a_change_is_committed_and_said(trial: Trial, repo: Path) -> None:
+        (repo / "fixed.py").write_text("x = 1\n")
+
+        assert _in_bash(trial, repo)[-1:] == ["committed"]
+        assert _log(repo) == ["fix", "root"]
+
+    @staticmethod
+    def test_nothing_staged_says_nothing(trial: Trial, repo: Path) -> None:
+        assert "committed" not in _in_bash(trial, repo)
+        assert _log(repo) == ["root"]
+
+
+def _in_bash(trial: Trial, repo: Path) -> list[str]:
+    trial.shell.replies(when="git add -A*")
+    drive(trial, lambda: _UNSIGNED.commit("fix"))
+    ran = subprocess.run(
+        ["bash", "-c", trial.shell.commands[0]],
+        cwd=repo,
+        env=_ISOLATED,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return ran.stdout.splitlines()
+
+
+def _log(repo: Path) -> list[str]:
+    ran = subprocess.run(
+        ["git", "log", "--format=%s"],
+        cwd=repo,
+        env=_ISOLATED,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return ran.stdout.splitlines()
 
 
 class TestRelease:

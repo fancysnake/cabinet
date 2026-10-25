@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A [vekna](https://vekna.fancysnake.dev) **tome**: pull request and issue
-maintenance rituals (`heal.mine`, `heal.this`, `merge`, `review`,
+maintenance rituals (`heal.mine`, `heal.this`, `merge`, `ci`, `answer`, `review`,
 `identify`, `labels`, `labels.heal`, `labels.identify`) packaged under `src/cabinet` and cast from other
 repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
 marketplace (`.claude-plugin/marketplace.json`) whose
@@ -97,7 +97,7 @@ bound to that carrier's own steps — is the one way across. A new step gets a n
 ### Facades
 
 Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/`, and facades
-sharing one (`heal.mine`, `heal.this`, `merge` and `review` share `heal.py`) each re-export **every**
+sharing one (`heal.mine`, `heal.this`, `merge`, `ci`, `answer` and `review` share `heal.py`) each re-export **every**
 step in it, so importing any of them registers the whole graph. A new step
 goes in every such facade's `__all__` (`test_facade.py` checks). A ritual's
 name is the `@ritual("...")` string, not the module, and holds no `:`: vekna

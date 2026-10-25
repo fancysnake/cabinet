@@ -17,6 +17,7 @@ from cabinet.pacts.heal import (
     Tend,
 )
 from cabinet.pacts.healing import TASKS, Task, Work
+from cabinet.pacts.pulls import Check
 from cabinet.specs import BUDGET
 from tests.conftest import commit
 from tests.integration.rituals.falling import falling
@@ -24,6 +25,7 @@ from tests.integration.rituals.falling import falling
 _GATE = "CI=1 mise run pr-fix"
 _MERGE_COMMIT = commit("chore: merge main and fix the gates")
 _PUSH = "git push origin feature"
+_RED = Check(name="test", passed=False, id=41)
 
 
 class TestTend:
@@ -209,6 +211,17 @@ class TestFinishMerge:
 
         assert trial.walk(finish_merge, work.to(FinishMerge)) == work.merged().to(Tend)
         assert trial.shell.commands == [_MERGE_COMMIT]
+
+    # The push after the merge starts a CI run of its own: the surveyed checks
+    # are the old head's, so fixing from them would rerun and read stale jobs.
+    @staticmethod
+    def test_a_merge_leaves_ci_to_the_next_cast(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when="git add -A*")
+        red = work.but(todos=["ci", "review"]).model_copy(update={"red": [_RED]})
+
+        assert trial.walk(finish_merge, red.to(FinishMerge)) == work.but(
+            todos=["review"], note="ci is left for the run this merge starts"
+        ).model_copy(update={"changed": True}).to(Tend)
 
     @staticmethod
     def test_an_open_merge_is_continued_first(trial: Trial, work: Work) -> None:
