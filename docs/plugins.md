@@ -91,7 +91,9 @@ and tags nothing unless asked.
    added; a doc gap older than the release is a line in the report.
 6. **Reports**: one line per file touched, each unit's version line, and
    any change it could not classify with the question it raises. Staging,
-   commit and tag stay with you.
+   commit and tag stay with you. Where a workflow publishes the release on a
+   tag push, as cabinet's own does, the report says pushing the tag is the
+   last step.
 
 Needs a `CHANGELOG.md` in Keep a Changelog form. Without one it says so and
 stops rather than inventing one.

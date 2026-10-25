@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# One release per tag, and a publish cut off halfway leaves a release without
+# its files, so a second push of the same tag queues rather than cancels.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
+      - run: mise install
+      # A tag ahead of or behind the manifest would build a wheel named for a
+      # version the tag does not claim.
+      - name: Check the tag matches the version
+        run: |
+          version="$(poetry version -s)"
+          if [ "v${version}" != "${TAG}" ]; then
+            echo "::error::tag ${TAG} does not match version ${version}"
+            exit 1
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+      # The section runs from its own heading to the next heading, or to the
+      # link block under the oldest one.
+      - name: Take the notes from the changelog
+        run: |
+          awk -v v="${VERSION}" '
+            /^## |^<!--/ { p = index($0, "## [" v "]") == 1; next }
+            p
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for ${VERSION}"
+            exit 1
+          fi
+      - run: poetry build
+      # A release made by hand before the tag landed is filled in, not
+      # duplicated.
+      - name: Publish the release
+        run: |
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release edit "${TAG}" --title "${VERSION}" --notes-file notes.md
+            gh release upload "${TAG}" dist/* --clobber
+          else
+            gh release create "${TAG}" dist/* --verify-tag \
+              --title "${VERSION}" --notes-file notes.md
+          fi

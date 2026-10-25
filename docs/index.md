@@ -45,12 +45,11 @@ Each is filed under a school of magic, the way a spellbook is.
 
 ### The tome
 
-cabinet is not on PyPI; it is installed straight from the repository, into the
-repository that wants the rituals:
+cabinet is not on PyPI; it installs from its
+[releases](https://github.com/fancysnake/cabinet/releases) into the repository
+that wants the rituals:
 
-```bash
-poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha>
-```
+--8<-- "README.md:install"
 
 Then a `.vekna.toml` names the rituals and tells them what the repository is:
 

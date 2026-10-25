@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning].
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.
 - `labels.heal` makes the reviewed, wait, qa and answered labels.
+- Each release carries its sdist and wheel, and its notes are the changelog
+  section; install docs lead with the wheel URL.
+- `release-bump` plugin: where a workflow publishes the release on a tag push,
+  the report names pushing the tag as the last step.
 
 ### Changed
 

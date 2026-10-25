@@ -130,7 +130,9 @@ not add; a doc gap that predates it is a line in the report, not an edit.
 
 One line per file touched, each unit's version line from step 3, and any
 change you could not classify with the question it raises. Leave staging,
-commit and tag to the user unless the request said otherwise.
+commit and tag to the user unless the request said otherwise. Where a
+workflow in the repo publishes the release on a tag push, say so: pushing
+the tag is the last step, and the release makes itself.
 
 [keep a changelog]: https://keepachangelog.com/en/1.1.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
