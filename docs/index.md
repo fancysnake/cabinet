@@ -42,8 +42,16 @@ Each is filed under a school of magic, the way a spellbook is.
 
 ### The tome
 
-cabinet is not on PyPI; it is installed straight from the repository, into the
-repository that wants the rituals:
+cabinet is not on PyPI; each
+[release](https://github.com/fancysnake/cabinet/releases) carries its wheel,
+installed into the repository that wants the rituals:
+
+```bash
+poetry add --group dev https://github.com/fancysnake/cabinet/releases/download/v<version>/cabinet-<version>-py3-none-any.whl
+```
+
+Releases after 4.0.0 carry the wheel; for an older one, or a commit not yet
+released, install from the git source:
 
 ```bash
 poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha>

@@ -72,28 +72,23 @@ page, and `--batch` is how many issues go on one page, default 7.
 
 ## Install
 
-cabinet is not on PyPI; it is installed straight from this repository, and
-runs on Python 3.11 through 3.15. In the repository that wants the rituals:
+cabinet is not on PyPI; each
+[release](https://github.com/fancysnake/cabinet/releases) carries its wheel, and it runs on
+Python 3.11 through 3.15. In the repository that wants the rituals:
 
 ```bash
-poetry add --group dev git+https://github.com/fancysnake/cabinet.git
+poetry add --group dev https://github.com/fancysnake/cabinet/releases/download/v<version>/cabinet-<version>-py3-none-any.whl
 ```
 
-Pin a tag or a commit rather than riding `main`, so a cast tonight runs the
-rituals you read yesterday:
+A pinned release means a cast tonight runs the rituals you read yesterday.
+Releases after 4.0.0 carry the wheel; for an older one, or a commit not yet
+released, install from the git source instead:
 
 ```bash
 poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha>
 ```
 
-Either way the dependency lands in `pyproject.toml` as
-
-```toml
-[dependency-groups]
-dev = ["cabinet @ git+https://github.com/fancysnake/cabinet.git@<tag-or-sha>"]
-```
-
-and `poetry install` brings `vekna` and its `trial` extra with it. Then tell
+Either way `poetry install` brings `vekna` and its `trial` extra with it. Then tell
 vekna where the rituals are and the rituals what the repository is:
 
 <!-- --8<-- [start:vekna-toml] -->
