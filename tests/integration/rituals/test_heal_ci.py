@@ -30,9 +30,11 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check
 from tests.conftest import commit
 from tests.integration.rituals.falling import falling
+from tests.integration.rituals.keyed import keyed
 
 _SUITE = Check(name="suite", passed=False, id=41)
 _LINT = Check(name="lint", passed=False, id=42)
+_SUITE_NEXT = Check(name="suite (3.12)", passed=False, id=44)
 _PATCH = Check(name="codecov/patch", passed=True, title="96.84% of diff hit", id=43)
 _PROJECT = Project.model_validate(
     {
@@ -53,6 +55,8 @@ _RUNS = (
 _GATE = "CI=1 mise run test"
 _COVERAGE = "CI=1 mise run diff-cover"
 _MISSING = "Diff Coverage\nMissing lines 3-4"
+_COMMITTED = "[feature abc123] fix\ncommitted\n"
+_SUITE_LOOP = "job_gate-suite"
 
 
 def _on(work: Work, *red: Check, attended: bool = False) -> Work:
@@ -108,6 +112,18 @@ class TestRerunJobs:
             note="gh could not rerun lint: no"
         ).to(PickJob)
 
+    # The share budgets one fix per configured job, and a matrix job's
+    # entries all match the one key.
+    @staticmethod
+    def test_one_check_per_job_is_fixed(trial: Trial, work: Work) -> None:
+        red = _on(work, _SUITE, _SUITE_NEXT, _PATCH)
+
+        assert trial.walk(rerun_jobs, red.to(RerunJobs)) == _on(
+            work, _SUITE, _PATCH
+        ).but(note="left for the next cast, one check per job: suite (3.12)").to(
+            PickJob
+        )
+
 
 class TestPickJob:
     @staticmethod
@@ -136,9 +152,35 @@ class TestMendJob:
 
         assert trial.walk(mend_job, red.to(MendJob)) == red.to(JobGate)
         prompt = trial.coding.prompts[0]
-        assert prompt.startswith("The `suite` CI job is red on this branch.")
+        assert prompt.startswith("A CI job is red on this branch.")
         assert "The ritual runs `mise run test` after you" in prompt
-        assert prompt.endswith("FAILED test_it")
+        assert prompt.endswith(
+            "job: suite\n\nFAILED test_it\n--- END UNTRUSTED REVIEW DATA ---"
+        )
+
+    @staticmethod
+    def test_each_job_has_a_session_of_its_own(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_LOG.format(id=41), stdout="FAILED test_it\n")
+        trial.shell.replies(when=_LOG.format(id=42), stdout="E501\n")
+        keys = keyed()
+
+        trial.walk(mend_job, _on(work, _SUITE).to(MendJob))
+        trial.walk(mend_job, _on(work, _LINT).to(MendJob))
+
+        assert keys == ["job_gate-suite-7", "job_gate-lint-7"]
+
+    # The gate's rounds continue the session that read the log.
+    @staticmethod
+    def test_the_gate_continues_the_mend(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_LOG.format(id=41), stdout="FAILED test_it\n")
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
+        keys = keyed()
+        red = _on(work, _SUITE)
+
+        trial.walk(mend_job, red.to(MendJob))
+        trial.walk(job_gate, red.to(JobGate))
+
+        assert keys[0] == keys[1]
 
     @staticmethod
     def test_an_ungated_job_lands_as_the_agent_left_it(
@@ -160,7 +202,7 @@ class TestMendJob:
         trial.walk(mend_job, _on(work, _LINT).to(MendJob))
 
         prompt = trial.coding.prompts[0]
-        assert prompt.endswith("E501")
+        assert prompt.endswith("E501\n--- END UNTRUSTED REVIEW DATA ---")
         assert "step 0 ok" not in prompt
 
     @staticmethod
@@ -227,7 +269,7 @@ class TestJobGate:
 
         assert trial.walk(job_gate, red.to(JobGate)) == red.but(
             gate="mise run test:unit"
-        ).charged(job_gate.name).to(JobGate)
+        ).charged(_SUITE_LOOP).to(JobGate)
         assert trial.coding.prompts[0].startswith("`mise run test` is this project")
 
     @staticmethod
@@ -240,11 +282,24 @@ class TestJobGate:
     @staticmethod
     def test_a_spent_budget_stands_the_branch_down(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
-        spent = _on(work, _SUITE).but(budgets={job_gate.name: 3})
+        spent = _on(work, _SUITE).but(budgets={_SUITE_LOOP: 3})
 
         assert trial.walk(job_gate, spent.to(JobGate)) == spent.stopped_by(
             "`mise run test` is still red:\n1 failed"
-        ).but(run=spent.run.but(seen=["1 failed"])).to(StandDown)
+        ).but(run=spent.run.but(seen=["1 failed"])).leaving_red().to(StandDown)
+
+    @staticmethod
+    def test_a_stand_down_names_the_checks_left_behind(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
+        spent = _on(work, _SUITE, _LINT, _PATCH).but(budgets={_SUITE_LOOP: 3})
+
+        stood = trial.walk(job_gate, spent.to(JobGate))
+
+        assert isinstance(stood, StandDown)
+        assert not stood.red
+        assert stood.note == "left red behind it: lint, codecov/patch"
 
 
 class TestCloseGap:
@@ -258,7 +313,7 @@ class TestCloseGap:
 
         assert trial.walk(close_gap, red.to(CloseGap)) == red.but(
             gate="mise run test:py:cov:diff"
-        ).charged(close_gap.name).to(CloseGap)
+        ).charged("close_gap-codecov/patch").to(CloseGap)
         assert "Missing lines 3-4" in trial.coding.prompts[0]
 
     @staticmethod
@@ -279,9 +334,21 @@ class TestCloseGap:
 
 
 class TestLandJob:
+    # Green here and red on CI: nothing changed, so nothing is fixed.
+    @staticmethod
+    def test_a_fix_that_changed_nothing_leaves_the_job_red(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when="git add -A*")
+        red = _on(work, _SUITE, _LINT)
+
+        assert trial.walk(land_job, red.to(LandJob)) == red.passed_over(
+            "`suite` passes here; CI is still red"
+        ).to(PickJob)
+
     @staticmethod
     def test_a_fix_is_a_commit_of_its_own(trial: Trial, work: Work) -> None:
-        trial.shell.replies(when="git add -A*")
+        trial.shell.replies(when="git add -A*", stdout=_COMMITTED)
         red = _on(work, _SUITE, _LINT)
 
         assert trial.walk(land_job, red.to(LandJob)) == red.landed().to(PickJob)

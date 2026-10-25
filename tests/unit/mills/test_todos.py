@@ -51,7 +51,7 @@ class TestTodos:
 
     @staticmethod
     def test_a_red_configured_job_is_ci() -> None:
-        facts = _facts(checks=[Check(name="test-postgres", passed=False)])
+        facts = _facts(checks=[Check(name="test-postgres", passed=False, id=1)])
 
         assert _todos(facts) == ["ci"]
 
@@ -83,7 +83,7 @@ class TestTodos:
     def test_every_todo_in_the_order_a_cast_works_them() -> None:
         facts = _facts(
             labels=[],
-            checks=[Check(name="checks", passed=False)],
+            checks=[Check(name="checks", passed=False, id=1)],
             threads=[Thread(id="1", resolved=False)],
             conflicted=True,
         )
@@ -114,9 +114,9 @@ class TestRed:
     def test_only_configured_jobs_count() -> None:
         board = Board(
             checks=[
-                Check(name="checks", passed=False),
-                Check(name="docs", passed=False),
-                Check(name="test", passed=True),
+                Check(name="checks", passed=False, id=1),
+                Check(name="docs", passed=False, id=1),
+                Check(name="test", passed=True, id=1),
             ]
         )
 
@@ -124,11 +124,11 @@ class TestRed:
 
     @staticmethod
     def test_a_running_check_is_not_red() -> None:
-        assert not _red(Board(checks=[Check(name="checks")]), _PROJECT)
+        assert not _red(Board(checks=[Check(name="checks", id=1)]), _PROJECT)
 
     @staticmethod
     def test_a_check_named_twice_is_named_once() -> None:
-        red = Check(name="test", passed=False)
+        red = Check(name="test", passed=False, id=1)
 
         assert _red(Board(checks=[red, red]), _PROJECT) == ["test"]
 
@@ -136,32 +136,41 @@ class TestRed:
     def test_the_jobs_are_the_projects() -> None:
         project = Project.model_validate({"ci": {"jobs": {"docs": {}}}})
         board = Board(
-            checks=[Check(name="docs", passed=False), Check(name="test", passed=False)]
+            checks=[
+                Check(name="docs", passed=False, id=1),
+                Check(name="test", passed=False, id=1),
+            ]
         )
 
         assert _red(board, project) == ["docs"]
 
     @staticmethod
     def test_a_green_patch_naming_a_gap_is_red() -> None:
-        patch = Check(name="codecov/patch", passed=True, title="96.84% of diff hit")
+        patch = Check(
+            name="codecov/patch", passed=True, title="96.84% of diff hit", id=1
+        )
 
         assert _red(Board(checks=[patch]), _PROJECT) == ["codecov/patch"]
 
     @staticmethod
     def test_a_whole_patch_is_not_red() -> None:
-        patch = Check(name="codecov/patch", passed=True, title="100.00% of diff hit")
+        patch = Check(
+            name="codecov/patch", passed=True, title="100.00% of diff hit", id=1
+        )
 
         assert not _red(Board(checks=[patch]), _PROJECT)
 
     @staticmethod
     def test_a_patch_with_nothing_to_measure_names_no_gap() -> None:
-        patch = Check(name="codecov/patch", passed=True, title="Coverage not affected")
+        patch = Check(
+            name="codecov/patch", passed=True, title="Coverage not affected", id=1
+        )
 
         assert not _red(Board(checks=[patch]), _PROJECT)
 
     @staticmethod
     def test_only_a_covering_job_names_a_gap() -> None:
-        suite = Check(name="test", passed=True, title="96.84% of diff hit")
+        suite = Check(name="test", passed=True, title="96.84% of diff hit", id=1)
 
         assert not _red(Board(checks=[suite]), _PROJECT)
 
@@ -170,7 +179,7 @@ class TestSurveyed:
     @staticmethod
     def test_the_row_says_what_ci_and_answer_would_work_through() -> None:
         facts = _facts(
-            checks=[Check(name="checks", passed=False)],
+            checks=[Check(name="checks", passed=False, id=1)],
             threads=[Thread(id="1", resolved=False), Thread(id="2", resolved=True)],
         )
 
@@ -179,6 +188,6 @@ class TestSurveyed:
             branch="feature",
             url="https://example.test/pull/7",
             todos=["ci", "answer"],
-            red=[Check(name="checks", passed=False)],
+            red=[Check(name="checks", passed=False, id=1)],
             threads=1,
         )

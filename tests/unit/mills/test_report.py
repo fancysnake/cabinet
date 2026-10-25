@@ -264,7 +264,7 @@ class TestSurveyed:
             branch="feature",
             url=_PULL.url,
             todos=["merge", "ci", "answer", "review"],
-            red=[Check(name="checks"), Check(name="test")],
+            red=[Check(name="checks", id=1), Check(name="test", id=1)],
             threads=3,
         )
 

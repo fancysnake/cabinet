@@ -41,7 +41,7 @@ class Check(BaseModel):
     title: str = ""
     # The forge's id for the run, which a rerun and a log are asked by: the
     # job, for a check CI ran itself.
-    id: int = 0
+    id: int
 
 
 class Board(BaseModel):

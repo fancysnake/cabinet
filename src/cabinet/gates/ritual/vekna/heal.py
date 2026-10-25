@@ -34,7 +34,12 @@ every task ends back at ``tend``:
   and fixes it; a job with a ``gate`` then goes round the repair loop against
   it, ``fast`` between rounds, and one without is committed as the agent left
   it. A ``covering`` job's gap is measured here and covered with tests. Each
-  job's fix is a commit of its own.
+  job's fix is a commit of its own, and a job gets one check fixed per cast
+  however many of its matrix entries are red. A job that stands the branch
+  down ends the task, and the checks behind it are named. A fix that changes
+  nothing leaves its job red, and the row says it passes here. A branch whose
+  merge was committed leaves ci for the next cast: the push starts a run of
+  its own.
 - **answer**, attended only: an unattended cast leaves the threads for you and
   says how many wait. First whatever an earlier cast's forge failure left
   half-settled is finished. Then the open threads go in batches of
@@ -507,10 +512,18 @@ def _job(work: Work) -> CiJob:
     return work.run.project.ci.job(work.red[0].name) or CiJob()
 
 
+# A job loop's name for the check in hand: the budget it spends, and the
+# session every round continues, from the mend that read the log through the
+# gate. The next job starts on a session of its own.
+def _loop(work: Work, name: str) -> str:
+    return f"{name}-{work.red[0].name}"
+
+
 # Rerun first, wherever the job asks for it. Whatever went again is CI's to
 # answer, so the task ends there: a fix pushed on top would start a run of its
-# own and waste the rerun. The next cast reads the result. A check the forge
-# has already run twice on this head is fixed instead.
+# own and waste the rerun. The next cast reads the result. A rerun is a
+# flake's second chance, not a loop: a check this head has already run more
+# than once is fixed instead.
 @step
 async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
     project = work.run.project
@@ -522,14 +535,16 @@ async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
         if job is None or not job.rerun:
             continue
         try:
-            if await forge.rerun(work.pr.branch, check):
-                went.append(check.name)
+            if await forge.runs(work.pr.branch, check) > 1:
+                continue
+            await forge.rerun(check)
+            went.append(check.name)
         except ForgeError as error:
             notes.append(str(error))
     if went:
         notes.append(f"reran {', '.join(went)}")
         return work.noting(*notes).to(Tend)
-    return work.noting(*notes).to(PickJob)
+    return work.noting(*notes).one_per_job().to(PickJob)
 
 
 # The next red check, handed to the loop that fixes its kind of job.
@@ -564,16 +579,25 @@ async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
     prompt = services().prompts.fix_job(
         project, services().verdicts.logged(log), job=check.name, gate=gate
     )
-    if fallen := await _asked(work, prompt, key=job_gate.name):
+    if fallen := await _asked(work, prompt, key=_loop(work, job_gate.name)):
         return work.abandoned(fallen.reason).to(Chart)
     return work.to(JobGate) if gate else work.to(LandJob)
+
+
+# A job's repair loop. Standing down ends the ci task, so the checks still
+# behind the one in hand are named rather than carried off unread.
+async def _mended(
+    work: _WorkT, against: CiJob, *, name: str
+) -> LandJob | _WorkT | StandDown | Chart:
+    went = await _repaired(work, against, name=name, then=LandJob)
+    return went.leaving_red() if isinstance(went, StandDown) else went
 
 
 # The job's gate, repaired until it is green: the merge's loop, run against
 # the job's own commands.
 @step
 async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
-    return await _repaired(work, _job(work), name=job_gate.name, then=LandJob)
+    return await _mended(work, _job(work), name=_loop(work, job_gate.name))
 
 
 # Close the coverage gap, repairing a red suite like any other gate. The first
@@ -590,11 +614,12 @@ async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
     )
     # Anything but the full measurement is a reason to spend the full
     # measurement, not a branch that is covered.
-    return await _repaired(work, against, name=close_gap.name, then=LandJob)
+    return await _mended(work, against, name=_loop(work, close_gap.name))
 
 
-# Each job's fix is a commit of its own, and a fix that changed nothing is no
-# commit at all.
+# Each job's fix is a commit of its own. A fix that changed nothing is no
+# commit at all, and no fix either: green here and red on CI, the job is left
+# red and the row says so.
 @step
 async def land_job(work: LandJob) -> PickJob | SetAside:
     name = work.red[0].name
@@ -604,9 +629,11 @@ async def land_job(work: LandJob) -> PickJob | SetAside:
         else f"fix: make the {name} job green"
     )
     try:
-        await services().scm(work.run.project).commit(message)
+        committed = await services().scm(work.run.project).commit(message)
     except ScmError as error:
         return work.noting(f"could not commit the {name} fix: {error}").to(SetAside)
+    if not committed:
+        return work.passed_over(f"`{name}` passes here; CI is still red").to(PickJob)
     return work.landed().to(PickJob)
 
 
