@@ -286,29 +286,39 @@ class TestBoard:
     @staticmethod
     def test_statuses_become_checks(trial: Trial) -> None:
         answer = [
-            {"name": "test", "status": "success"},
-            {"name": "checks", "status": "failed"},
-            {"name": "lint", "status": "canceled"},
-            {"name": "codecov/patch", "status": "running", "description": "96% hit"},
+            {"id": 5, "name": "test", "status": "success"},
+            {"id": 6, "name": "checks", "status": "failed"},
+            {"id": 7, "name": "lint", "status": "canceled"},
+            {
+                "id": 8,
+                "name": "codecov/patch",
+                "status": "running",
+                "description": "96% hit",
+            },
         ]
         trial.shell.replies(when=_STATUSES, stdout=json.dumps(answer))
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[
-                Check(name="test", passed=True),
-                Check(name="checks", passed=False),
-                Check(name="lint", passed=False),
-                Check(name="codecov/patch", title="96% hit"),
+                Check(name="test", passed=True, id=5),
+                Check(name="checks", passed=False, id=6),
+                Check(name="lint", passed=False, id=7),
+                Check(name="codecov/patch", title="96% hit", id=8),
             ]
         )
 
     @staticmethod
     def test_a_full_page_may_be_short(trial: Trial) -> None:
-        full = [{"name": f"job{index}", "status": "success"} for index in range(100)]
+        full = [
+            {"id": index, "name": f"job{index}", "status": "success"}
+            for index in range(100)
+        ]
         trial.shell.replies(when=_STATUSES, stdout=json.dumps(full))
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
-            checks=[Check(name=f"job{index}", passed=True) for index in range(100)],
+            checks=[
+                Check(name=f"job{index}", passed=True, id=index) for index in range(100)
+            ],
             truncated=True,
         )
 
@@ -318,6 +328,62 @@ class TestBoard:
 
         with pytest.raises(ForgeError, match="statuses this could not read"):
             drive(trial, lambda: _FORGE.board("feature"))
+
+
+_JOB = Check(name="test 1/2", passed=False, id=42)
+_RUNS = (
+    "glab api 'projects/:id/repository/commits/feature/statuses"
+    "?name=test%201%2F2&all=true&per_page=100'"
+)
+_RETRY = "glab api projects/:id/jobs/42/retry -X POST"
+
+_TWICE = 2
+
+
+def _runs(count: int) -> str:
+    return json.dumps([{"id": 42, "name": "test 1/2", "status": "failed"}] * count)
+
+
+class TestRuns:
+    @staticmethod
+    def test_every_status_of_the_job_is_counted(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(_TWICE))
+
+        assert drive(trial, lambda: _FORGE.runs("feature", _JOB)) == _TWICE
+
+
+class TestRerun:
+    @staticmethod
+    def test_the_job_is_retried(trial: Trial) -> None:
+        trial.shell.replies(when=_RETRY)
+
+        drive(trial, lambda: _FORGE.rerun(_JOB))
+
+        assert trial.shell.commands == [_RETRY]
+
+    @staticmethod
+    def test_a_retry_glab_refuses(trial: Trial) -> None:
+        trial.shell.replies(when=_RETRY, exit_code=1, stderr="403")
+
+        with pytest.raises(ForgeError, match=r"could not retry test 1/2: 403"):
+            drive(trial, lambda: _FORGE.rerun(_JOB))
+
+
+class TestLog:
+    @staticmethod
+    def test_the_trace_is_read(trial: Trial) -> None:
+        trial.shell.replies(when="glab api projects/:id/jobs/42/trace", stdout="E501")
+
+        assert drive(trial, lambda: _FORGE.log(_JOB)) == "E501"
+
+    @staticmethod
+    def test_a_trace_glab_would_not_give(trial: Trial) -> None:
+        trial.shell.replies(
+            when="glab api projects/:id/jobs/42/trace", exit_code=1, stderr="gone"
+        )
+
+        with pytest.raises(ForgeError, match=r"could not read the log.*gone"):
+            drive(trial, lambda: _FORGE.log(_JOB))
 
 
 class TestComment:

@@ -4,7 +4,7 @@ from cabinet.mills.report import Report
 from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.threads import Finding, TriageItem
 
 _REPORT = Report()
@@ -21,6 +21,10 @@ _PULL = PullRequest(
 
 _WORKED = Checked(
     number=7, branch="feature", url=_PULL.url, outcome="worked", unpushed=0
+)
+
+_ANSWER = Surveyed(
+    number=7, branch="feature", url=_PULL.url, todos=["answer"], red=[], threads=11
 )
 
 
@@ -64,6 +68,26 @@ class TestHealed:
             "heal — 0 worked\n\n  (none)\n\n"
             "not reached: feature\n\nthe cast failed: gh died\n"
         )
+
+    @staticmethod
+    def test_threads_left_for_you_are_counted() -> None:
+        assert _REPORT.healed(_run(surveyed=[_ANSWER])) == (
+            "heal — 0 worked\n\n  (none)\n\n"
+            "waiting for you, cast with --attended true:\n"
+            "  #7 feature: 11 threads\n"
+        )
+
+    @staticmethod
+    def test_an_attended_cast_leaves_no_threads_waiting() -> None:
+        healed = _REPORT.healed(_run(surveyed=[_ANSWER], attended=True))
+
+        assert "waiting" not in healed
+
+    @staticmethod
+    def test_a_cast_that_never_answers_leaves_no_threads_waiting() -> None:
+        healed = _REPORT.healed(_run(surveyed=[_ANSWER], tasks=["review"]))
+
+        assert "waiting" not in healed
 
     @staticmethod
     def test_what_was_left_for_the_next_cast() -> None:
@@ -240,7 +264,7 @@ class TestSurveyed:
             branch="feature",
             url=_PULL.url,
             todos=["merge", "ci", "answer", "review"],
-            red=["checks", "test"],
+            red=[Check(name="checks", id=1), Check(name="test", id=1)],
             threads=3,
         )
 

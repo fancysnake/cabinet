@@ -4,10 +4,10 @@ from typing import Literal, Self, TypeAlias, TypeVar, get_args
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import Budgeted, Reserving
+from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Bound, PullRequest
+from cabinet.pacts.pulls import Board, Bound, Check, PullRequest
 from cabinet.pacts.threads import Thread
 
 _RunT = TypeVar("_RunT", bound="Run")
@@ -20,7 +20,7 @@ Todo = Literal["merge", "ci", "answer", "review", "guide"]
 
 # The todos the graph has steps for, in the same order. A todo outside it is
 # surveyed and reported, and nothing works it.
-Task = Literal["merge", "review"]
+Task = Literal["merge", "ci", "answer", "review"]
 TASKS: tuple[Task, ...] = get_args(Task)
 
 
@@ -37,6 +37,9 @@ class Heal(BaseModel):
     # mode instead of refusing everything outside its allowlist, and another
     # repair attempt is asked for rather than spent on the budget's say-so.
     attended: bool = False
+    # How many open threads one round of `answer` reads, answers and settles
+    # before the next round fetches what the forge still holds open.
+    batch: Batch = BATCH
 
     # The tasks a cast may work: the ones named, every one where none is, and
     # none at all for a plan.
@@ -61,7 +64,7 @@ class Surveyed(BaseModel):
     todos: list[Todo]
     # The configured CI jobs whose checks are red, and the open threads: what
     # `ci` and `answer` would work through.
-    red: list[str]
+    red: list[Check]
     threads: int
 
 
@@ -82,7 +85,7 @@ class Checked(BaseModel):
     branch: str
     url: str
     # Whether the branch's tasks were worked through, or it was given up on.
-    # `worked` says nothing of the gate, which only the merge task runs.
+    # `worked` says nothing of the gate, which only merge, ci and answer run.
     # `skipped` is neither: the branch was never taken.
     outcome: Outcome
     # None when git could not say. Nothing to push and "we could not tell" are
@@ -102,6 +105,7 @@ class Run(Reserving, Hop):
     project: Project
     bound: Bound = 3
     attended: bool = False
+    batch: Batch = BATCH
     # Which tasks this cast may work: every one for `heal`, one for a task
     # ritual, none for a plan. The survey still says everything a branch needs.
     tasks: list[Task] = Field(default_factory=_tasks)
@@ -156,15 +160,33 @@ class Run(Reserving, Hop):
     def took(self, row: Surveyed | Unsurveyed) -> Self:
         return self.but(queue=self.queue[1:], surveyed=[*self.surveyed, row])
 
-    # What of `todos` this cast may work, in the order it works them.
+    # What of `todos` this cast may work, in the order it works them. Never
+    # `answer` with nobody at the terminal: every item of a triage is yours to
+    # decide, and the threads wait for a cast you attend.
     def worked(self, todos: list[Todo]) -> list[Task]:
-        return [task for task in self.tasks if task in todos]
+        return [
+            task
+            for task in self.tasks
+            if task in todos and (task != "answer" or self.attended)
+        ]
 
-    # `pull` taken with the tasks it will get, and the worst it can spend
-    # spoken for. A fresh `Work` per pull request, so no budget survives the
-    # branch change.
-    def take(self, pull: PullRequest, todos: list[Task], steps: int) -> "Work":
-        return Work(run=self.spoke_for(steps), pr=pull, todos=todos)
+    # The surveyed pull requests whose threads this cast could have answered
+    # and left for you, because nobody was there to decide them.
+    def waiting(self) -> list[Surveyed]:
+        if self.attended or "answer" not in self.tasks:
+            return []
+        return [
+            row
+            for row in self.surveyed
+            if isinstance(row, Surveyed) and "answer" in row.todos
+        ]
+
+    # `pull` taken with the tasks it will get and the red checks `ci` works
+    # through, and the worst it can spend spoken for. A fresh `Work` per pull
+    # request, so no budget survives the branch change.
+    def take(self, row: Surveyed, pull: PullRequest, steps: int) -> "Work":
+        todos = self.worked(row.todos)
+        return Work(run=self.spoke_for(steps), pr=pull, todos=todos, red=row.red)
 
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])
@@ -172,7 +194,9 @@ class Run(Reserving, Hop):
 
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
-_Update: TypeAlias = dict[str, Run | dict[str, int] | list[Task] | bool | str]
+_Update: TypeAlias = dict[
+    str, Run | dict[str, int] | list[Task] | list[Check] | bool | str
+]
 
 
 # `budgets` dies with this payload, which is what "a branch change clears all
@@ -182,6 +206,8 @@ class Work(Budgeted, Hop):
     pr: PullRequest
     # The tasks still to work on this branch, the next one first.
     todos: list[Task] = Field(default_factory=list)
+    # The red checks `ci` has still to work, the one in hand first.
+    red: list[Check] = Field(default_factory=list)
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by
@@ -238,9 +264,52 @@ class Work(Budgeted, Hop):
     def merging_on(self, note: str) -> Self:
         return self._copied({"merging": True, "note": note})
 
-    # The merge is closed and committed: there is something to push.
+    # The merge is closed and committed: there is something to push. The push
+    # starts a CI run of its own, so the checks the survey read are the old
+    # head's, and `ci` waits for the next cast to read the new one.
     def merged(self) -> Self:
-        return self._copied({"merging": False, "changed": True})
+        update: _Update = {"merging": False, "changed": True}
+        if "ci" in self.todos:
+            todos: list[Task] = [todo for todo in self.todos if todo != "ci"]
+            update["todos"] = todos
+            update["red"] = []
+            left = "ci is left for the run this merge starts"
+            update["note"] = joined(self.note, left)
+        return self._copied(update)
+
+    # The fix loop takes one check per configured job, which is what the share
+    # budgets for: a matrix job's entries all match its one key, and the fix
+    # for one entry is usually every entry's. The rest wait for the next cast.
+    def one_per_job(self) -> Self:
+        ci = self.run.project.ci
+        kept: dict[str | None, Check] = {}
+        left: list[str] = []
+        for check in self.red:
+            if (key := ci.key(check.name)) in kept:
+                left.append(check.name)
+            else:
+                kept[key] = check
+        if not left:
+            return self
+        names = ", ".join(left)
+        note = joined(self.note, f"left for the next cast, one check per job: {names}")
+        return self._copied({"red": list(kept.values()), "note": note})
+
+    # The check in hand is done with, and what fixed it is committed.
+    def landed(self) -> Self:
+        return self._copied({"red": self.red[1:], "changed": True})
+
+    # The check in hand is left red, and this says why.
+    # Said after whatever the row already says, not over it.
+    def noting(self, *parts: str) -> Self:
+        return self._copied({"note": joined(self.note, *parts)})
+
+    def passed_over(self, note: str) -> Self:
+        return self._copied({"red": self.red[1:], "note": joined(self.note, note)})
+
+    # The answers are committed: there is something to push.
+    def committed(self) -> Self:
+        return self._copied({"changed": True})
 
     def pushed(self) -> Self:
         return self._copied({"changed": False})
@@ -249,10 +318,17 @@ class Work(Budgeted, Hop):
     def stopped_by(self, reason: str) -> Self:
         return self._copied({"reason": reason})
 
+    # The job in hand stood the branch down, and the task ends with it: the
+    # checks behind it are named, since nothing works them now.
+    def leaving_red(self) -> Self:
+        left = ", ".join(check.name for check in self.red[1:])
+        note = f"left red behind it: {left}" if left else ""
+        return self._copied({"red": [], "note": joined(self.note, note)})
+
     # The worktree is released and the rest of the tasks are worked anyway.
     # Whatever the merge had already committed is still to push.
     def standing_down(self, note: str) -> Self:
-        return self._copied({"changed": True, "note": note})
+        return self._copied({"changed": True, "note": joined(self.note, note)})
 
     # The one way a `Work` is copied. Typed on the way in: a bare literal
     # handed to `model_copy` is read as `dict[str, Any]`, which the checker

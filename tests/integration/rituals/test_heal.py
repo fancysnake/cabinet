@@ -9,7 +9,7 @@ from cabinet.gates.ritual.vekna.heal import muster_mine, muster_this, survey
 from cabinet.pacts.heal import Chart, CheckClean, MusterMine, MusterThis, Survey
 from cabinet.pacts.healing import Heal, Healed, Run, Surveyed, Unsurveyed
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.services import services
 from cabinet.rituals.heal_mine import heal_mine
 from cabinet.rituals.heal_this import heal_this
@@ -32,12 +32,13 @@ _RED = json.dumps(
     {
         "total_count": 2,
         "check_runs": [
-            {"name": "checks", "conclusion": "failure"},
-            {"name": "docs", "conclusion": "failure"},
+            {"id": 1, "name": "checks", "conclusion": "failure"},
+            {"id": 2, "name": "docs", "conclusion": "failure"},
         ],
     }
 )
 _GREEN = json.dumps({"total_count": 0, "check_runs": []})
+_CHECKS = Check(name="checks", passed=False, id=1)
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
@@ -161,7 +162,7 @@ class TestSurvey:
                 branch="feature",
                 url=_URL,
                 todos=["merge", "ci", "answer", "review"],
-                red=["checks"],
+                red=[_CHECKS],
                 threads=1,
             )
         ]
@@ -227,9 +228,26 @@ class TestSurvey:
         transition = trial.walk(survey, run)
 
         assert isinstance(transition, CheckClean)
-        assert transition.todos == ["merge", "review"]
+        assert transition.todos == ["merge", "ci", "review"]
+        assert transition.red == [_CHECKS]
         assert transition.run.reserved == share
         assert transition.run.queue == []
+
+    # Every item of a triage is the operator's to decide, so only a cast with
+    # somebody at the terminal answers threads.
+    @staticmethod
+    def test_an_attended_cast_takes_the_threads_too(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        clean = pull.model_copy(update={"conflicted": False})
+        run = Survey(project=project, attended=True, queue=[clean])
+
+        transition = trial.walk(survey, run)
+
+        assert isinstance(transition, CheckClean)
+        assert transition.todos == ["answer", "review"]
 
     @staticmethod
     def test_a_task_ritual_takes_only_its_task(

@@ -84,6 +84,7 @@ class _Discussion(BaseModel):
 
 
 class _Status(BaseModel):
+    id: int
     name: str
     status: str
     description: str | None = None
@@ -193,7 +194,9 @@ def _check(found: _Status) -> Check:
         passed = None
     else:
         passed = False
-    return Check(name=found.name, passed=passed, title=found.description or "")
+    return Check(
+        name=found.name, passed=passed, title=found.description or "", id=found.id
+    )
 
 
 # A discussion is a review thread when its first note can be resolved; the
@@ -398,6 +401,37 @@ class GitlabForge(ForgeProtocol):
         )
         return Board(
             checks=[_check(status) for status in found], truncated=len(found) >= _PAGE
+        )
+
+    @override
+    async def runs(self, branch: str, check: Check) -> int:
+        name = quote(check.name, safe="")
+        statuses = await _read(
+            _STATUSES,
+            _api(
+                f"projects/:id/repository/commits/{branch}/statuses"
+                f"?name={name}&all=true&per_page={_PAGE}"
+            ),
+            f"glab could not count the runs of {check.name}",
+            "statuses",
+        )
+        return len(statuses)
+
+    # A status CI posted for one of its own jobs shares its id with the job,
+    # which is what a retry takes. One an external service posted has no job,
+    # and glab says so.
+    @override
+    async def rerun(self, check: Check) -> None:
+        await asked(
+            _api(f"projects/:id/jobs/{check.id}/retry", "-X POST"),
+            f"glab could not retry {check.name}",
+        )
+
+    @override
+    async def log(self, check: Check) -> str:
+        return await asked(
+            _api(f"projects/:id/jobs/{check.id}/trace"),
+            f"glab could not read the log of {check.name}",
         )
 
     # One read of the diff refs for the whole review, and one pass down the

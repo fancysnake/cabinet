@@ -280,6 +280,23 @@ class Prompts(PromptsProtocol):
             f"The report:\n\n{report}"
         )
 
+    # Concatenated for the reason `fix_gates` is: a log is full of braces.
+    # Fenced, because a CI log prints whatever the code under test does, and
+    # the job's name is whatever the workflow file says.
+    @override
+    def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> str:
+        judged = (
+            f"The ritual runs `{gate}` after you, which reproduces the job here."
+            if gate
+            else "Nothing reproduces the job here: the next CI run is the check."
+        )
+        named = _fence("job: " + job + "\n\n" + log)
+        return (
+            f"A CI job is red on this branch.\n\n{_FIX_GATES}\n"
+            f"{judged}\n\n{_may_not_run(project)}\n{_FENCE}\n"
+            f"The job and the end of its log:\n\n{named}"
+        )
+
     @override
     def triage_read(self, number: int, threads: list[Thread]) -> str:
         return (

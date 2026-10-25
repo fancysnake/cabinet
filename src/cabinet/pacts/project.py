@@ -41,6 +41,10 @@ class Labels(BaseModel):
     wait: str = "pr::wait"
     # The guide was posted; remove to ask for it again.
     qa: str = "v:guide:done"
+    # The answer task left no review thread open. Only for you to read: the
+    # threads decide whether there is answering to do, so the task takes it
+    # off when it starts and puts it back when it ends with none open.
+    answered: str = "v:answer:done"
 
     # Every label `heal` reads or puts on, with what it means, for the forge.
     def conjured(self) -> list[LabelSpec]:
@@ -60,6 +64,11 @@ class Labels(BaseModel):
                 color="c5def5",
                 description="The smoke-test guide was posted; remove to ask again",
             ),
+            LabelSpec(
+                name=self.answered,
+                color="bfdadc",
+                description="Every review thread was answered and settled",
+            ),
         ]
 
 
@@ -74,8 +83,18 @@ class CiJob(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # Red here is missing coverage; its summary may name the patch coverage
-    # ("96.84% of diff hit").
+    # ("96.84% of diff hit"). Fixed by the coverage loop, which measures with
+    # `gate` and `fast` where they are set and the project's own coverage
+    # commands where they are not.
     covering: bool = False
+    # Red here may be a flake: run it again once before anything is fixed.
+    rerun: bool = False
+    # The command that reproduces the job here. Empty is a job nothing runs
+    # locally: the agent gets one attempt from the log, and the next CI run is
+    # the check.
+    gate: str = ""
+    # The narrower command re-run between repair rounds; empty is `gate`.
+    fast: str = ""
 
 
 def _jobs() -> dict[str, CiJob]:
@@ -89,11 +108,15 @@ class Ci(BaseModel):
 
     jobs: dict[str, CiJob] = Field(default_factory=_jobs)
 
-    # The job a check belongs to: the longest key it starts with, so
+    # The key a check belongs to: the longest it starts with, so
     # `codecov/patch` beats `codecov/` for the check both would match.
-    def job(self, check: str) -> CiJob | None:
+    def key(self, check: str) -> str | None:
         keys = [key for key in self.jobs if check.startswith(key)]
-        return self.jobs[max(keys, key=len)] if keys else None
+        return max(keys, key=len) if keys else None
+
+    def job(self, check: str) -> CiJob | None:
+        key = self.key(check)
+        return None if key is None else self.jobs[key]
 
     def covering(self, check: str) -> bool:
         job = self.job(check)

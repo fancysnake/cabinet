@@ -24,9 +24,13 @@ identify_skill = "~/.claude/skills/issues/SKILL.md"
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
 wait = "pr::wait"                     # hands off this pull request
 qa = "v:guide:done"                   # the guide was posted; take it off to ask again
+answered = "v:answer:done"            # the answer task left no review thread open
 
 [cabinet.ci.jobs.checks]              # one table per CI job, keyed by a prefix of its check name
 covering = false                      # red here is missing coverage
+rerun = false                         # run it again once before fixing it
+gate = ""                             # the command that reproduces it here; "" is none
+fast = ""                             # re-run between repair rounds; "" is gate
 
 [cabinet.ci.jobs.test]
 
@@ -48,7 +52,7 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `base`          | the branch every pull request is merged from                                |
 | `remote`        | pushed to and fetched from by name; must be https, see [the remote](#the-remote) |
 | `gate`          | the command a merge has to pass before it is committed; the merge task repairs until it does |
-| `coverage`      | the full diff coverage measurement, named to agents as a task to leave alone |
+| `coverage`      | the full diff coverage measurement a `covering` job runs, named to agents as a task to leave alone |
 | `fast_coverage` | the same measurement without the slow suites, re-run between repair rounds  |
 | `sign_commits`  | `false` commits with `commit.gpgsign=false`, for casts nobody can unlock a key for |
 | `review_skill`  | the skill file the review task reviews with; see [the review skill](#the-review-skill) |
@@ -62,6 +66,7 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `reviewed` | on means a review was posted; take it off to ask for another                  |
 | `wait`     | hands off: a pull request wearing it is never taken, touched or reported on   |
 | `qa`       | on means the guide was posted; take it off to ask for it again                |
+| `answered` | on means the answer task left no review thread open; it comes off when an answer task starts |
 
 ### `[cabinet.ci.jobs]`
 
@@ -69,14 +74,31 @@ One table per CI job the rituals may fix, keyed by a prefix of the check's
 name as the forge reports it; where two keys match a check, the longer wins.
 A red check no key matches is never a `ci` todo. Listing `jobs` replaces the
 defaults, so a project lists every job it wants read. A job listed bare is
-still read; its one key is optional:
+still read; every key is optional:
 
 | key        | what it is                                                                     |
 | ---------- | ------------------------------------------------------------------------------ |
 | `covering` | red here is missing coverage, and the check's summary may name the patch coverage, "96.84% of diff hit" |
+| `rerun`    | the job may be a flake: run it again, once per head, before anything is fixed |
+| `gate`     | the command that reproduces the job here; the agent's fix is repaired until it passes |
+| `fast`     | the narrower command re-run between repair rounds; empty runs `gate`           |
 
-A red check on a listed job makes a `ci` todo in the survey. Nothing works that
-todo yet: the `ci` task is still to come.
+A red check on a listed job makes a `ci` todo in the survey, and so does a
+green `covering` check whose summary names less than 100% of the diff. The
+[ci](rituals.md#ci) task then fixes it:
+
+- With `rerun`, the job runs again first, and the task ends for the next cast
+  to read the result.
+- With a `gate`, an agent reads the end of the job's log and fixes it, then
+  the gate runs and is repaired until it passes, `fast` between rounds.
+- Without a `gate`, the agent makes one attempt from the log and the ritual
+  commits it. The next CI run checks it.
+- With `covering`, coverage is measured here with `gate` and `fast`, or
+  `coverage` and `fast_coverage` where they are empty, and the agent writes
+  tests for the lines the report names.
+
+A check some other app posts, such as Codecov's, has no job to rerun or log
+to read: give it `covering`, not `rerun`.
 
 ### `[cabinet.agent]`
 

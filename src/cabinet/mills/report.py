@@ -71,11 +71,14 @@ def triage_line(index: int, item: TriageItem) -> str:
 # A todo with what it would work through, where that is more than its name.
 def _todo(row: Surveyed, todo: Todo) -> str:
     if todo == "ci":
-        return f"ci ({', '.join(row.red)})"
+        return f"ci ({', '.join(check.name for check in row.red)})"
     if todo == "answer":
-        noun = "thread" if row.threads == 1 else "threads"
-        return f"answer ({row.threads} {noun})"
+        return f"answer ({_threads(row.threads)})"
     return todo
+
+
+def _threads(count: int) -> str:
+    return f"{count} thread" if count == 1 else f"{count} threads"
 
 
 def _line(row: Checked) -> str:
@@ -110,6 +113,15 @@ class Report(ReportProtocol):
     def healed(self, run: Run) -> str:
         lines = [f"heal — {len(run.checked)} worked", ""]
         lines += [_line(row) for row in run.checked] or ["  (none)"]
+        # Said wherever the cast left any, as the way to get them answered: a
+        # cast nobody attended answers nothing, and says so here rather than
+        # leaving the survey line to look like work it did not do.
+        if waiting := run.waiting():
+            lines += ["", "waiting for you, cast with --attended true:"]
+            lines += [
+                f"  #{row.number} {row.branch}: {_threads(row.threads)}"
+                for row in waiting
+            ]
         # Only when there are any, unlike the rows: a cast that reached every
         # pull request is the normal one, and a line saying "none" on every
         # one of them trains the eye past it. A cast that failed left them

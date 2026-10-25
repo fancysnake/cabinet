@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from cabinet.pacts.issues import Listing, Opened
     from cabinet.pacts.project import LabelSpec
-    from cabinet.pacts.pulls import Board, PullRequest
+    from cabinet.pacts.pulls import Board, Check, PullRequest
     from cabinet.pacts.threads import Finding, Posted, Thread
 
 
@@ -43,6 +43,14 @@ class ForgeProtocol(Protocol):
 
     # What CI made of the branch as it stands now, not as the listing saw it.
     async def board(self, branch: str) -> Board: ...
+
+    # Every run of the check on `branch`, earlier attempts included.
+    async def runs(self, branch: str, check: Check) -> int: ...
+
+    async def rerun(self, check: Check) -> None: ...
+
+    # What the check's job printed, whole: trimming it is the reader's call.
+    async def log(self, check: Check) -> str: ...
 
     # A whole review in one call, so an adapter resolves what it needs to
     # anchor the items once instead of once per item. Each goes up anchored to

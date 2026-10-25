@@ -18,6 +18,7 @@ _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 
 _STASHED = "stashed"
+_COMMITTED = "committed"
 
 # The agent was told not to commit the merge, but a step checks rather than
 # trusts: MERGE_HEAD is gone when it committed anyway, and then there is no
@@ -180,15 +181,18 @@ class GitScm(ScmProtocol):
         await _asked(_CONTINUE_MERGE, "could not finish the merge")
 
     # Idempotent: staging everything and finding nothing staged is a commit
-    # rite that did nothing, not a failure.
+    # rite that did nothing, not a failure. Our own marker, echoed after git
+    # has said its piece, tells the two apart.
     @override
-    async def commit(self, message: str) -> None:
+    async def commit(self, message: str) -> bool:
         unsigned = "" if self._sign else " -c commit.gpgsign=false"
-        await _asked(
-            "git add -A && (git diff --cached --quiet || "
-            f"{_GPG_TTY} git{unsigned} commit -m {_quoted(message)})",
+        ran = await _asked(
+            "git add -A && (git diff --cached --quiet || ("
+            f"{_GPG_TTY} git{unsigned} commit -m {_quoted(message)} "
+            f"&& echo {_COMMITTED}))",
             "could not commit",
         )
+        return ran.stdout.splitlines()[-1:] == [_COMMITTED]
 
     # The remote by name rather than the branch's upstream, which a branch a
     # ritual has just merged on may not have. It is the one `ahead` counts
