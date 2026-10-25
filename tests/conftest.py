@@ -45,7 +45,7 @@ def board(name: str = "feature") -> str:
 def commit(message: str) -> str:
     return (
         "git add -A && (git diff --cached --quiet || "
-        f"{GPG_TTY} git commit -m '{message}')"
+        f"{GPG_TTY} git commit -m '{message}' && echo committed)"
     )
 
 

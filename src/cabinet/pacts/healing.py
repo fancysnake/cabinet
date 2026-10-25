@@ -243,9 +243,36 @@ class Work(Budgeted, Hop):
     def merging_on(self, note: str) -> Self:
         return self._copied({"merging": True, "note": note})
 
-    # The merge is closed and committed: there is something to push.
+    # The merge is closed and committed: there is something to push. The push
+    # starts a CI run of its own, so the checks the survey read are the old
+    # head's, and `ci` waits for the next cast to read the new one.
     def merged(self) -> Self:
-        return self._copied({"merging": False, "changed": True})
+        update: _Update = {"merging": False, "changed": True}
+        if "ci" in self.todos:
+            todos: list[Task] = [todo for todo in self.todos if todo != "ci"]
+            update["todos"] = todos
+            update["red"] = []
+            left = "ci is left for the run this merge starts"
+            update["note"] = joined(self.note, left)
+        return self._copied(update)
+
+    # The fix loop takes one check per configured job, which is what the share
+    # budgets for: a matrix job's entries all match its one key, and the fix
+    # for one entry is usually every entry's. The rest wait for the next cast.
+    def one_per_job(self) -> Self:
+        ci = self.run.project.ci
+        kept: dict[str | None, Check] = {}
+        left: list[str] = []
+        for check in self.red:
+            if (key := ci.key(check.name)) in kept:
+                left.append(check.name)
+            else:
+                kept[key] = check
+        if not left:
+            return self
+        names = ", ".join(left)
+        note = joined(self.note, f"left for the next cast, one check per job: {names}")
+        return self._copied({"red": list(kept.values()), "note": note})
 
     # The check in hand is done with, and what fixed it is committed.
     def landed(self) -> Self:
@@ -262,10 +289,17 @@ class Work(Budgeted, Hop):
     def stopped_by(self, reason: str) -> Self:
         return self._copied({"reason": reason})
 
+    # The job in hand stood the branch down, and the task ends with it: the
+    # checks behind it are named, since nothing works them now.
+    def leaving_red(self) -> Self:
+        left = ", ".join(check.name for check in self.red[1:])
+        note = f"left red behind it: {left}" if left else ""
+        return self._copied({"red": [], "note": joined(self.note, note)})
+
     # The worktree is released and the rest of the tasks are worked anyway.
     # Whatever the merge had already committed is still to push.
     def standing_down(self, note: str) -> Self:
-        return self._copied({"changed": True, "note": note})
+        return self._copied({"changed": True, "note": joined(self.note, note)})
 
     # The one way a `Work` is copied. Typed on the way in: a bare literal
     # handed to `model_copy` is read as `dict[str, Any]`, which the checker

@@ -281,6 +281,7 @@ class Prompts(PromptsProtocol):
         )
 
     # Concatenated for the reason `fix_gates` is: a log is full of braces.
+    # Fenced, because a CI log prints whatever the code under test does.
     @override
     def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> str:
         judged = (
@@ -290,7 +291,8 @@ class Prompts(PromptsProtocol):
         )
         return (
             f"The `{job}` CI job is red on this branch.\n\n{_FIX_GATES}\n"
-            f"{judged}\n\n{_may_not_run(project)}\nThe end of its log:\n\n{log}"
+            f"{judged}\n\n{_may_not_run(project)}\n{_FENCE}\n"
+            f"The end of its log:\n\n{_fence(log)}"
         )
 
     @override

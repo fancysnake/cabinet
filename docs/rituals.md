@@ -95,7 +95,15 @@ whose summary names a gap. The task works the red checks one at a time:
    between rounds.
 
 Each job's fix is a commit of its own, and all of them go up in one push. A
-job whose gate will not go green stands the branch down, as a merge does.
+job gets one check fixed per cast: when several of a matrix job's entries are
+red, the first is fixed and the rest are named for the next cast. A job whose
+gate will not go green stands the branch down, as a merge does, and the task
+names the checks it did not reach. A fix that changes nothing is no fix:
+the job stays red, and the report says it passes here while CI is still red.
+
+In `heal.mine` and `heal.this`, a branch whose merge was committed leaves ci
+for the next cast. The merge's push starts a new CI run, so the red checks the
+survey read belong to the old head.
 
 ## review
 

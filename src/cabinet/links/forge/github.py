@@ -128,7 +128,7 @@ class _Pull(BaseModel):
 class _Check(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    id: int = 0
+    id: int
     name: str
     # Null while a run is still going.
     conclusion: str | None = None
@@ -472,11 +472,8 @@ class GithubForge(ForgeProtocol):
             truncated=len(found.check_runs) < found.total_count,
         )
 
-    # A check run GitHub Actions made shares its id with the job, which is
-    # what `gh run` takes. A check some other app posted has no job, and gh
-    # says so.
     @override
-    async def rerun(self, branch: str, check: Check) -> bool:
+    async def runs(self, branch: str, check: Check) -> int:
         path = _RUNS.format(branch=branch, name=quote(check.name, safe=""))
         answered = await asked(
             f"gh api {quoted(path)}", f"gh could not count the runs of {check.name}"
@@ -486,12 +483,16 @@ class GithubForge(ForgeProtocol):
         except ValidationError as error:
             msg = f"gh returned runs this could not read: {error}"
             raise ForgeError(msg) from error
-        if runs.total_count > 1:
-            return False
+        return runs.total_count
+
+    # A check run GitHub Actions made shares its id with the job, which is
+    # what `gh run` takes. A check some other app posted has no job, and gh
+    # says so.
+    @override
+    async def rerun(self, check: Check) -> None:
         await asked(
             f"gh run rerun --job {check.id}", f"gh could not rerun {check.name}"
         )
-        return True
 
     # The failed steps only: the rest of a job is setup that went fine.
     @override

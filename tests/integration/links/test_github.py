@@ -293,8 +293,14 @@ class TestBoard:
             "total_count": 3,
             "check_runs": [
                 {"id": 5, "name": "test", "conclusion": "success"},
-                {"name": "checks", "conclusion": "failure", "output": {"title": None}},
                 {
+                    "id": 6,
+                    "name": "checks",
+                    "conclusion": "failure",
+                    "output": {"title": None},
+                },
+                {
+                    "id": 7,
                     "name": "codecov/patch",
                     "conclusion": None,
                     "output": {"title": "96.84% of diff hit"},
@@ -306,19 +312,20 @@ class TestBoard:
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[
                 Check(name="test", passed=True, id=5),
-                Check(name="checks", passed=False),
-                Check(name="codecov/patch", title="96.84% of diff hit"),
+                Check(name="checks", passed=False, id=6),
+                Check(name="codecov/patch", title="96.84% of diff hit", id=7),
             ]
         )
 
     @staticmethod
     def test_a_short_page_says_so(trial: Trial) -> None:
         trial.shell.replies(
-            when=_BOARD, stdout='{"total_count": 2, "check_runs": [{"name": "test"}]}'
+            when=_BOARD,
+            stdout='{"total_count": 2, "check_runs": [{"id": 5, "name": "test"}]}',
         )
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
-            checks=[Check(name="test")], truncated=True
+            checks=[Check(name="test", id=5)], truncated=True
         )
 
     @staticmethod
@@ -342,41 +349,43 @@ _RUNS = (
     "?check_name=test%20%283.11%29&filter=all&per_page=1'"
 )
 
+_TWICE = 2
+
 
 def _runs(count: int) -> str:
     return json.dumps({"total_count": count, "check_runs": []})
 
 
-class TestRerun:
+class TestRuns:
     @staticmethod
-    def test_a_check_run_once_is_run_again(trial: Trial) -> None:
-        trial.shell.replies(when=_RUNS, stdout=_runs(1))
-        trial.shell.replies(when="gh run rerun --job 42")
+    def test_every_run_of_the_check_is_counted(trial: Trial) -> None:
+        trial.shell.replies(when=_RUNS, stdout=_runs(_TWICE))
 
-        assert drive(trial, lambda: _FORGE.rerun("feature", _JOB))
-        assert trial.shell.commands == [_RUNS, "gh run rerun --job 42"]
-
-    @staticmethod
-    def test_a_check_already_rerun_is_left(trial: Trial) -> None:
-        trial.shell.replies(when=_RUNS, stdout=_runs(2))
-
-        assert not drive(trial, lambda: _FORGE.rerun("feature", _JOB))
-        assert trial.shell.commands == [_RUNS]
+        assert drive(trial, lambda: _FORGE.runs("feature", _JOB)) == _TWICE
 
     @staticmethod
     def test_runs_that_will_not_parse(trial: Trial) -> None:
         trial.shell.replies(when=_RUNS, stdout='{"total_count": "many"}')
 
         with pytest.raises(ForgeError, match="runs this could not read"):
-            drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+            drive(trial, lambda: _FORGE.runs("feature", _JOB))
+
+
+class TestRerun:
+    @staticmethod
+    def test_the_job_runs_again(trial: Trial) -> None:
+        trial.shell.replies(when="gh run rerun --job 42")
+
+        drive(trial, lambda: _FORGE.rerun(_JOB))
+
+        assert trial.shell.commands == ["gh run rerun --job 42"]
 
     @staticmethod
     def test_a_rerun_gh_refuses(trial: Trial) -> None:
-        trial.shell.replies(when=_RUNS, stdout=_runs(1))
         trial.shell.replies(when="gh run rerun --job 42", exit_code=1, stderr="404")
 
         with pytest.raises(ForgeError, match=r"could not rerun test \(3.11\): 404"):
-            drive(trial, lambda: _FORGE.rerun("feature", _JOB))
+            drive(trial, lambda: _FORGE.rerun(_JOB))
 
 
 class TestLog:

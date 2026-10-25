@@ -84,7 +84,7 @@ class _Discussion(BaseModel):
 
 
 class _Status(BaseModel):
-    id: int = 0
+    id: int
     name: str
     status: str
     description: str | None = None
@@ -403,13 +403,10 @@ class GitlabForge(ForgeProtocol):
             checks=[_check(status) for status in found], truncated=len(found) >= _PAGE
         )
 
-    # A status CI posted for one of its own jobs shares its id with the job,
-    # which is what a retry takes. One an external service posted has no job,
-    # and glab says so.
     @override
-    async def rerun(self, branch: str, check: Check) -> bool:
+    async def runs(self, branch: str, check: Check) -> int:
         name = quote(check.name, safe="")
-        runs = await _read(
+        statuses = await _read(
             _STATUSES,
             _api(
                 f"projects/:id/repository/commits/{branch}/statuses"
@@ -418,13 +415,17 @@ class GitlabForge(ForgeProtocol):
             f"glab could not count the runs of {check.name}",
             "statuses",
         )
-        if len(runs) > 1:
-            return False
+        return len(statuses)
+
+    # A status CI posted for one of its own jobs shares its id with the job,
+    # which is what a retry takes. One an external service posted has no job,
+    # and glab says so.
+    @override
+    async def rerun(self, check: Check) -> None:
         await asked(
             _api(f"projects/:id/jobs/{check.id}/retry", "-X POST"),
             f"glab could not retry {check.name}",
         )
-        return True
 
     @override
     async def log(self, check: Check) -> str:

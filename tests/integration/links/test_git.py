@@ -20,7 +20,10 @@ _AHEAD = 2
 _FETCH = "git fetch origin main feature"
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
-_COMMIT = f"git add -A && (git diff --cached --quiet || {_GPG_TTY} git commit -m fix)"
+_COMMIT = (
+    "git add -A && (git diff --cached --quiet || "
+    f"{_GPG_TTY} git commit -m fix && echo committed)"
+)
 _RELEASE = (
     "if git rev-parse -q --verify MERGE_HEAD >/dev/null; then git merge --abort; fi; "
     f'if [ -n "$({_STATUS})" ]; then git stash push -u -m '
@@ -223,11 +226,18 @@ class TestConflicts:
 class TestCommit:
     @staticmethod
     def test_stages_everything_and_names_the_tty(trial: Trial) -> None:
+        trial.shell.replies(
+            when="git add -A*", stdout="[feature 1a2b] fix\ncommitted\n"
+        )
+
+        assert drive(trial, lambda: _SCM.commit("fix"))
+        assert trial.shell.commands == [_COMMIT]
+
+    @staticmethod
+    def test_nothing_staged_is_nothing_committed(trial: Trial) -> None:
         trial.shell.replies(when="git add -A*")
 
-        drive(trial, lambda: _SCM.commit("fix"))
-
-        assert trial.shell.commands == [_COMMIT]
+        assert not drive(trial, lambda: _SCM.commit("fix"))
 
     @staticmethod
     def test_unsigned_where_the_project_says_so(trial: Trial) -> None:

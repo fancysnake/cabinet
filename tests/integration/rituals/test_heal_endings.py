@@ -401,7 +401,7 @@ _RED_JOBS = json.dumps(
 # named green, and the whole gate green on its last run.
 def _worst_jobs(trial: Trial, bound: int) -> None:
     trial.coding.replies("fixed", when="The `*` CI job is red*", always=True)
-    trial.shell.replies(when="git add -A*", always=True)
+    trial.shell.replies(when="git add -A*", stdout="committed\n", always=True)
     for index, job in enumerate(_JOBS, start=1):
         trial.shell.replies(when=f"gh run view --job {index} --log-failed")
         for _ in range(bound):
@@ -633,7 +633,9 @@ class TestTaskRituals:
         trial.shell.replies(when=HERE, stdout="feature\n")
         trial.shell.replies(when="gh run view --job 9 --log-failed", stdout="E501\n")
         trial.coding.replies("fixed", when="The `checks` CI job is red*")
-        trial.shell.replies(when=commit("fix: make the checks job green"))
+        trial.shell.replies(
+            when=commit("fix: make the checks job green"), stdout="committed\n"
+        )
         trial.shell.replies(when="git push origin feature")
 
         result = trial.cast(ci, Heal())

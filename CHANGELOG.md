@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning].
   `--attended`.
 - `ci`: the red CI jobs in `[cabinet.ci.jobs]`, rerun once where `rerun` is
   set, otherwise fixed from the job's log against its `gate` or covered with
-  tests where it is `covering`, one commit per job. `heal.mine` and
-  `heal.this` work it after the merge.
+  tests where it is `covering`, one commit per job and one fixed check per
+  job per cast. `heal.mine` and `heal.this` work it on a branch they did not
+  merge, and leave it to the next cast where they did.
 - `[cabinet.ci.jobs.<prefix>]` takes `rerun`, `gate` and `fast`.
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.

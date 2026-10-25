@@ -99,11 +99,15 @@ class Ci(BaseModel):
 
     jobs: dict[str, CiJob] = Field(default_factory=_jobs)
 
-    # The job a check belongs to: the longest key it starts with, so
+    # The key a check belongs to: the longest it starts with, so
     # `codecov/patch` beats `codecov/` for the check both would match.
-    def job(self, check: str) -> CiJob | None:
+    def key(self, check: str) -> str | None:
         keys = [key for key in self.jobs if check.startswith(key)]
-        return self.jobs[max(keys, key=len)] if keys else None
+        return max(keys, key=len) if keys else None
+
+    def job(self, check: str) -> CiJob | None:
+        key = self.key(check)
+        return None if key is None else self.jobs[key]
 
     def covering(self, check: str) -> bool:
         job = self.job(check)

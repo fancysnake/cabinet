@@ -32,13 +32,13 @@ _RED = json.dumps(
     {
         "total_count": 2,
         "check_runs": [
-            {"name": "checks", "conclusion": "failure"},
-            {"name": "docs", "conclusion": "failure"},
+            {"id": 1, "name": "checks", "conclusion": "failure"},
+            {"id": 2, "name": "docs", "conclusion": "failure"},
         ],
     }
 )
 _GREEN = json.dumps({"total_count": 0, "check_runs": []})
-_CHECKS = Check(name="checks", passed=False)
+_CHECKS = Check(name="checks", passed=False, id=1)
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
