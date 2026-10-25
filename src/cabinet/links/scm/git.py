@@ -187,9 +187,9 @@ class GitScm(ScmProtocol):
     async def commit(self, message: str) -> bool:
         unsigned = "" if self._sign else " -c commit.gpgsign=false"
         ran = await _asked(
-            "git add -A && (git diff --cached --quiet || "
+            "git add -A && (git diff --cached --quiet || ("
             f"{_GPG_TTY} git{unsigned} commit -m {_quoted(message)} "
-            f"&& echo {_COMMITTED})",
+            f"&& echo {_COMMITTED}))",
             "could not commit",
         )
         return ran.stdout.splitlines()[-1:] == [_COMMITTED]

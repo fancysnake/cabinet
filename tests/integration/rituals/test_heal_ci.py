@@ -152,9 +152,11 @@ class TestMendJob:
 
         assert trial.walk(mend_job, red.to(MendJob)) == red.to(JobGate)
         prompt = trial.coding.prompts[0]
-        assert prompt.startswith("The `suite` CI job is red on this branch.")
+        assert prompt.startswith("A CI job is red on this branch.")
         assert "The ritual runs `mise run test` after you" in prompt
-        assert prompt.endswith("FAILED test_it\n--- END UNTRUSTED REVIEW DATA ---")
+        assert prompt.endswith(
+            "job: suite\n\nFAILED test_it\n--- END UNTRUSTED REVIEW DATA ---"
+        )
 
     @staticmethod
     def test_each_job_has_a_session_of_its_own(trial: Trial, work: Work) -> None:
