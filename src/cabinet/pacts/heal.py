@@ -9,7 +9,7 @@ beside the `Work`, and hand the `Work` back on when the round is done.
 from pydantic import BaseModel
 
 from cabinet.pacts.healing import Run, Work
-from cabinet.pacts.threads import Answer, TriageItem
+from cabinet.pacts.threads import Answer, Thread, TriageItem
 
 
 class MusterMine(Run):
@@ -92,10 +92,11 @@ class ReadThreads(Work):
     pass
 
 
-# The triage, waiting for your answer to each item.
+# The triage, waiting for your answer to each item, beside the batch it read.
 class AskTriage(BaseModel):
     work: Work
     items: list[TriageItem]
+    threads: list[Thread]
 
 
 class AnswerThreads(BaseModel):
@@ -103,9 +104,10 @@ class AnswerThreads(BaseModel):
     # The whole thing the agent is sent, assembled where the triage and your
     # answers to it are both in hand.
     prompt: str
-    # The threads the answers are owed under, so the step that posts them can
-    # tell one the agent made up from one that was triaged.
-    threads: list[str]
+    # The open threads the triage named: what the answers are owed under, so
+    # the step that posts them can tell one the agent made up from one that
+    # was triaged, and has what the forge needs to settle it.
+    threads: list[Thread]
 
 
 # What the agent answered, one entry per triaged thread, waiting to be posted
@@ -113,7 +115,7 @@ class AnswerThreads(BaseModel):
 class PostAnswers(BaseModel):
     work: Work
     items: list[Answer]
-    threads: list[str]
+    threads: list[Thread]
 
 
 class AnswerGate(Work):

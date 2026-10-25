@@ -32,7 +32,9 @@ from cabinet.pacts.threads import (
     ANSWERED,
     Answer,
     Answered,
+    Comment,
     IssueDraft,
+    Thread,
     TriageItem,
     TriageNotes,
     filed_for,
@@ -84,6 +86,14 @@ def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
 
 
 _OPEN = _threads(_node("PRRT_1"))
+# `_node("PRRT_1")` as the forge reads it.
+_THREAD = Thread(
+    id="PRRT_1",
+    resolved=False,
+    path="src/thing.py",
+    line=12,
+    comments=[Comment(id="101", author="bot", body="guard")],
+)
 
 
 def _attended(work: Work) -> Work:
@@ -97,7 +107,7 @@ def _written(work: Work) -> Work:
 
 
 def _answering(work: Work, *answers: Answer) -> PostAnswers:
-    return PostAnswers(work=work, items=list(answers), threads=["PRRT_1"])
+    return PostAnswers(work=work, items=list(answers), threads=[_THREAD])
 
 
 class TestTend:
@@ -135,6 +145,21 @@ class TestSettleLeft:
         assert trial.walk(settle_left, work.to(SettleLeft)) == work.to(ReadThreads)
         assert trial.shell.commands[-1].endswith("-f id=PRRT_1")
         assert trial.deltas == ["feature: settled 1 threads an earlier cast left"]
+
+    @staticmethod
+    def test_a_settle_the_forge_refuses_leaves_the_task(
+        trial: Trial, work: Work
+    ) -> None:
+        replied = page(
+            [comment(101, body="guard"), comment(102, body=ANSWERED, mine=True)]
+        )
+        trial.shell.replies(when=THREADS, stdout=_threads(node("PRRT_1", replied)))
+        trial.shell.replies(when=_RESOLVE, exit_code=1, stderr="502")
+
+        transition = trial.walk(settle_left, work.to(SettleLeft))
+
+        assert isinstance(transition, Tend)
+        assert "could not resolve thread PRRT_1" in transition.note
 
     # A reviewer answering the reply reopens the conversation.
     @staticmethod
@@ -213,7 +238,7 @@ class TestReadThreads:
         attended = _attended(work)
 
         assert trial.walk(read_threads, attended.to(ReadThreads)) == AskTriage(
-            work=attended.charged(read_threads.name), items=[_ITEM]
+            work=attended.charged(read_threads.name), items=[_ITEM], threads=[_THREAD]
         )
         prompt = trial.coding.prompts[0]
         assert prompt.startswith("Triage the open review threads on pull request #7")
@@ -351,10 +376,15 @@ class TestAskTriage:
     @staticmethod
     def test_every_item_is_shown_and_asked(trial: Trial, work: Work) -> None:
         second = _ITEM.model_copy(update={"thread": "PRRT_2", "action": "file"})
+        other = _THREAD.model_copy(update={"id": "PRRT_2"})
+        untriaged = _THREAD.model_copy(update={"id": "PRRT_3"})
         trial.decide.answers(answer="it guards the empty case", when="1. *")
         trial.decide.answers(answer="", when="2. *")
+        triage = AskTriage(
+            work=work, items=[_ITEM, second], threads=[_THREAD, other, untriaged]
+        )
 
-        transition = trial.walk(ask_triage, AskTriage(work=work, items=[_ITEM, second]))
+        transition = trial.walk(ask_triage, triage)
 
         assert isinstance(transition, AnswerThreads)
         assert transition.work == work
@@ -369,7 +399,7 @@ class TestAskTriage:
             f"thread: PRRT_2\n{closed}\nwhat I want: file it, as the reading says"
             in transition.prompt
         )
-        assert transition.threads == ["PRRT_1", "PRRT_2"]
+        assert transition.threads == [_THREAD, other]
         assert "2 outstanding — p1: 2, p2: 0, p3: 0, p4: 0" in trial.deltas[0]
 
 
@@ -379,12 +409,12 @@ class TestAnswerThreads:
         answered = Answered(items=[Answer(thread="PRRT_1", reply="guarded")])
         trial.coding.replies(answered)
         attended = _attended(work)
-        told = AnswerThreads(work=attended, prompt="the triage", threads=["PRRT_1"])
+        told = AnswerThreads(work=attended, prompt="the triage", threads=[_THREAD])
 
         assert trial.walk(answer_threads, told) == PostAnswers(
             work=attended.charged(answer_threads.name),
             items=answered.items,
-            threads=["PRRT_1"],
+            threads=[_THREAD],
         )
         assert trial.coding.prompts == ["the triage"]
         assert "Edit" in str(trial.coding.calls[0].focus_options)
@@ -395,7 +425,7 @@ class TestAnswerThreads:
     ) -> None:
         trial.coding.replies("no idea, sorry")
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
-        told = AnswerThreads(work=work, prompt="x", threads=["PRRT_1"])
+        told = AnswerThreads(work=work, prompt="x", threads=[_THREAD])
 
         transition = trial.walk(answer_threads, told)
 
@@ -417,7 +447,6 @@ class TestPostAnswers:
     def test_replies_settle_each_thread_and_read_again(
         trial: Trial, work: Work
     ) -> None:
-        trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when="gh api repos/*")
         trial.shell.replies(when=_RESOLVE)
         written = _written(work)
@@ -425,14 +454,13 @@ class TestPostAnswers:
         assert trial.walk(
             post_answers, _answering(written, Answer(thread="PRRT_1", reply="guarded"))
         ) == written.to(ReadThreads)
-        assert trial.shell.commands[1] == f"{_REPLY} -f body='{signed('guarded')}'"
-        assert trial.shell.commands[2].endswith("-f id=PRRT_1")
+        assert trial.shell.commands[0] == f"{_REPLY} -f body='{signed('guarded')}'"
+        assert trial.shell.commands[1].endswith("-f id=PRRT_1")
 
     @staticmethod
     def test_an_issue_is_opened_and_named_in_the_reply(
         trial: Trial, work: Work
     ) -> None:
-        trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(
             when="gh api repos/{owner}/{repo}/issues -X POST*",
             stdout='{"number": 9, "html_url": "https://github.com/o/r/issues/9"}',
@@ -445,19 +473,18 @@ class TestPostAnswers:
 
         trial.walk(post_answers, _answering(_written(work), filing))
 
-        assert trial.shell.commands[1] == (
+        assert trial.shell.commands[0] == (
             "gh api repos/{owner}/{repo}/issues -X POST -f title=guard"
             f" -f body='x\n\n{filed_for('PRRT_1')}'"
         )
         body = signed("filed\n\nFiled as https://github.com/o/r/issues/9")
-        assert trial.shell.commands[2].endswith(f"-f body='{body}'")
+        assert trial.shell.commands[1].endswith(f"-f body='{body}'")
 
     # Nothing settled, so another round would read the same thread back.
     @staticmethod
     def test_a_thread_nobody_triaged_is_skipped_and_said(
         trial: Trial, work: Work
     ) -> None:
-        trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
         written = _written(work)
 
@@ -471,7 +498,6 @@ class TestPostAnswers:
     def test_a_forge_that_refuses_still_lands_the_fixes(
         trial: Trial, work: Work
     ) -> None:
-        trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when="gh api repos/*", exit_code=1, stderr="403")
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
 
@@ -574,7 +600,6 @@ class TestWholeCast:
     def test_an_attended_answer_triages_fixes_replies_and_pushes(trial: Trial) -> None:
         _listed(trial)
         trial.shell.replies(when=HERE, stdout="feature\n")
-        trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when=THREADS, stdout=_OPEN)

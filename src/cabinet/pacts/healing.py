@@ -273,6 +273,10 @@ class Work(Budgeted, Hop):
         return self._copied({"red": self.red[1:], "changed": True})
 
     # The check in hand is left red, and this says why.
+    # Said after whatever the row already says, not over it.
+    def noting(self, *parts: str) -> Self:
+        return self._copied({"note": joined(self.note, *parts)})
+
     def passed_over(self, note: str) -> Self:
         return self._copied({"red": self.red[1:], "note": joined(self.note, note)})
 
