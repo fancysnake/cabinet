@@ -17,7 +17,11 @@ from tests.conftest import drive
 _SCM = GitScm(Project())
 _UNSIGNED = GitScm(Project(sign_commits=False))
 _GITLAB = GitScm(Project(forge="gitlab", remote="lab"))
-_ISOLATED = os.environ | {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
+_ELSEWHERE = {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"}
+_ISOLATED = {k: v for k, v in os.environ.items() if k not in _ELSEWHERE} | {
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_NOSYSTEM": "1",
+}
 
 _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
