@@ -48,7 +48,9 @@ every task ends back at ``tend``:
   and another agent fixes what you said to fix and drafts every reply. The
   ritual opens the issues you said to file, posts the replies and settles the
   threads, and reads what is still open for the next round, up to three. What
-  the answers changed goes through the gate and is committed.
+  the answers changed goes through the gate and is committed. A round that
+  finds nothing open puts the answered label on; the next answer task takes
+  it off before it starts.
 - **review**: the quality review, as inline comments, then the reviewed label.
   Whatever this cast committed is pushed first, so the comments anchor to code
   the forge has.
@@ -681,12 +683,17 @@ async def _finished(
 # read: a thread whose last word is the ritual's reply only wants settling,
 # and one an open issue was filed for wants the reply naming it. A backlog the
 # forge would not list whole may hide the issue filed for a thread, and
-# reading that thread again would file it twice, so the task ends there.
+# reading that thread again would file it twice, so the task ends there. A
+# branch still wearing the answered label from an earlier cast has threads
+# open again, so the label comes off first.
 @step
 async def settle_left(work: SettleLeft) -> ReadThreads | Tend:
     project = work.run.project
     forge = services().forge(project)
+    answered = project.labels.answered
     try:
+        if work.pr.wears(answered):
+            await forge.label(work.pr.number, remove=[answered])
         threads = await _unsettled(project, work.pr.number)
         # Only a thread with no reply yet can have an issue filed for it.
         unanswered = any(not thread.answered for thread in threads)
@@ -723,11 +730,16 @@ async def _landing(work: Work, note: str = "") -> Tend | AnswerGate | SetAside:
 
 
 # The next batch of open threads, saying how many it leaves for later; none
-# once the rounds are spent, without asking the forge.
+# once the rounds are spent, without asking the forge. A forge with none open
+# is the task done, and the branch wears the answered label for it.
 async def _batch(work: Work) -> list[Thread]:
     if work.spent(read_threads.name) >= ROUNDS:
         return []
-    threads = await _unsettled(work.run.project, work.pr.number)
+    project = work.run.project
+    if not (threads := await _unsettled(project, work.pr.number)):
+        await services().forge(project).label(
+            work.pr.number, add=[project.labels.answered]
+        )
     batch = threads[: work.run.batch]
     if len(batch) < len(threads):
         emit_delta(

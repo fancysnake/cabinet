@@ -59,7 +59,7 @@ Grouped by school, the way a spellbook is.
 - **`labels`**: makes every label cabinet uses: what `labels.heal` and
   `labels.identify` make, in one cast. Cast it once to set a project up.
 - **`labels.heal`**: makes the labels `heal` reads and puts on: reviewed,
-  wait and qa. Cast it again after changing `[cabinet.labels]`.
+  wait, qa and answered. Cast it again after changing `[cabinet.labels]`.
 - **`labels.identify`**: makes the labels `identify` puts on issues: the types
   (`feature`, `edit`, `chore`, `bug`), the sizes (`S`, `M`, `L`) and
   `epic`.

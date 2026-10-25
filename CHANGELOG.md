@@ -25,10 +25,11 @@ and this project adheres to [Semantic Versioning].
   threads and commits the fixes once the gate is green. `heal.mine` and
   `heal.this` work it after ci when cast with `--attended true`; an
   unattended cast reports how many threads wait for you. `--batch` sets how
-  many threads one round takes, three rounds a cast.
+  many threads one round takes, three rounds a cast. A branch it leaves with
+  no thread open wears `[cabinet.labels] answered`, default `v:answer:done`.
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.
-- `labels.heal` makes the reviewed, wait and qa labels.
+- `labels.heal` makes the reviewed, wait, qa and answered labels.
 
 ### Changed
 

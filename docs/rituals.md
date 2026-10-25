@@ -139,6 +139,11 @@ after that waits for the next one. What the answers changed goes through the
 gate, repaired as the merge's is, and is committed as one commit and pushed.
 A gate that will not go green stands the branch down, as a merge does.
 
+A round that finds no thread open puts the answered label on, so the pull
+request tells you its review is answered. The next answer task takes it off
+before it starts. The label is only for you to read: open threads decide
+whether there is answering to do.
+
 ## review
 
 *Divination.* `heal.this` with the review task alone. It posts the quality
@@ -189,9 +194,11 @@ one cast. Cast it once to set a project up.
 
 ## labels.heal
 
-*Conjuration.* Makes the three labels `heal` reads: the reviewed, wait and qa
-labels. The reviewed and qa labels are the ritual's own: each goes on once its
-task is done, so the next cast does not repeat it. A fact that goes away once
+*Conjuration.* Makes the four labels `heal` reads and puts on: the reviewed,
+wait, qa and answered labels. The reviewed and qa labels are the ritual's own:
+each goes on once its task is done, so the next cast does not repeat it. The
+answered label tells you the review threads are settled; see
+[answer](#answer). A fact that goes away once
 fixed, such as a conflict or a red check, needs no label. The wait label is
 yours: put it on a pull request `heal.mine` should leave alone, such as a draft
 or one waiting on somebody else, and take it off to hand it back. Cast

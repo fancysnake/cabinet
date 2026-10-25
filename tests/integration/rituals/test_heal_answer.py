@@ -61,6 +61,8 @@ from tests.integration.rituals.falling import falling
 _ISSUES = "gh issue list *"
 _REPLY = "gh api repos/{owner}/{repo}/pulls/7/comments/101/replies"
 _RESOLVE = "slug=*-f id=PRRT_1"
+_DONE = "gh pr edit 7 --add-label v:answer:done"
+_UNDONE = "gh pr edit 7 --remove-label v:answer:done"
 _GATE = "CI=1 mise run pr-fix"
 _READER = "Triage the open review threads*"
 _WRITER = "Below is a triage*"
@@ -132,6 +134,21 @@ class TestSettleLeft:
 
         assert trial.walk(settle_left, work.to(SettleLeft)) == work.to(ReadThreads)
         assert not trial.deltas
+        assert _UNDONE not in trial.shell.commands
+
+    # Open threads make the label a lie until the task ends with none.
+    @staticmethod
+    def test_a_branch_answered_before_takes_the_label_off(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        trial.shell.replies(when=_ISSUES, stdout="[]", always=True)
+        trial.shell.replies(when=_UNDONE)
+        pr = work.pr.model_copy(update={"labels": ["v:answer:done"]})
+        worn = work.model_copy(update={"pr": pr})
+
+        assert trial.walk(settle_left, worn.to(SettleLeft)) == worn.to(ReadThreads)
+        assert _UNDONE in trial.shell.commands
 
     # An earlier cast replied and then the forge failed to settle the thread.
     @staticmethod
@@ -273,9 +290,29 @@ class TestReadThreads:
         trial.shell.replies(
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
         )
+        trial.shell.replies(when=_DONE)
 
         assert trial.walk(read_threads, work.to(ReadThreads)) == work.to(Tend)
         assert not trial.coding.prompts
+
+    @staticmethod
+    def test_nothing_open_labels_the_branch_answered(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=THREADS, stdout=_threads())
+        trial.shell.replies(when=_DONE)
+
+        trial.walk(read_threads, work.to(ReadThreads))
+
+        assert _DONE in trial.shell.commands
+
+    # The threads are settled whether or not the label went on.
+    @staticmethod
+    def test_a_label_the_forge_refuses_is_said(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=THREADS, stdout=_threads())
+        trial.shell.replies(when=_DONE, exit_code=1, stderr="no such label")
+
+        assert trial.walk(read_threads, work.to(ReadThreads)) == work.but(
+            note="could not label #7: no such label"
+        ).to(Tend)
 
     # The rounds before this one changed the worktree, so what they did goes
     # to the gate whatever this round found.
@@ -284,6 +321,7 @@ class TestReadThreads:
         trial.shell.replies(
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
         )
+        trial.shell.replies(when=_DONE)
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
         written = _written(work)
 
@@ -298,6 +336,7 @@ class TestReadThreads:
         trial.shell.replies(
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
         )
+        trial.shell.replies(when=_DONE)
         trial.shell.replies(when=STATUS)
         written = _written(work)
 
@@ -310,6 +349,7 @@ class TestReadThreads:
         trial.shell.replies(
             when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
         )
+        trial.shell.replies(when=_DONE)
         trial.shell.replies(when=STATUS, exit_code=128, stderr="not a repo")
 
         transition = trial.walk(read_threads, _written(work).to(ReadThreads))
@@ -619,6 +659,7 @@ class TestWholeCast:
         )
         trial.shell.replies(when="gh api repos/*")
         trial.shell.replies(when=_RESOLVE)
+        trial.shell.replies(when=_DONE)
         trial.shell.replies(when=_GATE)
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature")
