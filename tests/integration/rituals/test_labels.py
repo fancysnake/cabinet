@@ -11,6 +11,7 @@ _NAMES = [
     "pr::thermo",
     "pr::wait",
     "v:guide:done",
+    "v:answer:done",
     "feature",
     "edit",
     "chore",

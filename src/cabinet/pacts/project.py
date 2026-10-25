@@ -41,6 +41,10 @@ class Labels(BaseModel):
     wait: str = "pr::wait"
     # The guide was posted; remove to ask for it again.
     qa: str = "v:guide:done"
+    # The answer task left no review thread open. Only for you to read: the
+    # threads decide whether there is answering to do, so the task takes it
+    # off when it starts and puts it back when it ends with none open.
+    answered: str = "v:answer:done"
 
     # Every label `heal` reads or puts on, with what it means, for the forge.
     def conjured(self) -> list[LabelSpec]:
@@ -59,6 +63,11 @@ class Labels(BaseModel):
                 name=self.qa,
                 color="c5def5",
                 description="The smoke-test guide was posted; remove to ask again",
+            ),
+            LabelSpec(
+                name=self.answered,
+                color="bfdadc",
+                description="Every review thread was answered and settled",
             ),
         ]
 

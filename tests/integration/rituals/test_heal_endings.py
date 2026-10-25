@@ -15,6 +15,7 @@ from cabinet.gates.ritual.vekna.heal import (
     skip_pr,
     stand_down,
 )
+from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.heal import (
     Chart,
     FinishPr,
@@ -29,7 +30,14 @@ from cabinet.pacts.healing import Checked, Heal, Healed, Run, Surveyed, Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import services
-from cabinet.pacts.threads import Finding, Findings
+from cabinet.pacts.threads import (
+    Answer,
+    Answered,
+    Finding,
+    Findings,
+    TriageItem,
+    TriageNotes,
+)
 from cabinet.rituals.ci import ci
 from cabinet.rituals.heal_mine import heal_mine
 from cabinet.rituals.merge import merge
@@ -40,8 +48,10 @@ from tests.conftest import (
     STATUS,
     THREADS,
     board,
+    comment,
     commit,
     listing,
+    node,
     page,
     row,
     threads_page,
@@ -415,6 +425,46 @@ def _worst_jobs(trial: Trial, bound: int) -> None:
         trial.shell.replies(when=f"CI=1 mise run {job}:x", always=True)
 
 
+# Attended, so every repair attempt is asked about and said yes to. One thread
+# open through every round the share allows, each read, answered as the
+# reading says, replied to and settled; the forge keeps saying it is open,
+# and the worktree has changed when the rounds are spent.
+def _worst_answers(trial: Trial) -> None:
+    trial.decide.answers(answer=True, when="* (attempt *)?", always=True)
+    trial.decide.answers(answer="", when="1. *", always=True)
+    opened = threads_page(page([node("PRRT_1", page([comment(101)]))]))
+    # The survey, `settle_left`, and a read and a post every round.
+    for _ in range(2 + 2 * ROUNDS):
+        trial.shell.replies(when=THREADS, stdout=opened)
+    trial.shell.replies(when="gh issue list *", stdout="[]", always=True)
+    trial.shell.replies(when=STATUS)
+    trial.shell.replies(when=STATUS, stdout=" M a.py\n")
+    item = TriageItem(
+        where="a.py", raised="x", what="y", priority="p1", action="fix", thread="PRRT_1"
+    )
+    trial.coding.replies(
+        TriageNotes(items=[item]), when="Triage the open review threads*", always=True
+    )
+    trial.coding.replies(
+        Answered(items=[Answer(thread="PRRT_1", reply="done")]),
+        when="Below is a triage*",
+        always=True,
+    )
+    trial.shell.replies(when="gh api repos/*", always=True)
+    trial.shell.replies(when="slug=*-f id=PRRT_1", always=True)
+
+
+# The merge's gate again, red with something it has not said before: a verdict
+# the cast already gave up on would stand the branch down unpaid.
+def _worst_answer_gate(trial: Trial, bound: int) -> None:
+    red = "[lint:mypy] ERROR task failed"
+    for _ in range(bound + 1):
+        trial.shell.replies(
+            when="CI=1 mise run pr-fix", exit_code=1, stdout="bad type", stderr=red
+        )
+    trial.shell.replies(when="CI=1 mise run lint:mypy", always=True)
+
+
 class TestWholeCast:
     @staticmethod
     @pytest.mark.usefixtures("here")
@@ -487,8 +537,9 @@ class TestWholeCast:
 
     # Every attempt the bound allows on every loop, each with its free extra
     # run: the merge stood down, every configured job red and green only on
-    # its last run, and the review after it. The longest a branch can run,
-    # and what its share spoke for.
+    # its last run, every round of answers and their gate stood down, and the
+    # review after it. The longest a branch can run, and what its share spoke
+    # for.
     @staticmethod
     @pytest.mark.parametrize("bound", [1, 2])
     def test_the_worst_a_branch_can_spend_is_what_was_reserved(
@@ -499,6 +550,7 @@ class TestWholeCast:
                 f'[cabinet.ci.jobs.{job}]\ngate = "mise run {job}"\n' for job in _JOBS
             )
         )
+        _worst_answers(trial)
         _taken(trial, mergeable="CONFLICTING", checks=_RED_JOBS)
         trial.shell.replies(when="git merge-base*", exit_code=1)
         trial.shell.replies(when="git merge --no-edit main", exit_code=1)
@@ -510,12 +562,14 @@ class TestWholeCast:
         trial.shell.replies(when="git push origin feature", always=True)
         _worst_gate(trial, bound)
         _worst_jobs(trial, bound)
+        _worst_answer_gate(trial, bound)
         _reviewed(trial)
 
-        result = trial.cast(heal_mine, Heal(bound=bound))
+        result = trial.cast(heal_mine, Heal(bound=bound, attended=True))
 
         assert [one.outcome for one in result.checked] == ["blocked"]
         job = ["pick_job", "mend_job", *["job_gate"] * (2 * bound + 1), "land_job"]
+        round_ = ["read_threads", "ask_triage", "answer_threads", "post_answers"]
         assert trial.steps == [
             "muster_mine",
             "survey",
@@ -532,6 +586,14 @@ class TestWholeCast:
             "rerun_jobs",
             *job * len(_JOBS),
             "pick_job",
+            "tend",
+            "push_work",
+            "tend",
+            "settle_left",
+            *round_ * ROUNDS,
+            "read_threads",
+            *["answer_gate"] * (2 * bound + 1),
+            "stand_down",
             "tend",
             "push_work",
             "tend",

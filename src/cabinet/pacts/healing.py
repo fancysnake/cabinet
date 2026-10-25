@@ -4,7 +4,7 @@ from typing import Literal, Self, TypeAlias, TypeVar, get_args
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.budgets import Budgeted, Reserving
+from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Bound, Check, PullRequest
@@ -20,7 +20,7 @@ Todo = Literal["merge", "ci", "answer", "review", "guide"]
 
 # The todos the graph has steps for, in the same order. A todo outside it is
 # surveyed and reported, and nothing works it.
-Task = Literal["merge", "ci", "review"]
+Task = Literal["merge", "ci", "answer", "review"]
 TASKS: tuple[Task, ...] = get_args(Task)
 
 
@@ -37,6 +37,9 @@ class Heal(BaseModel):
     # mode instead of refusing everything outside its allowlist, and another
     # repair attempt is asked for rather than spent on the budget's say-so.
     attended: bool = False
+    # How many open threads one round of `answer` reads, answers and settles
+    # before the next round fetches what the forge still holds open.
+    batch: Batch = BATCH
 
     # The tasks a cast may work: the ones named, every one where none is, and
     # none at all for a plan.
@@ -82,7 +85,7 @@ class Checked(BaseModel):
     branch: str
     url: str
     # Whether the branch's tasks were worked through, or it was given up on.
-    # `worked` says nothing of the gate, which only merge and ci run.
+    # `worked` says nothing of the gate, which only merge, ci and answer run.
     # `skipped` is neither: the branch was never taken.
     outcome: Outcome
     # None when git could not say. Nothing to push and "we could not tell" are
@@ -102,6 +105,7 @@ class Run(Reserving, Hop):
     project: Project
     bound: Bound = 3
     attended: bool = False
+    batch: Batch = BATCH
     # Which tasks this cast may work: every one for `heal`, one for a task
     # ritual, none for a plan. The survey still says everything a branch needs.
     tasks: list[Task] = Field(default_factory=_tasks)
@@ -156,9 +160,26 @@ class Run(Reserving, Hop):
     def took(self, row: Surveyed | Unsurveyed) -> Self:
         return self.but(queue=self.queue[1:], surveyed=[*self.surveyed, row])
 
-    # What of `todos` this cast may work, in the order it works them.
+    # What of `todos` this cast may work, in the order it works them. Never
+    # `answer` with nobody at the terminal: every item of a triage is yours to
+    # decide, and the threads wait for a cast you attend.
     def worked(self, todos: list[Todo]) -> list[Task]:
-        return [task for task in self.tasks if task in todos]
+        return [
+            task
+            for task in self.tasks
+            if task in todos and (task != "answer" or self.attended)
+        ]
+
+    # The surveyed pull requests whose threads this cast could have answered
+    # and left for you, because nobody was there to decide them.
+    def waiting(self) -> list[Surveyed]:
+        if self.attended or "answer" not in self.tasks:
+            return []
+        return [
+            row
+            for row in self.surveyed
+            if isinstance(row, Surveyed) and "answer" in row.todos
+        ]
 
     # `pull` taken with the tasks it will get and the red checks `ci` works
     # through, and the worst it can spend spoken for. A fresh `Work` per pull
@@ -279,8 +300,16 @@ class Work(Budgeted, Hop):
         return self._copied({"red": self.red[1:], "changed": True})
 
     # The check in hand is left red, and this says why.
+    # Said after whatever the row already says, not over it.
+    def noting(self, *parts: str) -> Self:
+        return self._copied({"note": joined(self.note, *parts)})
+
     def passed_over(self, note: str) -> Self:
         return self._copied({"red": self.red[1:], "note": joined(self.note, note)})
+
+    # The answers are committed: there is something to push.
+    def committed(self) -> Self:
+        return self._copied({"changed": True})
 
     def pushed(self) -> Self:
         return self._copied({"changed": False})

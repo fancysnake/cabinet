@@ -24,6 +24,7 @@ identify_skill = "~/.claude/skills/issues/SKILL.md"
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
 wait = "pr::wait"                     # hands off this pull request
 qa = "v:guide:done"                   # the guide was posted; take it off to ask again
+answered = "v:answer:done"            # the answer task left no review thread open
 
 [cabinet.ci.jobs.checks]              # one table per CI job, keyed by a prefix of its check name
 covering = false                      # red here is missing coverage
@@ -65,6 +66,7 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `reviewed` | on means a review was posted; take it off to ask for another                  |
 | `wait`     | hands off: a pull request wearing it is never taken, touched or reported on   |
 | `qa`       | on means the guide was posted; take it off to ask for it again                |
+| `answered` | on means the answer task left no review thread open; it comes off when an answer task starts |
 
 ### `[cabinet.ci.jobs]`
 

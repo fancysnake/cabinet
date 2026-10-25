@@ -1,9 +1,10 @@
 """Heal your pull requests: each one taken as far as its tasks go.
 
-    vekna cast heal.mine [--plan-only true] [--bound N] [--attended true]
-    vekna cast heal.this [--plan-only true] [--bound N] [--attended true]
+    vekna cast heal.mine [--plan-only true] [--bound N] [--attended true] [--batch N]
+    vekna cast heal.this [--plan-only true] [--bound N] [--attended true] [--batch N]
     vekna cast merge [--plan-only true] [--bound N] [--attended true]
     vekna cast ci [--plan-only true] [--bound N] [--attended true]
+    vekna cast answer [--plan-only true] [--bound N] --attended true [--batch N]
     vekna cast review [--plan-only true] [--attended true]
 
 ``heal.mine`` takes every open pull request of yours not wearing the wait
@@ -39,6 +40,17 @@ every task ends back at ``tend``:
   nothing leaves its job red, and the row says it passes here. A branch whose
   merge was committed leaves ci for the next cast: the push starts a run of
   its own.
+- **answer**, attended only: an unattended cast leaves the threads for you and
+  says how many wait. First whatever an earlier cast's forge failure left
+  half-settled is finished. Then the open threads go in batches of
+  ``--batch``: an agent reads them against the code into a triage, you answer
+  each item in your own words (saying nothing takes the reading's proposal),
+  and another agent fixes what you said to fix and drafts every reply. The
+  ritual opens the issues you said to file, posts the replies and settles the
+  threads, and reads what is still open for the next round, up to three. What
+  the answers changed goes through the gate and is committed. A round that
+  finds nothing open puts the answered label on; the next answer task takes
+  it off before it starts.
 - **review**: the quality review, as inline comments, then the reviewed label.
   Whatever this cast committed is pushed first, so the comments anchor to code
   the forge has.
@@ -77,8 +89,12 @@ from vekna.folio.flow import decide
 from vekna.lexicon import Done, RitualError, emit_delta, step
 
 from cabinet.pacts.agent import Fallen, Misread
-from cabinet.pacts.forge import ForgeError
+from cabinet.pacts.budgets import ROUNDS
+from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.heal import (
+    AnswerGate,
+    AnswerThreads,
+    AskTriage,
     Chart,
     CheckClean,
     CloseGap,
@@ -86,42 +102,47 @@ from cabinet.pacts.heal import (
     FinishPr,
     GateCheck,
     JobGate,
+    LandAnswers,
     LandJob,
     MendJob,
     MergeBase,
     MusterMine,
     MusterThis,
     PickJob,
+    PostAnswers,
     PushWork,
     QualityReview,
+    ReadThreads,
     RerunJobs,
     ResolveConflicts,
     SetAside,
+    SettleLeft,
     SkipPr,
     StandDown,
     Survey,
     SyncBranch,
     Tend,
 )
-from cabinet.pacts.healing import (
-    Facts,
-    Healed,
-    Run,
-    Surveyed,
-    Task,
-    Unsurveyed,
-    Work,
-    joined,
-)
+from cabinet.pacts.healing import Facts, Healed, Run, Surveyed, Task, Unsurveyed, Work
+from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import CiJob, Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
-from cabinet.pacts.threads import Finding, Findings
+from cabinet.pacts.threads import (
+    Answered,
+    Finding,
+    Findings,
+    Thread,
+    TriageNotes,
+    filed_as,
+    filed_for,
+    signed,
+)
 
 _WorkT = TypeVar("_WorkT", bound=Work)
-_ThenT = TypeVar("_ThenT", bound=Work)
+_NextT = TypeVar("_NextT", bound=Work)
 
 # --- the cast --------------------------------------------------------------
 
@@ -263,9 +284,10 @@ async def sync_branch(work: SyncBranch) -> Chart | SkipPr | SetAside | Tend:
 
 # Each task's first step. Keyed by every `Task`, so a task added without a
 # step here fails the test that walks each one through `tend`.
-_FIRST: dict[Task, type[MergeBase | RerunJobs | QualityReview]] = {
+_FIRST: dict[Task, type[MergeBase | RerunJobs | SettleLeft | QualityReview]] = {
     "merge": MergeBase,
     "ci": RerunJobs,
+    "answer": SettleLeft,
     "review": QualityReview,
 }
 
@@ -274,7 +296,9 @@ _FIRST: dict[Task, type[MergeBase | RerunJobs | QualityReview]] = {
 # pushed first: every task after the merge works on code the forge has, and a
 # branch is not left with commits only this worktree holds.
 @step
-def tend(work: Tend) -> PushWork | FinishPr | MergeBase | RerunJobs | QualityReview:
+def tend(
+    work: Tend,
+) -> PushWork | FinishPr | MergeBase | RerunJobs | SettleLeft | QualityReview:
     if work.changed:
         return work.to(PushWork)
     if not work.todos:
@@ -336,7 +360,7 @@ async def resolve_conflicts(
         .ask(
             prompt,
             role="writer",
-            key=f"merge-{work.pr.number}",
+            key=_session(work, "merge"),
             attended=work.run.attended,
         )
     )
@@ -364,34 +388,34 @@ async def _worth_another(work: Work, what: str) -> bool:
     return await decide(f"{what} on {work.pr.branch} (attempt {work.attempts() + 1})?")
 
 
-# One round of a repair loop, shared by every loop that runs a gate. The
-# branch comes back charged and pointed at what to run next, or green and
-# handed to `then`, or given up on. `work.gate` is the task that broke last
-# time round, where the runner named one: an agent working on one linter is
-# judged by that linter, not by the whole chain in front of it.
+# One round of a repair loop, shared by every loop that runs a gate, against
+# the commands `against` names as a CI job would. The branch comes back
+# charged and pointed at what to run next, or green and sent on to `then`, or
+# given up on. `work.gate` is the task that broke last time round, where the
+# runner named one: an agent working on one linter is judged by that linter,
+# not by the whole chain in front of it.
 async def _repaired(
-    work: _WorkT, then: type[_ThenT], *, name: str, whole: str, fast: str = ""
-) -> _ThenT | _WorkT | StandDown | Chart:
+    work: _WorkT, against: CiJob, *, name: str, then: type[_NextT]
+) -> _NextT | _WorkT | StandDown | Chart:
     project = work.run.project
-    gate = work.gate or whole
+    gate = work.gate or against.gate
     ran = await services().tasks(project).run(gate)
     ruling = services().repairs.ruling(
         Attempt(
             project=project,
             ran=ran,
             gate=gate,
-            whole=whole,
-            fast=fast,
+            whole=against.gate,
+            fast=against.fast,
             spent=work.spent(name),
             bound=work.run.bound,
             seen=work.run.seen,
-            # The coverage loop is the one whose step closes a gap.
-            covering=isinstance(work, CloseGap),
+            covering=against.covering,
         )
     )
     if isinstance(ruling, Fixed):
-        # A task passing on its own is not the gate passing — it is the reason
-        # to spend the gate. The whole chain runs once more.
+        # A task passing on its own is not the gate passing — it is the
+        # reason to spend the gate. The whole chain runs once more.
         if not ruling.whole:
             return work.but(gate="")
         return work.but(gate="").cleared(name).to(then)
@@ -406,27 +430,27 @@ async def _repaired(
     return work.but(gate=ruling.next_gate).charged(name)
 
 
+# The agent session `name` names on this branch. Built here and nowhere else:
+# a step that opens a session and the loop that continues it must agree.
+def _session(work: Work, name: str) -> str:
+    return f"{name}-{work.pr.number}"
+
+
 # A writer, in the session `key` names on this branch: every round of a loop
 # continues the one before it.
 async def _asked(work: Work, prompt: str, *, key: str) -> Fallen | None:
     return (
         await services()
         .agent(work.run.project)
-        .ask(
-            prompt,
-            role="writer",
-            key=f"{key}-{work.pr.number}",
-            attended=work.run.attended,
-        )
+        .ask(prompt, role="writer", key=_session(work, key), attended=work.run.attended)
     )
 
 
 # Run the gate, and repair it until it is green or the budget is gone.
 @step
 async def gate_check(work: GateCheck) -> GateCheck | FinishMerge | StandDown | Chart:
-    return await _repaired(
-        work, FinishMerge, name=gate_check.name, whole=work.run.project.gate
-    )
+    against = CiJob(gate=work.run.project.gate)
+    return await _repaired(work, against, name=gate_check.name, then=FinishMerge)
 
 
 # Close an open merge and commit whatever the repairs left behind.
@@ -477,7 +501,7 @@ async def push_work(work: PushWork) -> Tend:
     try:
         await services().scm(work.run.project).push(work.pr.branch)
     except ScmError as error:
-        work = work.but(note=joined(work.note, str(error)))
+        work = work.noting(str(error))
     return work.pushed().to(Tend)
 
 
@@ -521,8 +545,8 @@ async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
             notes.append(str(error))
     if went:
         notes.append(f"reran {', '.join(went)}")
-        return work.but(note=joined(work.note, *notes)).to(Tend)
-    return work.but(note=joined(work.note, *notes)).one_per_job().to(PickJob)
+        return work.noting(*notes).to(Tend)
+    return work.noting(*notes).one_per_job().to(PickJob)
 
 
 # The next red check, handed to the loop that fixes its kind of job.
@@ -548,7 +572,7 @@ async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
     except ForgeError as error:
         # The gate can still find what the log would have said.
         if gate:
-            return work.but(note=joined(work.note, str(error))).to(JobGate)
+            return work.noting(str(error)).to(JobGate)
         return work.passed_over(str(error)).to(PickJob)
     if not await _worth_another(work, f"fix the `{check.name}` job"):
         return work.passed_over(f"`{check.name}` was left red, as you decided").to(
@@ -565,9 +589,9 @@ async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
 # A job's repair loop. Standing down ends the ci task, so the checks still
 # behind the one in hand are named rather than carried off unread.
 async def _mended(
-    work: _WorkT, *, name: str, whole: str, fast: str
+    work: _WorkT, against: CiJob, *, name: str
 ) -> LandJob | _WorkT | StandDown | Chart:
-    went = await _repaired(work, LandJob, name=name, whole=whole, fast=fast)
+    went = await _repaired(work, against, name=name, then=LandJob)
     return went.leaving_red() if isinstance(went, StandDown) else went
 
 
@@ -575,10 +599,7 @@ async def _mended(
 # the job's own commands.
 @step
 async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
-    job = _job(work)
-    return await _mended(
-        work, name=_loop(work, job_gate.name), whole=job.gate, fast=job.fast
-    )
+    return await _mended(work, _job(work), name=_loop(work, job_gate.name))
 
 
 # Close the coverage gap, repairing a red suite like any other gate. The first
@@ -588,12 +609,14 @@ async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
 async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
     project = work.run.project
     job = _job(work)
-    return await _mended(
-        work,
-        name=_loop(work, close_gap.name),
-        whole=job.gate or project.coverage,
+    against = CiJob(
+        gate=job.gate or project.coverage,
         fast=job.fast or project.fast_coverage,
+        covering=True,
     )
+    # Anything but the full measurement is a reason to spend the full
+    # measurement, not a branch that is covered.
+    return await _mended(work, against, name=_loop(work, close_gap.name))
 
 
 # Each job's fix is a commit of its own. A fix that changed nothing is no
@@ -610,11 +633,267 @@ async def land_job(work: LandJob) -> PickJob | SetAside:
     try:
         committed = await services().scm(work.run.project).commit(message)
     except ScmError as error:
-        note = joined(work.note, f"could not commit the {name} fix: {error}")
-        return work.but(note=note).to(SetAside)
+        return work.noting(f"could not commit the {name} fix: {error}").to(SetAside)
     if not committed:
         return work.passed_over(f"`{name}` passes here; CI is still red").to(PickJob)
     return work.landed().to(PickJob)
+
+
+# --- answer ----------------------------------------------------------------
+
+
+async def _unsettled(project: Project, number: int) -> list[Thread]:
+    threads = await services().forge(project).threads(number)
+    return [thread for thread in threads if not thread.resolved]
+
+
+# The ritual's reply under a thread, then the thread settled: in that order,
+# so a forge that fails between them leaves the mark `settle_left` reads.
+async def _settled(
+    forge: ForgeProtocol, number: int, thread: Thread, reply: str
+) -> None:
+    await forge.reply(number, thread, signed(reply))
+    await forge.resolve(number, thread)
+
+
+def _filed(url: str) -> str:
+    return f"Filed as {url}"
+
+
+# Settle what an earlier round left half done, and say how many threads that
+# was.
+async def _finished(
+    forge: ForgeProtocol, number: int, threads: list[Thread], listing: Listing
+) -> int:
+    answered = [thread for thread in threads if thread.answered]
+    unanswered = [thread for thread in threads if not thread.answered]
+    filed = [
+        (thread, issue)
+        for thread in unanswered
+        if (issue := filed_as(listing.issues, thread.id)) is not None
+    ]
+    for thread in answered:
+        await forge.resolve(number, thread)
+    for thread, issue in filed:
+        await _settled(forge, number, thread, _filed(issue.url))
+    return len(answered) + len(filed)
+
+
+# Finish a round an earlier cast's forge failure cut short, before anything is
+# read: a thread whose last word is the ritual's reply only wants settling,
+# and one an open issue was filed for wants the reply naming it. A backlog the
+# forge would not list whole may hide the issue filed for a thread, and
+# reading that thread again would file it twice, so the task ends there. A
+# branch still wearing the answered label from an earlier cast has threads
+# open again, so the label comes off first.
+@step
+async def settle_left(work: SettleLeft) -> ReadThreads | Tend:
+    project = work.run.project
+    forge = services().forge(project)
+    answered = project.labels.answered
+    try:
+        if work.pr.wears(answered):
+            await forge.label(work.pr.number, remove=[answered])
+        threads = await _unsettled(project, work.pr.number)
+        # Only a thread with no reply yet can have an issue filed for it.
+        unanswered = any(not thread.answered for thread in threads)
+        listing = await forge.issues() if unanswered else Listing()
+    except ForgeError as error:
+        return work.noting(str(error)).to(Tend)
+    if listing.truncated:
+        note = (
+            "the forge would not list every open issue, so an issue filed for"
+            " an open thread may be missing from it"
+        )
+        return work.noting(note).to(Tend)
+    try:
+        done = await _finished(forge, work.pr.number, threads, listing)
+    except ForgeError as error:
+        return work.noting(str(error)).to(Tend)
+    if done:
+        emit_delta(f"{work.pr.branch}: settled {done} threads an earlier cast left")
+    return work.to(ReadThreads)
+
+
+# Where a round finds nothing more to do. A branch the writer has worked on
+# goes to the gate with whatever it changed, and a branch it never touched, or
+# touched without changing a file, has nothing to land.
+async def _landing(work: Work, note: str = "") -> Tend | AnswerGate | SetAside:
+    work = work.noting(note)
+    if not work.spent(answer_threads.name):
+        return work.to(Tend)
+    try:
+        dirty = await services().scm(work.run.project).status()
+    except ScmError as error:
+        return work.noting(str(error)).to(SetAside)
+    return work.to(AnswerGate) if dirty else work.to(Tend)
+
+
+# The next batch of open threads, saying how many it leaves for later; none
+# once the rounds are spent, without asking the forge. A forge with none open
+# is the task done, and the branch wears the answered label for it.
+async def _batch(work: Work) -> list[Thread]:
+    if work.spent(read_threads.name) >= ROUNDS:
+        return []
+    project = work.run.project
+    if not (threads := await _unsettled(project, work.pr.number)):
+        await services().forge(project).label(
+            work.pr.number, add=[project.labels.answered]
+        )
+    batch = threads[: work.run.batch]
+    if len(batch) < len(threads):
+        emit_delta(
+            f"{work.pr.branch}: {len(threads)} threads open,"
+            f" reading {len(batch)} of them"
+        )
+    return batch
+
+
+# Read the next batch of open threads into a triage. Read again after every
+# round: an item is triaged against the code as it stands, and a thread the
+# last round settled is no longer open.
+@step
+async def read_threads(
+    work: ReadThreads,
+) -> AskTriage | Tend | AnswerGate | SetAside | Chart:
+    try:
+        batch = await _batch(work)
+    except ForgeError as error:
+        return await _landing(work, str(error))
+    if not batch:
+        return await _landing(work)
+    read = (
+        await services()
+        .agent(work.run.project)
+        .ask_for(
+            services().prompts.triage_read(work.pr.number, batch),
+            output=TriageNotes,
+            role="reader",
+            attended=work.run.attended,
+        )
+    )
+    if isinstance(read, Fallen):
+        return work.abandoned(read.reason).to(Chart)
+    if isinstance(read, Misread):
+        return await _landing(work, read.reason)
+    # The forge said a thread was open, so an empty reading is the reading
+    # disagreeing with the forge rather than a branch with nothing to do.
+    if not read.items:
+        return await _landing(
+            work, "the reading found nothing, but the forge says otherwise"
+        )
+    return AskTriage(
+        work=work.charged(read_threads.name), items=read.items, threads=batch
+    )
+
+
+# Put the triage on your terminal and take your answer to each item.
+@step
+async def ask_triage(triage: AskTriage) -> AnswerThreads:
+    report = services().report
+    emit_delta("\n".join(report.triage(triage.items)))
+    told: list[str] = []
+    for index, item in enumerate(triage.items, start=1):
+        # Free text and not a choice: an item is answered by saying how the
+        # thing is supposed to work, which no four options carry. An empty
+        # answer agrees with the reading's own proposal.
+        said = await decide(f"{report.shown(index, item)}\n->", free=True)
+        told.append(said or f"{item.action} it, as the reading says")
+    work = triage.work
+    prompt = services().prompts.triage_work(work.pr.number, triage.items, told)
+    triaged = {item.thread for item in triage.items}
+    threads = [thread for thread in triage.threads if thread.id in triaged]
+    return AnswerThreads(work=work, prompt=prompt, threads=threads)
+
+
+# The agent edits code and drafts every reply; it reaches the forge for
+# nothing, so what it hands back is posted by the step after this one. Straight
+# in, with nothing asked: the triage was answered item by item a step ago. The
+# gate's repairs continue the same session, so they meet an agent that
+# remembers what it changed and why.
+@step
+async def answer_threads(
+    instructed: AnswerThreads,
+) -> PostAnswers | Tend | AnswerGate | SetAside | Chart:
+    work = instructed.work.charged(answer_threads.name)
+    came = (
+        await services()
+        .agent(work.run.project)
+        .ask_for(
+            instructed.prompt,
+            output=Answered,
+            role="writer",
+            key=_session(work, answer_gate.name),
+            attended=work.run.attended,
+        )
+    )
+    if isinstance(came, Fallen):
+        return work.abandoned(came.reason).to(Chart)
+    if isinstance(came, Misread):
+        return await _landing(work, came.reason)
+    return PostAnswers(work=work, items=came.items, threads=instructed.threads)
+
+
+# An issue is opened before the reply that names it, and a thread is settled
+# after the reply that answers it; both carry a mark `settle_left` reads back
+# when the forge fails between them. A thread the agent invented is said and
+# skipped; a thread it left unanswered stays open, and the next round reads it
+# again. Answers with how many threads were settled.
+async def _posted(answering: PostAnswers) -> int:
+    work = answering.work
+    number = work.pr.number
+    forge = services().forge(work.run.project)
+    threads = {thread.id: thread for thread in answering.threads}
+    settled = 0
+    for item in answering.items:
+        if item.thread not in threads:
+            emit_delta(f"the agent answered a thread nobody triaged: {item.thread}")
+            continue
+        reply = item.reply
+        if item.issue is not None:
+            body = f"{item.issue.body}\n\n{filed_for(item.thread)}"
+            opened = await forge.issue(item.issue.title, body)
+            reply = f"{reply}\n\n{_filed(opened.url)}"
+        await _settled(forge, number, threads[item.thread], reply)
+        settled += 1
+    return settled
+
+
+# The forge writes, in a step of their own, apart from the agent's. Round
+# again rather than straight to the gate: what the forge still holds open is
+# the next batch, and `read_threads` is what finds out there is none. A round
+# that settled nothing would read the same batch back, so it lands with
+# whatever the agent did change, and so does a forge that refused partway:
+# the fixes are real whether or not every reply went up.
+@step
+async def post_answers(
+    answering: PostAnswers,
+) -> ReadThreads | Tend | AnswerGate | SetAside:
+    work = answering.work
+    try:
+        settled = await _posted(answering)
+    except ForgeError as error:
+        return await _landing(work, str(error))
+    if not settled:
+        return await _landing(work)
+    return work.to(ReadThreads)
+
+
+# The gate over what the answers changed, repaired until it is green: the
+# merge's loop, in the session the answers were written in.
+@step
+async def answer_gate(work: AnswerGate) -> AnswerGate | LandAnswers | StandDown | Chart:
+    against = CiJob(gate=work.run.project.gate)
+    return await _repaired(work, against, name=answer_gate.name, then=LandAnswers)
+
+
+@step
+async def land_answers(work: LandAnswers) -> Tend | SetAside:
+    try:
+        await services().scm(work.run.project).commit("chore: act on the review triage")
+    except ScmError as error:
+        return work.noting(f"could not commit the answers: {error}").to(SetAside)
+    return work.committed().to(Tend)
 
 
 # --- review ----------------------------------------------------------------
@@ -633,7 +912,7 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     try:
         threads = await services().forge(project).threads(number)
     except ForgeError as error:
-        return work.but(note=joined(work.note, str(error))).to(SetAside)
+        return work.noting(str(error)).to(SetAside)
     prompt = services().prompts.review(
         project, base=work.pr.base, threads=threads, reason=work.reason
     )
@@ -644,17 +923,17 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
             prompt,
             output=Findings,
             role="reader",
-            key=f"review-{number}",
+            key=_session(work, "review"),
             attended=work.run.attended,
         )
     )
     if isinstance(read, Fallen):
         return work.abandoned(read.reason).to(Chart)
     if isinstance(read, Misread):
-        return work.but(note=joined(work.note, read.reason)).to(SetAside)
+        return work.noting(read.reason).to(SetAside)
     findings = services().report.findings(project, read.items)
     if note := await _put_up(project, number, findings):
-        return work.but(note=joined(work.note, note)).to(SetAside)
+        return work.noting(note).to(SetAside)
     return work.to(Tend)
 
 
