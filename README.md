@@ -91,10 +91,11 @@ page, or how many open threads one round of answers takes, default 7.
 
 ## Install
 
-cabinet is not on PyPI; each
-[release](https://github.com/fancysnake/cabinet/releases) carries its wheel, and it runs on
+cabinet is not on PyPI; it installs from its
+[releases](https://github.com/fancysnake/cabinet/releases) and runs on
 Python 3.11 through 3.15. In the repository that wants the rituals:
 
+<!-- --8<-- [start:install] -->
 ```bash
 poetry add --group dev https://github.com/fancysnake/cabinet/releases/download/v<version>/cabinet-<version>-py3-none-any.whl
 ```
@@ -106,6 +107,7 @@ released, install from the git source instead:
 ```bash
 poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha>
 ```
+<!-- --8<-- [end:install] -->
 
 Either way `poetry install` brings `vekna` and its `trial` extra with it. Then tell
 vekna where the rituals are and the rituals what the repository is:

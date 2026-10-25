@@ -56,7 +56,7 @@ jobs:
       - name: Publish the release
         run: |
           if gh release view "${TAG}" > /dev/null 2>&1; then
-            gh release edit "${TAG}" --notes-file notes.md
+            gh release edit "${TAG}" --title "${VERSION}" --notes-file notes.md
             gh release upload "${TAG}" dist/* --clobber
           else
             gh release create "${TAG}" dist/* --verify-tag \
