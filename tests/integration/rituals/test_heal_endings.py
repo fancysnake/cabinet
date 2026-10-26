@@ -26,7 +26,7 @@ from cabinet.pacts.heal import (
     Survey,
     Tend,
 )
-from cabinet.pacts.healing import Checked, Heal, Healed, Run, Surveyed, Work
+from cabinet.pacts.healing import Checked, Heal, Healed, HealPr, Run, Surveyed, Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import services
@@ -40,6 +40,7 @@ from cabinet.pacts.threads import (
 )
 from cabinet.rituals.ci import ci
 from cabinet.rituals.heal_mine import heal_mine
+from cabinet.rituals.heal_pr import heal_pr
 from cabinet.rituals.merge import merge
 from cabinet.rituals.review import review
 from tests.conftest import (
@@ -93,7 +94,7 @@ class TestQualityReview:
 
         assert transition == work.to(Tend)
         assert "Thermo-nuclear code quality review" in trial.coding.prompts[0]
-        assert "main...HEAD" in trial.coding.prompts[0]
+        assert "origin/main...HEAD" in trial.coding.prompts[0]
         assert trial.shell.commands[-3].endswith(
             "-f body='## Thermo-nuclear code quality review\n\nguard this'"
         )
@@ -372,10 +373,10 @@ def _taken(trial: Trial, *, mergeable: str, checks: str = _GREEN_BOARD) -> None:
 # A conflict an agent resolves in one round.
 def _conflicted(trial: Trial) -> None:
     trial.shell.replies(when="git merge-base*", exit_code=1)
-    trial.shell.replies(when="git merge --no-edit main", exit_code=1)
+    trial.shell.replies(when="git merge --no-edit origin/main", exit_code=1)
     trial.shell.replies(when=_UNMERGED, stdout="a.py\n")
     trial.shell.replies(when=_UNMERGED)
-    trial.coding.replies("resolved", when="Merging main into feature*")
+    trial.coding.replies("resolved", when="Merging origin/main into feature*")
 
 
 def _reviewed(trial: Trial) -> None:
@@ -468,7 +469,7 @@ def _worst_answer_gate(trial: Trial, bound: int) -> None:
 class TestWholeCast:
     @staticmethod
     @pytest.mark.usefixtures("here")
-    def test_mine_merges_pushes_and_reviews(trial: Trial) -> None:
+    def test_pr_merges_pushes_and_reviews(trial: Trial) -> None:
         _taken(trial, mergeable="CONFLICTING")
         _conflicted(trial)
         trial.shell.replies(when="CI=1 mise run pr-fix")
@@ -477,7 +478,7 @@ class TestWholeCast:
         trial.shell.replies(when="git push origin feature")
         _reviewed(trial)
 
-        result = trial.cast(heal_mine, Heal())
+        result = trial.cast(heal_pr, HealPr(number=7, attended=False))
 
         assert result.checked == [_WORKED_ROW]
         assert result.surveyed[0] == Surveyed(
@@ -489,7 +490,7 @@ class TestWholeCast:
             threads=0,
         )
         assert trial.steps == [
-            "muster_mine",
+            "muster_pr",
             "survey",
             "check_clean",
             "sync_branch",
@@ -553,11 +554,13 @@ class TestWholeCast:
         _worst_answers(trial)
         _taken(trial, mergeable="CONFLICTING", checks=_RED_JOBS)
         trial.shell.replies(when="git merge-base*", exit_code=1)
-        trial.shell.replies(when="git merge --no-edit main", exit_code=1)
+        trial.shell.replies(when="git merge --no-edit origin/main", exit_code=1)
         for _ in range(bound):
             trial.shell.replies(when=_UNMERGED, stdout="a.py\n")
         trial.shell.replies(when=_UNMERGED)
-        trial.coding.replies("resolved", when="Merging main into feature*", always=True)
+        trial.coding.replies(
+            "resolved", when="Merging origin/main into feature*", always=True
+        )
         trial.shell.replies(when=_RELEASE, always=True)
         trial.shell.replies(when="git push origin feature", always=True)
         _worst_gate(trial, bound)
@@ -565,13 +568,13 @@ class TestWholeCast:
         _worst_answer_gate(trial, bound)
         _reviewed(trial)
 
-        result = trial.cast(heal_mine, Heal(bound=bound, attended=True))
+        result = trial.cast(heal_pr, HealPr(number=7, bound=bound))
 
         assert [one.outcome for one in result.checked] == ["blocked"]
         job = ["pick_job", "mend_job", *["job_gate"] * (2 * bound + 1), "land_job"]
         round_ = ["read_threads", "ask_triage", "answer_threads", "post_answers"]
         assert trial.steps == [
-            "muster_mine",
+            "muster_pr",
             "survey",
             "check_clean",
             "sync_branch",
@@ -627,6 +630,7 @@ class TestWholeCast:
 
 
 class TestTaskRituals:
+    # Attended by default: the one repair attempt is put to you first.
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_merge_works_the_merge_and_leaves_the_review(trial: Trial) -> None:
@@ -637,6 +641,7 @@ class TestTaskRituals:
         trial.shell.replies(when=_RELEASE, always=True)
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature")
+        trial.decide.answers(answer=True, when="resolve the conflicts on feature*")
 
         result = trial.cast(merge, Heal())
 
@@ -683,6 +688,7 @@ class TestTaskRituals:
             "chart",
         ]
 
+    # Turned down by the component, nothing is asked.
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_ci_fixes_the_job_and_leaves_the_rest(trial: Trial) -> None:
@@ -700,7 +706,7 @@ class TestTaskRituals:
         )
         trial.shell.replies(when="git push origin feature")
 
-        result = trial.cast(ci, Heal())
+        result = trial.cast(ci, Heal(attended=False))
 
         assert result.checked == [_WORKED_ROW]
         assert trial.steps == [

@@ -25,8 +25,8 @@ from tests.conftest import STATUS
 from tests.integration.rituals.falling import falling
 
 _UNMERGED = "git diff --name-only --diff-filter=U"
-_IS_ANCESTOR = "git merge-base --is-ancestor main HEAD"
-_MERGE = "git merge --no-edit main"
+_IS_ANCESTOR = "git merge-base --is-ancestor origin/main HEAD"
+_MERGE = "git merge --no-edit origin/main"
 
 
 class TestCheckClean:
@@ -56,8 +56,10 @@ class TestCheckClean:
 
 
 class TestSyncBranch:
+    # A pooled worktree cannot check the base out while the tree it was made
+    # from stands on it, so the base is only ever read off the remote.
     @staticmethod
-    def test_updates_the_base_then_stands_on_the_branch(
+    def test_fetches_then_stands_on_the_branch_never_on_the_base(
         trial: Trial, work: Work
     ) -> None:
         trial.shell.replies(when="git fetch*")
@@ -66,10 +68,7 @@ class TestSyncBranch:
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.to(Tend)
         assert trial.shell.commands == [
-            (
-                "git fetch --prune origin && git checkout main"
-                " && git pull --ff-only origin main"
-            ),
+            "git fetch --prune origin",
             "git checkout feature",
             "git merge --ff-only origin/feature",
         ]
@@ -81,7 +80,7 @@ class TestSyncBranch:
         trial.shell.replies(when="git fetch*", exit_code=1, stderr="no network")
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.abandoned(
-            "could not update main: no network"
+            "could not fetch origin: no network"
         ).to(Chart)
 
     @staticmethod
@@ -124,7 +123,7 @@ class TestMergeBase:
         trial.shell.replies(when=_IS_ANCESTOR)
 
         assert trial.walk(merge_base, work.to(MergeBase)) == work.but(
-            note="main is already merged in"
+            note="origin/main is already merged in"
         ).to(Tend)
         assert trial.shell.commands == [_IS_ANCESTOR]
 
@@ -151,7 +150,7 @@ class TestResolveConflicts:
         assert transition == work.merging_on("").charged(resolve_conflicts.name).to(
             ResolveConflicts
         )
-        assert "Merging main into feature" in trial.coding.prompts[0]
+        assert "Merging origin/main into feature" in trial.coding.prompts[0]
         assert "src/thing.py" in trial.coding.prompts[0]
         assert "git add" in trial.coding.prompts[0]
         assert trial.coding.calls[0].resume is None

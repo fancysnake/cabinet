@@ -1,16 +1,20 @@
 """Heal your pull requests: each one taken as far as its tasks go.
 
-    vekna cast heal.mine [--plan-only true] [--bound N] [--attended true] [--batch N]
-    vekna cast heal.this [--plan-only true] [--bound N] [--attended true] [--batch N]
-    vekna cast merge [--plan-only true] [--bound N] [--attended true]
-    vekna cast ci [--plan-only true] [--bound N] [--attended true]
-    vekna cast answer [--plan-only true] [--bound N] --attended true [--batch N]
-    vekna cast review [--plan-only true] [--attended true]
+    vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
+    vekna cast heal.this [--plan-only true] [--bound N] [--attended false] [--batch N]
+    vekna cast heal.pr --number N [--plan-only true] [--bound N] [--batch N]
+    vekna cast merge [--plan-only true] [--bound N] [--attended false]
+    vekna cast ci [--plan-only true] [--bound N] [--attended false]
+    vekna cast answer [--plan-only true] [--bound N] [--batch N]
+    vekna cast review [--plan-only true] [--attended false]
 
-``heal.mine`` takes every open pull request of yours not wearing the wait
-label, oldest-modified first; ``heal.this`` and the task rituals take the pull
-request of the branch at the cwd. A task ritual is ``heal.this`` that may work
-one task and no other.
+``heal.mine`` surveys every open pull request of yours not wearing the wait
+label, oldest-modified first, and works none of them itself: each one with
+work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in
+a pooled worktree beside the others. With no daemon listening it says so and
+fails. ``heal.pr`` takes the pull request it is given the number of;
+``heal.this`` and the task rituals take the pull request of the branch at the
+cwd. A task ritual is ``heal.this`` that may work one task and no other.
 
 Each pull request is surveyed first: whether it conflicts with its base, which
 of the configured CI jobs are red, how many review threads are open, and which
@@ -20,9 +24,11 @@ only take one away. The list is printed a line per pull request as it is read.
 With ``--plan-only true`` that is all: no checkout, no commit, no label.
 
 Otherwise a branch with a task this cast works is taken: the worktree must be
-clean, the base is brought up to date, and the branch is checked out and
-fast-forwarded to the remote. Then ``tend`` hands it each task in turn, and
-every task ends back at ``tend``:
+clean, the remote is fetched, and the branch is checked out and fast-forwarded
+to it. The base is only ever read as the remote has it: a pooled worktree
+cannot stand on a base the tree it was made from is standing on. Then
+``tend`` hands the branch each task in turn, and every task ends back at
+``tend``:
 
 - **merge**, only where the branch conflicts: the base is merged in, an agent
   resolves the conflicts, and the gate is made green before the merge is
@@ -64,8 +70,8 @@ Where the runner names the task that broke, the next round runs that task
 alone, and the gate itself runs once more when it comes back green.
 
 A branch is left alone rather than reported broken when the checkout will not
-go through, which is what another worktree standing on it looks like. Checking
-out the base branch is not the same thing, so that one ends the cast.
+go through, which is what another worktree standing on it looks like. A fetch
+that fails is not the same thing, so that one ends the cast.
 
 Two things end the whole cast rather than one branch: a worktree that is not
 clean, and an agent that dies mid-flight. Both still print the report first,
@@ -74,7 +80,10 @@ then fail the cast.
 Budgets are per step and per branch: a step may be retried ``--bound`` times,
 going green clears its count, and moving to the next pull request clears them
 all. A verdict a step already gave up on once is not paid for twice: the next
-branch whose gate says the same thing stands down without spending its budget.
+branch of the same cast whose gate says the same thing stands down without
+spending its budget. Each ``heal.pr`` is a cast of its own, and pays once.
+A cast is attended unless vekna was told ``--unattended`` or the ritual
+``--attended false``, which ``[defaults."<ritual>"]`` can set per repository.
 Unattended, nothing is asked and the budgets decide; attended, each repair
 attempt is put to you first.
 
@@ -85,8 +94,8 @@ names what was not reached.
 
 from typing import TypeVar
 
-from vekna.folio.flow import decide
-from vekna.lexicon import Done, RitualError, emit_delta, step
+from vekna.folio.flow import decide, enqueue
+from vekna.lexicon import Done, NoDaemonError, RitualError, emit_delta, step
 
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
@@ -107,6 +116,7 @@ from cabinet.pacts.heal import (
     MendJob,
     MergeBase,
     MusterMine,
+    MusterPr,
     MusterThis,
     PickJob,
     PostAnswers,
@@ -119,11 +129,22 @@ from cabinet.pacts.heal import (
     SettleLeft,
     SkipPr,
     StandDown,
+    Summon,
     Survey,
     SyncBranch,
     Tend,
 )
-from cabinet.pacts.healing import Facts, Healed, Run, Surveyed, Task, Unsurveyed, Work
+from cabinet.pacts.healing import (
+    Facts,
+    Healed,
+    HealPr,
+    Queued,
+    Run,
+    Surveyed,
+    Task,
+    Unsurveyed,
+    Work,
+)
 from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import CiJob, Project
 from cabinet.pacts.pulls import PullRequest
@@ -185,18 +206,36 @@ async def muster_this(run: MusterThis) -> Chart | Survey:
     return _queued(run, queue)
 
 
-# Read the next pull request's facts, say what it needs, and take it where
-# this cast works any of that.
+# The open pull request of yours `heal.mine` queued this cast for. Surveyed
+# again rather than trusted from the parent: the queue may have held this
+# cast for a while, and the facts decide.
 @step
-async def survey(run: Survey) -> Chart | Survey | CheckClean:
+async def muster_pr(mustering: MusterPr) -> Chart | Survey:
+    run = mustering.run
+    try:
+        pulls = await _listed(run)
+    except (ScmError, ForgeError) as error:
+        return run.but(stopped=str(error)).to(Chart)
+    if not (queue := services().pulls.numbered(pulls, mustering.number)):
+        stopped = f"no open pull request of yours is #{mustering.number}"
+        return run.but(stopped=stopped).to(Chart)
+    return _queued(run, queue)
+
+
+# Read the next pull request's facts, say what it needs, and take it where
+# this cast works any of that, or queue a cast that will.
+@step
+async def survey(run: Survey) -> Chart | Survey | CheckClean | Summon:
     if not run.queue:
         return run.to(Chart)
     # Asked before the survey rather than after: a branch the budget has no
     # room for is left for the next cast, unread. Not a failure, and the
     # report names it; running out of the engine's budget instead would raise
     # past `chart` with a branch half-merged.
-    # A plan works no task, so it takes no branch and has no share to ask for.
-    if (share := services().steps.heal_share(run) if run.tasks else 0) is None:
+    # A plan works no task, so it takes no branch and has no share to ask for,
+    # and nor does a cast that hands every branch to a cast of its own.
+    working = run.tasks and not run.fan_out
+    if (share := services().steps.heal_share(run) if working else 0) is None:
         return run.to(Chart)
     pull = run.queue[0]
     row = await _surveyed(run.project, pull)
@@ -204,7 +243,32 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
     after = run.took(row)
     if isinstance(row, Unsurveyed) or not after.worked(row.todos):
         return after.to(Survey)
+    if run.fan_out:
+        return Summon(run=after, pull=pull)
     return after.take(row, pull, share).to(CheckClean)
+
+
+# The branch goes to a `heal.pr` of its own, run in a pooled worktree as the
+# daemon has a slot and a tree for it, and this cast goes on to the next.
+# Queued rather than awaited: each branch's row is its own cast's to say.
+# Every component is passed on as this cast took it, so the children work the
+# way the parent was asked to; `--unattended` reaches them through vekna.
+@step
+async def summon(summoning: Summon) -> Survey | Chart:
+    run, pull = summoning.run, summoning.pull
+    asked = HealPr(
+        number=pull.number, bound=run.bound, attended=run.attended, batch=run.batch
+    )
+    try:
+        cast = await enqueue("heal.pr", asked)
+    except NoDaemonError:
+        stopped = (
+            "heal.mine queues a cast per pull request and needs the daemon:"
+            " start it with `vekna`"
+        )
+        return run.but(stopped=stopped).to(Chart)
+    queued = Queued(number=pull.number, branch=pull.branch, cast=cast)
+    return run.summoned(queued).to(Survey)
 
 
 # One pull request the forge or git would not answer about is a row saying
@@ -239,6 +303,7 @@ def chart(run: Chart) -> Done[Healed]:
             surveyed=run.surveyed,
             checked=run.checked,
             not_reached=[pull.branch for pull in run.queue],
+            queued=run.queued,
         )
     )
 
@@ -259,13 +324,13 @@ async def check_clean(work: CheckClean) -> Chart | SyncBranch:
     return work.to(SyncBranch)
 
 
-# Update the base branch, then stand on the branch as the remote has it.
+# Fetch, then stand on the branch as the remote has it.
 @step
 async def sync_branch(work: SyncBranch) -> Chart | SkipPr | SetAside | Tend:
     scm = services().scm(work.run.project)
     pull = work.pr
     try:
-        await scm.sync_base(pull.base)
+        await scm.fetch()
     except ScmError as error:
         return work.abandoned(str(error)).to(Chart)
     # On its own rather than chained to the rest, because the failures are
@@ -311,16 +376,22 @@ def tend(
 # --- merge -----------------------------------------------------------------
 
 
+# The base as the remote has it: no step stands on the base itself.
+def _base(work: Work) -> str:
+    return f"{work.run.project.remote}/{work.pr.base}"
+
+
 # Merge the base in. Only a conflict brings a branch here, so a merge that
 # goes through is the forge's answer gone stale, and still owes the gate.
 @step
 async def merge_base(work: MergeBase) -> Tend | GateCheck | ResolveConflicts:
     scm = services().scm(work.run.project)
+    base = _base(work)
     # Asked before the merge rather than read off it afterwards: git says
     # "Already up to date" in whatever language the terminal is set to.
-    if await scm.contains(work.pr.base):
-        return work.but(note=f"{work.pr.base} is already merged in").to(Tend)
-    merged = await scm.merge(work.pr.base)
+    if await scm.contains(base):
+        return work.but(note=f"{base} is already merged in").to(Tend)
+    merged = await scm.merge(base)
     if merged.exit_code == 0:
         return work.to(GateCheck)
     # The index is read once, by the step below. What this carries there is
@@ -352,7 +423,7 @@ async def resolve_conflicts(
         stopped = work.stopped_by("the merge conflicts were not resolved")
         return stopped.to(StandDown)
     prompt = services().prompts.resolve(
-        project, base=work.pr.base, branch=work.pr.branch, files="\n".join(unmerged)
+        project, base=_base(work), branch=work.pr.branch, files="\n".join(unmerged)
     )
     fallen = (
         await services()
@@ -914,7 +985,7 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     except ForgeError as error:
         return work.noting(str(error)).to(SetAside)
     prompt = services().prompts.review(
-        project, base=work.pr.base, threads=threads, reason=work.reason
+        project, base=_base(work), threads=threads, reason=work.reason
     )
     read = (
         await services()

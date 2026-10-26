@@ -19,6 +19,9 @@ from cabinet.pacts.threads import Finding, TriageItem
 
 _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
+# The two things that turn a cast down: vekna's flag, and ours.
+_WAITING = "waiting for you, cast without --unattended or --attended false:"
+
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")
 
@@ -109,15 +112,23 @@ class Report(ReportProtocol):
             for one in found
         ]
 
+    # A cast that queued its branches says which cast took each: their rows
+    # are theirs to say, as each one ends.
     @override
     def healed(self, run: Run) -> str:
-        lines = [f"heal — {len(run.checked)} worked", ""]
-        lines += [_line(row) for row in run.checked] or ["  (none)"]
+        if run.fan_out:
+            lines = [f"heal — {len(run.queued)} queued", ""]
+            lines += [
+                f"  #{one.number} {one.branch}: cast {one.cast}" for one in run.queued
+            ] or ["  (none)"]
+        else:
+            lines = [f"heal — {len(run.checked)} worked", ""]
+            lines += [_line(row) for row in run.checked] or ["  (none)"]
         # Said wherever the cast left any, as the way to get them answered: a
         # cast nobody attended answers nothing, and says so here rather than
         # leaving the survey line to look like work it did not do.
         if waiting := run.waiting():
-            lines += ["", "waiting for you, cast with --attended true:"]
+            lines += ["", _WAITING]
             lines += [
                 f"  #{row.number} {row.branch}: {_threads(row.threads)}"
                 for row in waiting

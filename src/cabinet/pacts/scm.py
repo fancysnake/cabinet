@@ -30,16 +30,18 @@ class ScmProtocol(Protocol):
 
     async def checkout(self, branch: str) -> None: ...
 
-    # Fetch, stand on the base, and fast-forward it to the remote.
-    async def sync_base(self, base: str) -> None: ...
+    # Fetch the remote, and touch no branch: the base is read as the remote
+    # has it, since a pooled worktree cannot stand on a base the tree it was
+    # made from is standing on.
+    async def fetch(self) -> None: ...
 
     # Fast-forward the branch to the remote — never reset: a branch a ritual
     # worked on last night carries commits the remote has not seen.
     async def catch_up(self, branch: str) -> None: ...
 
-    # Whether the base is already contained in HEAD, asked before a merge
+    # Whether `ref` is already contained in HEAD, asked before a merge
     # rather than read off git's prose afterwards.
-    async def contains(self, base: str) -> bool: ...
+    async def contains(self, ref: str) -> bool: ...
 
     # Whether `branch` would conflict with `base`, as the remote has both,
     # without touching the worktree.
@@ -47,7 +49,7 @@ class ScmProtocol(Protocol):
 
     # A merge that failed is not always a conflict, so what git said rides
     # along for the step that reads the index.
-    async def merge(self, base: str) -> Ran: ...
+    async def merge(self, ref: str) -> Ran: ...
 
     async def unmerged(self) -> list[str]: ...
 

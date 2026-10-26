@@ -618,20 +618,21 @@ def _listed(trial: Trial) -> None:
 
 class TestWholeCast:
     # The cast that answers nothing still says what it left, and how to get
-    # it answered.
+    # it answered. vekna's `--unattended` wins over `--attended true`.
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_an_unattended_cast_leaves_the_threads_waiting(trial: Trial) -> None:
         _listed(trial)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
+        trial.decide.attended = False
 
-        result = trial.cast(heal_mine, Heal())
+        result = trial.cast(heal_mine, Heal(attended=True))
 
         assert result.checked == []
         assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
         assert trial.deltas[-1] == (
-            "heal — 0 worked\n\n  (none)\n\n"
-            "waiting for you, cast with --attended true:\n"
+            "heal — 0 queued\n\n  (none)\n\n"
+            "waiting for you, cast without --unattended or --attended false:\n"
             "  #7 feature: 1 thread\n"
         )
 

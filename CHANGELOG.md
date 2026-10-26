@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning].
 - `answer`: the review threads on your branch, attended only. An agent
   triages them, you decide each item, another agent fixes what you said to
   fix, and the ritual files the issues, posts the replies, settles the
-  threads and commits the fixes once the gate is green. `heal.mine` and
-  `heal.this` work it after ci when cast with `--attended true`; an
-  unattended cast reports how many threads wait for you. `--batch` sets how
+  threads and commits the fixes once the gate is green. `heal.pr` and
+  `heal.this` work it after ci when attended; an unattended cast reports how
+  many threads wait for you. `--batch` sets how
   many threads one round takes, three rounds a cast. A branch it leaves with
   no thread open wears `[cabinet.labels] answered`, default `v:answer:done`.
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
@@ -35,8 +35,26 @@ and this project adheres to [Semantic Versioning].
 - `release-bump` plugin: where a workflow publishes the release on a tag push,
   the report names pushing the tag as the last step.
 
+- `heal.pr --number N`: one pull request of yours, healed in a worktree from
+  vekna's pool.
+- `[defaults."cabinet:<ritual>"]` in `.vekna.toml` sets a ritual's flags per
+  repository, `attended = false` among them.
+
 ### Changed
 
+- **Breaking:** casts are attended by default. `--attended false`, or vekna's
+  own `vekna cast --unattended`, turns a cast down, and `--unattended` wins
+  over `--attended true`. A cron job that never passed `--unattended` now runs
+  its agents in `auto` mode and asks before each repair; add the flag.
+  ([#109](https://github.com/fancysnake/cabinet/issues/109))
+- **Breaking:** `heal.mine` queues a `heal.pr` on the vekna daemon for each
+  pull request with work, and the branches heal side by side, each in a
+  pooled worktree. Your own checkout never moves. With no daemon it prints
+  the survey and fails. A verdict a gate gave up on is no longer carried from
+  one pull request to the next.
+- The heal rituals fetch the remote and read the base as the remote has it,
+  without checking it out or updating your local base branch.
+- cabinet requires vekna 0.15.
 - **Breaking:** a merge happens only where the branch conflicts with its base;
   a branch that is merely behind is left alone.
 - **Breaking:** `review` posts the quality review on your branch; it no longer

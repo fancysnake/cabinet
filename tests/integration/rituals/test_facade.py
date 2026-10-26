@@ -14,6 +14,7 @@ from cabinet.rituals import (
     answer,
     ci,
     heal_mine,
+    heal_pr,
     heal_this,
     identify,
     labels,
@@ -26,6 +27,7 @@ from cabinet.rituals import (
 # Every facade over the heal graph, and the ritual each one casts.
 _HEALS = [
     pytest.param(heal_mine, "heal.mine", id="heal.mine"),
+    pytest.param(heal_pr, "heal.pr", id="heal.pr"),
     pytest.param(heal_this, "heal.this", id="heal.this"),
     pytest.param(merge, "merge", id="merge"),
     pytest.param(ci, "ci", id="ci"),
@@ -65,7 +67,7 @@ class TestFacade:
     @staticmethod
     def test_the_heal_rituals_share_their_steps() -> None:
         assert heal_this.tend is heal_mine.tend is merge.tend is review.tend
-        assert ci.tend is answer.tend is heal_mine.tend
+        assert ci.tend is answer.tend is heal_mine.tend is heal_pr.tend
 
     @staticmethod
     def test_identify_exports_its_ritual_and_every_step() -> None:

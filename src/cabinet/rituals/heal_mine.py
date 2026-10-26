@@ -1,6 +1,6 @@
 """Evocation: ``heal.mine`` takes each of your pull requests as far as it goes.
 
-    vekna cast heal.mine [--plan-only true] [--bound N] [--attended true] [--batch N]
+    vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
 
 Every open pull request of yours not wearing the wait label, oldest-modified
 first. The steps live in ``cabinet.gates.ritual.vekna.heal``, shared with
@@ -9,7 +9,7 @@ surface vekna sweeps. Every step is exported, so the facade names the whole
 graph it casts.
 """
 
-from vekna.lexicon import ritual
+from vekna.lexicon import attended, ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -27,6 +27,7 @@ from cabinet.gates.ritual.vekna.heal import (
     mend_job,
     merge_base,
     muster_mine,
+    muster_pr,
     muster_this,
     pick_job,
     post_answers,
@@ -39,6 +40,7 @@ from cabinet.gates.ritual.vekna.heal import (
     settle_left,
     skip_pr,
     stand_down,
+    summon,
     survey,
     sync_branch,
     tend,
@@ -53,9 +55,10 @@ from cabinet.specs import HEAL_STEPS
 def heal_mine(components: Heal) -> MusterMine:
     return MusterMine(
         project=services().project(),
+        fan_out=True,
         tasks=components.working(),
         bound=components.bound,
-        attended=components.attended,
+        attended=attended() and components.attended,
         batch=components.batch,
     )
 
@@ -77,6 +80,7 @@ __all__ = [
     "mend_job",
     "merge_base",
     "muster_mine",
+    "muster_pr",
     "muster_this",
     "pick_job",
     "post_answers",
@@ -89,6 +93,7 @@ __all__ = [
     "settle_left",
     "skip_pr",
     "stand_down",
+    "summon",
     "survey",
     "sync_branch",
     "tend",

@@ -162,17 +162,12 @@ class TestMoving:
             drive(trial, lambda: _SCM.checkout("feature"))
 
     @staticmethod
-    def test_sync_base_fetches_stands_and_pulls(trial: Trial) -> None:
+    def test_fetch_touches_no_branch(trial: Trial) -> None:
         trial.shell.replies(when="git fetch*")
 
-        drive(trial, lambda: _SCM.sync_base("main"))
+        drive(trial, _SCM.fetch)
 
-        assert trial.shell.commands == [
-            (
-                "git fetch --prune origin && git checkout main"
-                " && git pull --ff-only origin main"
-            )
-        ]
+        assert trial.shell.commands == ["git fetch --prune origin"]
 
     @staticmethod
     def test_catch_up_is_a_fast_forward_only(trial: Trial) -> None:

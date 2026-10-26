@@ -12,14 +12,16 @@ Grouped by school, the way a spellbook is.
 
 ### Evocation
 
-- **`heal.mine`** and **`heal.this`**: take each pull request as far as it
-  goes. `heal.mine` takes every open pull request of yours not wearing the
-  wait label, oldest-modified first; `heal.this` takes the one for the branch
-  at the cwd. Each pull request is surveyed into its todos (merge, ci, answer,
-  review, guide) and printed on one line; then the merge, ci, answer and review
-  tasks are worked, and what was committed is pushed. Threads are answered
-  only with `--attended true`. `--plan-only true` stops after the
-  survey and changes nothing.
+- **`heal.mine`**, **`heal.pr`** and **`heal.this`**: take each pull request as
+  far as it goes. `heal.this` takes the one for the branch at the cwd. Each
+  pull request is surveyed into its todos (merge, ci, answer, review, guide)
+  and printed on one line; then the merge, ci, answer and review tasks are
+  worked, and what was committed is pushed. `heal.mine` surveys every open
+  pull request of yours not wearing the wait label, oldest-modified first, and
+  queues a `heal.pr --number N` on the vekna daemon for each one with work.
+  The daemon runs those side by side, each in a pooled worktree, so your own
+  checkout never moves. An unattended cast leaves review threads for you.
+  `--plan-only true` stops after the survey and changes nothing.
 
 ### Transmutation
 
@@ -69,12 +71,13 @@ casting one twice is as safe as once.
 
 <!-- --8<-- [start:cast] -->
 ```bash
-vekna cast heal.mine [--plan-only true] [--bound N] [--attended true] [--batch N]
-vekna cast heal.this [--plan-only true] [--bound N] [--attended true] [--batch N]
-vekna cast merge [--plan-only true] [--bound N] [--attended true]
-vekna cast ci [--plan-only true] [--bound N] [--attended true]
-vekna cast answer [--plan-only true] [--bound N] --attended true [--batch N]
-vekna cast review [--plan-only true] [--attended true]
+vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
+vekna cast heal.pr --number N [--plan-only true] [--bound N] [--attended false] [--batch N]
+vekna cast heal.this [--plan-only true] [--bound N] [--attended false] [--batch N]
+vekna cast merge [--plan-only true] [--bound N] [--attended false]
+vekna cast ci [--plan-only true] [--bound N] [--attended false]
+vekna cast answer [--plan-only true] [--bound N] [--batch N]
+vekna cast review [--plan-only true] [--attended false]
 vekna cast identify [--batch N]
 vekna cast labels
 vekna cast labels.heal
@@ -83,9 +86,11 @@ vekna cast labels.identify
 <!-- --8<-- [end:cast] -->
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
-default 3. `--attended true` says somebody is at the terminal: the cast answers
-review threads with you, asks before every repair attempt instead of letting
-the budget decide, and runs its agents in Claude's `auto` permission mode.
+default 3. A cast is attended unless you cast it with `vekna cast --unattended`
+or pass `--attended false`. An attended cast answers review threads with you,
+asks before every repair attempt instead of letting the budget decide, and runs
+its agents in Claude's `auto` permission mode. `[defaults."cabinet:heal.mine"]
+attended = false` in `.vekna.toml` turns one ritual down for a repository.
 `identify` asks you about every page. `--batch` is how many issues go on one
 page, or how many open threads one round of answers takes, default 7.
 

@@ -34,6 +34,9 @@ class PullsProtocol(Protocol):
     # The open pull requests whose head is `branch`.
     def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]: ...
 
+    # The open pull request numbered `number`, or none.
+    def numbered(self, pulls: list[PullRequest], number: int) -> list[PullRequest]: ...
+
 
 class TodosProtocol(Protocol):
     # What the pull request needs next, in the order a cast does it, and what

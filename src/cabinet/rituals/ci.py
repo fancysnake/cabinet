@@ -1,6 +1,6 @@
 """Abjuration: ``ci`` makes your branch's red CI jobs green.
 
-    vekna cast ci [--plan-only true] [--bound N] [--attended true]
+    vekna cast ci [--plan-only true] [--bound N] [--attended false]
 
 ``heal.this`` that works the ci task and no other, the way *Lesser
 Restoration* ends one condition at a time. Only a red check on a job in
@@ -9,7 +9,7 @@ Restoration* ends one condition at a time. Only a red check on a job in
 surface vekna sweeps.
 """
 
-from vekna.lexicon import ritual
+from vekna.lexicon import attended, ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -27,6 +27,7 @@ from cabinet.gates.ritual.vekna.heal import (
     mend_job,
     merge_base,
     muster_mine,
+    muster_pr,
     muster_this,
     pick_job,
     post_answers,
@@ -39,6 +40,7 @@ from cabinet.gates.ritual.vekna.heal import (
     settle_left,
     skip_pr,
     stand_down,
+    summon,
     survey,
     sync_branch,
     tend,
@@ -54,7 +56,7 @@ def ci(components: Heal) -> MusterThis:
     return MusterThis(
         project=services().project(),
         bound=components.bound,
-        attended=components.attended,
+        attended=attended() and components.attended,
         tasks=components.working("ci"),
     )
 
@@ -76,6 +78,7 @@ __all__ = [
     "mend_job",
     "merge_base",
     "muster_mine",
+    "muster_pr",
     "muster_this",
     "pick_job",
     "post_answers",
@@ -88,6 +91,7 @@ __all__ = [
     "settle_left",
     "skip_pr",
     "stand_down",
+    "summon",
     "survey",
     "sync_branch",
     "tend",

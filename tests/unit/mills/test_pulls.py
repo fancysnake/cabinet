@@ -63,3 +63,13 @@ class TestAt:
             into_main,
             into_release,
         ]
+
+
+class TestNumbered:
+    # Parked or not: whoever queued it asked for it by number.
+    @staticmethod
+    def test_only_the_number_asked_for() -> None:
+        asked = _pull(1, updated_at="2026-08-01T00:00:00Z", labels=["pr::wait"])
+        other = _pull(2, updated_at="2026-08-01T00:00:00Z")
+
+        assert _PULLS.numbered([other, asked], 1) == [asked]

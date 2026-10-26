@@ -1,6 +1,6 @@
 """Divination: ``review`` posts the quality review on your pull request.
 
-    vekna cast review [--plan-only true] [--attended true]
+    vekna cast review [--plan-only true] [--attended false]
 
 ``heal.this`` that works the review task and no other. A pull request wearing
 the reviewed label has had its review; take the label off to ask again. The
@@ -8,7 +8,7 @@ steps live in ``cabinet.gates.ritual.vekna.heal``; this module is the ritual
 itself and the surface vekna sweeps.
 """
 
-from vekna.lexicon import ritual
+from vekna.lexicon import attended, ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -26,6 +26,7 @@ from cabinet.gates.ritual.vekna.heal import (
     mend_job,
     merge_base,
     muster_mine,
+    muster_pr,
     muster_this,
     pick_job,
     post_answers,
@@ -38,6 +39,7 @@ from cabinet.gates.ritual.vekna.heal import (
     settle_left,
     skip_pr,
     stand_down,
+    summon,
     survey,
     sync_branch,
     tend,
@@ -53,7 +55,7 @@ def review(components: Heal) -> MusterThis:
     return MusterThis(
         project=services().project(),
         bound=components.bound,
-        attended=components.attended,
+        attended=attended() and components.attended,
         tasks=components.working("review"),
     )
 
@@ -74,6 +76,7 @@ __all__ = [
     "mend_job",
     "merge_base",
     "muster_mine",
+    "muster_pr",
     "muster_this",
     "pick_job",
     "post_answers",
@@ -87,6 +90,7 @@ __all__ = [
     "settle_left",
     "skip_pr",
     "stand_down",
+    "summon",
     "survey",
     "sync_branch",
     "tend",

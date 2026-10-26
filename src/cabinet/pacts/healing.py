@@ -1,6 +1,6 @@
 """What a heal cast carries, branch by branch, and what it leaves behind."""
 
-from typing import Literal, Self, TypeAlias, TypeVar, get_args
+from typing import Annotated, Literal, Self, TypeAlias, TypeVar, get_args
 
 from pydantic import BaseModel, Field
 
@@ -36,7 +36,9 @@ class Heal(BaseModel):
     # Somebody is at the terminal: an agent runs in Claude's `auto` permission
     # mode instead of refusing everything outside its allowlist, and another
     # repair attempt is asked for rather than spent on the budget's say-so.
-    attended: bool = False
+    # vekna's `--unattended` has the last word; this only turns a cast down,
+    # which is what `[defaults."<ritual>"] attended = false` is for.
+    attended: bool = True
     # How many open threads one round of `answer` reads, answers and settles
     # before the next round fetches what the forge still holds open.
     batch: Batch = BATCH
@@ -45,6 +47,19 @@ class Heal(BaseModel):
     # none at all for a plan.
     def working(self, *tasks: Task) -> list[Task]:
         return [] if self.plan_only else list(tasks or TASKS)
+
+
+# One pull request, by number, wherever the cwd stands: what `heal.mine`
+# queues for each branch it surveyed work on.
+class HealPr(Heal):
+    number: Annotated[int, Field(ge=1)]
+
+
+# A branch `heal.mine` handed to a cast of its own.
+class Queued(BaseModel):
+    number: int
+    branch: str
+    cast: str
 
 
 # Everything the survey reads about one pull request, read once.
@@ -118,6 +133,10 @@ class Run(Reserving, Hop):
     # is broken everywhere should pay for that answer once, not once per pull
     # request.
     seen: list[str] = Field(default_factory=list)
+    # `heal.mine`: each branch with work goes to a cast of its own, in a
+    # worktree of its own, and this cast works none of them.
+    fan_out: bool = False
+    queued: list[Queued] = Field(default_factory=list)
 
     # The cast's own steps and no others: `pacts/heal.py` names one class per
     # step, and the ones that take a branch are `Work`'s, not these.
@@ -159,6 +178,10 @@ class Run(Reserving, Hop):
     # The head of the queue taken off it, its row added.
     def took(self, row: Surveyed | Unsurveyed) -> Self:
         return self.but(queue=self.queue[1:], surveyed=[*self.surveyed, row])
+
+    def summoned(self, queued: Queued) -> Self:
+        update: dict[str, list[Queued]] = {"queued": [*self.queued, queued]}
+        return self.model_copy(update=update)
 
     # What of `todos` this cast may work, in the order it works them. Never
     # `answer` with nobody at the terminal: every item of a triage is yours to
@@ -369,8 +392,9 @@ class Work(Budgeted, Hop):
 
 
 # What the cast came to: every pull request's survey, what became of each
-# branch it worked, and what it never reached.
+# branch it worked or queued a cast for, and what it never reached.
 class Healed(BaseModel):
     surveyed: list[Surveyed | Unsurveyed] = []
     checked: list[Checked] = []
     not_reached: list[str] = []
+    queued: list[Queued] = []

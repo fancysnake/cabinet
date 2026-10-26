@@ -22,8 +22,9 @@ act on. They run inside the agent session you already have open.
 
 Each is filed under a school of magic, the way a spellbook is.
 
-- **`heal.mine`**, **`heal.this`** (Evocation): to take your pull requests as
-  far as they go, or with `--plan-only true` to see what each needs next.
+- **`heal.mine`**, **`heal.pr`**, **`heal.this`** (Evocation): to take your
+  pull requests as far as they go, `heal.mine` side by side in worktrees of
+  their own, or with `--plan-only true` to see what each needs next.
 - **`merge`** (Transmutation): to merge the base into a conflicting branch.
 - **`ci`** (Abjuration): to rerun, fix or cover your branch's red CI jobs.
 - **`answer`** (Enchantment): to work through the review threads on your

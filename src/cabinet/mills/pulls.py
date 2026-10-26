@@ -28,3 +28,9 @@ class Pulls(PullsProtocol):
     @override
     def at(self, pulls: list[PullRequest], branch: str) -> list[PullRequest]:
         return [pull for pull in pulls if pull.branch == branch]
+
+    # The wait label is not asked about: whoever queued this one asked for it
+    # by number.
+    @override
+    def numbered(self, pulls: list[PullRequest], number: int) -> list[PullRequest]:
+        return [pull for pull in pulls if pull.number == number]
