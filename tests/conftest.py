@@ -136,7 +136,7 @@ def pull() -> PullRequest:
 
 @pytest.fixture
 def work() -> Work:
-    return Work(run=Run(project=Project()), pr=_pull())
+    return Work(run=Run(project=Project(), attended=False), pr=_pull())
 
 
 # A whole cast reads its project from the cwd, the way a real one does.

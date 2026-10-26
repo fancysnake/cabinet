@@ -1,15 +1,18 @@
-"""Evocation: ``heal.mine`` takes each of your pull requests as far as it goes.
+"""Evocation: ``heal.mine`` queues a ``heal.pr`` for each pull request with work.
 
     vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
 
 Every open pull request of yours not wearing the wait label, oldest-modified
-first. The steps live in ``cabinet.gates.ritual.vekna.heal``, shared with
+first, is surveyed, and this cast works none of them itself: each one with
+work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in a pooled
+worktree beside the others. With no daemon listening it says so and fails.
+The steps live in ``cabinet.gates.ritual.vekna.heal``, shared with
 ``heal.this`` and the task rituals; this module is the ritual itself and the
 surface vekna sweeps. Every step is exported, so the facade names the whole
 graph it casts.
 """
 
-from vekna.lexicon import attended, ritual
+from vekna.lexicon import ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -29,6 +32,7 @@ from cabinet.gates.ritual.vekna.heal import (
     muster_mine,
     muster_pr,
     muster_this,
+    mustered,
     pick_job,
     post_answers,
     push_work,
@@ -43,24 +47,17 @@ from cabinet.gates.ritual.vekna.heal import (
     summon,
     survey,
     sync_branch,
+    tally,
     tend,
 )
 from cabinet.pacts.heal import MusterMine
 from cabinet.pacts.healing import Heal
-from cabinet.pacts.services import services
 from cabinet.specs import HEAL_STEPS
 
 
 @ritual("heal.mine", max_steps=HEAL_STEPS)
 def heal_mine(components: Heal) -> MusterMine:
-    return MusterMine(
-        project=services().project(),
-        fan_out=True,
-        tasks=components.working(),
-        bound=components.bound,
-        attended=attended() and components.attended,
-        batch=components.batch,
-    )
+    return mustered(MusterMine, components)
 
 
 __all__ = [
@@ -96,5 +93,6 @@ __all__ = [
     "summon",
     "survey",
     "sync_branch",
+    "tally",
     "tend",
 ]

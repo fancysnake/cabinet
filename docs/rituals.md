@@ -1,23 +1,3 @@
-
-
-A flag a repository always wants goes in `.vekna.toml` as vekna's
-component defaults, keyed by the ritual's full name. A flag on the command line
-still wins:
-
-```toml
-[defaults."cabinet:heal.mine"]
-attended = false
-bound = 2
-```
-A flag a repository always wants goes in `.vekna.toml` as vekna's
-component defaults, keyed by the ritual's full name. A flag on the command line
-still wins:
-
-```toml
-[defaults."cabinet:heal.mine"]
-attended = false
-bound = 2
-```
 # Rituals
 
 Eleven rituals, one facade each under `cabinet.rituals`. Seven work your pull

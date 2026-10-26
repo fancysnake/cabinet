@@ -19,8 +19,9 @@ agent reaches and the commands it runs. Run every cast, attended or not, inside 
 
 ## Permission modes
 
-A cast is attended unless it runs under `vekna cast --unattended` or with
-`--attended false`. Attended, the mode is `auto`, with somebody there to be
+A cast is attended unless it runs under `vekna cast --unattended`, with
+`--attended false`, or under `[defaults."cabinet:<ritual>"] attended = false`
+in `.vekna.toml`. Attended, the mode is `auto`, with somebody there to be
 asked. Unattended, every agent call runs under Claude's `dontAsk` permission
 mode, so a cast at 3am never hangs on a prompt. A cron job must pass
 `--unattended`, or its agents run in `auto` with nobody to answer.

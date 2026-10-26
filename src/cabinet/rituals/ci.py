@@ -9,7 +9,7 @@ Restoration* ends one condition at a time. Only a red check on a job in
 surface vekna sweeps.
 """
 
-from vekna.lexicon import attended, ritual
+from vekna.lexicon import ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -29,6 +29,7 @@ from cabinet.gates.ritual.vekna.heal import (
     muster_mine,
     muster_pr,
     muster_this,
+    mustered,
     pick_job,
     post_answers,
     push_work,
@@ -43,22 +44,17 @@ from cabinet.gates.ritual.vekna.heal import (
     summon,
     survey,
     sync_branch,
+    tally,
     tend,
 )
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
-from cabinet.pacts.services import services
 from cabinet.specs import HEAL_STEPS
 
 
 @ritual("ci", max_steps=HEAL_STEPS)
 def ci(components: Heal) -> MusterThis:
-    return MusterThis(
-        project=services().project(),
-        bound=components.bound,
-        attended=attended() and components.attended,
-        tasks=components.working("ci"),
-    )
+    return mustered(MusterThis, components, "ci")
 
 
 __all__ = [
@@ -94,5 +90,6 @@ __all__ = [
     "summon",
     "survey",
     "sync_branch",
+    "tally",
     "tend",
 ]

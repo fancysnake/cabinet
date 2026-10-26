@@ -7,7 +7,7 @@ The pull request of the branch at the cwd. The steps live in
 rituals; this module is the ritual itself and the surface vekna sweeps.
 """
 
-from vekna.lexicon import attended, ritual
+from vekna.lexicon import ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -27,6 +27,7 @@ from cabinet.gates.ritual.vekna.heal import (
     muster_mine,
     muster_pr,
     muster_this,
+    mustered,
     pick_job,
     post_answers,
     push_work,
@@ -41,23 +42,17 @@ from cabinet.gates.ritual.vekna.heal import (
     summon,
     survey,
     sync_branch,
+    tally,
     tend,
 )
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
-from cabinet.pacts.services import services
 from cabinet.specs import HEAL_STEPS
 
 
 @ritual("heal.this", max_steps=HEAL_STEPS)
 def heal_this(components: Heal) -> MusterThis:
-    return MusterThis(
-        project=services().project(),
-        tasks=components.working(),
-        bound=components.bound,
-        attended=attended() and components.attended,
-        batch=components.batch,
-    )
+    return mustered(MusterThis, components)
 
 
 __all__ = [
@@ -93,5 +88,6 @@ __all__ = [
     "summon",
     "survey",
     "sync_branch",
+    "tally",
     "tend",
 ]

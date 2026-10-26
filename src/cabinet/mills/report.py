@@ -95,6 +95,29 @@ def _line(row: Checked) -> str:
     return f"  #{row.number} {row.branch}: {_OUTCOME[row.outcome]}, {ahead}{note}"
 
 
+# What follows a heal cast's rows, however it took its branches.
+def _ending(run: Run, lines: list[str]) -> str:
+    # Said wherever the cast left any, as the way to get them answered: a
+    # cast nobody attended answers nothing, and says so here rather than
+    # leaving the survey line to look like work it did not do.
+    if waiting := run.waiting():
+        lines += ["", _WAITING]
+        lines += [
+            f"  #{row.number} {row.branch}: {_threads(row.threads)}" for row in waiting
+        ]
+    # Only when there are any, unlike the rows: a cast that reached every
+    # pull request is the normal one, and a line saying "none" on every
+    # one of them trains the eye past it. A cast that failed left them
+    # behind; one out of steps left them for the next cast.
+    not_reached = ", ".join(pull.branch for pull in run.queue)
+    if run.stopped:
+        lines += ["", f"not reached: {not_reached}"] if not_reached else []
+        lines += ["", f"the cast failed: {run.stopped}"]
+    elif not_reached:
+        lines += ["", f"out of steps, left for the next cast: {not_reached}"]
+    return "\n".join(lines) + "\n"
+
+
 class Report(ReportProtocol):
     # The heading is for whoever opens the pull request and finds a comment on
     # their line: it says which review said it, so the ritual's items can be
@@ -112,38 +135,21 @@ class Report(ReportProtocol):
             for one in found
         ]
 
+    @override
+    def healed(self, run: Run) -> str:
+        lines = [f"heal — {len(run.checked)} worked", ""]
+        lines += [_line(row) for row in run.checked] or ["  (none)"]
+        return _ending(run, lines)
+
     # A cast that queued its branches says which cast took each: their rows
     # are theirs to say, as each one ends.
     @override
-    def healed(self, run: Run) -> str:
-        if run.fan_out:
-            lines = [f"heal — {len(run.queued)} queued", ""]
-            lines += [
-                f"  #{one.number} {one.branch}: cast {one.cast}" for one in run.queued
-            ] or ["  (none)"]
-        else:
-            lines = [f"heal — {len(run.checked)} worked", ""]
-            lines += [_line(row) for row in run.checked] or ["  (none)"]
-        # Said wherever the cast left any, as the way to get them answered: a
-        # cast nobody attended answers nothing, and says so here rather than
-        # leaving the survey line to look like work it did not do.
-        if waiting := run.waiting():
-            lines += ["", _WAITING]
-            lines += [
-                f"  #{row.number} {row.branch}: {_threads(row.threads)}"
-                for row in waiting
-            ]
-        # Only when there are any, unlike the rows: a cast that reached every
-        # pull request is the normal one, and a line saying "none" on every
-        # one of them trains the eye past it. A cast that failed left them
-        # behind; one out of steps left them for the next cast.
-        not_reached = ", ".join(pull.branch for pull in run.queue)
-        if run.stopped:
-            lines += ["", f"not reached: {not_reached}"] if not_reached else []
-            lines += ["", f"the cast failed: {run.stopped}"]
-        elif not_reached:
-            lines += ["", f"out of steps, left for the next cast: {not_reached}"]
-        return "\n".join(lines) + "\n"
+    def queued(self, run: Run) -> str:
+        lines = [f"heal — {len(run.queued)} queued", ""]
+        lines += [
+            f"  #{one.number} {one.branch}: cast {one.cast}" for one in run.queued
+        ] or ["  (none)"]
+        return _ending(run, lines)
 
     # The page as it goes to the agent, before anything is read or written: the
     # same indent and the same `#n` as the rows that say what became of it, so

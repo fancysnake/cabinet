@@ -29,7 +29,7 @@ _ANSWER = Surveyed(
 
 
 def _run(**update: object) -> Run:
-    return Run(project=_PROJECT).model_copy(update=update)
+    return Run(project=_PROJECT, attended=False).model_copy(update=update)
 
 
 class TestHealed:
@@ -63,16 +63,16 @@ class TestHealed:
         assert _REPORT.healed(_run()) == "heal — 0 worked\n\n  (none)\n"
 
     @staticmethod
-    def test_a_fanning_cast_names_the_cast_each_branch_went_to() -> None:
+    def test_a_queueing_cast_names_the_cast_each_branch_went_to() -> None:
         queued = Queued(number=7, branch="feature", cast="c1")
 
-        assert _REPORT.healed(_run(fan_out=True, queued=[queued])) == (
+        assert _REPORT.queued(_run(queued=[queued])) == (
             "heal — 1 queued\n\n  #7 feature: cast c1\n"
         )
 
     @staticmethod
-    def test_a_fanning_cast_that_queued_nothing() -> None:
-        assert _REPORT.healed(_run(fan_out=True)) == "heal — 0 queued\n\n  (none)\n"
+    def test_a_queueing_cast_that_queued_nothing() -> None:
+        assert _REPORT.queued(_run()) == "heal — 0 queued\n\n  (none)\n"
 
     @staticmethod
     def test_what_was_not_reached_and_why() -> None:

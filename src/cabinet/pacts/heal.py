@@ -9,7 +9,6 @@ beside the `Work`, and hand the `Work` back on when the round is done.
 from pydantic import BaseModel
 
 from cabinet.pacts.healing import Run, Work
-from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.threads import Answer, Thread, TriageItem
 
 
@@ -31,13 +30,15 @@ class Survey(Run):
     pass
 
 
-# A branch with work, waiting to be queued as a cast of its own.
-class Summon(BaseModel):
-    run: Run
-    pull: PullRequest
+class Summon(Run):
+    pass
 
 
 class Chart(Run):
+    pass
+
+
+class Tally(Run):
     pass
 
 

@@ -14,6 +14,7 @@ from cabinet.gates.ritual.vekna.heal import (
     set_aside,
     skip_pr,
     stand_down,
+    tally,
 )
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.heal import (
@@ -24,6 +25,7 @@ from cabinet.pacts.heal import (
     SkipPr,
     StandDown,
     Survey,
+    Tally,
     Tend,
 )
 from cabinet.pacts.healing import Checked, Heal, Healed, HealPr, Run, Surveyed, Work
@@ -352,6 +354,19 @@ class TestChart:
 
         assert "the cast failed: gh died" in trial.deltas[0]
 
+    # `heal.mine`'s ending fails the same way, after its own summary.
+    @staticmethod
+    def test_a_stopped_tally_is_said_before_it_fails(
+        trial: Trial, project: Project
+    ) -> None:
+        run = Run(project=project, stopped="no daemon")
+
+        with pytest.raises(RitualError, match="no daemon"):
+            trial.walk(tally, run.to(Tally))
+
+        assert trial.deltas[0].startswith("heal — 0 queued")
+        assert "the cast failed: no daemon" in trial.deltas[0]
+
 
 # The forge's listing and git's preflight, the branch taken, and the count at
 # the end: what every acting cast here walks through.
@@ -533,7 +548,7 @@ class TestWholeCast:
         result = trial.cast(heal_mine, Heal())
 
         assert result.checked == []
-        assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
         assert trial.deltas[0] == "#7 feature: guide"
 
     # Every attempt the bound allows on every loop, each with its free extra
@@ -626,7 +641,7 @@ class TestWholeCast:
 
         assert result == Healed()
         assert trial.shell.commands[-1].startswith("glab api")
-        assert trial.steps == ["muster_mine", "survey", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "tally"]
 
 
 class TestTaskRituals:

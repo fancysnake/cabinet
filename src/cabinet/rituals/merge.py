@@ -8,7 +8,7 @@ behind is left as it is. The steps live in ``cabinet.gates.ritual.vekna.heal``;
 this module is the ritual itself and the surface vekna sweeps.
 """
 
-from vekna.lexicon import attended, ritual
+from vekna.lexicon import ritual
 
 from cabinet.gates.ritual.vekna.heal import (
     answer_gate,
@@ -28,6 +28,7 @@ from cabinet.gates.ritual.vekna.heal import (
     muster_mine,
     muster_pr,
     muster_this,
+    mustered,
     pick_job,
     post_answers,
     push_work,
@@ -42,22 +43,17 @@ from cabinet.gates.ritual.vekna.heal import (
     summon,
     survey,
     sync_branch,
+    tally,
     tend,
 )
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
-from cabinet.pacts.services import services
 from cabinet.specs import HEAL_STEPS
 
 
 @ritual("merge", max_steps=HEAL_STEPS)
 def merge(components: Heal) -> MusterThis:
-    return MusterThis(
-        project=services().project(),
-        bound=components.bound,
-        attended=attended() and components.attended,
-        tasks=components.working("merge"),
-    )
+    return mustered(MusterThis, components, "merge")
 
 
 __all__ = [
@@ -93,5 +89,6 @@ __all__ = [
     "summon",
     "survey",
     "sync_branch",
+    "tally",
     "tend",
 ]

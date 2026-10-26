@@ -23,6 +23,7 @@ from cabinet.pacts.heal import (
     MusterThis,
     Summon,
     Survey,
+    Tally,
 )
 from cabinet.pacts.healing import (
     Heal,
@@ -69,6 +70,19 @@ _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 # The preflight's two, the listing, the board and the threads.
 _READS = 5
+# A conflicted branch with red checks and no threads, as `summon` reads it.
+_QUEUED = Surveyed(
+    number=7,
+    branch="feature",
+    url=_URL,
+    todos=["merge", "ci", "review"],
+    red=[_CHECKS],
+    threads=0,
+)
+_NO_DAEMON = (
+    "heal.mine queues a cast per pull request and needs the daemon:"
+    " start it with `vekna`"
+)
 
 
 # What a cast meets with no daemon listening, as vekna's own CLI binds it.
@@ -89,8 +103,9 @@ def _preflight(trial: Trial) -> None:
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
 
 
+# Unattended, so open threads are said rather than taken.
 def _surveying(pull: PullRequest, project: Project) -> Survey:
-    return Survey(project=project, queue=[pull])
+    return Survey(project=project, attended=False, queue=[pull])
 
 
 def _planning(pull: PullRequest, project: Project) -> Survey:
@@ -118,7 +133,7 @@ class TestMuster:
 
         transition = trial.walk(muster_mine, MusterMine(project=project))
 
-        assert isinstance(transition, Survey)
+        assert isinstance(transition, Summon)
         assert [pull.number for pull in transition.queue] == [7, 8]
         assert transition.reserved == services().steps.opening(2)
 
@@ -181,10 +196,14 @@ class TestMuster:
         _preflight(trial)
         trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
 
-        transition = trial.walk(muster_pr, MusterPr(run=Run(project=project), number=7))
-
-        assert isinstance(transition, Chart)
-        assert transition.stopped.endswith("not logged in")
+        assert trial.walk(
+            muster_pr, MusterPr(run=Run(project=project), number=7)
+        ) == Run(
+            project=project,
+            stopped="gh could not list your pull requests: not logged in",
+        ).to(
+            Chart
+        )
 
     @staticmethod
     def test_a_forge_that_will_not_list_goes_to_the_report(
@@ -196,7 +215,7 @@ class TestMuster:
         assert trial.walk(muster_mine, MusterMine(project=project)) == Run(
             project=project,
             stopped="gh could not list your pull requests: not logged in",
-        ).to(Chart)
+        ).to(Tally)
 
     @staticmethod
     def test_an_ssh_remote_stops_before_anything_is_fetched(
@@ -353,23 +372,6 @@ class TestSurvey:
         assert isinstance(transition, Survey)
         assert transition.surveyed[0].todos == ["review"]
 
-    # Nothing is spoken for: the branch's steps are its own cast's to spend.
-    @staticmethod
-    def test_a_fanning_cast_summons_a_branch_with_work(
-        trial: Trial, pull: PullRequest, project: Project
-    ) -> None:
-        trial.shell.replies(when=board(), stdout=_RED)
-        trial.shell.replies(when=THREADS, stdout=_NONE)
-        conflicted = pull.model_copy(update={"conflicted": True})
-        run = Survey(project=project, fan_out=True, queue=[conflicted])
-
-        transition = trial.walk(survey, run)
-
-        assert isinstance(transition, Summon)
-        assert transition.pull == conflicted
-        assert transition.run.queue == []
-        assert transition.run.reserved == 0
-
     # Nothing went wrong, so nothing fails: the branch stays on the queue,
     # unread, for the report to name.
     @staticmethod
@@ -384,32 +386,56 @@ class TestSurvey:
 
 class TestSummon:
     @staticmethod
-    def test_the_branch_is_queued_as_a_cast_of_its_own(
+    def test_an_empty_queue_is_tallied(trial: Trial, project: Project) -> None:
+        run = Summon(project=project)
+
+        assert trial.walk(summon, run) == run.to(Tally)
+
+    # Nothing is spoken for: the branch's steps are its own cast's to spend.
+    @staticmethod
+    def test_a_branch_with_work_is_queued_as_a_cast_of_its_own(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
-        run = Run(project=project, bound=2, attended=True, batch=4)
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = Summon(project=project, bound=2, batch=4, queue=[conflicted])
 
-        transition = trial.walk(summon, Summon(run=run, pull=pull))
-
-        assert transition == run.summoned(
+        assert trial.walk(summon, run) == run.took(_QUEUED).summoned(
             Queued(number=7, branch="feature", cast="c1")
-        ).to(Survey)
+        )
         [queued] = trial.queue.enqueued
         assert queued.ritual == "heal.pr"
-        assert queued.components == HealPr(number=7, bound=2, attended=True, batch=4)
+        assert queued.components == HealPr(number=7, bound=2, batch=4)
+
+    @staticmethod
+    def test_a_branch_with_nothing_this_cast_works_is_not_queued(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        clean = pull.model_copy(update={"conflicted": False})
+        run = Summon(project=project, tasks=["merge"], queue=[clean])
+
+        transition = trial.walk(summon, run)
+
+        assert isinstance(transition, Summon)
+        assert transition.surveyed[0].todos == ["review"]
+        assert trial.queue.enqueued == []
 
     @staticmethod
     def test_with_no_daemon_the_cast_fails_after_its_report(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
-        run = Run(project=project)
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = Summon(project=project, queue=[conflicted])
 
         with CAST_QUEUE.scope(_Daemonless()):
-            transition = trial.walk(summon, Summon(run=run, pull=pull))
+            transition = trial.walk(summon, run)
 
-        assert isinstance(transition, Chart)
-        assert transition.stopped.endswith("start it with `vekna`")
-        assert transition.queued == []
+        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Tally)
 
 
 class TestWholeCast:
@@ -437,14 +463,7 @@ class TestWholeCast:
         assert [one.components for one in trial.queue.enqueued] == [
             HealPr(number=7, bound=2)
         ]
-        assert trial.steps == [
-            "muster_mine",
-            "survey",
-            "summon",
-            "survey",
-            "survey",
-            "chart",
-        ]
+        assert trial.steps == ["muster_mine", "summon", "summon", "summon", "tally"]
         assert trial.deltas[-1] == "heal — 1 queued\n\n  #7 feature: cast c1\n"
 
     @staticmethod
@@ -471,7 +490,7 @@ class TestWholeCast:
                 )
             ]
         )
-        assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
         # Every other command, a write among them, would have found nothing
         # scripted to answer it.
         assert len(trial.shell.commands) == _READS

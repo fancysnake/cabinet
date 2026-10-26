@@ -629,7 +629,7 @@ class TestWholeCast:
         result = trial.cast(heal_mine, Heal(attended=True))
 
         assert result.checked == []
-        assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
         assert trial.deltas[-1] == (
             "heal — 0 queued\n\n  (none)\n\n"
             "waiting for you, cast without --unattended or --attended false:\n"

@@ -83,7 +83,8 @@ all. A verdict a step already gave up on once is not paid for twice: the next
 branch of the same cast whose gate says the same thing stands down without
 spending its budget. Each ``heal.pr`` is a cast of its own, and pays once.
 A cast is attended unless vekna was told ``--unattended`` or the ritual
-``--attended false``, which ``[defaults."<ritual>"]`` can set per repository.
+``--attended false``, which ``[defaults."cabinet:<ritual>"]`` can set per
+repository.
 Unattended, nothing is asked and the budgets decide; attended, each repair
 attempt is put to you first.
 
@@ -95,7 +96,7 @@ names what was not reached.
 from typing import TypeVar
 
 from vekna.folio.flow import decide, enqueue
-from vekna.lexicon import Done, NoDaemonError, RitualError, emit_delta, step
+from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta, step
 
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
@@ -132,10 +133,12 @@ from cabinet.pacts.heal import (
     Summon,
     Survey,
     SyncBranch,
+    Tally,
     Tend,
 )
 from cabinet.pacts.healing import (
     Facts,
+    Heal,
     Healed,
     HealPr,
     Queued,
@@ -162,10 +165,24 @@ from cabinet.pacts.threads import (
     signed,
 )
 
+_RunT = TypeVar("_RunT", bound=Run)
 _WorkT = TypeVar("_WorkT", bound=Work)
 _NextT = TypeVar("_NextT", bound=Work)
 
 # --- the cast --------------------------------------------------------------
+
+
+# What every heal ritual's body makes of its components: the first step's
+# payload, working `tasks`, or every task where none is named. vekna's
+# `--unattended` has the last word, so `attended` only ever turns a cast down.
+def mustered(kind: type[_RunT], components: Heal, *tasks: Task) -> _RunT:
+    return kind(
+        project=services().project(),
+        bound=components.bound,
+        attended=attended() and components.attended,
+        batch=components.batch,
+        tasks=components.working(*tasks),
+    )
 
 
 # Before the first fetch: an ssh remote would ask for a passphrase on a
@@ -177,19 +194,19 @@ async def _listed(run: Run) -> list[PullRequest]:
 
 # Queued, with every step that works no branch spoken for now that the queue
 # is known.
-def _queued(run: Run, queue: list[PullRequest]) -> Survey:
+def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
     opening = services().steps.opening(len(queue))
-    return run.but(queue=queue).spoke_for(opening).to(Survey)
+    return run.but(queue=queue).spoke_for(opening).to(kind)
 
 
 # Every open pull request of yours the forge lists, bar the parked ones.
 @step
-async def muster_mine(run: MusterMine) -> Chart | Survey:
+async def muster_mine(run: MusterMine) -> Tally | Summon:
     try:
         pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
-        return run.but(stopped=str(error)).to(Chart)
-    return _queued(run, services().pulls.wanted(pulls, run.project))
+        return run.but(stopped=str(error)).to(Tally)
+    return _queued(run, services().pulls.wanted(pulls, run.project), Summon)
 
 
 # The open pull request of yours for the branch at the cwd.
@@ -203,7 +220,7 @@ async def muster_this(run: MusterThis) -> Chart | Survey:
     if not (queue := services().pulls.at(pulls, here)):
         stopped = f"no open pull request of yours has {here} as its branch"
         return run.but(stopped=stopped).to(Chart)
-    return _queued(run, queue)
+    return _queued(run, queue, Survey)
 
 
 # The open pull request of yours `heal.mine` queued this cast for. Surveyed
@@ -219,23 +236,21 @@ async def muster_pr(mustering: MusterPr) -> Chart | Survey:
     if not (queue := services().pulls.numbered(pulls, mustering.number)):
         stopped = f"no open pull request of yours is #{mustering.number}"
         return run.but(stopped=stopped).to(Chart)
-    return _queued(run, queue)
+    return _queued(run, queue, Survey)
 
 
 # Read the next pull request's facts, say what it needs, and take it where
-# this cast works any of that, or queue a cast that will.
+# this cast works any of that.
 @step
-async def survey(run: Survey) -> Chart | Survey | CheckClean | Summon:
+async def survey(run: Survey) -> Chart | Survey | CheckClean:
     if not run.queue:
         return run.to(Chart)
     # Asked before the survey rather than after: a branch the budget has no
     # room for is left for the next cast, unread. Not a failure, and the
     # report names it; running out of the engine's budget instead would raise
     # past `chart` with a branch half-merged.
-    # A plan works no task, so it takes no branch and has no share to ask for,
-    # and nor does a cast that hands every branch to a cast of its own.
-    working = run.tasks and not run.fan_out
-    if (share := services().steps.heal_share(run) if working else 0) is None:
+    # A plan works no task, so it takes no branch and has no share to ask for.
+    if (share := services().steps.heal_share(run) if run.tasks else 0) is None:
         return run.to(Chart)
     pull = run.queue[0]
     row = await _surveyed(run.project, pull)
@@ -243,19 +258,26 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean | Summon:
     after = run.took(row)
     if isinstance(row, Unsurveyed) or not after.worked(row.todos):
         return after.to(Survey)
-    if run.fan_out:
-        return Summon(run=after, pull=pull)
     return after.take(row, pull, share).to(CheckClean)
 
 
-# The branch goes to a `heal.pr` of its own, run in a pooled worktree as the
-# daemon has a slot and a tree for it, and this cast goes on to the next.
-# Queued rather than awaited: each branch's row is its own cast's to say.
-# Every component is passed on as this cast took it, so the children work the
-# way the parent was asked to; `--unattended` reaches them through vekna.
+# `heal.mine`'s survey: read the next pull request's facts, say what it
+# needs, and hand it to a `heal.pr` of its own where any of that is work.
+# The daemon runs each in a pooled worktree as it has a slot and a tree, so
+# this cast takes no branch and asks for no share. Queued rather than
+# awaited: each branch's row is its own cast's to say. Every component is
+# passed on as this cast took it, so the children work the way the parent
+# was asked to; `--unattended` reaches them through vekna.
 @step
-async def summon(summoning: Summon) -> Survey | Chart:
-    run, pull = summoning.run, summoning.pull
+async def summon(run: Summon) -> Tally | Summon:
+    if not run.queue:
+        return run.to(Tally)
+    pull = run.queue[0]
+    row = await _surveyed(run.project, pull)
+    emit_delta(services().report.surveyed(row))
+    after = run.took(row)
+    if isinstance(row, Unsurveyed) or not after.worked(row.todos):
+        return after.to(Summon)
     asked = HealPr(
         number=pull.number, bound=run.bound, attended=run.attended, batch=run.batch
     )
@@ -266,9 +288,9 @@ async def summon(summoning: Summon) -> Survey | Chart:
             "heal.mine queues a cast per pull request and needs the daemon:"
             " start it with `vekna`"
         )
-        return run.but(stopped=stopped).to(Chart)
+        return after.but(stopped=stopped).to(Tally)
     queued = Queued(number=pull.number, branch=pull.branch, cast=cast)
-    return run.summoned(queued).to(Survey)
+    return after.summoned(queued).to(Summon)
 
 
 # One pull request the forge or git would not answer about is a row saying
@@ -302,6 +324,21 @@ def chart(run: Chart) -> Done[Healed]:
         Healed(
             surveyed=run.surveyed,
             checked=run.checked,
+            not_reached=[pull.branch for pull in run.queue],
+        )
+    )
+
+
+# `chart` for `heal.mine`: the casts it queued rather than branches it worked.
+@step
+def tally(run: Tally) -> Done[Healed]:
+    if run.stopped or run.tasks:
+        emit_delta(services().report.queued(run))
+    if run.stopped:
+        raise RitualError(run.stopped)
+    return Done(
+        Healed(
+            surveyed=run.surveyed,
             not_reached=[pull.branch for pull in run.queue],
             queued=run.queued,
         )
@@ -376,17 +413,12 @@ def tend(
 # --- merge -----------------------------------------------------------------
 
 
-# The base as the remote has it: no step stands on the base itself.
-def _base(work: Work) -> str:
-    return f"{work.run.project.remote}/{work.pr.base}"
-
-
 # Merge the base in. Only a conflict brings a branch here, so a merge that
 # goes through is the forge's answer gone stale, and still owes the gate.
 @step
 async def merge_base(work: MergeBase) -> Tend | GateCheck | ResolveConflicts:
     scm = services().scm(work.run.project)
-    base = _base(work)
+    base = work.base_ref
     # Asked before the merge rather than read off it afterwards: git says
     # "Already up to date" in whatever language the terminal is set to.
     if await scm.contains(base):
@@ -423,7 +455,7 @@ async def resolve_conflicts(
         stopped = work.stopped_by("the merge conflicts were not resolved")
         return stopped.to(StandDown)
     prompt = services().prompts.resolve(
-        project, base=_base(work), branch=work.pr.branch, files="\n".join(unmerged)
+        project, base=work.base_ref, branch=work.pr.branch, files="\n".join(unmerged)
     )
     fallen = (
         await services()
@@ -985,7 +1017,7 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     except ForgeError as error:
         return work.noting(str(error)).to(SetAside)
     prompt = services().prompts.review(
-        project, base=_base(work), threads=threads, reason=work.reason
+        project, base=work.base_ref, threads=threads, reason=work.reason
     )
     read = (
         await services()
