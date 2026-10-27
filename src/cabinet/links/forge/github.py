@@ -1,5 +1,6 @@
 """GitHub through `gh`."""
 
+import json
 from collections.abc import Sequence
 from urllib.parse import quote
 
@@ -512,6 +513,29 @@ class GithubForge(ForgeProtocol):
                 return Posted(count=posted, stopped=stopped)
             posted += 1
         return Posted(count=posted)
+
+    # A pull request's plain comments are its issue's comments on GitHub, so
+    # no review thread is ever among them. jq picks the marked ones out of
+    # every page.
+    @override
+    async def note(self, number: int, body: str, *, marker: str) -> None:
+        marked = f".[] | select(.body | contains({json.dumps(marker)})) | .id"
+        found = await asked(
+            f"gh api repos/{{owner}}/{{repo}}/issues/{number}/comments --paginate"
+            f" --jq {quoted(marked)}",
+            f"could not read the comments on #{number}",
+        )
+        if ids := found.split():
+            await asked(
+                f"gh api repos/{{owner}}/{{repo}}/issues/comments/{ids[0]} -X PATCH"
+                f" -f body={quoted(body)}",
+                f"could not edit the comment on #{number}",
+            )
+            return
+        await asked(
+            f"gh pr comment {number} --body {quoted(body)}",
+            f"could not comment on #{number}",
+        )
 
     # The API rather than `gh issue create`, which prints a URL and nothing
     # else: the number is what attaches the issue under its epic and names it

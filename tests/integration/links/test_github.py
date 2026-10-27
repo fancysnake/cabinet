@@ -491,6 +491,46 @@ _BLOCKERS = (
 )
 
 
+_COMMENTS = (
+    "gh api repos/{owner}/{repo}/issues/7/comments --paginate"
+    """ --jq '.[] | select(.body | contains("<!-- m -->")) | .id'"""
+)
+_NOTE = "<!-- m -->\n\nhi"
+
+
+class TestNote:
+    @staticmethod
+    def test_with_none_marked_the_body_is_posted(trial: Trial) -> None:
+        trial.shell.replies(when=_COMMENTS)
+        trial.shell.replies(when="gh pr comment 7*")
+
+        drive(trial, lambda: _FORGE.note(7, _NOTE, marker="<!-- m -->"))
+
+        assert trial.shell.commands == [
+            _COMMENTS,
+            f"gh pr comment 7 --body {shlex.quote(_NOTE)}",
+        ]
+
+    @staticmethod
+    def test_the_first_marked_comment_is_edited_in_place(trial: Trial) -> None:
+        trial.shell.replies(when=_COMMENTS, stdout="11\n12\n")
+        trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/comments/11*")
+
+        drive(trial, lambda: _FORGE.note(7, _NOTE, marker="<!-- m -->"))
+
+        assert trial.shell.commands[-1] == (
+            "gh api repos/{owner}/{repo}/issues/comments/11 -X PATCH"
+            f" -f body={shlex.quote(_NOTE)}"
+        )
+
+    @staticmethod
+    def test_comments_gh_would_not_list(trial: Trial) -> None:
+        trial.shell.replies(when=_COMMENTS, exit_code=1, stderr="502")
+
+        with pytest.raises(ForgeError, match="could not read the comments on #7"):
+            drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+
 class TestIssue:
     @staticmethod
     def test_the_number_and_the_url_come_back(trial: Trial) -> None:

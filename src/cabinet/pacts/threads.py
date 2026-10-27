@@ -1,8 +1,8 @@
 """Review threads as the forge holds them, and what the agents make of them."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cabinet.pacts.issues import Issue
 
@@ -114,6 +114,17 @@ class Finding(BaseModel):
 
 class Findings(BaseModel):
     items: list[Finding]
+
+
+# Where the guide comment says it is the guide: hidden in the comment, so the
+# next one edits it rather than posting another.
+GUIDE_MARK = "<!-- cabinet:guide -->"
+
+
+# The smoke-test instructions, as markdown. Never empty: a blank comment is
+# an agent that read badly, not a guide.
+class Guide(BaseModel):
+    body: Annotated[str, Field(min_length=1)]
 
 
 # What came of posting one review: how many items went up, and what stopped

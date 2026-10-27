@@ -30,6 +30,8 @@ Each is filed under a school of magic, the way a spellbook is.
 - **`answer`** (Enchantment): to work through the review threads on your
   branch with you.
 - **`review`** (Divination): to post the quality review on your branch.
+- **`guide`** (Divination): to post the manual smoke test on a branch with
+  nothing else to do.
 - **`identify`** (Divination): when your backlog has piled up unrefined.
 - **`labels`**, **`labels.heal`**, **`labels.identify`** (Conjuration): once,
   to set a project up.

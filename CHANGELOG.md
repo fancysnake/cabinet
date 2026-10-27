@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning].
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.
 - `labels.heal` makes the reviewed, wait, qa and answered labels.
+- `guide`: once a branch has nothing else to do, an agent writes its manual
+  smoke test, and the ritual posts it as a plain comment and puts
+  `[cabinet.labels] qa` on. Taking the label off asks again, and the comment
+  is edited in place. `heal.pr` and `heal.this` work it last.
+- `[cabinet] smoke_skill`, default `~/.claude/skills/smoke-test/SKILL.md`: the
+  skill the guide is written with.
 - Each release carries its sdist and wheel, and its notes are the changelog
   section; install docs lead with the wheel URL.
 - `release-bump` plugin: where a workflow publishes the release on a tag push,

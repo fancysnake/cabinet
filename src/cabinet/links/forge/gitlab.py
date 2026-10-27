@@ -111,6 +111,7 @@ class _Linked(BaseModel):
 
 _MERGE_REQUESTS: TypeAdapter[list[_MergeRequest]] = TypeAdapter(list[_MergeRequest])
 _DISCUSSIONS: TypeAdapter[list[_Discussion]] = TypeAdapter(list[_Discussion])
+_NOTES: TypeAdapter[list[_Note]] = TypeAdapter(list[_Note])
 _STATUSES: TypeAdapter[list[_Status]] = TypeAdapter(list[_Status])
 
 
@@ -445,6 +446,31 @@ class GitlabForge(ForgeProtocol):
                 return Posted(count=posted, stopped=stopped)
             posted += 1
         return Posted(count=posted)
+
+    # Notes rather than discussions: every note on the merge request, plain
+    # ones included, each page of them.
+    @override
+    async def note(self, number: int, body: str, *, marker: str) -> None:
+        found = await _pages(
+            _NOTES,
+            f"projects/:id/merge_requests/{number}/notes?per_page={_PAGE}",
+            f"could not read the notes on !{number}",
+            "notes",
+        )
+        if marked := [one for one in found if marker in one.body]:
+            await asked(
+                _api(
+                    f"projects/:id/merge_requests/{number}/notes/{marked[0].id}",
+                    "-X PUT",
+                    f"-f body={quoted(body)}",
+                ),
+                f"could not edit the note on !{number}",
+            )
+            return
+        await asked(
+            f"glab mr note {number} -m {quoted(body)}",
+            f"could not comment on !{number}",
+        )
 
     @override
     async def issue(self, title: str, body: str) -> Opened:

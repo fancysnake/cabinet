@@ -37,10 +37,12 @@ from cabinet.pacts.threads import (
     Answered,
     Finding,
     Findings,
+    Guide,
     TriageItem,
     TriageNotes,
 )
 from cabinet.rituals.ci import ci
+from cabinet.rituals.guide import guide
 from cabinet.rituals.heal_mine import heal_mine
 from cabinet.rituals.heal_pr import heal_pr
 from cabinet.rituals.merge import merge
@@ -370,12 +372,21 @@ class TestChart:
 
 # The forge's listing and git's preflight, the branch taken, and the count at
 # the end: what every acting cast here walks through.
-def _taken(trial: Trial, *, mergeable: str, checks: str = _GREEN_BOARD) -> None:
+def _taken(
+    trial: Trial,
+    *,
+    mergeable: str,
+    checks: str = _GREEN_BOARD,
+    labels: tuple[str, ...] = (),
+) -> None:
     trial.shell.replies(
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
-    trial.shell.replies(when=LIST, stdout=listing(row(7, mergeable=mergeable)))
+    worn = [{"name": label} for label in labels]
+    trial.shell.replies(
+        when=LIST, stdout=listing(row(7, mergeable=mergeable, labels=worn))
+    )
     trial.shell.replies(when=board(), stdout=checks)
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
@@ -539,7 +550,11 @@ class TestWholeCast:
         trial.shell.replies(
             when=LIST,
             stdout=listing(
-                row(7, mergeable="MERGEABLE", labels=[{"name": "pr::thermo"}])
+                row(
+                    7,
+                    mergeable="MERGEABLE",
+                    labels=[{"name": "pr::thermo"}, {"name": "v:guide:done"}],
+                )
             ),
         )
         trial.shell.replies(when=board(), stdout=_GREEN_BOARD)
@@ -549,7 +564,7 @@ class TestWholeCast:
 
         assert result.checked == []
         assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
-        assert trial.deltas[0] == "#7 feature: guide"
+        assert trial.deltas[0] == "#7 feature: nothing to do"
 
     # Every attempt the bound allows on every loop, each with its free extra
     # run: the merge stood down, every configured job red and green only on
@@ -702,6 +717,46 @@ class TestTaskRituals:
             "survey",
             "chart",
         ]
+
+    # Reviewed, green and answered: the guide is all that is left.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_guide_posts_the_guide_once_nothing_else_is_left(trial: Trial) -> None:
+        _taken(trial, mergeable="MERGEABLE", labels=("pr::thermo",))
+        trial.shell.replies(when=HERE, stdout="feature\n")
+        trial.coding.replies(Guide(body="click it"), when="Write the manual smoke*")
+        trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/7/comments*")
+        trial.shell.replies(when="gh pr comment 7*")
+        trial.shell.replies(when="gh pr edit 7 --add-label v:guide:done")
+
+        result = trial.cast(guide, Heal())
+
+        assert result.checked == [_WORKED_ROW]
+        assert trial.steps == [
+            "muster_this",
+            "survey",
+            "check_clean",
+            "sync_branch",
+            "tend",
+            "post_guide",
+            "tend",
+            "finish_pr",
+            "survey",
+            "chart",
+        ]
+
+    # A branch with work left gets that work first, and `guide` works none of
+    # it: nothing is taken.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_guide_leaves_a_branch_with_anything_else_to_do(trial: Trial) -> None:
+        _taken(trial, mergeable="MERGEABLE")
+        trial.shell.replies(when=HERE, stdout="feature\n")
+
+        result = trial.cast(guide, Heal())
+
+        assert result.checked == []
+        assert trial.deltas[0] == "#7 feature: review"
 
     # Turned down by the component, nothing is asked.
     @staticmethod

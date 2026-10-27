@@ -478,6 +478,41 @@ _LINKS = "glab api projects/:id/issues/7/links"
 _LISTED = "glab api 'projects/:id/issues/7/links?per_page=100'"
 
 
+_NOTES = "glab api 'projects/:id/merge_requests/7/notes?per_page=100&page=1'"
+
+
+class TestNote:
+    @staticmethod
+    def test_with_none_marked_the_body_is_posted(trial: Trial) -> None:
+        notes = [{"id": 5, "body": "lgtm"}]
+        trial.shell.replies(when=_NOTES, stdout=json.dumps(notes))
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, "<!-- m -->\n\nhi", marker="<!-- m -->"))
+
+        assert trial.shell.commands[-1] == "glab mr note 7 -m '<!-- m -->\n\nhi'"
+
+    @staticmethod
+    def test_the_first_marked_note_is_edited_in_place(trial: Trial) -> None:
+        notes = [{"id": 5, "body": "lgtm"}, {"id": 6, "body": "<!-- m -->\n\nold"}]
+        trial.shell.replies(when=_NOTES, stdout=json.dumps(notes))
+        trial.shell.replies(when="glab api projects/:id/merge_requests/7/notes/6*")
+
+        drive(trial, lambda: _FORGE.note(7, "<!-- m -->\n\nhi", marker="<!-- m -->"))
+
+        assert trial.shell.commands[-1] == (
+            "glab api projects/:id/merge_requests/7/notes/6 -X PUT"
+            " -f body='<!-- m -->\n\nhi'"
+        )
+
+    @staticmethod
+    def test_notes_that_will_not_parse(trial: Trial) -> None:
+        trial.shell.replies(when=_NOTES, stdout="nope")
+
+        with pytest.raises(ForgeError, match="glab returned notes"):
+            drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+
 class TestIssue:
     @staticmethod
     def test_the_number_and_the_url_are_read_off_the_answer(trial: Trial) -> None:

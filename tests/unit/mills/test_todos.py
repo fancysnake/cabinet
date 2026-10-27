@@ -1,7 +1,7 @@
 """What a pull request needs next: facts make a todo, labels only take one away."""
 
 from cabinet.mills.todos import Todos
-from cabinet.pacts.healing import Facts, Surveyed, Todo
+from cabinet.pacts.healing import Facts, Surveyed, Task
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Thread
@@ -35,7 +35,7 @@ def _facts(
     )
 
 
-def _todos(facts: Facts) -> list[Todo]:
+def _todos(facts: Facts) -> list[Task]:
     return _TODOS.surveyed(facts, _PROJECT).todos
 
 

@@ -19,6 +19,7 @@ sign_commits = true
 review_skill = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
 review_title = "Thermo-nuclear code quality review"
 identify_skill = "~/.claude/skills/issues/SKILL.md"
+smoke_skill = "~/.claude/skills/smoke-test/SKILL.md"
 
 [cabinet.labels]
 reviewed = "pr::thermo"               # a review was posted; take it off to ask again
@@ -58,6 +59,7 @@ may_not_run = []                      # slow tasks the prompt asks an agent to l
 | `review_skill`  | the skill file the review task reviews with; see [the review skill](#the-review-skill) |
 | `review_title`  | the heading its review comments open with                                   |
 | `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
+| `smoke_skill`   | the skill file the guide task writes its smoke test with; see [the smoke-test skill](#the-smoke-test-skill) |
 
 ### `[cabinet.labels]`
 
@@ -145,6 +147,21 @@ skill in its own tree can name that path instead, which is what this one does:
 [cabinet]
 identify_skill = "plugins/issues/skills/issues/SKILL.md"
 ```
+
+## The smoke-test skill
+
+The guide task has its agent follow the `smoke-test` skill, which also lives
+in this repository's [plugins](plugins.md). Put a copy where `smoke_skill`
+points before the first cast:
+
+```bash
+mkdir -p ~/.claude/skills/smoke-test
+curl -fsSL -o ~/.claude/skills/smoke-test/SKILL.md \
+  https://raw.githubusercontent.com/fancysnake/cabinet/refs/heads/main/plugins/smoke-test/skills/smoke-test/SKILL.md
+```
+
+Or point `smoke_skill` at the copy the plugin install left, or at a skill of
+your own.
 
 ## The remote
 

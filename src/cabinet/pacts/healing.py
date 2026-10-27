@@ -16,11 +16,7 @@ _WorkT = TypeVar("_WorkT", bound="Work")
 # What a branch may need next, in the order a cast does it: the base merged
 # in, CI made green, the threads answered, a review posted, the guide posted:
 # the smoke-test instructions, as a comment.
-Todo = Literal["merge", "ci", "answer", "review", "guide"]
-
-# The todos the graph has steps for, in the same order. A todo outside it is
-# surveyed and reported, and nothing works it.
-Task = Literal["merge", "ci", "answer", "review"]
+Task = Literal["merge", "ci", "answer", "review", "guide"]
 TASKS: tuple[Task, ...] = get_args(Task)
 
 
@@ -76,7 +72,7 @@ class Surveyed(BaseModel):
     number: int
     branch: str
     url: str
-    todos: list[Todo]
+    todos: list[Task]
     # The configured CI jobs whose checks are red, and the open threads: what
     # `ci` and `answer` would work through.
     red: list[Check]
@@ -195,7 +191,7 @@ class Run(Reserving, Hop):
     # What of `todos` this cast may work, in the order it works them. Never
     # `answer` with nobody at the terminal: every item of a triage is yours to
     # decide, and the threads wait for a cast you attend.
-    def worked(self, todos: list[Todo]) -> list[Task]:
+    def worked(self, todos: list[Task]) -> list[Task]:
         return [
             task
             for task in self.tasks

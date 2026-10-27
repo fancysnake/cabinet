@@ -15,8 +15,8 @@ Grouped by school, the way a spellbook is.
 - **`heal.mine`**, **`heal.pr`** and **`heal.this`**: take each pull request as
   far as it goes. `heal.this` takes the one for the branch at the cwd. Each
   pull request is surveyed into its todos (merge, ci, answer, review, guide)
-  and printed on one line; then the merge, ci, answer and review tasks are
-  worked, and what was committed is pushed. `heal.mine` surveys every open
+  and printed on one line; then the merge, ci, answer, review and guide tasks
+  are worked, and what was committed is pushed. `heal.mine` surveys every open
   pull request of yours not wearing the wait label, oldest-modified first, and
   queues a `heal.pr --number N` on the vekna daemon for each one with work.
   The daemon runs those side by side, each in a pooled worktree, so your own
@@ -49,6 +49,10 @@ Grouped by school, the way a spellbook is.
 
 - **`review`**: `heal.this` with the review task alone. Posts the quality
   review as inline comments and puts the reviewed label on.
+- **`guide`**: `heal.this` with the guide task alone. Once a branch has nothing
+  else to do, an agent writes the manual smoke test for it, and the ritual
+  posts it as a plain comment and puts the qa label on. Like *Guidance*: a
+  hand for whoever checks the branch.
 - **`identify`**: the backlog, a page at a time. Takes your open issues that
   lack a type or a size; an agent reads each one and says what it is, and the
   ritual puts that on the forge: a type and a size, or an epic split into
@@ -78,6 +82,7 @@ vekna cast merge [--plan-only true] [--bound N] [--attended false]
 vekna cast ci [--plan-only true] [--bound N] [--attended false]
 vekna cast answer [--plan-only true] [--bound N] [--batch N]
 vekna cast review [--plan-only true] [--attended false]
+vekna cast guide [--plan-only true] [--attended false]
 vekna cast identify [--batch N]
 vekna cast labels
 vekna cast labels.heal

@@ -9,7 +9,7 @@ import re
 
 from typing_extensions import override
 
-from cabinet.pacts.healing import Facts, Surveyed, Todo
+from cabinet.pacts.healing import Facts, Surveyed, Task
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Check
 from cabinet.pacts.services import TodosProtocol
@@ -32,7 +32,7 @@ class Todos(TodosProtocol):
         # Whoever opened them: agents post with the owner's token, so the
         # author says nothing about whether a thread wants an answer.
         threads = sum(not thread.resolved for thread in facts.threads)
-        found: list[Todo] = []
+        found: list[Task] = []
         # Only a conflict: a branch behind its base merges fine.
         if facts.conflicted:
             found.append("merge")

@@ -1,10 +1,10 @@
 # Rituals
 
-Eleven rituals, one facade each under `cabinet.rituals`. Seven work your pull
+Twelve rituals, one facade each under `cabinet.rituals`. Eight work your pull
 requests through one graph: `heal.mine` sweeps every open pull request of
 yours, `heal.pr` takes one by number in a worktree of its own, `heal.this`
-takes your branch's, and `merge`, `ci`, `answer` and `review` each run a
-single task on your branch. One identifies your open issues, and three make
+takes your branch's, and `merge`, `ci`, `answer`, `review` and `guide` each
+run a single task on your branch. One identifies your open issues, and three make
 the labels the others read and put on.
 
 --8<-- "README.md:cast"
@@ -71,8 +71,10 @@ the branch back for the next:
 - **answer**: the review threads triaged with you, fixed, replied to and
   settled. Attended casts only. See [answer](#answer).
 - **review**: the quality review posted. See [review](#review).
+- **guide**: the smoke test posted, once nothing else is left. See
+  [guide](#guide).
 
-`guide` is surveyed and reported; its task is still to come. Whatever the cast committed is pushed before the next task and before
+Whatever the cast committed is pushed before the next task and before
 the branch is left, so the review's comments anchor to code the forge has.
 Nothing waits for CI after a push.
 
@@ -175,6 +177,24 @@ label has had its review: take the label off after changing the branch
 meaningfully, and the next cast reviews it again. A branch whose gate stood
 down is reviewed all the same, and the agent is told why it is not green.
 
+## guide
+
+*Divination.* `heal.this` with the guide task alone, the way *Guidance* lends
+a hand to whoever checks the branch. A branch gets a guide only when the survey
+finds nothing else to do and it is not wearing the qa label:
+
+1. An agent follows the skill at `smoke_skill` and writes the manual smoke
+   test for the branch: the shortest path that proves the change works where
+   users meet it, and the features nearby it could have broken. It runs
+   nothing.
+2. The ritual posts the test as a plain comment on the pull request, never a
+   review thread, so `answer` does not pick it up.
+3. The ritual puts the qa label on.
+
+To ask for a new guide, take the label off. The next cast edits the comment
+already there rather than posting a second. Nothing takes the label off for
+you: merging the base in does not cost a branch its guide.
+
 ## identify
 
 *Divination.* The backlog, a page at a time, unasked. The candidates are your
@@ -238,9 +258,9 @@ not. The names are fixed, because the `issues` skill names them too.
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
 | `--bound N`  | `heal.*`, `merge`, `ci`, `answer` | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended false` | `heal.*`, `merge`, `ci`, `answer`, `review` | nobody is at the terminal: leave the review threads, let the budget decide every repair attempt, and run agents in Claude's `dontAsk` permission mode rather than `auto` (see [Agents](agents.md)). A cast is attended by default; `vekna cast --unattended` turns it down too, and `--attended true` cannot turn that back up |
+| `--attended false` | `heal.*`, `merge`, `ci`, `answer`, `review`, `guide` | nobody is at the terminal: leave the review threads, let the budget decide every repair attempt, and run agents in Claude's `dontAsk` permission mode rather than `auto` (see [Agents](agents.md)). A cast is attended by default; `vekna cast --unattended` turns it down too, and `--attended true` cannot turn that back up |
 | `--number N` | `heal.pr` | the pull request to heal |
-| `--plan-only true` | `heal.*`, `merge`, `ci`, `answer`, `review` | survey and print each pull request's todos; change nothing |
+| `--plan-only true` | `heal.*`, `merge`, `ci`, `answer`, `review`, `guide` | survey and print each pull request's todos; change nothing |
 | `--batch N`  | `identify`, `heal.*`, `answer` | how many issues go on one page, or open threads in one round of answers, default 7 |
 
 A flag a repository always wants goes in `.vekna.toml` as one of vekna's

@@ -10,7 +10,8 @@ from cabinet.specs import HEAL_STEPS
 # The steps every branch walks at most once: `check_clean`, `sync_branch`,
 # `merge_base`, `finish_merge` or `stand_down`, `rerun_jobs`, `quality_review`
 # and `finish_pr`, two pushes (one after the merge, one after `ci`), and
-# `tend` once before each of the six that follow it.
+# `tend` once before each of the six that follow it. `post_guide` is not
+# among them: the survey asks for a guide only where nothing else is left.
 _ONCE = 15
 
 

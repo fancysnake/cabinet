@@ -208,6 +208,15 @@ class TestReview:
         assert "\n\nred\n\n" in prompt
 
 
+class TestGuide:
+    @staticmethod
+    def test_names_the_skill_and_the_span() -> None:
+        prompt = _PROMPTS.guide(_PLAIN, base="main")
+
+        assert "main...HEAD" in prompt
+        assert _PLAIN.smoke_skill in prompt
+
+
 _ISSUE = Issue(
     number=5,
     title="Add a thing",
