@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, StringConstraints
 
 from cabinet.pacts.issues import Issue
 
@@ -124,7 +124,7 @@ GUIDE_MARK = "<!-- cabinet:guide -->"
 # The smoke-test instructions, as markdown. Never empty: a blank comment is
 # an agent that read badly, not a guide.
 class Guide(BaseModel):
-    body: Annotated[str, Field(min_length=1)]
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 # What came of posting one review: how many items went up, and what stopped

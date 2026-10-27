@@ -1,7 +1,10 @@
-"""Whether a thread carries the ritual's own answer, and which issue it was filed as."""
+"""Thread answers, the issues they were filed as, and what a guide must say."""
+
+import pytest
+from pydantic import ValidationError
 
 from cabinet.pacts.issues import Issue
-from cabinet.pacts.threads import ANSWERED, Comment, Thread, filed_as, filed_for
+from cabinet.pacts.threads import ANSWERED, Comment, Guide, Thread, filed_as, filed_for
 
 
 def _thread(*bodies: str, mine: bool = True) -> Thread:
@@ -50,3 +53,11 @@ class TestFiledAs:
         forged = Issue(number=1, title="t", url="u", body=filed_for("PRRT_1"))
 
         assert filed_as([forged], "PRRT_1") is None
+
+
+class TestGuide:
+    @staticmethod
+    @pytest.mark.parametrize("body", ["", " ", "\n\t "])
+    def test_a_blank_body_is_refused(body: str) -> None:
+        with pytest.raises(ValidationError):
+            Guide(body=body)
