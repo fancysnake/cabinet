@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning].
   a branch that is merely behind is left alone.
 - **Breaking:** `review` posts the quality review on your branch; it no longer
   answers review threads; `answer` does.
+- `mkdocs-site` plugin: the site it sets up is findable and previews well
+  when linked: an `overrides/main.html` head with Open Graph, Twitter and
+  JSON-LD tags, a description on every page, `robots.txt`, and a check of
+  the built head.
 
 ### Removed
 

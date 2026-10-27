@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block htmltitle %}
+  {% if page and page.file.src_uri == "index.md" %}
+    <title><name> — <what it does, in search words></title>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+{# The 404 page renders with no page behind it. #}
+{% if page %}
+  {% set description = page.meta.description or config.site_description %}
+  {% set title = "<name> — <what it does, in search words>" if page.file.src_uri == "index.md" else page.title ~ " — " ~ config.site_name %}
+  {% set card = config.site_url ~ "assets/<name>-card.png" %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+  <meta property="og:title" content="{{ title }}">
+  <meta property="og:description" content="{{ description }}">
+  <meta property="og:url" content="{{ page.canonical_url }}">
+  <meta property="og:image" content="{{ card }}">
+  <meta property="og:image:width" content="<card width>">
+  <meta property="og:image:height" content="<card height>">
+  <meta property="og:image:alt" content="<card alt text>">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ title }}">
+  <meta name="twitter:description" content="{{ description }}">
+  <meta name="twitter:image" content="{{ card }}">
+  {% if page.file.src_uri == "index.md" %}
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "<name>",
+        "description": {{ description | tojson }},
+        "url": {{ config.site_url | tojson }},
+        "image": {{ card | tojson }},
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "<Linux, macOS, …>",
+        "programmingLanguage": "<Python | JavaScript>",
+        "license": "<license URL>",
+        "codeRepository": {{ config.repo_url | tojson }},
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+      }
+    </script>
+  {% endif %}
+{% endif %}
+{% endblock %}
