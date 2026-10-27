@@ -224,6 +224,12 @@ def _thread(found: _Discussion, me: int) -> Thread | None:
     )
 
 
+# A plain note of yours carrying `marker`: neither on a line nor in a thread.
+def _marked(note: _Note, marker: str, *, me: int) -> bool:
+    plain = note.position is None and not note.resolvable
+    return plain and note.author.id == me and marker in note.body
+
+
 async def _project_id() -> int:
     project = await _read(
         _PROJECT, _api("projects/:id"), "glab could not read the project", "a project"
@@ -447,28 +453,33 @@ class GitlabForge(ForgeProtocol):
             posted += 1
         return Posted(count=posted)
 
-    # Notes rather than discussions: every note on the merge request, plain
-    # ones included, each page of them.
+    # Notes rather than discussions: every note on the merge request, each page
+    # of them. Only a plain one of yours is taken: one on a line or in a thread
+    # is a review thread, and anyone can type the marker.
     @override
     async def note(self, number: int, body: str, *, marker: str) -> None:
+        me = await _read(
+            _USER, _api("user"), "glab could not say who you are", "a user"
+        )
+        text = f"{marker}\n\n{body}"
         found = await _pages(
             _NOTES,
             f"projects/:id/merge_requests/{number}/notes?per_page={_PAGE}",
             f"could not read the notes on !{number}",
             "notes",
         )
-        if marked := [one for one in found if marker in one.body]:
+        if marked := [one for one in found if _marked(one, marker, me=me.id)]:
             await asked(
                 _api(
                     f"projects/:id/merge_requests/{number}/notes/{marked[0].id}",
                     "-X PUT",
-                    f"-f body={quoted(body)}",
+                    f"-f body={quoted(text)}",
                 ),
                 f"could not edit the note on !{number}",
             )
             return
         await asked(
-            f"glab mr note {number} -m {quoted(body)}",
+            f"glab mr note {number} -m {quoted(text)}",
             f"could not comment on !{number}",
         )
 

@@ -491,40 +491,61 @@ _BLOCKERS = (
 )
 
 
+_WHO = "gh api user --jq .login"
 _COMMENTS = (
-    "gh api repos/{owner}/{repo}/issues/7/comments --paginate"
-    """ --jq '.[] | select(.body | contains("<!-- m -->")) | .id'"""
+    "gh api repos/{owner}/{repo}/issues/7/comments --paginate --jq '.[]"
+    ' | select(.user.login == "me" and (.body | contains("<!-- m -->"))) | .id\''
 )
 _NOTE = "<!-- m -->\n\nhi"
 
 
+def _commented(trial: Trial, *, ids: str = "") -> None:
+    trial.shell.replies(when=_WHO, stdout="me\n")
+    trial.shell.replies(when=_COMMENTS, stdout=ids)
+
+
 class TestNote:
     @staticmethod
-    def test_with_none_marked_the_body_is_posted(trial: Trial) -> None:
-        trial.shell.replies(when=_COMMENTS)
+    def test_with_none_marked_the_body_is_posted_under_the_marker(trial: Trial) -> None:
+        _commented(trial)
         trial.shell.replies(when="gh pr comment 7*")
 
-        drive(trial, lambda: _FORGE.note(7, _NOTE, marker="<!-- m -->"))
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
 
         assert trial.shell.commands == [
+            _WHO,
             _COMMENTS,
             f"gh pr comment 7 --body {shlex.quote(_NOTE)}",
         ]
 
+    # Only comments whoever gh is logged in as wrote are asked for: a marker
+    # anyone else typed is no claim on their comment.
     @staticmethod
-    def test_the_first_marked_comment_is_edited_in_place(trial: Trial) -> None:
-        trial.shell.replies(when=_COMMENTS, stdout="11\n12\n")
+    def test_the_first_marked_comment_of_yours_is_edited_in_place(trial: Trial) -> None:
+        _commented(trial, ids="11\n12\n")
         trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/comments/11*")
 
-        drive(trial, lambda: _FORGE.note(7, _NOTE, marker="<!-- m -->"))
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
 
-        assert trial.shell.commands[-1] == (
-            "gh api repos/{owner}/{repo}/issues/comments/11 -X PATCH"
-            f" -f body={shlex.quote(_NOTE)}"
-        )
+        assert trial.shell.commands == [
+            _WHO,
+            _COMMENTS,
+            (
+                "gh api repos/{owner}/{repo}/issues/comments/11 -X PATCH"
+                f" -f body={shlex.quote(_NOTE)}"
+            ),
+        ]
+
+    @staticmethod
+    def test_a_user_gh_will_not_name(trial: Trial) -> None:
+        trial.shell.replies(when=_WHO, exit_code=1, stderr="401")
+
+        with pytest.raises(ForgeError, match="gh could not say who you are"):
+            drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
 
     @staticmethod
     def test_comments_gh_would_not_list(trial: Trial) -> None:
+        trial.shell.replies(when=_WHO, stdout="me\n")
         trial.shell.replies(when=_COMMENTS, exit_code=1, stderr="502")
 
         with pytest.raises(ForgeError, match="could not read the comments on #7"):

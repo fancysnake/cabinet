@@ -516,10 +516,16 @@ class GithubForge(ForgeProtocol):
 
     # A pull request's plain comments are its issue's comments on GitHub, so
     # no review thread is ever among them. jq picks the marked ones out of
-    # every page.
+    # every page, of those whoever gh is logged in as wrote: anyone can type
+    # the marker.
     @override
     async def note(self, number: int, body: str, *, marker: str) -> None:
-        marked = f".[] | select(.body | contains({json.dumps(marker)})) | .id"
+        login = await asked("gh api user --jq .login", "gh could not say who you are")
+        mine = f".user.login == {json.dumps(login.strip())}"
+        marked = (
+            f".[] | select({mine} and (.body | contains({json.dumps(marker)}))) | .id"
+        )
+        text = f"{marker}\n\n{body}"
         found = await asked(
             f"gh api repos/{{owner}}/{{repo}}/issues/{number}/comments --paginate"
             f" --jq {quoted(marked)}",
@@ -528,12 +534,12 @@ class GithubForge(ForgeProtocol):
         if ids := found.split():
             await asked(
                 f"gh api repos/{{owner}}/{{repo}}/issues/comments/{ids[0]} -X PATCH"
-                f" -f body={quoted(body)}",
+                f" -f body={quoted(text)}",
                 f"could not edit the comment on #{number}",
             )
             return
         await asked(
-            f"gh pr comment {number} --body {quoted(body)}",
+            f"gh pr comment {number} --body {quoted(text)}",
             f"could not comment on #{number}",
         )
 

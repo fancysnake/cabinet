@@ -17,6 +17,7 @@ from cabinet.gates.ritual.vekna.heal import (
     tally,
 )
 from cabinet.pacts.budgets import ROUNDS
+from cabinet.pacts.guide import Guide
 from cabinet.pacts.heal import (
     Chart,
     FinishPr,
@@ -37,7 +38,6 @@ from cabinet.pacts.threads import (
     Answered,
     Finding,
     Findings,
-    Guide,
     TriageItem,
     TriageNotes,
 )
@@ -725,6 +725,7 @@ class TestTaskRituals:
         _taken(trial, mergeable="MERGEABLE", labels=("pr::thermo",))
         trial.shell.replies(when=HERE, stdout="feature\n")
         trial.coding.replies(Guide(body="click it"), when="Write the manual smoke*")
+        trial.shell.replies(when="gh api user*", stdout="me\n")
         trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/7/comments*")
         trial.shell.replies(when="gh pr comment 7*")
         trial.shell.replies(when="gh pr edit 7 --add-label v:guide:done")

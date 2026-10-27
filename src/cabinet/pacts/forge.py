@@ -62,9 +62,10 @@ class ForgeProtocol(Protocol):
     # about it rather than retry it.
     async def comment(self, number: int, findings: Sequence[Finding]) -> Posted: ...
 
-    # One plain comment on the pull request, never a review thread: the first
-    # one carrying `marker` is edited to `body`, and with none `body` is
-    # posted. `body` carries `marker`, so the next call finds it.
+    # One plain comment of yours on the pull request, never a review thread:
+    # the first one carrying `marker` is edited to `body`, and with none `body`
+    # is posted. The adapter writes `marker` above `body`, so the next call
+    # finds it.
     async def note(self, number: int, body: str, *, marker: str) -> None: ...
 
     # The new issue, by the number the forge gave it.

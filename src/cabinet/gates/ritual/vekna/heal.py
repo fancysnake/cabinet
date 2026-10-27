@@ -98,7 +98,7 @@ step budget; one that does not ends the cast without failing it, and the report
 names what was not reached.
 """
 
-from typing import TypeVar
+from typing import TypeAlias, TypeVar
 
 from vekna.folio.flow import decide, enqueue
 from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta, step
@@ -106,6 +106,7 @@ from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.guide import GUIDE_MARK, Guide
 from cabinet.pacts.heal import (
     AnswerGate,
     AnswerThreads,
@@ -161,11 +162,9 @@ from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import (
-    GUIDE_MARK,
     Answered,
     Finding,
     Findings,
-    Guide,
     Thread,
     TriageNotes,
     filed_as,
@@ -392,11 +391,12 @@ async def sync_branch(work: SyncBranch) -> Chart | SkipPr | SetAside | Tend:
     return work.to(Tend)
 
 
-# Each task's first step. Keyed by every `Task`, so a task added without a
-# step here fails the test that walks each one through `tend`.
-_FIRST: dict[
-    Task, type[MergeBase | RerunJobs | SettleLeft | QualityReview | PostGuide]
-] = {
+# Each task's first step, the one `tend` hands a branch.
+_First: TypeAlias = MergeBase | RerunJobs | SettleLeft | QualityReview | PostGuide
+
+# Keyed by every `Task`, so a task added without a step here fails the test
+# that walks each one through `tend`.
+_FIRST: dict[Task, type[_First]] = {
     "merge": MergeBase,
     "ci": RerunJobs,
     "answer": SettleLeft,
@@ -409,11 +409,7 @@ _FIRST: dict[
 # pushed first: every task after the merge works on code the forge has, and a
 # branch is not left with commits only this worktree holds.
 @step
-def tend(
-    work: Tend,
-) -> (
-    PushWork | FinishPr | MergeBase | RerunJobs | SettleLeft | QualityReview | PostGuide
-):
+def tend(work: Tend) -> PushWork | FinishPr | _First:
     if work.changed:
         return work.to(PushWork)
     if not work.todos:
@@ -1098,7 +1094,7 @@ async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
         return work.noting(read.reason).to(SetAside)
     forge = services().forge(project)
     try:
-        await forge.note(number, f"{GUIDE_MARK}\n\n{read.body}", marker=GUIDE_MARK)
+        await forge.note(number, read.body, marker=GUIDE_MARK)
         await forge.label(number, add=[project.labels.qa])
     except ForgeError as error:
         return work.noting(str(error)).to(SetAside)

@@ -191,8 +191,9 @@ finds nothing else to do and it is not wearing the qa label:
    review thread, so `answer` does not pick it up.
 3. The ritual puts the qa label on.
 
-To ask for a new guide, take the label off. The next cast edits the comment
-already there rather than posting a second. Nothing takes the label off for
+To ask for a new guide, take the label off. The next cast edits the guide it
+posted before rather than posting a second, and never touches a comment
+someone else wrote. Nothing takes the label off for
 you: merging the base in does not cost a branch its guide.
 
 ## identify

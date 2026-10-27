@@ -479,34 +479,82 @@ _LISTED = "glab api 'projects/:id/issues/7/links?per_page=100'"
 
 
 _NOTES = "glab api 'projects/:id/merge_requests/7/notes?per_page=100&page=1'"
+_POSTED = "glab mr note 7 -m '<!-- m -->\n\nhi'"
+
+
+def _noted(trial: Trial, *notes: dict[str, object]) -> None:
+    _logged_in(trial)
+    trial.shell.replies(when=_NOTES, stdout=json.dumps(notes))
 
 
 class TestNote:
     @staticmethod
-    def test_with_none_marked_the_body_is_posted(trial: Trial) -> None:
-        notes = [{"id": 5, "body": "lgtm"}]
-        trial.shell.replies(when=_NOTES, stdout=json.dumps(notes))
+    def test_with_none_marked_the_body_is_posted_under_the_marker(trial: Trial) -> None:
+        _noted(trial, {"id": 5, "body": "lgtm", "author": {"id": 1}})
         trial.shell.replies(when="glab mr note 7*")
 
-        drive(trial, lambda: _FORGE.note(7, "<!-- m -->\n\nhi", marker="<!-- m -->"))
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
 
-        assert trial.shell.commands[-1] == "glab mr note 7 -m '<!-- m -->\n\nhi'"
+        assert trial.shell.commands == [_USER, _NOTES, _POSTED]
 
     @staticmethod
-    def test_the_first_marked_note_is_edited_in_place(trial: Trial) -> None:
-        notes = [{"id": 5, "body": "lgtm"}, {"id": 6, "body": "<!-- m -->\n\nold"}]
-        trial.shell.replies(when=_NOTES, stdout=json.dumps(notes))
+    def test_the_first_marked_note_of_yours_is_edited_in_place(trial: Trial) -> None:
+        _noted(
+            trial,
+            {"id": 5, "body": "lgtm", "author": {"id": 1}},
+            {"id": 6, "body": "<!-- m -->\n\nold", "author": {"id": 1}},
+            {"id": 7, "body": "<!-- m -->\n\nolder", "author": {"id": 1}},
+        )
         trial.shell.replies(when="glab api projects/:id/merge_requests/7/notes/6*")
 
-        drive(trial, lambda: _FORGE.note(7, "<!-- m -->\n\nhi", marker="<!-- m -->"))
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
 
         assert trial.shell.commands[-1] == (
             "glab api projects/:id/merge_requests/7/notes/6 -X PUT"
             " -f body='<!-- m -->\n\nhi'"
         )
 
+    # Anyone can type the marker; editing their note would overwrite it.
+    @staticmethod
+    def test_a_marked_note_someone_else_wrote_is_left_alone(trial: Trial) -> None:
+        _noted(
+            trial,
+            {"id": 6, "body": "<!-- m -->\n\nplanted", "author": {"id": 2}},
+            {"id": 7, "body": "<!-- m -->\n\nnobody's"},
+        )
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+        assert trial.shell.commands == [_USER, _NOTES, _POSTED]
+
+    # A note on a line, or in a thread, is a review thread, not the comment.
+    @staticmethod
+    def test_a_marked_note_in_a_review_thread_is_left_alone(trial: Trial) -> None:
+        _noted(
+            trial,
+            {
+                "id": 6,
+                "body": "<!-- m -->\n\non a line",
+                "author": {"id": 1},
+                "position": {"new_path": "a.py", "new_line": 3},
+            },
+            {
+                "id": 7,
+                "body": "<!-- m -->\n\nin a thread",
+                "author": {"id": 1},
+                "resolvable": True,
+            },
+        )
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+        assert trial.shell.commands == [_USER, _NOTES, _POSTED]
+
     @staticmethod
     def test_notes_that_will_not_parse(trial: Trial) -> None:
+        _logged_in(trial)
         trial.shell.replies(when=_NOTES, stdout="nope")
 
         with pytest.raises(ForgeError, match="glab returned notes"):

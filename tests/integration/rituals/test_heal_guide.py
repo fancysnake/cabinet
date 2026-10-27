@@ -5,15 +5,21 @@ import shlex
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.heal import post_guide, tend
+from cabinet.pacts.guide import GUIDE_MARK, Guide
 from cabinet.pacts.heal import Chart, PostGuide, SetAside, Tend
 from cabinet.pacts.healing import Work
-from cabinet.pacts.threads import GUIDE_MARK, Guide
 from tests.integration.rituals.falling import falling
 
 _COMMENTS = "gh api repos/{owner}/{repo}/issues/7/comments --paginate*"
 _BODY = f"{GUIDE_MARK}\n\nclick it"
 _POSTED = f"gh pr comment 7 --body {shlex.quote(_BODY)}"
 _LABEL = "gh pr edit 7 --add-label v:guide:done"
+
+
+# Whoever gh is logged in as, then the marked comments of theirs.
+def _listed(trial: Trial, *, ids: str = "") -> None:
+    trial.shell.replies(when="gh api user*", stdout="me\n")
+    trial.shell.replies(when=_COMMENTS, stdout=ids)
 
 
 class TestPostGuide:
@@ -28,7 +34,7 @@ class TestPostGuide:
         trial: Trial, work: Work
     ) -> None:
         trial.coding.replies(Guide(body="click it"))
-        trial.shell.replies(when=_COMMENTS)
+        _listed(trial)
         trial.shell.replies(when="gh pr comment 7*")
         trial.shell.replies(when=_LABEL)
 
@@ -43,7 +49,7 @@ class TestPostGuide:
     @staticmethod
     def test_a_guide_already_up_is_edited_in_place(trial: Trial, work: Work) -> None:
         trial.coding.replies(Guide(body="click it"))
-        trial.shell.replies(when=_COMMENTS, stdout="11\n")
+        _listed(trial, ids="11\n")
         trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/comments/11*")
         trial.shell.replies(when=_LABEL)
 
@@ -58,7 +64,7 @@ class TestPostGuide:
         trial: Trial, work: Work
     ) -> None:
         trial.coding.replies(Guide(body="click it"))
-        trial.shell.replies(when=_COMMENTS)
+        _listed(trial)
         trial.shell.replies(when="gh pr comment 7*", exit_code=1, stderr="403")
 
         assert trial.walk(post_guide, work.to(PostGuide)) == work.but(
@@ -73,7 +79,7 @@ class TestPostGuide:
         trial: Trial, work: Work
     ) -> None:
         trial.coding.replies(Guide(body="click it"))
-        trial.shell.replies(when=_COMMENTS)
+        _listed(trial)
         trial.shell.replies(when="gh pr comment 7*")
         trial.shell.replies(when="gh pr edit 7*", exit_code=1, stderr="no such label")
 
