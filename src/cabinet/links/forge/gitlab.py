@@ -5,6 +5,7 @@ project the worktree's remote names — so a self-hosted instance needs nothing
 here, only `glab auth login --hostname`.
 """
 
+import re
 from collections.abc import Sequence
 from typing import TypeVar
 from urllib.parse import quote
@@ -138,6 +139,13 @@ _T = TypeVar("_T")
 def _api(path: str, *flags: str) -> str:
     extra = "".join(f" {flag}" for flag in flags)
     return f"glab api {quoted(path)}{extra}"
+
+
+# GitLab runs a line opening on a slash command as a quick action, in a note
+# or a new description alike. An escaped slash renders the same and runs
+# nothing.
+def _inert(text: str) -> str:
+    return re.sub(r"^/", r"\\/", text, flags=re.MULTILINE)
 
 
 # What glab answered to `command`, read by `adapter`; `what` names it in the
@@ -299,12 +307,13 @@ async def _anchor(number: int, findings: Sequence[Finding]) -> _DiffRefs | None:
 # as it does for an item about the change as a whole. What comes back is what
 # stopped it, or nothing.
 async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
+    body = quoted(_inert(finding.body))
     if finding.line is not None and refs is not None:
         anchored = await shell(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions",
                 "-X POST",
-                f"-f body={quoted(finding.body)}",
+                f"-f body={body}",
                 "-f 'position[position_type]=text'",
                 f"-f 'position[base_sha]={refs.base_sha}'",
                 f"-f 'position[head_sha]={refs.head_sha}'",
@@ -319,8 +328,7 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
             return ""
     try:
         await asked(
-            f"glab mr note {number} -m {quoted(finding.body)}",
-            f"could not comment on !{number}",
+            f"glab mr note {number} -m {body}", f"could not comment on !{number}"
         )
     except ForgeError as error:
         return str(error)
@@ -379,7 +387,7 @@ class GitlabForge(ForgeProtocol):
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}/notes",
                 "-X POST",
-                f"-f body={quoted(body)}",
+                f"-f body={quoted(_inert(body))}",
             ),
             f"could not reply on discussion {thread.id}",
         )
@@ -461,7 +469,7 @@ class GitlabForge(ForgeProtocol):
         me = await _read(
             _USER, _api("user"), "glab could not say who you are", "a user"
         )
-        text = f"{marker}\n\n{body}"
+        text = f"{marker}\n\n{_inert(body)}"
         found = await _pages(
             _NOTES,
             f"projects/:id/merge_requests/{number}/notes?per_page={_PAGE}",
@@ -491,7 +499,7 @@ class GitlabForge(ForgeProtocol):
                 "projects/:id/issues",
                 "-X POST",
                 f"-f title={quoted(title)}",
-                f"-f description={quoted(body)}",
+                f"-f description={quoted(_inert(body))}",
             ),
             "could not open the issue",
             "an issue",

@@ -75,6 +75,12 @@ and this project adheres to [Semantic Versioning].
 - **Breaking:** the `started`/`done` checkpoint labels and
   `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.
 
+### Security
+
+- On GitLab, a line opening with `/` in a note, reply or issue description
+  cabinet posts is escaped, so agent text cannot run a quick action such as
+  `/close`.
+
 ## [4.0.0] - 2026-10-24
 
 ### Added
