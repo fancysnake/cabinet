@@ -263,4 +263,5 @@ repository that only wants reviews casts `review` and never sees the rest:
 modules = ["cabinet.rituals.review"]
 ```
 
-`modules = ["cabinet.rituals"]` loads every ritual.
+`modules = ["cabinet.rituals"]` loads every ritual. `cabinet.rituals.heal_mine`
+also loads `heal.pr`, the ritual it queues.

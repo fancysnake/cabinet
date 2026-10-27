@@ -24,15 +24,18 @@ from cabinet.rituals import (
     review,
 )
 
-# Every facade over the heal graph, and the ritual each one casts.
+# Every facade over the heal graph, and the rituals each one exports: its own,
+# and for heal.mine the heal.pr it queues.
 _HEALS = [
-    pytest.param(heal_mine, "heal.mine", id="heal.mine"),
-    pytest.param(heal_pr, "heal.pr", id="heal.pr"),
-    pytest.param(heal_this, "heal.this", id="heal.this"),
-    pytest.param(merge, "merge", id="merge"),
-    pytest.param(ci, "ci", id="ci"),
-    pytest.param(answer, "answer", id="answer"),
-    pytest.param(review, "review", id="review"),
+    pytest.param(
+        heal_mine, {"heal_mine": "heal.mine", "heal_pr": "heal.pr"}, id="heal.mine"
+    ),
+    pytest.param(heal_pr, {"heal_pr": "heal.pr"}, id="heal.pr"),
+    pytest.param(heal_this, {"heal_this": "heal.this"}, id="heal.this"),
+    pytest.param(merge, {"merge": "merge"}, id="merge"),
+    pytest.param(ci, {"ci": "ci"}, id="ci"),
+    pytest.param(answer, {"answer": "answer"}, id="answer"),
+    pytest.param(review, {"review": "review"}, id="review"),
 ]
 
 
@@ -54,13 +57,12 @@ def _registered(facade: ModuleType) -> set[str]:
 # names it exports beside its ritual.
 class TestFacade:
     @staticmethod
-    @pytest.mark.parametrize(("facade", "name"), _HEALS)
+    @pytest.mark.parametrize(("facade", "rituals"), _HEALS)
     def test_a_heal_facade_exports_its_ritual_and_every_step(
-        facade: ModuleType, name: str
+        facade: ModuleType, rituals: dict[str, str]
     ) -> None:
-        ritual = facade.__name__.rsplit(".", 1)[-1]
-        assert set(facade.__all__) == _steps(heal_steps) | {ritual}
-        assert _registered(facade) == _steps(heal_steps) | {name}
+        assert set(facade.__all__) == _steps(heal_steps) | rituals.keys()
+        assert _registered(facade) == _steps(heal_steps) | set(rituals.values())
 
     # One step object behind every one, so loading them registers each step
     # once: a second step taking the same payload class would refuse to load.
@@ -68,6 +70,13 @@ class TestFacade:
     def test_the_heal_rituals_share_their_steps() -> None:
         assert heal_this.tend is heal_mine.tend is merge.tend is review.tend
         assert ci.tend is answer.tend is heal_mine.tend is heal_pr.tend
+
+    # heal.mine queues heal.pr casts, so a project loading only heal.mine
+    # must still have heal.pr to run them.
+    @staticmethod
+    def test_heal_mine_brings_the_heal_pr_it_queues() -> None:
+        assert heal_mine.heal_pr is heal_pr.heal_pr
+        assert "heal.pr" in _registered(heal_mine)
 
     @staticmethod
     def test_identify_exports_its_ritual_and_every_step() -> None:

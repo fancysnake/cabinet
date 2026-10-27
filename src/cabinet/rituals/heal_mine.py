@@ -9,7 +9,8 @@ worktree beside the others. With no daemon listening it says so and fails.
 The steps live in ``cabinet.gates.ritual.vekna.heal``, shared with
 ``heal.this`` and the task rituals; this module is the ritual itself and the
 surface vekna sweeps. Every step is exported, so the facade names the whole
-graph it casts.
+graph it casts, and so is ``heal.pr``: a project loading only this facade
+can still run what it queues.
 """
 
 from vekna.lexicon import ritual
@@ -52,6 +53,7 @@ from cabinet.gates.ritual.vekna.heal import (
 )
 from cabinet.pacts.heal import MusterMine
 from cabinet.pacts.healing import Heal
+from cabinet.rituals.heal_pr import heal_pr
 from cabinet.specs import HEAL_STEPS
 
 
@@ -71,6 +73,7 @@ __all__ = [
     "finish_pr",
     "gate_check",
     "heal_mine",
+    "heal_pr",
     "job_gate",
     "land_answers",
     "land_job",
