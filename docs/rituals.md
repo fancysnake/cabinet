@@ -1,14 +1,15 @@
 # Rituals
 
-Eleven rituals, one facade each under `cabinet.rituals`. Six work your pull
+Eleven rituals, one facade each under `cabinet.rituals`. Seven work your pull
 requests through one graph: `heal.mine` sweeps every open pull request of
-yours, `heal.this` takes your branch's, and `merge`, `ci`, `answer` and
-`review` each run a single task on your branch. One identifies your open issues, and three make
+yours, `heal.pr` takes one by number in a worktree of its own, `heal.this`
+takes your branch's, and `merge`, `ci`, `answer` and `review` each run a
+single task on your branch. One identifies your open issues, and three make
 the labels the others read and put on.
 
 --8<-- "README.md:cast"
 
-## heal.mine and heal.this
+## heal.mine, heal.pr and heal.this
 
 *Evocation.* Each pull request is read once and turned into a todo list, in
 the order a cast works it:
@@ -25,9 +26,10 @@ Facts make todos; labels only remove them. A branch behind its base but
 without a conflict needs no merge. Where the forge has not worked out whether
 a branch conflicts, git does, in memory, against the remote's refs.
 
-`heal.mine` takes every open pull request of yours not wearing the wait label,
-oldest-modified first. `heal.this` takes the pull request for the branch at
-the cwd, and reports that there is none when there is none. Each prints one
+`heal.mine` surveys every open pull request of yours not wearing the wait
+label, oldest-modified first. `heal.pr --number N` takes the open pull request
+of yours with that number. `heal.this` takes the pull request for the branch
+at the cwd, and reports that there is none when there is none. Each prints one
 line per pull request as it reads it:
 
 ```text
@@ -39,9 +41,28 @@ A pull request the forge would not answer about gets a line saying why, and
 the cast goes on. With `--plan-only true` that is all: nothing is checked out,
 committed or labelled.
 
+`heal.mine` works no branch itself. For each one with work it queues a
+`heal.pr` on the vekna daemon and goes on to the next, then reports which
+cast took which branch:
+
+```text
+heal — 2 queued
+
+  #7 feature: cast c41
+  #9 docs: cast c42
+```
+
+The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
+up, so the branches heal side by side and the checkout you cast from never
+moves. `vekna cast heal.mine` follows them and prints each one's rows and
+prompts as they come. With no daemon running, `heal.mine` prints its survey
+and fails: start one with `vekna`. [Configuration](configuration.md#worktrees)
+sizes the pool. Typed by hand, `heal.pr` runs where it was typed.
+
 Otherwise each branch with a task the cast works is taken: the worktree must
-be clean, the base is brought up to date, and the branch is checked out and
-fast-forwarded to the remote. The tasks then run in order, and each one hands
+be clean, the remote is fetched, and the branch is checked out and
+fast-forwarded to it. The base is read as the remote has it and never checked
+out, because a worktree cannot check out a branch another worktree stands on. The tasks then run in order, and each one hands
 the branch back for the next:
 
 - **merge**: the base merged in, conflicts resolved, the gate made green. See
@@ -102,7 +123,7 @@ gate will not go green stands the branch down, as a merge does, and the task
 names the checks it did not reach. A fix that changes nothing is no fix:
 the job stays red, and the report says it passes here while CI is still red.
 
-In `heal.mine` and `heal.this`, a branch whose merge was committed leaves ci
+In `heal.pr` and `heal.this`, a branch whose merge was committed leaves ci
 for the next cast. The merge's push starts a new CI run, so the red checks the
 survey read belong to the old head.
 
@@ -110,12 +131,13 @@ survey read belong to the old head.
 
 *Enchantment.* `heal.this` with the answer task alone, the way *Command* puts
 one word to each listener. Every unresolved review thread makes an answer
-todo, whoever wrote it. Every item is yours to decide, so only a cast with
-`--attended true` works it. An unattended cast leaves the threads alone and
-ends its report with what waits for you:
+todo, whoever wrote it. Every item is yours to decide, so only an attended
+cast works it. A cast run with `vekna cast --unattended`, or with
+`--attended false`, leaves the threads alone and ends its report with what
+waits for you:
 
 ```text
-waiting for you, cast with --attended true:
+waiting for you, cast without --unattended or --attended false:
   #7 feature: 11 threads
 ```
 
@@ -216,9 +238,20 @@ not. The names are fixed, because the `issues` skill names them too.
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
 | `--bound N`  | `heal.*`, `merge`, `ci`, `answer` | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended true` | `heal.*`, `merge`, `ci`, `answer`, `review` | somebody is at the terminal: answer the review threads, ask before every repair attempt instead of letting the budget decide, and run agents in Claude's `auto` permission mode rather than `dontAsk` (see [Agents](agents.md)) |
+| `--attended false` | `heal.*`, `merge`, `ci`, `answer`, `review` | nobody is at the terminal: leave the review threads, let the budget decide every repair attempt, and run agents in Claude's `dontAsk` permission mode rather than `auto` (see [Agents](agents.md)). A cast is attended by default; `vekna cast --unattended` turns it down too, and `--attended true` cannot turn that back up |
+| `--number N` | `heal.pr` | the pull request to heal |
 | `--plan-only true` | `heal.*`, `merge`, `ci`, `answer`, `review` | survey and print each pull request's todos; change nothing |
 | `--batch N`  | `identify`, `heal.*`, `answer` | how many issues go on one page, or open threads in one round of answers, default 7 |
+
+A flag a repository always wants goes in `.vekna.toml` as one of vekna's
+component defaults, keyed by the ritual's full name. A flag on the command
+line still wins:
+
+```toml
+[defaults."cabinet:heal.mine"]
+attended = false
+bound = 2
+```
 
 ## Using only some of them
 
@@ -230,4 +263,5 @@ repository that only wants reviews casts `review` and never sees the rest:
 modules = ["cabinet.rituals.review"]
 ```
 
-`modules = ["cabinet.rituals"]` loads every ritual.
+`modules = ["cabinet.rituals"]` loads every ritual. `cabinet.rituals.heal_mine`
+also loads `heal.pr`, the ritual it queues.

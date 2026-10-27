@@ -3,11 +3,37 @@
 import json
 
 import pytest
+from pydantic import BaseModel
+from typing_extensions import override
+from vekna.lexicon import CAST_QUEUE, CastEnded, CastQueueProtocol, NoDaemonError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import muster_mine, muster_this, survey
-from cabinet.pacts.heal import Chart, CheckClean, MusterMine, MusterThis, Survey
-from cabinet.pacts.healing import Heal, Healed, Run, Surveyed, Unsurveyed
+from cabinet.gates.ritual.vekna.heal import (
+    muster_mine,
+    muster_pr,
+    muster_this,
+    summon,
+    survey,
+)
+from cabinet.pacts.heal import (
+    Chart,
+    CheckClean,
+    MusterMine,
+    MusterPr,
+    MusterThis,
+    Summon,
+    Survey,
+    Tally,
+)
+from cabinet.pacts.healing import (
+    Heal,
+    Healed,
+    HealPr,
+    Queued,
+    Run,
+    Surveyed,
+    Unsurveyed,
+)
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.services import services
@@ -44,6 +70,30 @@ _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 # The preflight's two, the listing, the board and the threads.
 _READS = 5
+# A conflicted branch with red checks and no threads, as `summon` reads it.
+_QUEUED = Surveyed(
+    number=7,
+    branch="feature",
+    url=_URL,
+    todos=["merge", "ci", "review"],
+    red=[_CHECKS],
+    threads=0,
+)
+_NO_DAEMON = (
+    "heal.mine queues a cast per pull request and needs the daemon:"
+    " start it with `vekna`"
+)
+
+
+# What a cast meets with no daemon listening, as vekna's own CLI binds it.
+class _Daemonless(CastQueueProtocol):
+    @override
+    async def enqueue(self, *, ritual: str, components: BaseModel) -> str:
+        raise NoDaemonError(ritual)
+
+    @override
+    async def await_end(self, cast_id: str) -> CastEnded:
+        raise NoDaemonError(cast_id)
 
 
 def _preflight(trial: Trial) -> None:
@@ -53,8 +103,9 @@ def _preflight(trial: Trial) -> None:
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
 
 
+# Unattended, so open threads are said rather than taken.
 def _surveying(pull: PullRequest, project: Project) -> Survey:
-    return Survey(project=project, queue=[pull])
+    return Survey(project=project, attended=False, queue=[pull])
 
 
 def _planning(pull: PullRequest, project: Project) -> Survey:
@@ -82,7 +133,7 @@ class TestMuster:
 
         transition = trial.walk(muster_mine, MusterMine(project=project))
 
-        assert isinstance(transition, Survey)
+        assert isinstance(transition, Summon)
         assert [pull.number for pull in transition.queue] == [7, 8]
         assert transition.reserved == services().steps.opening(2)
 
@@ -110,6 +161,50 @@ class TestMuster:
             stopped="no open pull request of yours has feature as its branch",
         ).to(Chart)
 
+    # Wherever the cwd stands, and wait label or not: it was asked for by
+    # number.
+    @staticmethod
+    def test_pr_takes_the_one_it_was_queued_for(trial: Trial, project: Project) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(row(8), row(7, labels=_labelled("pr::wait")))
+        )
+
+        transition = trial.walk(muster_pr, MusterPr(run=Run(project=project), number=7))
+
+        assert isinstance(transition, Survey)
+        assert [pull.number for pull in transition.queue] == [7]
+        assert transition.reserved == services().steps.opening(1)
+
+    @staticmethod
+    def test_pr_that_is_no_longer_open_goes_to_the_report(
+        trial: Trial, project: Project
+    ) -> None:
+        _preflight(trial)
+        trial.shell.replies(when=LIST, stdout=listing(row(8)))
+
+        assert trial.walk(
+            muster_pr, MusterPr(run=Run(project=project), number=7)
+        ) == Run(project=project, stopped="no open pull request of yours is #7").to(
+            Chart
+        )
+
+    @staticmethod
+    def test_pr_with_a_forge_that_will_not_list_goes_to_the_report(
+        trial: Trial, project: Project
+    ) -> None:
+        _preflight(trial)
+        trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
+
+        assert trial.walk(
+            muster_pr, MusterPr(run=Run(project=project), number=7)
+        ) == Run(
+            project=project,
+            stopped="gh could not list your pull requests: not logged in",
+        ).to(
+            Chart
+        )
+
     @staticmethod
     def test_a_forge_that_will_not_list_goes_to_the_report(
         trial: Trial, project: Project
@@ -120,7 +215,7 @@ class TestMuster:
         assert trial.walk(muster_mine, MusterMine(project=project)) == Run(
             project=project,
             stopped="gh could not list your pull requests: not logged in",
-        ).to(Chart)
+        ).to(Tally)
 
     @staticmethod
     def test_an_ssh_remote_stops_before_anything_is_fetched(
@@ -289,7 +384,88 @@ class TestSurvey:
         assert not trial.shell.commands
 
 
+class TestSummon:
+    @staticmethod
+    def test_an_empty_queue_is_tallied(trial: Trial, project: Project) -> None:
+        run = Summon(project=project)
+
+        assert trial.walk(summon, run) == run.to(Tally)
+
+    # Nothing is spoken for: the branch's steps are its own cast's to spend.
+    @staticmethod
+    def test_a_branch_with_work_is_queued_as_a_cast_of_its_own(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = Summon(project=project, bound=2, batch=4, queue=[conflicted])
+
+        assert trial.walk(summon, run) == run.took(_QUEUED).summoned(
+            Queued(number=7, branch="feature", cast="c1")
+        )
+        [queued] = trial.queue.enqueued
+        assert queued.ritual == "heal.pr"
+        assert queued.components == HealPr(number=7, bound=2, batch=4)
+
+    @staticmethod
+    def test_a_branch_with_nothing_this_cast_works_is_not_queued(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        clean = pull.model_copy(update={"conflicted": False})
+        run = Summon(project=project, tasks=["merge"], queue=[clean])
+
+        transition = trial.walk(summon, run)
+
+        assert isinstance(transition, Summon)
+        assert transition.surveyed[0].todos == ["review"]
+        assert trial.queue.enqueued == []
+
+    @staticmethod
+    def test_with_no_daemon_the_cast_fails_after_its_report(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = Summon(project=project, queue=[conflicted])
+
+        with CAST_QUEUE.scope(_Daemonless()):
+            transition = trial.walk(summon, run)
+
+        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Tally)
+
+
 class TestWholeCast:
+    # Each branch with work goes to a cast of its own; the one with nothing
+    # to do is said and left.
+    @staticmethod
+    @pytest.mark.usefixtures("here")
+    def test_mine_queues_a_cast_per_branch_with_work(trial: Trial) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST,
+            stdout=listing(
+                row(mergeable="CONFLICTING"),
+                row(8, mergeable="MERGEABLE", labels=_labelled("pr::thermo")),
+            ),
+        )
+        for name in ("feature", "feature-8"):
+            trial.shell.replies(when=board(name), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        trial.shell.replies(when="slug=*gh api graphql*-F number=8", stdout=_NONE)
+
+        result = trial.cast(heal_mine, Heal(bound=2))
+
+        assert result.queued == [Queued(number=7, branch="feature", cast="c1")]
+        assert [one.components for one in trial.queue.enqueued] == [
+            HealPr(number=7, bound=2)
+        ]
+        assert trial.steps == ["muster_mine", "summon", "summon", "summon", "tally"]
+        assert trial.deltas[-1] == "heal — 1 queued\n\n  #7 feature: cast c1\n"
+
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_a_plan_surveys_and_writes_nothing(trial: Trial) -> None:
@@ -314,10 +490,11 @@ class TestWholeCast:
                 )
             ]
         )
-        assert trial.steps == ["muster_mine", "survey", "survey", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
         # Every other command, a write among them, would have found nothing
         # scripted to answer it.
         assert len(trial.shell.commands) == _READS
+        assert trial.queue.enqueued == []
 
     @staticmethod
     @pytest.mark.usefixtures("here")

@@ -115,12 +115,10 @@ class GitScm(ScmProtocol):
         await _asked(f"git checkout {_quoted(branch)}", f"could not take {branch}")
 
     @override
-    async def sync_base(self, base: str) -> None:
-        remote = _quoted(self._remote)
+    async def fetch(self) -> None:
         await _asked(
-            f"git fetch --prune {remote} && git checkout {_quoted(base)}"
-            f" && git pull --ff-only {remote} {_quoted(base)}",
-            f"could not update {base}",
+            f"git fetch --prune {_quoted(self._remote)}",
+            f"could not fetch {self._remote}",
         )
 
     # `merge --ff-only`, never `reset --hard`: a branch this ritual worked on
@@ -135,9 +133,9 @@ class GitScm(ScmProtocol):
         )
 
     @override
-    async def contains(self, base: str) -> bool:
+    async def contains(self, ref: str) -> bool:
         asked = await shell(
-            f"git merge-base --is-ancestor {_quoted(base)} HEAD", stream=False
+            f"git merge-base --is-ancestor {_quoted(ref)} HEAD", stream=False
         )
         return asked.exit_code == 0
 
@@ -161,8 +159,8 @@ class GitScm(ScmProtocol):
         return merged.exit_code == 1
 
     @override
-    async def merge(self, base: str) -> Ran:
-        return _ran(await shell(f"git merge --no-edit {_quoted(base)}"))
+    async def merge(self, ref: str) -> Ran:
+        return _ran(await shell(f"git merge --no-edit {_quoted(ref)}"))
 
     @override
     async def unmerged(self) -> list[str]:

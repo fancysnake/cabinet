@@ -20,11 +20,25 @@ class MusterThis(Run):
     pass
 
 
+# The run beside the one pull request it is for.
+class MusterPr(BaseModel):
+    run: Run
+    number: int
+
+
 class Survey(Run):
     pass
 
 
+class Summon(Run):
+    pass
+
+
 class Chart(Run):
+    pass
+
+
+class Tally(Run):
     pass
 
 

@@ -1,6 +1,6 @@
 """What a heal cast carries, branch by branch, and what it leaves behind."""
 
-from typing import Literal, Self, TypeAlias, TypeVar, get_args
+from typing import Annotated, Literal, Self, TypeAlias, TypeVar, get_args
 
 from pydantic import BaseModel, Field
 
@@ -36,7 +36,9 @@ class Heal(BaseModel):
     # Somebody is at the terminal: an agent runs in Claude's `auto` permission
     # mode instead of refusing everything outside its allowlist, and another
     # repair attempt is asked for rather than spent on the budget's say-so.
-    attended: bool = False
+    # vekna's `--unattended` has the last word; this only turns a cast down,
+    # which is what `[defaults."cabinet:<ritual>"] attended = false` is for.
+    attended: bool = True
     # How many open threads one round of `answer` reads, answers and settles
     # before the next round fetches what the forge still holds open.
     batch: Batch = BATCH
@@ -45,6 +47,19 @@ class Heal(BaseModel):
     # none at all for a plan.
     def working(self, *tasks: Task) -> list[Task]:
         return [] if self.plan_only else list(tasks or TASKS)
+
+
+# One pull request, by number, wherever the cwd stands: what `heal.mine`
+# queues for each branch it surveyed work on.
+class HealPr(Heal):
+    number: Annotated[int, Field(ge=1)]
+
+
+# A branch `heal.mine` handed to a cast of its own.
+class Queued(BaseModel):
+    number: int
+    branch: str
+    cast: str
 
 
 # Everything the survey reads about one pull request, read once.
@@ -100,11 +115,24 @@ def joined(*parts: str) -> str:
     return "; ".join(part for part in parts if part)
 
 
+# Every field a cast's step may route forward, in one annotation, so the copy
+# that carries them can be one method.
+_RunUpdate: TypeAlias = dict[
+    str,
+    list[PullRequest]
+    | list[Surveyed | Unsurveyed]
+    | list[Checked]
+    | list[str]
+    | list[Queued]
+    | str,
+]
+
+
 # Every step carries this, because the report is owed however the cast ends.
 class Run(Reserving, Hop):
     project: Project
     bound: Bound = 3
-    attended: bool = False
+    attended: bool = True
     batch: Batch = BATCH
     # Which tasks this cast may work: every one for `heal`, one for a task
     # ritual, none for a plan. The survey still says everything a branch needs.
@@ -118,6 +146,8 @@ class Run(Reserving, Hop):
     # is broken everywhere should pay for that answer once, not once per pull
     # request.
     seen: list[str] = Field(default_factory=list)
+    # `heal.mine`: the branches it handed to a cast of their own.
+    queued: list[Queued] = Field(default_factory=list)
 
     # The cast's own steps and no others: `pacts/heal.py` names one class per
     # step, and the ones that take a branch are `Work`'s, not these.
@@ -127,6 +157,7 @@ class Run(Reserving, Hop):
     # Every step routes state forward by building the next payload from the
     # last, and `model_copy` takes an untyped mapping — so the field list is
     # spelled here once, typed, and `None` means "whatever this one had".
+    # `summoned` is a builder of its own, and both copy through `_copied`.
     def but(
         self,
         *,
@@ -136,14 +167,7 @@ class Run(Reserving, Hop):
         stopped: str | None = None,
         seen: list[str] | None = None,
     ) -> Self:
-        update: dict[
-            str,
-            list[PullRequest]
-            | list[Surveyed | Unsurveyed]
-            | list[Checked]
-            | list[str]
-            | str,
-        ] = {}
+        update: _RunUpdate = {}
         if queue is not None:
             update["queue"] = queue
         if surveyed is not None:
@@ -154,11 +178,19 @@ class Run(Reserving, Hop):
             update["stopped"] = stopped
         if seen is not None:
             update["seen"] = seen
-        return self.model_copy(update=update)
+        return self._copied(update)
 
     # The head of the queue taken off it, its row added.
     def took(self, row: Surveyed | Unsurveyed) -> Self:
         return self.but(queue=self.queue[1:], surveyed=[*self.surveyed, row])
+
+    # `queued` handed to a cast of its own.
+    def summoned(self, queued: Queued) -> Self:
+        return self._copied({"queued": [*self.queued, queued]})
+
+    # The one way a `Run` is copied, typed on the way in as `Work._copied` is.
+    def _copied(self, update: _RunUpdate) -> Self:
+        return self.model_copy(update=update)
 
     # What of `todos` this cast may work, in the order it works them. Never
     # `answer` with nobody at the terminal: every item of a triage is yours to
@@ -227,6 +259,11 @@ class Work(Budgeted, Hop):
     @property
     def blocked(self) -> bool:
         return bool(self.reason)
+
+    # The base as the remote has it: no step stands on the base itself.
+    @property
+    def base_ref(self) -> str:
+        return f"{self.run.project.remote}/{self.pr.base}"
 
     # The steps that take a branch, and no others: ending a branch means
     # routing the `Run` this carries, which has a `to` of its own.
@@ -369,8 +406,9 @@ class Work(Budgeted, Hop):
 
 
 # What the cast came to: every pull request's survey, what became of each
-# branch it worked, and what it never reached.
+# branch it worked or queued a cast for, and what it never reached.
 class Healed(BaseModel):
     surveyed: list[Surveyed | Unsurveyed] = []
     checked: list[Checked] = []
     not_reached: list[str] = []
+    queued: list[Queued] = []

@@ -170,3 +170,23 @@ is a route and not a destination.
 Signed commits stay with `gpg-agent`. A cast that runs unattended cannot type
 a passphrase, so either keep the key unlocked for the night or set
 `sign_commits = false`.
+
+## Worktrees
+
+`heal.mine` queues one `heal.pr` per pull request on the vekna daemon, and
+the daemon runs each in a worktree from its pool. The pool is vekna's, set
+under `[circle]` in `.vekna.toml` or in your vekna user config:
+
+```toml
+[circle]
+worktrees = 3                                  # trees per repository, default 2
+processes = 3                                  # casts running at once
+prepare = "mise install && poetry install"     # once, in each new tree
+```
+
+A tree holds only what git tracks, so `.vekna.toml` must be committed for a
+`heal.pr` to find its `[cabinet]` section. Whatever `prepare` builds must be
+gitignored, or every tree reads dirty and the pool blocks it. A `heal.pr`
+that stands a branch down stashes its changes in its tree; the stash is shared
+by every worktree of the repository, so `git stash list` in your own checkout
+shows it.

@@ -1,6 +1,6 @@
 """Enchantment: ``answer`` settles the review threads on your branch with you.
 
-    vekna cast answer [--plan-only true] [--bound N] --attended true [--batch N]
+    vekna cast answer [--plan-only true] [--bound N] [--batch N]
 
 ``heal.this`` that works the answer task and no other, the way *Command* puts
 one word to each listener. Only an unresolved review thread makes an answer
@@ -27,7 +27,9 @@ from cabinet.gates.ritual.vekna.heal import (
     mend_job,
     merge_base,
     muster_mine,
+    muster_pr,
     muster_this,
+    mustered,
     pick_job,
     post_answers,
     push_work,
@@ -39,25 +41,20 @@ from cabinet.gates.ritual.vekna.heal import (
     settle_left,
     skip_pr,
     stand_down,
+    summon,
     survey,
     sync_branch,
+    tally,
     tend,
 )
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
-from cabinet.pacts.services import services
 from cabinet.specs import HEAL_STEPS
 
 
 @ritual("answer", max_steps=HEAL_STEPS)
 def answer(components: Heal) -> MusterThis:
-    return MusterThis(
-        project=services().project(),
-        bound=components.bound,
-        attended=components.attended,
-        batch=components.batch,
-        tasks=components.working("answer"),
-    )
+    return mustered(MusterThis, components, "answer")
 
 
 __all__ = [
@@ -77,6 +74,7 @@ __all__ = [
     "mend_job",
     "merge_base",
     "muster_mine",
+    "muster_pr",
     "muster_this",
     "pick_job",
     "post_answers",
@@ -89,7 +87,9 @@ __all__ = [
     "settle_left",
     "skip_pr",
     "stand_down",
+    "summon",
     "survey",
     "sync_branch",
+    "tally",
     "tend",
 ]
