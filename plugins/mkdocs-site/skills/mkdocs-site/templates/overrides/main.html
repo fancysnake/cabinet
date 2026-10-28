@@ -1,33 +1,39 @@
 {% extends "base.html" %}
 
+{# The 404 page renders with page unset. page.is_homepage is false for an
+   index.md inside a nav group, so test the source path. #}
+{% set is_home = page and page.file.src_uri == "index.md" %}
+{% set home_title = "<name> — <what it does, in search words>" %}
+
 {% block htmltitle %}
-  {% if page and page.file.src_uri == "index.md" %}
-    <title><name> — <what it does, in search words></title>
+  {% if is_home %}
+    <title>{{ home_title }}</title>
   {% else %}
     {{ super() }}
   {% endif %}
 {% endblock %}
 
 {% block extrahead %}
-{# The 404 page renders with no page behind it. #}
 {% if page %}
   {% set description = page.meta.description or config.site_description %}
-  {% set title = "<name> — <what it does, in search words>" if page.file.src_uri == "index.md" else page.title ~ " — " ~ config.site_name %}
+  {# Material's <title> formula off the homepage. #}
+  {% set title = home_title if is_home else page.title | striptags ~ " - " ~ config.site_name %}
+  {# MkDocs ends site_url with a slash, so none here. #}
   {% set card = config.site_url ~ "assets/<name>-card.png" %}
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="{{ config.site_name }}">
-  <meta property="og:title" content="{{ title }}">
-  <meta property="og:description" content="{{ description }}">
+  <meta property="og:site_name" content="{{ config.site_name | e }}">
+  <meta property="og:title" content="{{ title | e }}">
+  <meta property="og:description" content="{{ description | e }}">
   <meta property="og:url" content="{{ page.canonical_url }}">
   <meta property="og:image" content="{{ card }}">
   <meta property="og:image:width" content="<card width>">
   <meta property="og:image:height" content="<card height>">
   <meta property="og:image:alt" content="<card alt text>">
+  {# X reads og:* for title, description and image. #}
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ title }}">
-  <meta name="twitter:description" content="{{ description }}">
-  <meta name="twitter:image" content="{{ card }}">
-  {% if page.file.src_uri == "index.md" %}
+  {% if is_home %}
+    {# Describes the software as an entity; offers at price 0 marks it free.
+       tojson so a quote in a value cannot break the script. #}
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -38,9 +44,7 @@
         "image": {{ card | tojson }},
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "<Linux, macOS, …>",
-        "programmingLanguage": "<Python | JavaScript>",
         "license": "<license URL>",
-        "codeRepository": {{ config.repo_url | tojson }},
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
       }
     </script>

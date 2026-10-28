@@ -60,9 +60,13 @@ and this project adheres to [Semantic Versioning].
 - **Breaking:** `review` posts the quality review on your branch; it no longer
   answers review threads; `answer` does.
 - `mkdocs-site` plugin: the site it sets up is findable and previews well
-  when linked: an `overrides/main.html` head with Open Graph, Twitter and
-  JSON-LD tags, a description on every page, `robots.txt`, and a check of
-  the built head.
+  when linked: an `overrides/main.html` head with Open Graph and JSON-LD
+  tags, a description on every page, `robots.txt` on a root-hosted site,
+  and a check of the built head. `theme.custom_dir: overrides` is now
+  always set (an existing site without it gets it), and the site
+  workflow's `paths:` filter includes `overrides/**`. Pages make no claim
+  the code does not back, and a diagram gets alt text and is checked
+  against the code it names.
 
 ### Removed
 

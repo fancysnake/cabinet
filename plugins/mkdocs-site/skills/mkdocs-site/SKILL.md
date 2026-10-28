@@ -50,8 +50,9 @@ Before editing, establish:
   and guards (step 4), not copies.
 - **Social card.** A 1200×630 image (or 2400×1260 at 2×) in
   `docs/assets/<name>-card.png`, or the artwork to make one. None → say
-  so in the report; the head tags in step 2a still go in, pointing at the
-  logo, and the card is a follow-up.
+  so in the report; the head tags in step 2a still go in, with `card`
+  pointing at the logo, the `og:image:width` and `og:image:height` tags
+  dropped and `twitter:card` set to `summary`. The card is a follow-up.
 - **Diagrams.** SVGs in `docs/assets/` that no page references. A stray
   one is either a page's missing figure or dead; decide which, do not
   leave it.
@@ -98,25 +99,12 @@ homepage title worth searching for, Open Graph or Twitter tags, structured
 data, `robots.txt`.
 
 Copy `templates/overrides/main.html` to `overrides/main.html` and fill the
-placeholders. Each rule below is a mistake a first attempt makes:
+placeholders; its comments carry the reasons.
 
-- **Guard `page`.** The 404 page renders every block with `page` set to
-  `None`; any `page.<x>` outside a guard fails the build. Every block that
-  reads `page` opens with `{% if page %}` (or `page and …`).
-- **Homepage detection.** `page.is_homepage` is true only for a top-level
-  `index.md`. With `navigation.sections`, `index.md` sits inside a nav
-  group and it is always false. Test `page.file.src_uri == "index.md"`.
-- **Homepage title.** Material renders a bare `site_name` there: one word
-  nobody searches for. Override `htmltitle` with `<name> — <what it does>`,
-  the words someone would type. Not `title:` front matter; it also renames
-  the nav entry.
-- **Card URL.** `config.site_url ~ "assets/…"`. MkDocs normalises
-  `site_url` to end in `/` even though the yaml has none, so the template
-  adds none.
-- **JSON-LD on the homepage only**, values through `| tojson` so a quote
-  in the description cannot break the script. `SoftwareApplication` for a
-  tool or library; `"offers"` with price 0 is what makes it eligible as a
-  free app.
+**Homepage title.** Material renders a bare `site_name` there: one word
+nobody searches for. `home_title` is `<name> — <what it does>`, the words
+someone would type. Not `title:` front matter; it also renames the nav
+entry.
 
 ## 3. The palette
 
@@ -191,13 +179,17 @@ source.
 - **Diagrams.** A page's figure sits after its opening paragraph. Alt
   text is the SVG's own `<desc>`: crawlers index alt text, not text
   inside an SVG loaded through `<img>`. An SVG without `<desc>` gets one.
-- **A diagram that names the code is checked against it** before it is
+  A diagram that names the code is checked against it before it is
   published. Read every `<text>` claim: names, fields, numbers, paths,
   exit codes. Check each one in the source, as a CLI page gets its drift
   guard. Render the changed SVG (headless Chromium:
   `chrome --headless --screenshot=out.png --window-size=<viewBox w,h>
   file://…svg`) and look, since a text edit can overflow its box.
-- **`docs/robots.txt`**, copied to the site root as is:
+- **`docs/robots.txt`**, on a site served at the host root (its own
+  domain, or `<owner>.github.io` itself). Crawlers read `robots.txt` only
+  there, so a project-path site (`<owner>.github.io/<repo>`) gets none and
+  its sitemap goes to Search Console (step 9). Copied to the site root as
+  is:
 
   ```text
   User-agent: *
@@ -348,14 +340,16 @@ and the fix is the page or the config, never `strict: false`.
 Then read the built head instead of trusting the config:
 
 ```bash
-grep -o '<title>[^<]*\|<meta name="description" content="[^"]*' site/index.html site/*/index.html
+# Pages whose description is site_description: they lost their front matter.
+desc=$(sed -n -e 's/^site_description: "\([^"]*\)".*/\1/p' -e t -e 's/^site_description: //p' mkdocs.yml)
+find site -name index.html -exec grep -lF "<meta name=\"description\" content=\"$desc\"" {} +
+grep -o '<title>[^<]*' site/index.html
 grep -c 'og:image' site/index.html
 grep -c 'ld+json' site/index.html     # 1 on the homepage, 0 elsewhere
-ls site/robots.txt site/sitemap.xml
+ls site/sitemap.xml site/robots.txt   # robots.txt only on a root-hosted site
 ```
 
-Every page's description must differ from `site_description`; one that
-matches lost its front matter. Then:
+The `find` prints nothing when every page has its own description. Then:
 
 - README names the site and the build task; `CLAUDE.md` (if any) names the
   task and that strict fails a broken link; `CHANGELOG.md` gets an
