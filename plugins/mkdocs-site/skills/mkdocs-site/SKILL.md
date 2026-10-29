@@ -52,7 +52,9 @@ Before editing, establish:
   `docs/assets/<name>-card.png`, or the artwork to make one. None → say
   so in the report; the head tags in step 2a still go in, with `card`
   pointing at the logo, the `og:image:width` and `og:image:height` tags
-  dropped and `twitter:card` set to `summary`. The card is a follow-up.
+  dropped and `twitter:card` set to `summary`. No logo image either
+  (`theme.icon.logo`) → drop the `og:image*` tags and the JSON-LD
+  `image` too; an inline icon has no URL. The card is a follow-up.
 - **Diagrams.** SVGs in `docs/assets/` that no page references. A stray
   one is either a page's missing figure or dead; decide which, do not
   leave it.
@@ -342,7 +344,7 @@ Then read the built head instead of trusting the config:
 ```bash
 # Pages whose description is site_description: they lost their front matter.
 desc=$(sed -n -e 's/^site_description: "\([^"]*\)".*/\1/p' -e t -e 's/^site_description: //p' mkdocs.yml)
-find site -name index.html -exec grep -lF "<meta name=\"description\" content=\"$desc\"" {} +
+find site -name '*.html' ! -name 404.html -exec grep -lF "<meta name=\"description\" content=\"$desc\"" {} +
 grep -o '<title>[^<]*' site/index.html
 grep -c 'og:image' site/index.html
 grep -c 'ld+json' site/index.html     # 1 on the homepage, 0 elsewhere
