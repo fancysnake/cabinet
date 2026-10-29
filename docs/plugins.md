@@ -118,7 +118,9 @@ Pages workflow.
    the file, so `mkdocs serve` fails the way the build does; the five
    markdown extensions every site uses and none it does not; `nav` as bare
    paths with titles from each page's H1; no `plugins` key unless one is
-   added.
+   added. An `overrides/main.html` head adds what MkDocs leaves out: a
+   searchable homepage title, Open Graph and Twitter tags for the social
+   card, and JSON-LD on the homepage.
 3. **Decides the palette** by what the project has: named Material colours
    and no CSS when it has none of its own, or two schemes named for the
    theme in `docs/stylesheets/<theme>.css` when it does, with the contrast
@@ -127,6 +129,8 @@ Pages workflow.
 4. **Lays out the pages** and includes rather than copies: README sections
    through snippet markers, the changelog whole, an example config inside
    its fence. A page that restates what the code exposes gets a drift test.
+   Every page carries its own quoted `description:`, and diagrams that name
+   the code are checked against it.
 5. **Declares the dependency, the tasks and the workflow**:
    `mkdocs-material` as an optional poetry group in a Python repo or a mise
    `pipx:` tool in a JS one, `site:dev` and `site:build` in both, and
@@ -136,8 +140,9 @@ Pages workflow.
    line, `gh-deploy`, `docs:*` task names, `pip install` in CI, a pasted
    README) is mapped to its standard form; what the table does not name is
    kept.
-7. **Verifies** with the build task and reports one line per file, the
-   Pages setting to flip, and anything it had to assume.
+7. **Verifies** with the build task, reads the built head, and reports one
+   line per file, the Pages setting to flip, the Search Console and GitHub
+   steps only the owner can take, and anything it had to assume.
 
 ## smoke-test
 

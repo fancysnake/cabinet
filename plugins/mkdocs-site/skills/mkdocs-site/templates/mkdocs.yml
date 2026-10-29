@@ -4,7 +4,7 @@
 
 site_name: <name>
 site_url: <step 1's URL>                   # https://…, no trailing slash
-site_description: <one sentence, the README's tagline>
+site_description: "<one sentence, the README's tagline>"  # 140–160 characters, quoted
 repo_url: https://github.com/<owner>/<repo>
 repo_name: <owner>/<repo>
 copyright: <SPDX id of LICENSE>            # MIT, BSD-3-Clause, …
@@ -20,6 +20,7 @@ validation:
 
 theme:
   name: material
+  custom_dir: overrides
   logo: assets/logo.png
   favicon: assets/favicon.png
   palette:

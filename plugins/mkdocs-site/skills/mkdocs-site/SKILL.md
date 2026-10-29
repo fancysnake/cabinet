@@ -14,7 +14,7 @@ description: >-
 One standard, extracted from the sites that already exist, applied to a
 repo that has none or to one that drifted. Commits nothing unless asked.
 
-Three files under `templates/` are the standard's shape; the steps below are
+Four files under `templates/` are the standard's shape; the steps below are
 what you do with them and the rules that decide each key. A rule that names
 a **legacy** form is the upgrade path for that key: found, change it.
 
@@ -23,6 +23,7 @@ a **legacy** form is the upgrade path for that key: found, change it.
 | `templates/mkdocs.yml` | `mkdocs.yml` at the repo root |
 | `templates/site.yml` | `.github/workflows/site.yml` |
 | `templates/theme.css` | `docs/stylesheets/<theme>.css`, with an own palette |
+| `templates/overrides/main.html` | `overrides/main.html` |
 
 ## 1. Read the repo
 
@@ -47,6 +48,16 @@ Before editing, establish:
 - **Prose that already exists.** README sections a page would restate,
   `CHANGELOG.md`, an example config file, a CLI. These become snippets
   and guards (step 4), not copies.
+- **Social card.** A 1200×630 image (or 2400×1260 at 2×) in
+  `docs/assets/<name>-card.png`, or the artwork to make one. None → say
+  so in the report; the head tags in step 2a still go in, with `card`
+  pointing at the logo, the `og:image:width` and `og:image:height` tags
+  dropped and `twitter:card` set to `summary`. No logo image either
+  (`theme.icon.logo`) → drop the `og:image*` tags and the JSON-LD
+  `image` too; an inline icon has no URL. The card is a follow-up.
+- **Diagrams.** SVGs in `docs/assets/` that no page references. A stray
+  one is either a page's missing figure or dead; decide which, do not
+  leave it.
 
 ## 2. The config
 
@@ -59,20 +70,43 @@ What each block is for, and when it changes:
 | key | rule |
 | --- | --- |
 | `site_url` | the URL step 1 established, whichever form it took; where that was the `<repo>.<domain>` convention the hostname comes from the repo name, not the package name. No trailing slash. Legacy: a trailing slash, drop it |
+| `site_description` | one sentence, 140–160 characters, the README's tagline. It is the fallback description for every page that has none, and the search-result snippet for those pages |
 | `repo_name`, `copyright` | both always. Legacy: either missing, add it |
 | `strict` | in the file, not on the command line: `mkdocs serve` then fails the same way. Legacy: `--strict` in a task or workflow, move it into the yaml and drop the flag |
 | `validation` | `{anchors: warn}` always. Legacy: no `validation:` key, add it |
 | `exclude_docs` | files kept in `docs/` for the author (a plan, a runbook) and out of the build; one directory tree, not two |
 | `theme.logo` / `favicon` | `docs/assets/logo.png` and `docs/assets/favicon.png`; no artwork → `theme.icon.logo: material/<icon>` instead |
 | `theme.features` | the template's two always; `navigation.sections` when `nav` has groups; `navigation.footer` for prev/next links; nothing else without a page that needs it |
-| `theme.custom_dir: overrides` | only for an `overrides/main.html` that fills `{% block announce %}` with a status banner |
+| `theme.custom_dir: overrides` | always: `overrides/main.html` carries the SEO head (step 2a). Also where `{% block announce %}` goes for a status banner. Legacy: no `custom_dir`, add it with the template |
 | `extra.social` | github, then PyPI if published, then the owner's site; the site's own URL is not a social link |
 | `markdown_extensions` | only what a page uses, plus the floor: `toc`, `pymdownx.superfences`, and `pymdownx.highlight`, which superfences needs. Every other one — `admonition`, `pymdownx.details`, `pymdownx.snippets`, `attr_list`, `md_in_html`, `def_list`, `pymdownx.keys`, `pymdownx.tabbed: {alternate_style: true}`, `pymdownx.inlinehilite` — goes in when a page uses its syntax and comes out with the last page that used it, the same deletion rule as `theme.features`. Never `tables` or `fenced_code`, MkDocs enables those itself |
 | `pymdownx.highlight` | add `anchor_linenums: true` only when a block uses `linenums` |
-| `plugins` | leave the key out; `search` is on by default and listing `plugins:` without it removes it. Adding a plugin means listing `search` too. Legacy: `plugins: [search]` alone, delete the key |
+| `plugins` | leave the key out; `search` is on by default and listing `plugins:` without it removes it. Adding a plugin means listing `search` too. Legacy: `plugins: [search]` alone, delete the key. Not `social` for the card: it renders images with cairo and pango, a system dependency the site workflow then has to install, for a card most projects already have as a file. Use it only when there is no artwork and per-page cards are wanted |
 | `nav` | paths only, titles come from each page's H1; a `Title: file.md` entry only when the two must differ, so drop it where the title equals the H1. Every page listed. Seven flat entries is the most a sidebar reads well at; eight or more → groups, plus `navigation.sections`. A group with a landing page uses `<group>/index.md` and `navigation.indexes` |
 | `edit_uri` + `content.action.edit` | optional; add both or neither |
 | `docs_dir`, `theme.icon.repo`, `tables` | never; all three are defaults. Legacy: present, delete |
+
+## 2a. The head
+
+What MkDocs already does, so nothing gets added for it:
+
+- `site_url` set → `sitemap.xml` and `sitemap.xml.gz` are written, and
+  every page gets `<link rel="canonical">`.
+- `site_description` → `<meta name="description">` on any page without
+  its own.
+- Each page's H1 → `<title>Page - site_name</title>`.
+
+What it does not do: a per-page description unless the page says so, a
+homepage title worth searching for, Open Graph or Twitter tags, structured
+data, `robots.txt`.
+
+Copy `templates/overrides/main.html` to `overrides/main.html` and fill the
+placeholders; its comments carry the reasons.
+
+**Homepage title.** Material renders a bare `site_name` there: one word
+nobody searches for. `home_title` is `<name> — <what it does>`, the words
+someone would type. Not `title:` front matter; it also renames the nav
+entry.
 
 ## 3. The palette
 
@@ -135,6 +169,36 @@ source.
   It runs in the code's CI. It runs in the site's workflow only when that
   workflow has the `paths:` filter of step 7, since that is the case where
   a docs-only change never reaches the code's CI.
+- **Front matter `description:` on every built page**, 140–160
+  characters, specific to the page, leading with the words a search would
+  use. **Quote the value.** An unquoted value containing `: ` is invalid
+  YAML. MkDocs then renders the block into the page as a rule and a
+  paragraph without failing, even under strict, and the head falls back
+  to `site_description`. Only the built head (step 9) reveals it.
+- **No claim the code does not back.** "Runs Claude Code and other
+  agents" when only one ships is wrong in a snippet that cannot be
+  footnoted.
+- **Diagrams.** A page's figure sits after its opening paragraph. Alt
+  text is the SVG's own `<desc>`: crawlers index alt text, not text
+  inside an SVG loaded through `<img>`. An SVG without `<desc>` gets one.
+  A diagram that names the code is checked against it before it is
+  published. Read every `<text>` claim: names, fields, numbers, paths,
+  exit codes. Check each one in the source, as a CLI page gets its drift
+  guard. Render the changed SVG (headless Chromium:
+  `chrome --headless --screenshot=out.png --window-size=<viewBox w,h>
+  file://…svg`) and look, since a text edit can overflow its box.
+- **`docs/robots.txt`**, on a site served at the host root (its own
+  domain, or `<owner>.github.io` itself). Crawlers read `robots.txt` only
+  there, so a project-path site (`<owner>.github.io/<repo>`) gets none and
+  its sitemap goes to Search Console (step 9). Copied to the site root as
+  is:
+
+  ```text
+  User-agent: *
+  Allow: /
+
+  Sitemap: <site_url>/sitemap.xml
+  ```
 
 Assets in `docs/assets/`, stylesheets in `docs/stylesheets/`.
 
@@ -247,6 +311,8 @@ every current site uses. Then:
   `docs/**`; then this is the workflow a docs-only change runs, and it is
   also where step 4's drift guard has to run, since the code's CI no longer
   sees the change. Without that filter, leave the guard to the code's CI.
+  The filters include `overrides/**` too: without it a change to the head
+  template builds nothing and deploys nothing.
 - A JS site that publishes the app beside the manual (a demo at
   `/demo/`) installs the node dependencies (`aube install`), builds the
   app with its base path set (`<APP>_BASE: /demo`), builds the docs, then
@@ -271,10 +337,35 @@ page uses is a deletion.
 
 Run the build task (`mise run site:build`, or `mkdocs build` where there is
 no mise). Strict means the output is the verdict: a warning is a failure,
-and the fix is the page or the config, never `strict: false`. Then:
+and the fix is the page or the config, never `strict: false`.
+
+Then read the built head instead of trusting the config:
+
+```bash
+# Pages whose description is site_description: they lost their front matter.
+desc=$(sed -n -e 's/^site_description: "\([^"]*\)".*/\1/p' -e t -e 's/^site_description: //p' mkdocs.yml)
+find site -name '*.html' ! -name 404.html -exec grep -lF "<meta name=\"description\" content=\"$desc\"" {} +
+grep -o '<title>[^<]*' site/index.html
+grep -c 'og:image' site/index.html
+grep -c 'ld+json' site/index.html     # 1 on the homepage, 0 elsewhere
+ls site/sitemap.xml site/robots.txt   # robots.txt only on a root-hosted site
+```
+
+The `find` prints nothing when every page has its own description. Then:
 
 - README names the site and the build task; `CLAUDE.md` (if any) names the
   task and that strict fails a broken link; `CHANGELOG.md` gets an
   `Unreleased` line when the site is new or its URL or tasks changed.
 - Report one line per file touched, the Pages setting the user has to
   flip, and anything from step 1 you had to assume.
+- Report what only the owner can do:
+  - Search Console: verify the domain (a parent domain's DNS verification
+    covers subdomains) and submit `<site_url>/sitemap.xml`.
+  - GitHub: set the repository's website to `site_url`; make the
+    description match `site_description`; add topics.
+  - GitHub social preview: 1280×640, uploaded by hand under Settings →
+    General → Social preview (no API). A separate image from the 1200×630
+    site card; GitHub shows it small, so it gets larger type and fewer
+    elements.
+  - After deploy: check the card with opengraph.xyz and the JSON-LD with
+    Google's Rich Results Test.
