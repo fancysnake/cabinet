@@ -196,6 +196,17 @@ def _pull(found: _MergeRequest) -> PullRequest:
     )
 
 
+def _issue(found: _Listed, *, mine: bool) -> Issue:
+    return Issue(
+        number=found.iid,
+        title=found.title,
+        url=found.web_url,
+        body=found.description or "",
+        labels=found.labels,
+        mine=mine,
+    )
+
+
 def _check(found: _Status) -> Check:
     if found.status == _PASSED:
         passed = True
@@ -508,7 +519,7 @@ class GitlabForge(ForgeProtocol):
 
     @override
     async def issues(self) -> Listing:
-        found: dict[int, Issue] = {}
+        found: list[Issue] = []
         truncated = False
         for scope in ("created_by_me", "assigned_to_me"):
             rows = await _read(
@@ -522,22 +533,8 @@ class GitlabForge(ForgeProtocol):
             # A full page may be a short page, as it is for the board: what is
             # past it is not asked for, so the cast never sees it.
             truncated = truncated or len(rows) >= _PAGE
-            # The first listing to name an issue keeps it: an issue you opened
-            # and are assigned stays yours.
-            found = {
-                row.iid: Issue(
-                    number=row.iid,
-                    title=row.title,
-                    url=row.web_url,
-                    body=row.description or "",
-                    labels=row.labels,
-                    mine=scope == "created_by_me",
-                )
-                for row in rows
-            } | found
-        return Listing(
-            issues=[found[number] for number in sorted(found)], truncated=truncated
-        )
+            found += [_issue(row, mine=scope == "created_by_me") for row in rows]
+        return Listing(issues=found, truncated=truncated)
 
     @override
     async def label_issue(

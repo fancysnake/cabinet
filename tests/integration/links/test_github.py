@@ -705,24 +705,15 @@ def _issue(number: int, **extra: object) -> dict[str, object]:
 
 class TestIssues:
     @staticmethod
-    def test_authored_and_assigned_are_merged_once_each_lowest_first(
-        trial: Trial,
-    ) -> None:
+    def test_authored_then_assigned_as_listed(trial: Trial) -> None:
         trial.shell.replies(
             when=_AUTHORED,
             stdout=json.dumps([_issue(9, labels=[{"name": "bug"}]), _issue(4)]),
         )
-        trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4), _issue(2)]))
+        trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4)]))
 
         assert drive(trial, _FORGE.issues) == Listing(
             issues=[
-                Issue(number=2, title="issue 2", url="https://github.com/o/r/issues/2"),
-                Issue(
-                    number=4,
-                    title="issue 4",
-                    url="https://github.com/o/r/issues/4",
-                    mine=True,
-                ),
                 Issue(
                     number=9,
                     title="issue 9",
@@ -730,6 +721,13 @@ class TestIssues:
                     labels=["bug"],
                     mine=True,
                 ),
+                Issue(
+                    number=4,
+                    title="issue 4",
+                    url="https://github.com/o/r/issues/4",
+                    mine=True,
+                ),
+                Issue(number=4, title="issue 4", url="https://github.com/o/r/issues/4"),
             ]
         )
         assert trial.shell.commands == [_AUTHORED, _ASSIGNED]

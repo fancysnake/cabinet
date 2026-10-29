@@ -255,6 +255,17 @@ def _pull(found: _Pull) -> PullRequest:
     )
 
 
+def _issue(found: _Issue, *, mine: bool) -> Issue:
+    return Issue(
+        number=found.number,
+        title=found.title,
+        url=found.url,
+        body=found.body,
+        labels=[label.name for label in found.labels],
+        mine=mine,
+    )
+
+
 def _check(found: _Check) -> Check:
     passed = None if found.conclusion is None else found.conclusion == _PASSED
     return Check(name=found.name, passed=passed, title=found.title or "", id=found.id)
@@ -562,7 +573,7 @@ class GithubForge(ForgeProtocol):
 
     @override
     async def issues(self) -> Listing:
-        found: dict[int, Issue] = {}
+        found: list[Issue] = []
         truncated = False
         for who in ("--author", "--assignee"):
             listed = await asked(
@@ -576,22 +587,8 @@ class GithubForge(ForgeProtocol):
             # A full listing may be a full backlog, and there is no total to
             # compare against: either way the rest of it is unaccounted for.
             truncated = truncated or len(rows) >= _ISSUE_PAGE
-            # The first listing to name an issue keeps it: an issue you opened
-            # and are assigned stays yours.
-            found = {
-                row.number: Issue(
-                    number=row.number,
-                    title=row.title,
-                    url=row.url,
-                    body=row.body,
-                    labels=[label.name for label in row.labels],
-                    mine=who == "--author",
-                )
-                for row in rows
-            } | found
-        return Listing(
-            issues=[found[number] for number in sorted(found)], truncated=truncated
-        )
+            found += [_issue(row, mine=who == "--author") for row in rows]
+        return Listing(issues=found, truncated=truncated)
 
     @override
     async def label_issue(

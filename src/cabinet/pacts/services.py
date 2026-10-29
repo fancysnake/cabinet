@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
     from cabinet.pacts.healing import Facts, Run, Surveyed, Unsurveyed
-    from cabinet.pacts.issues import Identifying, Issue
+    from cabinet.pacts.issues import Identifying, Issue, Listing
     from cabinet.pacts.project import Project
     from cabinet.pacts.pulls import PullRequest
     from cabinet.pacts.repairs import Attempt, Ruling
@@ -45,6 +45,10 @@ class TodosProtocol(Protocol):
 
 
 class BacklogProtocol(Protocol):
+    # The forge's listing with each issue once, lowest number first: one you
+    # opened stays yours though you are also assigned it.
+    def listed(self, listing: Listing) -> Listing: ...
+
     # The issues without a type, or without a size unless they are an epic.
     def unidentified(self, issues: list[Issue]) -> list[Issue]: ...
 

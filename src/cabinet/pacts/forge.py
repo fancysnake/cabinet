@@ -71,8 +71,8 @@ class ForgeProtocol(Protocol):
     # The new issue, by the number the forge gave it.
     async def issue(self, title: str, body: str) -> Opened: ...
 
-    # Every open issue you opened or are assigned, each once, lowest number
-    # first, and whether the forge would list them all.
+    # Every open issue you opened, then every one you are assigned, as the
+    # forge listed them, and whether it would list them all.
     async def issues(self) -> Listing: ...
 
     # The same bargain as `label`, on an issue: an issue and a pull request are
