@@ -138,6 +138,12 @@ has resolved is worth raising again only if the code still has the problem.
 Change no code: this is a review, not a fix.
 """
 
+_GUIDE = """\
+Put the instructions in `body`, as markdown a person follows from the top.
+Run none of it, and change no code: the ritual posts what you write as a
+comment on the pull request, and whoever checks the branch runs it.
+"""
+
 
 # A branch the gates could not make green is reviewed anyway, and then the
 # review's first instinct is to report the red gate — an action item saying
@@ -333,6 +339,13 @@ class Prompts(PromptsProtocol):
             f"{_already_known(reason)}\n{_REVIEW}\n"
             f"The review threads already on the pull request:\n\n{_FENCE}\n"
             f"{_fenced(threads)}"
+        )
+
+    @override
+    def guide(self, project: Project, *, base: str) -> str:
+        return (
+            "Write the manual smoke test for the changes this pull request adds"
+            f" ({base}...HEAD): read {project.smoke_skill} and follow it.\n\n{_GUIDE}"
         )
 
     # The skill is named on the first page only: every page after it continues

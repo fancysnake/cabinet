@@ -449,7 +449,11 @@ class TestWholeCast:
             when=LIST,
             stdout=listing(
                 row(mergeable="CONFLICTING"),
-                row(8, mergeable="MERGEABLE", labels=_labelled("pr::thermo")),
+                row(
+                    8,
+                    mergeable="MERGEABLE",
+                    labels=_labelled("pr::thermo", "v:guide:done"),
+                ),
             ),
         )
         for name in ("feature", "feature-8"):

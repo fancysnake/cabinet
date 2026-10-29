@@ -34,6 +34,9 @@ _THREAD = Thread(
     comments=[Comment(id="101", author="reviewer", body="guard this")],
 )
 _ANCHORED = [Finding(path="src/thing.py", line=12, body="hm")]
+# One line GitLab would run as a quick action, and one it would not.
+_COMMANDING = "fine\n/close\nsee /usr"
+_ESCAPED = "'fine\n\\/close\nsee /usr'"
 # Two anchored items in one review, which is what the diff refs are read once
 # for.
 _SEVERAL = [
@@ -269,6 +272,14 @@ class TestThreads:
         ]
 
     @staticmethod
+    def test_a_reply_escapes_quick_actions(trial: Trial) -> None:
+        trial.shell.replies(when="glab api *")
+
+        drive(trial, lambda: _FORGE.reply(7, _THREAD, _COMMANDING))
+
+        assert trial.shell.commands[-1].endswith(f"-f body={_ESCAPED}")
+
+    @staticmethod
     def test_resolving_is_a_put(trial: Trial) -> None:
         trial.shell.replies(when="glab api *")
 
@@ -425,6 +436,23 @@ class TestComment:
         assert drive(trial, lambda: _FORGE.comment(7, general)) == Posted(count=1)
         assert trial.shell.commands == ["glab mr note 7 -m hm"]
 
+    @staticmethod
+    def test_an_item_escapes_quick_actions_on_a_line_or_off_one(trial: Trial) -> None:
+        refs = {"diff_refs": {"base_sha": "b", "head_sha": "h", "start_sha": "s"}}
+        trial.shell.replies(when=_MR, stdout=json.dumps(refs))
+        trial.shell.replies(when="glab api projects/:id/merge_requests/7/discussions*")
+        trial.shell.replies(when="glab mr note 7*")
+        items = [
+            Finding(path="src/thing.py", line=12, body=_COMMANDING),
+            Finding(path="", body=_COMMANDING),
+        ]
+
+        drive(trial, lambda: _FORGE.comment(7, items))
+
+        _, anchored, general = trial.shell.commands
+        assert f"-f body={_ESCAPED} " in anchored
+        assert general == f"glab mr note 7 -m {_ESCAPED}"
+
     # The refs are the same for every item, so they are read once.
     @staticmethod
     def test_a_whole_review_costs_one_refs_read(trial: Trial) -> None:
@@ -478,6 +506,115 @@ _LINKS = "glab api projects/:id/issues/7/links"
 _LISTED = "glab api 'projects/:id/issues/7/links?per_page=100'"
 
 
+_NOTES = "glab api 'projects/:id/merge_requests/7/notes?per_page=100&page=1'"
+_POSTED = "glab mr note 7 -m '<!-- m -->\n\nhi'"
+
+
+def _noted(trial: Trial, *notes: dict[str, object]) -> None:
+    _logged_in(trial)
+    trial.shell.replies(when=_NOTES, stdout=json.dumps(notes))
+
+
+class TestNote:
+    @staticmethod
+    def test_with_none_marked_the_body_is_posted_under_the_marker(trial: Trial) -> None:
+        _noted(trial, {"id": 5, "body": "lgtm", "author": {"id": 1}})
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+        assert trial.shell.commands == [_USER, _NOTES, _POSTED]
+
+    # GitLab runs a line opening on `/close` as a quick action; an escaped
+    # slash renders the same and runs nothing.
+    @staticmethod
+    def test_a_line_that_would_be_a_quick_action_is_escaped(trial: Trial) -> None:
+        _noted(trial)
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, _COMMANDING, marker="<!-- m -->"))
+
+        assert trial.shell.commands == [
+            _USER,
+            _NOTES,
+            "glab mr note 7 -m '<!-- m -->\n\nfine\n\\/close\nsee /usr'",
+        ]
+
+    @staticmethod
+    def test_an_edit_escapes_quick_actions_too(trial: Trial) -> None:
+        _noted(trial, {"id": 6, "body": "<!-- m -->\n\nold", "author": {"id": 1}})
+        trial.shell.replies(when="glab api projects/:id/merge_requests/7/notes/6*")
+
+        drive(trial, lambda: _FORGE.note(7, _COMMANDING, marker="<!-- m -->"))
+
+        assert trial.shell.commands[-1].endswith(
+            "-f body='<!-- m -->\n\nfine\n\\/close\nsee /usr'"
+        )
+
+    @staticmethod
+    def test_the_first_marked_note_of_yours_is_edited_in_place(trial: Trial) -> None:
+        _noted(
+            trial,
+            {"id": 5, "body": "lgtm", "author": {"id": 1}},
+            {"id": 6, "body": "<!-- m -->\n\nold", "author": {"id": 1}},
+            {"id": 7, "body": "<!-- m -->\n\nolder", "author": {"id": 1}},
+        )
+        trial.shell.replies(when="glab api projects/:id/merge_requests/7/notes/6*")
+
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+        assert trial.shell.commands[-1] == (
+            "glab api projects/:id/merge_requests/7/notes/6 -X PUT"
+            " -f body='<!-- m -->\n\nhi'"
+        )
+
+    # Anyone can type the marker; editing their note would overwrite it.
+    @staticmethod
+    def test_a_marked_note_someone_else_wrote_is_left_alone(trial: Trial) -> None:
+        _noted(
+            trial,
+            {"id": 6, "body": "<!-- m -->\n\nplanted", "author": {"id": 2}},
+            {"id": 7, "body": "<!-- m -->\n\nnobody's"},
+        )
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+        assert trial.shell.commands == [_USER, _NOTES, _POSTED]
+
+    # A note on a line, or in a thread, is a review thread, not the comment.
+    @staticmethod
+    def test_a_marked_note_in_a_review_thread_is_left_alone(trial: Trial) -> None:
+        _noted(
+            trial,
+            {
+                "id": 6,
+                "body": "<!-- m -->\n\non a line",
+                "author": {"id": 1},
+                "position": {"new_path": "a.py", "new_line": 3},
+            },
+            {
+                "id": 7,
+                "body": "<!-- m -->\n\nin a thread",
+                "author": {"id": 1},
+                "resolvable": True,
+            },
+        )
+        trial.shell.replies(when="glab mr note 7*")
+
+        drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+        assert trial.shell.commands == [_USER, _NOTES, _POSTED]
+
+    @staticmethod
+    def test_notes_that_will_not_parse(trial: Trial) -> None:
+        _logged_in(trial)
+        trial.shell.replies(when=_NOTES, stdout="nope")
+
+        with pytest.raises(ForgeError, match="glab returned notes"):
+            drive(trial, lambda: _FORGE.note(7, "hi", marker="<!-- m -->"))
+
+
 class TestIssue:
     @staticmethod
     def test_the_number_and_the_url_are_read_off_the_answer(trial: Trial) -> None:
@@ -495,6 +632,18 @@ class TestIssue:
                 " -f description='a body'"
             )
         ]
+
+    # A description runs quick actions on creation, as a note does.
+    @staticmethod
+    def test_a_description_escapes_quick_actions(trial: Trial) -> None:
+        trial.shell.replies(
+            when="glab api projects/:id/issues -X POST*",
+            stdout='{"iid": 9, "web_url": "https://gitlab.example/o/r/-/issues/9"}',
+        )
+
+        drive(trial, lambda: _FORGE.issue("a title", _COMMANDING))
+
+        assert trial.shell.commands[-1].endswith(f"-f description={_ESCAPED}")
 
     @staticmethod
     def test_an_answer_without_a_url(trial: Trial) -> None:

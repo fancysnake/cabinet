@@ -1,4 +1,4 @@
-"""Whether a thread carries the ritual's own answer, and which issue it was filed as."""
+"""Thread answers, and the issues they were filed as."""
 
 from cabinet.pacts.issues import Issue
 from cabinet.pacts.threads import ANSWERED, Comment, Thread, filed_as, filed_for

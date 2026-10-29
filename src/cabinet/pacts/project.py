@@ -158,6 +158,9 @@ class Project(BaseModel):
     # The skill file `identify` has the agent read once, at the top of its
     # session: what the types and sizes mean and how issues are linked.
     identify_skill: str = "~/.claude/skills/issues/SKILL.md"
+    # The skill file the guide task has its agent follow: the manual check a
+    # person runs before the branch merges.
+    smoke_skill: str = "~/.claude/skills/smoke-test/SKILL.md"
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()

@@ -144,6 +144,10 @@ class QualityReview(Work):
     pass
 
 
+class PostGuide(Work):
+    pass
+
+
 class StandDown(Work):
     pass
 

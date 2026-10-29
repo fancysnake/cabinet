@@ -5,7 +5,7 @@ from itertools import starmap
 
 from typing_extensions import override
 
-from cabinet.pacts.healing import Checked, Run, Surveyed, Todo, Unsurveyed
+from cabinet.pacts.healing import Checked, Run, Surveyed, Task, Unsurveyed
 from cabinet.pacts.issues import (
     EPIC,
     Identification,
@@ -72,7 +72,7 @@ def triage_line(index: int, item: TriageItem) -> str:
 
 
 # A todo with what it would work through, where that is more than its name.
-def _todo(row: Surveyed, todo: Todo) -> str:
+def _todo(row: Surveyed, todo: Task) -> str:
     if todo == "ci":
         return f"ci ({', '.join(check.name for check in row.red)})"
     if todo == "answer":

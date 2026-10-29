@@ -13,6 +13,7 @@ from cabinet.pacts.services import services
 from cabinet.rituals import (
     answer,
     ci,
+    guide,
     heal_mine,
     heal_pr,
     heal_this,
@@ -36,6 +37,7 @@ _HEALS = [
     pytest.param(ci, {"ci": "ci"}, id="ci"),
     pytest.param(answer, {"answer": "answer"}, id="answer"),
     pytest.param(review, {"review": "review"}, id="review"),
+    pytest.param(guide, {"guide": "guide"}, id="guide"),
 ]
 
 
@@ -70,6 +72,7 @@ class TestFacade:
     def test_the_heal_rituals_share_their_steps() -> None:
         assert heal_this.tend is heal_mine.tend is merge.tend is review.tend
         assert ci.tend is answer.tend is heal_mine.tend is heal_pr.tend
+        assert guide.tend is heal_mine.tend
 
     # heal.mine queues heal.pr casts, so a project loading only heal.mine
     # must still have heal.pr to run them.

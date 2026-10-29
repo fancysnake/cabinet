@@ -7,6 +7,7 @@
     vekna cast ci [--plan-only true] [--bound N] [--attended false]
     vekna cast answer [--plan-only true] [--bound N] [--batch N]
     vekna cast review [--plan-only true] [--attended false]
+    vekna cast guide [--plan-only true] [--attended false]
 
 ``heal.mine`` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first, and works none of them itself: each one with
@@ -60,6 +61,10 @@ cannot stand on a base the tree it was made from is standing on. Then
 - **review**: the quality review, as inline comments, then the reviewed label.
   Whatever this cast committed is pushed first, so the comments anchor to code
   the forge has.
+- **guide**, only once nothing else is left: an agent follows the smoke-test
+  skill and writes the manual check for the branch, which goes up as a plain
+  comment, then the qa label. A comment an earlier guide left is edited in
+  place: take the label off to ask for another.
 
 What a cast committed and has not pushed goes up before the branch is left.
 Nothing waits for CI after a push, and nothing merges a branch that is merely
@@ -93,7 +98,7 @@ step budget; one that does not ends the cast without failing it, and the report
 names what was not reached.
 """
 
-from typing import TypeVar
+from typing import TypeAlias, TypeVar
 
 from vekna.folio.flow import decide, enqueue
 from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta, step
@@ -101,6 +106,7 @@ from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.guide import GUIDE_MARK, Guide
 from cabinet.pacts.heal import (
     AnswerGate,
     AnswerThreads,
@@ -121,6 +127,7 @@ from cabinet.pacts.heal import (
     MusterThis,
     PickJob,
     PostAnswers,
+    PostGuide,
     PushWork,
     QualityReview,
     ReadThreads,
@@ -384,13 +391,17 @@ async def sync_branch(work: SyncBranch) -> Chart | SkipPr | SetAside | Tend:
     return work.to(Tend)
 
 
-# Each task's first step. Keyed by every `Task`, so a task added without a
-# step here fails the test that walks each one through `tend`.
-_FIRST: dict[Task, type[MergeBase | RerunJobs | SettleLeft | QualityReview]] = {
+# Each task's first step, the one `tend` hands a branch.
+_First: TypeAlias = MergeBase | RerunJobs | SettleLeft | QualityReview | PostGuide
+
+# Keyed by every `Task`, so a task added without a step here fails the test
+# that walks each one through `tend`.
+_FIRST: dict[Task, type[_First]] = {
     "merge": MergeBase,
     "ci": RerunJobs,
     "answer": SettleLeft,
     "review": QualityReview,
+    "guide": PostGuide,
 }
 
 
@@ -398,9 +409,7 @@ _FIRST: dict[Task, type[MergeBase | RerunJobs | SettleLeft | QualityReview]] = {
 # pushed first: every task after the merge works on code the forge has, and a
 # branch is not left with commits only this worktree holds.
 @step
-def tend(
-    work: Tend,
-) -> PushWork | FinishPr | MergeBase | RerunJobs | SettleLeft | QualityReview:
+def tend(work: Tend) -> PushWork | FinishPr | _First:
     if work.changed:
         return work.to(PushWork)
     if not work.todos:
@@ -1056,6 +1065,40 @@ async def _put_up(project: Project, number: int, findings: list[Finding]) -> str
     if not posted.stopped:
         return ""
     return f"{posted.count} of {len(findings)} review items went up: {posted.stopped}"
+
+
+# --- guide -----------------------------------------------------------------
+
+
+# Post the smoke-test guide and label the branch: like the review, no budget
+# and no loop. The comment goes up before the label, so a label the forge
+# refuses leaves a guide the next cast edits rather than posts again.
+@step
+async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
+    project = work.run.project
+    number = work.pr.number
+    read = (
+        await services()
+        .agent(project)
+        .ask_for(
+            services().prompts.guide(project, base=work.base_ref),
+            output=Guide,
+            role="reader",
+            key=_session(work, "guide"),
+            attended=work.run.attended,
+        )
+    )
+    if isinstance(read, Fallen):
+        return work.abandoned(read.reason).to(Chart)
+    if isinstance(read, Misread):
+        return work.noting(read.reason).to(SetAside)
+    forge = services().forge(project)
+    try:
+        await forge.note(number, read.body, marker=GUIDE_MARK)
+        await forge.label(number, add=[project.labels.qa])
+    except ForgeError as error:
+        return work.noting(str(error)).to(SetAside)
+    return work.to(Tend)
 
 
 # --- endings ---------------------------------------------------------------
