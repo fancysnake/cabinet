@@ -29,7 +29,16 @@ class Issue(BaseModel):
     mine: bool = False
 
 
-# Your open issues as the forge gave them, and whether it gave them all: a
+# Your open issues as the forge lists them: the ones you opened and the ones
+# you are assigned, apart, since an issue can be both, and whether it listed
+# them all.
+class Issues(BaseModel):
+    authored: list[Issue] = []
+    assigned: list[Issue] = []
+    truncated: bool = False
+
+
+# Your open issues once each, and whether the forge listed them all: a
 # listing that hit its cap hides the rest, and a hidden issue looks exactly
 # like a identified one.
 class Listing(BaseModel):

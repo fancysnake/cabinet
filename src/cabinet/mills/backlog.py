@@ -2,22 +2,20 @@
 
 from typing_extensions import override
 
-from cabinet.pacts.issues import EPIC, KINDS, SIZES, Issue, Listing
+from cabinet.pacts.issues import EPIC, KINDS, SIZES, Issue, Issues, Listing
 from cabinet.pacts.services import BacklogProtocol
 
 
 class Backlog(BacklogProtocol):
-    # An issue you opened and are assigned is listed twice, and it is yours
-    # whichever listing came first.
+    # An issue you opened and are assigned is listed in both, and it is yours.
     @override
-    def listed(self, listing: Listing) -> Listing:
-        found: dict[int, Issue] = {}
-        for one in listing.issues:
-            if one.number not in found or one.mine:
-                found[one.number] = one
+    def merged(self, issues: Issues) -> Listing:
+        mine: dict[str, bool] = {"mine": True}
+        found = {one.number: one for one in issues.assigned}
+        found |= {one.number: one.model_copy(update=mine) for one in issues.authored}
         return Listing(
             issues=[found[number] for number in sorted(found)],
-            truncated=listing.truncated,
+            truncated=issues.truncated,
         )
 
     # Identified is a type and then a size, or a type and the epic label: an epic

@@ -8,7 +8,7 @@ from vekna.trial import Trial
 
 from cabinet.links.forge.github import GithubForge
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.issues import Issue, Listing, Opened
+from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 from tests.conftest import comment, drive, node, page, threads_page
@@ -705,45 +705,42 @@ def _issue(number: int, **extra: object) -> dict[str, object]:
 
 class TestIssues:
     @staticmethod
-    def test_authored_then_assigned_as_listed(trial: Trial) -> None:
+    def test_authored_and_assigned_apart(trial: Trial) -> None:
         trial.shell.replies(
             when=_AUTHORED,
             stdout=json.dumps([_issue(9, labels=[{"name": "bug"}]), _issue(4)]),
         )
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_issue(4)]))
+        four = Issue(number=4, title="issue 4", url="https://github.com/o/r/issues/4")
 
-        assert drive(trial, _FORGE.issues) == Listing(
-            issues=[
+        assert drive(trial, _FORGE.issues) == Issues(
+            authored=[
                 Issue(
                     number=9,
                     title="issue 9",
                     url="https://github.com/o/r/issues/9",
                     labels=["bug"],
-                    mine=True,
                 ),
-                Issue(
-                    number=4,
-                    title="issue 4",
-                    url="https://github.com/o/r/issues/4",
-                    mine=True,
-                ),
-                Issue(number=4, title="issue 4", url="https://github.com/o/r/issues/4"),
-            ]
+                four,
+            ],
+            assigned=[four],
         )
         assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
 
     # A listing as long as the limit is a listing with no end in sight, and
     # what is past it is never asked for.
     @staticmethod
-    def test_a_listing_that_hit_the_limit_says_it_was_cut_short(trial: Trial) -> None:
+    @pytest.mark.parametrize(
+        ("full", "empty"), [(_AUTHORED, _ASSIGNED), (_ASSIGNED, _AUTHORED)]
+    )
+    def test_a_listing_that_hit_the_limit_says_it_was_cut_short(
+        trial: Trial, full: str, empty: str
+    ) -> None:
         rows = [_issue(number) for number in range(1, 201)]
-        trial.shell.replies(when=_AUTHORED, stdout=json.dumps(rows))
-        trial.shell.replies(when=_ASSIGNED, stdout="[]")
+        trial.shell.replies(when=full, stdout=json.dumps(rows))
+        trial.shell.replies(when=empty, stdout="[]")
 
-        listing = drive(trial, _FORGE.issues)
-
-        assert listing.truncated
-        assert len(listing.issues) == len(rows)
+        assert drive(trial, _FORGE.issues).truncated
 
     @staticmethod
     def test_a_listing_that_will_not_parse(trial: Trial) -> None:

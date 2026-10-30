@@ -49,7 +49,7 @@ _T = TypeVar("_T")
 async def gather(identifying: Gather) -> Tally | Leaf:
     backlog = services().backlog
     try:
-        listed = backlog.listed(await services().forge(identifying.project).issues())
+        listed = backlog.merged(await services().forge(identifying.project).issues())
     except ForgeError as error:
         return identifying.but(stopped=str(error)).to(Tally)
     return identifying.but(

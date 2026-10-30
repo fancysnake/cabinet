@@ -810,7 +810,7 @@ async def settle_left(work: SettleLeft) -> ReadThreads | Tend:
         # Only a thread with no reply yet can have an issue filed for it.
         unanswered = any(not thread.answered for thread in threads)
         listing = (
-            services().backlog.listed(await forge.issues()) if unanswered else Listing()
+            services().backlog.merged(await forge.issues()) if unanswered else Listing()
         )
     except ForgeError as error:
         return work.noting(str(error)).to(Tend)

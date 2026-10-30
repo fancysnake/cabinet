@@ -8,7 +8,7 @@ from vekna.trial import Trial
 
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
-from cabinet.pacts.issues import Issue, Listing, Opened
+from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 from tests.conftest import drive
@@ -776,44 +776,43 @@ def _listed(iid: int, **extra: object) -> dict[str, object]:
 
 class TestIssues:
     @staticmethod
-    def test_created_then_assigned_as_listed(trial: Trial) -> None:
+    def test_created_and_assigned_apart(trial: Trial) -> None:
         nine = _listed(9, description="why", labels=["S"])
         trial.shell.replies(when=_AUTHORED, stdout=json.dumps([nine]))
         trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([nine, _listed(2)]))
+        read = Issue(
+            number=9,
+            title="issue 9",
+            url="https://gitlab.example/o/r/-/issues/9",
+            body="why",
+            labels=["S"],
+        )
 
-        assert drive(trial, _FORGE.issues) == Listing(
-            issues=[
-                Issue(
-                    number=9,
-                    title="issue 9",
-                    url="https://gitlab.example/o/r/-/issues/9",
-                    body="why",
-                    labels=["S"],
-                    mine=True,
-                ),
-                Issue(
-                    number=9,
-                    title="issue 9",
-                    url="https://gitlab.example/o/r/-/issues/9",
-                    body="why",
-                    labels=["S"],
-                ),
+        assert drive(trial, _FORGE.issues) == Issues(
+            authored=[read],
+            assigned=[
+                read,
                 Issue(
                     number=2,
                     title="issue 2",
                     url="https://gitlab.example/o/r/-/issues/2",
                 ),
-            ]
+            ],
         )
         assert trial.shell.commands == [_AUTHORED, _ASSIGNED]
 
     # A full page may be a short page, as it is for the board.
     @staticmethod
-    def test_a_full_page_says_the_listing_was_cut_short(trial: Trial) -> None:
+    @pytest.mark.parametrize(
+        ("full", "empty"), [(_AUTHORED, _ASSIGNED), (_ASSIGNED, _AUTHORED)]
+    )
+    def test_a_full_page_says_the_listing_was_cut_short(
+        trial: Trial, full: str, empty: str
+    ) -> None:
         trial.shell.replies(
-            when=_AUTHORED, stdout=json.dumps([_listed(iid) for iid in range(1, 101)])
+            when=full, stdout=json.dumps([_listed(iid) for iid in range(1, 101)])
         )
-        trial.shell.replies(when=_ASSIGNED, stdout="[]")
+        trial.shell.replies(when=empty, stdout="[]")
 
         assert drive(trial, _FORGE.issues).truncated
 
