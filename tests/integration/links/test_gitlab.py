@@ -779,7 +779,7 @@ class TestIssues:
     def test_created_then_assigned_as_listed(trial: Trial) -> None:
         nine = _listed(9, description="why", labels=["S"])
         trial.shell.replies(when=_AUTHORED, stdout=json.dumps([nine]))
-        trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([_listed(2)]))
+        trial.shell.replies(when=_ASSIGNED, stdout=json.dumps([nine, _listed(2)]))
 
         assert drive(trial, _FORGE.issues) == Listing(
             issues=[
@@ -790,6 +790,13 @@ class TestIssues:
                     body="why",
                     labels=["S"],
                     mine=True,
+                ),
+                Issue(
+                    number=9,
+                    title="issue 9",
+                    url="https://gitlab.example/o/r/-/issues/9",
+                    body="why",
+                    labels=["S"],
                 ),
                 Issue(
                     number=2,
