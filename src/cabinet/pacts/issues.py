@@ -149,10 +149,14 @@ class Identified(BaseModel):
 # each write the forge refused on it.
 class Pinned(BaseModel):
     outcome: Literal["identified"] = "identified"
-    number: int
     item: IdentifiedItem
     opened: list[int] = []
     refused: list[str] = []
+
+    # The reading's own number, so no second one can disagree with it.
+    @property
+    def number(self) -> int:
+        return self.item.number
 
 
 # An issue nothing went on: the agent did not answer for it, or it was on the

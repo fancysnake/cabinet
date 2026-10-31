@@ -170,13 +170,11 @@ class TestIdentify:
             project=_PROJECT,
             identified=[
                 Pinned(
-                    number=3,
                     item=IdentifiedItem(
                         number=3, kind="feature", size="M", blocked_by=[4]
-                    ),
+                    )
                 ),
                 Pinned(
-                    number=4,
                     item=IdentifiedItem(
                         number=4,
                         kind="edit",
@@ -187,13 +185,9 @@ class TestIdentify:
                     opened=[10, 11],
                 ),
                 Pinned(
-                    number=5,
-                    item=IdentifiedItem(
-                        number=5, kind="chore", note="need the metrics"
-                    ),
+                    item=IdentifiedItem(number=5, kind="chore", note="need the metrics")
                 ),
                 Pinned(
-                    number=6,
                     item=IdentifiedItem(
                         number=6, kind="bug", size="S", blocked_by=[3, 5]
                     ),

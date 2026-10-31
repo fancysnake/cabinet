@@ -61,7 +61,7 @@ def _labelled(number: int) -> str:
 
 
 def _identified(*numbers: int) -> list[Identification]:
-    return [Pinned(number=number, item=_item(number)) for number in numbers]
+    return [Pinned(item=_item(number)) for number in numbers]
 
 
 class TestGather:
@@ -226,7 +226,7 @@ class TestPin:
         transition = trial.walk(pin, Pinning(page=page, items=[item]))
 
         assert isinstance(transition, Leaf)
-        assert transition.identified == [Pinned(number=1, item=item, opened=[10])]
+        assert transition.identified == [Pinned(item=item, opened=[10])]
         assert trial.shell.commands[-1] == (
             "gh api repos/{owner}/{repo}/issues/1/sub_issues -X POST -F sub_issue_id=99"
         )
@@ -294,11 +294,7 @@ class TestPin:
             briefed=True,
             identified=[
                 *_identified(1),
-                Pinned(
-                    number=2,
-                    item=_item(2),
-                    refused=["could not label #2: no such label"],
-                ),
+                Pinned(item=_item(2), refused=["could not label #2: no such label"]),
                 *_identified(3),
             ],
         )
@@ -326,7 +322,6 @@ class TestPin:
             briefed=True,
             identified=[
                 Pinned(
-                    number=number,
                     item=_item(number),
                     refused=[f"could not label #{number}: auth expired"],
                 )
@@ -359,11 +354,7 @@ class TestPin:
 
         assert isinstance(transition, Leaf)
         assert transition.identified == [
-            Pinned(
-                number=1,
-                item=item,
-                refused=["could not say #1 is blocked by #6: Not Found"],
-            )
+            Pinned(item=item, refused=["could not say #1 is blocked by #6: Not Found"])
         ]
         assert trial.shell.commands[-1].endswith("blocked_by -X POST -F issue_id=99")
 
@@ -390,9 +381,7 @@ class TestPin:
 
         assert isinstance(transition, Leaf)
         assert transition.identified == [
-            Pinned(
-                number=1, item=item, refused=["could not open the issue: rate limited"]
-            )
+            Pinned(item=item, refused=["could not open the issue: rate limited"])
         ]
         assert trial.shell.commands[-1].startswith(
             "gh api repos/{owner}/{repo}/issues -X POST"
@@ -437,7 +426,6 @@ class TestPin:
         assert isinstance(transition, Leaf)
         assert transition.identified == [
             Pinned(
-                number=1,
                 item=item,
                 opened=[10],
                 refused=["could not attach #10 under #1: attach refused"],

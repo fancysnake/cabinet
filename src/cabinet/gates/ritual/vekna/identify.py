@@ -128,12 +128,7 @@ async def _put(forge: ForgeProtocol, item: IdentifiedItem) -> tuple[Pinned, int]
         await _tried(forge.attach(item.number, child), said)
     for blocker in item.blocked_by:
         await _tried(forge.blocks(item.number, blocker), said)
-    row = Pinned(
-        number=item.number,
-        item=item,
-        opened=opened,
-        refused=[one for one in said if one],
-    )
+    row = Pinned(item=item, opened=opened, refused=[one for one in said if one])
     return row, len(said)
 
 
