@@ -9,7 +9,7 @@ from vekna.lexicon import RitualError
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from cabinet.pacts.issues import Listing, Opened
+    from cabinet.pacts.issues import Issues, Opened
     from cabinet.pacts.project import LabelSpec
     from cabinet.pacts.pulls import Board, Check, PullRequest
     from cabinet.pacts.threads import Finding, Posted, Thread
@@ -71,9 +71,9 @@ class ForgeProtocol(Protocol):
     # The new issue, by the number the forge gave it.
     async def issue(self, title: str, body: str) -> Opened: ...
 
-    # Every open issue you opened or are assigned, each once, lowest number
-    # first, and whether the forge would list them all.
-    async def issues(self) -> Listing: ...
+    # Every open issue you opened and every one you are assigned, as the forge
+    # listed them, and whether it would list them all.
+    async def issues(self) -> Issues: ...
 
     # The same bargain as `label`, on an issue: an issue and a pull request are
     # different things to both forges' clients, and only one command edits each.

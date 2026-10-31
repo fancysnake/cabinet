@@ -16,7 +16,7 @@ from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
-from cabinet.pacts.issues import Issue, Listing, Opened
+from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
@@ -196,6 +196,16 @@ def _pull(found: _MergeRequest) -> PullRequest:
     )
 
 
+def _issue(found: _Listed) -> Issue:
+    return Issue(
+        number=found.iid,
+        title=found.title,
+        url=found.web_url,
+        body=found.description or "",
+        labels=found.labels,
+    )
+
+
 def _check(found: _Status) -> Check:
     if found.status == _PASSED:
         passed = True
@@ -243,6 +253,16 @@ async def _project_id() -> int:
         _PROJECT, _api("projects/:id"), "glab could not read the project", "a project"
     )
     return project.id
+
+
+# Your open issues by one `scope`, `created_by_me` or `assigned_to_me`.
+async def _issue_rows(scope: str) -> list[_Listed]:
+    return await _read(
+        _LISTED,
+        _api(f"projects/:id/issues?state=opened&scope={scope}&per_page={_PAGE}"),
+        "glab could not list your issues",
+        "issues",
+    )
 
 
 # Both relationships are the one endpoint with a different `link_type`, and
@@ -507,36 +527,15 @@ class GitlabForge(ForgeProtocol):
         return Opened(number=opened.iid, url=opened.web_url)
 
     @override
-    async def issues(self) -> Listing:
-        found: dict[int, Issue] = {}
-        truncated = False
-        for scope in ("created_by_me", "assigned_to_me"):
-            rows = await _read(
-                _LISTED,
-                _api(
-                    f"projects/:id/issues?state=opened&scope={scope}&per_page={_PAGE}"
-                ),
-                "glab could not list your issues",
-                "issues",
-            )
+    async def issues(self) -> Issues:
+        authored = await _issue_rows("created_by_me")
+        assigned = await _issue_rows("assigned_to_me")
+        return Issues(
+            authored=[_issue(row) for row in authored],
+            assigned=[_issue(row) for row in assigned],
             # A full page may be a short page, as it is for the board: what is
             # past it is not asked for, so the cast never sees it.
-            truncated = truncated or len(rows) >= _PAGE
-            # The first listing to name an issue keeps it: an issue you opened
-            # and are assigned stays yours.
-            found = {
-                row.iid: Issue(
-                    number=row.iid,
-                    title=row.title,
-                    url=row.web_url,
-                    body=row.description or "",
-                    labels=row.labels,
-                    mine=scope == "created_by_me",
-                )
-                for row in rows
-            } | found
-        return Listing(
-            issues=[found[number] for number in sorted(found)], truncated=truncated
+            truncated=max(len(authored), len(assigned)) >= _PAGE,
         )
 
     @override

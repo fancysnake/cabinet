@@ -17,7 +17,7 @@ from vekna.folio.shell import shell
 
 from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
-from cabinet.pacts.issues import Issue, Listing, Opened
+from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
@@ -255,6 +255,16 @@ def _pull(found: _Pull) -> PullRequest:
     )
 
 
+def _issue(found: _Issue) -> Issue:
+    return Issue(
+        number=found.number,
+        title=found.title,
+        url=found.url,
+        body=found.body,
+        labels=[label.name for label in found.labels],
+    )
+
+
 def _check(found: _Check) -> Check:
     passed = None if found.conclusion is None else found.conclusion == _PASSED
     return Check(name=found.name, passed=passed, title=found.title or "", id=found.id)
@@ -310,6 +320,16 @@ async def _id(number: int) -> str:
         f"gh api {_ID.format(number=number)}", f"could not read the id of #{number}"
     )
     return said.strip()
+
+
+# Your open issues by one `gh issue list` filter, `--author` or `--assignee`.
+async def _issue_rows(who: str) -> list[_Issue]:
+    listed = await asked(_ISSUES.format(who=who), "gh could not list your issues")
+    try:
+        return _ISSUE_LIST.validate_json(listed)
+    except ValidationError as error:
+        msg = f"gh returned issues this could not read: {error}"
+        raise ForgeError(msg) from error
 
 
 # The numbers already on one end of a relationship.
@@ -561,36 +581,15 @@ class GithubForge(ForgeProtocol):
         return Opened(number=opened.number, url=opened.html_url)
 
     @override
-    async def issues(self) -> Listing:
-        found: dict[int, Issue] = {}
-        truncated = False
-        for who in ("--author", "--assignee"):
-            listed = await asked(
-                _ISSUES.format(who=who), "gh could not list your issues"
-            )
-            try:
-                rows = _ISSUE_LIST.validate_json(listed)
-            except ValidationError as error:
-                msg = f"gh returned issues this could not read: {error}"
-                raise ForgeError(msg) from error
+    async def issues(self) -> Issues:
+        authored = await _issue_rows("--author")
+        assigned = await _issue_rows("--assignee")
+        return Issues(
+            authored=[_issue(row) for row in authored],
+            assigned=[_issue(row) for row in assigned],
             # A full listing may be a full backlog, and there is no total to
             # compare against: either way the rest of it is unaccounted for.
-            truncated = truncated or len(rows) >= _ISSUE_PAGE
-            # The first listing to name an issue keeps it: an issue you opened
-            # and are assigned stays yours.
-            found = {
-                row.number: Issue(
-                    number=row.number,
-                    title=row.title,
-                    url=row.url,
-                    body=row.body,
-                    labels=[label.name for label in row.labels],
-                    mine=who == "--author",
-                )
-                for row in rows
-            } | found
-        return Listing(
-            issues=[found[number] for number in sorted(found)], truncated=truncated
+            truncated=max(len(authored), len(assigned)) >= _ISSUE_PAGE,
         )
 
     @override
