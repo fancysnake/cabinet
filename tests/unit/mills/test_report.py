@@ -2,7 +2,7 @@
 
 from cabinet.mills.report import Report
 from cabinet.pacts.healing import Checked, Queued, Run, Surveyed, Unsurveyed
-from cabinet.pacts.issues import Identification, IdentifiedItem, Identifying, Issue
+from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.threads import Finding, TriageItem
@@ -169,16 +169,14 @@ class TestIdentify:
         identifying = Identifying(
             project=_PROJECT,
             identified=[
-                Identification(
+                Pinned(
                     number=3,
-                    outcome="identified",
                     item=IdentifiedItem(
                         number=3, kind="feature", size="M", blocked_by=[4]
                     ),
                 ),
-                Identification(
+                Pinned(
                     number=4,
-                    outcome="identified",
                     item=IdentifiedItem(
                         number=4,
                         kind="edit",
@@ -188,22 +186,20 @@ class TestIdentify:
                     ),
                     opened=[10, 11],
                 ),
-                Identification(
+                Pinned(
                     number=5,
-                    outcome="identified",
                     item=IdentifiedItem(
                         number=5, kind="chore", note="need the metrics"
                     ),
                 ),
-                Identification(
+                Pinned(
                     number=6,
-                    outcome="identified",
                     item=IdentifiedItem(
                         number=6, kind="bug", size="S", blocked_by=[3, 5]
                     ),
                     refused=["could not say #6 is blocked by #3: taken", "gh died"],
                 ),
-                Identification(number=7, outcome="missed"),
+                Left(number=7, outcome="missed"),
             ],
         )
 
@@ -255,7 +251,7 @@ class TestIdentify:
         identifying = Identifying(
             project=_PROJECT,
             queue=[_ISSUE],
-            identified=[Identification(number=2, outcome="stopped")],
+            identified=[Left(number=2, outcome="stopped")],
             stopped="the agent stopped mid-flight",
         )
 

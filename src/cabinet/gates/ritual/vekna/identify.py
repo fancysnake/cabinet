@@ -33,7 +33,9 @@ from cabinet.pacts.issues import (
     Identified,
     IdentifiedItem,
     Identifying,
+    Left,
     Page,
+    Pinned,
     Pinning,
 )
 from cabinet.pacts.services import services
@@ -112,9 +114,7 @@ async def _tried(write: Awaitable[_T], said: list[str]) -> _T | None:
 # blocks it. No write waits on another but a part's label and attach on the
 # part being opened, so a refused one is named and the rest still go on.
 # Beside the row, how many writes it tried.
-async def _put(
-    forge: ForgeProtocol, item: IdentifiedItem
-) -> tuple[Identification, int]:
+async def _put(forge: ForgeProtocol, item: IdentifiedItem) -> tuple[Pinned, int]:
     opened: list[int] = []
     said: list[str] = []
     await _tried(forge.label_issue(item.number, add=item.wanted()), said)
@@ -128,9 +128,8 @@ async def _put(
         await _tried(forge.attach(item.number, child), said)
     for blocker in item.blocked_by:
         await _tried(forge.blocks(item.number, blocker), said)
-    row = Identification(
+    row = Pinned(
         number=item.number,
-        outcome="identified",
         item=item,
         opened=opened,
         refused=[one for one in said if one],
@@ -149,16 +148,17 @@ async def pin(pinning: Pinning) -> Tally | Leaf:
     forge = services().forge(page.identifying.project)
     items = {item.number: item for item in pinning.items}
     rows: list[Identification] = []
+    refused: list[str] = []
     writes = 0
     for one in page.issues:
         if (item := items.get(one.number)) is None:
-            rows.append(Identification(number=one.number, outcome="missed"))
+            rows.append(Left(number=one.number, outcome="missed"))
             continue
         row, taken = await _put(forge, item)
         rows.append(row)
+        refused += row.refused
         writes += taken
     identifying = page.identifying.rowed(rows).but(briefed=True)
-    refused = [said for row in rows for said in row.refused]
     if writes and len(refused) == writes:
         stopped = f"the forge refused every write on the page, first: {refused[0]}"
         return identifying.but(stopped=stopped).to(Tally)
