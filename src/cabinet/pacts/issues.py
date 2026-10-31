@@ -6,7 +6,7 @@ reads names the same types, sizes and epic label, and a project that renamed
 them would be identified against words its agent has never heard.
 """
 
-from typing import Literal, Self, TypeVar, get_args
+from typing import Annotated, Literal, Self, TypeVar, get_args
 
 from pydantic import BaseModel, Field
 
@@ -144,18 +144,26 @@ class Identified(BaseModel):
     items: list[IdentifiedItem]
 
 
-Outcome = Literal["identified", "missed", "stopped"]
-
-
-# One issue's ending: what was read of it, the sub-issues the ritual opened
-# under it, which are numbers only the forge could say, and each write the
-# forge refused on it.
-class Identification(BaseModel):
+# An issue the ritual put a reading on: what was read of it, the sub-issues
+# the ritual opened under it, which are numbers only the forge could say, and
+# each write the forge refused on it.
+class Pinned(BaseModel):
+    outcome: Literal["identified"] = "identified"
     number: int
-    outcome: Outcome
-    item: IdentifiedItem | None = None
+    item: IdentifiedItem
     opened: list[int] = []
     refused: list[str] = []
+
+
+# An issue nothing went on: the agent did not answer for it, or it was on the
+# page the cast stopped on.
+class Left(BaseModel):
+    outcome: Literal["missed", "stopped"]
+    number: int
+
+
+# One issue's ending. Tagged, because every hop goes through JSON and back.
+Identification = Annotated[Pinned | Left, Field(discriminator="outcome")]
 
 
 # What the cast is still to do and what it has done.
@@ -213,10 +221,7 @@ class Page(BaseModel):
     # Every issue on the page rowed as stopped: the page the cast stopped on.
     def stopped(self) -> Identifying:
         return self.identifying.rowed(
-            [
-                Identification(number=one.number, outcome="stopped")
-                for one in self.issues
-            ]
+            [Left(number=one.number, outcome="stopped") for one in self.issues]
         )
 
 
