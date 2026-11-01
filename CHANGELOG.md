@@ -80,6 +80,10 @@ and this project adheres to [Semantic Versioning].
   the `ci` task's `covering` jobs replace `cover`. Answering threads returns
   with the `answer` task.
 - **Breaking:** `labels.pr`, replaced by `labels.heal`.
+- `issues` plugin: filing an issue no longer asks for a priority or sets
+  `backlog`, a priority label, or issue or Project fields; it sets only the
+  type, size and links.
+  ([#116](https://github.com/fancysnake/cabinet/issues/116))
 - **Breaking:** the `started`/`done` checkpoint labels and
   `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.
 

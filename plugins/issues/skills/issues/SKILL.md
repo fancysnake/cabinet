@@ -50,14 +50,10 @@ the code it touches before judging.
    something similar exists, ask what to do.
 3. Write the body as a STAGE or a Slice (see [Bodies](#bodies)), never a
    plan. Ask about conceptual ambiguities, not implementation details.
-4. Set what the repo offers, create nothing, and report what is missing in one
-   line:
-   - type and size labels, as above;
-   - `backlog` and a priority label (`P1`–`P3`) where they exist, asking the
-     user for the priority;
-   - issue fields or Project fields where they exist. Discover them with
-     `gh label list`, `issueTypes` / `issueFields` over `gh api graphql`, and
-     `gh project field-list`.
+4. Set the type and size labels, the issue type where the repo has them, and
+   the [links](#links), and nothing else. Create no label; report a missing
+   one in one line. Discover them with `gh label list` and `issueTypes` over
+   `gh api graphql`.
 
    Under cabinet's `identify`, see [Identifying a backlog](#identifying-a-backlog).
 
