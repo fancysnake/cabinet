@@ -12,6 +12,7 @@ from cabinet.pacts.issues import (
     IdentifiedItem,
     Identifying,
     Issue,
+    Left,
 )
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import ReportProtocol
@@ -48,8 +49,9 @@ def _sized(item: IdentifiedItem) -> str:
 # sub-issues opened under it, then what it was linked to and the note, then
 # each write the forge refused on it, a line apiece.
 def _identified(row: Identification) -> str:
-    if (item := row.item) is None:
+    if isinstance(row, Left):
         return f"  #{row.number}: {_LEFT[row.outcome]}"
+    item = row.item
     opened = f", opened {_numbers(row.opened)}" if row.opened else ""
     line = f"  #{row.number} {item.kind}/{_sized(item)}{opened}"
     if linked := [*item.children, *item.blocked_by]:

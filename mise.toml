@@ -24,9 +24,7 @@ TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml tingle.toml"
 includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"]
 
 [tasks.update]
-run = [
-    { task = "dep:upgrade:py" },
-]
+run = [{ task = "dep:upgrade:py" }]
 
 [tasks."lint:deptry"]
 description = "Find declared-but-unused and used-but-undeclared dependencies"
