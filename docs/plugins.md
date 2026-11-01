@@ -39,16 +39,15 @@ its agent read it too, from `identify_skill`.
    epic that does not. The skill's
    [Bodies](https://github.com/fancysnake/cabinet/blob/main/plugins/issues/skills/issues/SKILL.md#bodies)
    holds the fields of each. Conceptual ambiguities are asked about;
-   implementation details are not. `backlog`, a priority and any issue or
-   Project fields are set where the repository has them, and nothing is
-   created.
+   implementation details are not. The issue gets its type, size and links,
+   nothing else, and no label is created.
 4. **Links**: sub-issue for a part of an epic, blocked-by only when the order
    is real, a `Related: #n` line otherwise. A likely duplicate is named in a
    comment, never closed. On GitLab, whose epics are Premium, parts are linked
    and named in the body.
 
 `vekna cast labels.identify` makes the type, size and epic labels. Needs `gh`
-(or `glab`) logged in; setting Project fields needs the `project` token scope.
+(or `glab`) logged in.
 
 ## release-bump
 
