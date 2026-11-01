@@ -16,7 +16,7 @@ from tests.conftest import comment, drive, node, page, threads_page
 _FORGE = GithubForge()
 
 _LIST = (
-    "gh pr list --author @me --state open --limit 100 "
+    "gh pr list --author @me --state open --limit 1000 "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 _BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100'"
@@ -74,7 +74,7 @@ class TestPulls:
             when=_LIST, stdout=json.dumps([_row(7, labels=[{"name": "pr::wait"}])])
         )
 
-        assert drive(trial, _FORGE.pulls) == [
+        assert drive(trial, _FORGE.pulls).pulls == [
             PullRequest(
                 number=7,
                 title="pr 7",
@@ -86,6 +86,27 @@ class TestPulls:
             )
         ]
         assert trial.shell.commands == [_LIST]
+
+    @staticmethod
+    def test_more_than_a_hundred_are_listed_whole(trial: Trial) -> None:
+        trial.shell.replies(
+            when=_LIST, stdout=json.dumps([_row(number) for number in range(1, 151)])
+        )
+
+        listed = drive(trial, _FORGE.pulls)
+
+        assert [pull.number for pull in listed.pulls] == list(range(1, 151))
+        assert not listed.truncated
+
+    # gh lists your pull requests through search, which stops at a thousand:
+    # what is past it is never asked for.
+    @staticmethod
+    def test_a_listing_that_hit_the_limit_says_it_was_cut_short(trial: Trial) -> None:
+        trial.shell.replies(
+            when=_LIST, stdout=json.dumps([_row(number) for number in range(1, 1001)])
+        )
+
+        assert drive(trial, _FORGE.pulls).truncated
 
     @staticmethod
     def test_a_gh_that_will_not_answer(trial: Trial) -> None:
@@ -113,7 +134,7 @@ class TestPulls:
             when=_LIST, stdout=json.dumps([_row(7, mergeable=mergeable)])
         )
 
-        assert drive(trial, _FORGE.pulls)[0].conflicted is conflicted
+        assert drive(trial, _FORGE.pulls).pulls[0].conflicted is conflicted
 
 
 class TestLabels:

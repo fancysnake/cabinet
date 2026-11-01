@@ -22,6 +22,10 @@ _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
 # The two things that turn a cast down: vekna's flag, and ours.
 _WAITING = "waiting for you, cast without --unattended or --attended false:"
+_TRUNCATED = (
+    "the forge listed as many of your open pull requests as it gives at once:"
+    " there are more, and this cast never saw them"
+)
 
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")
@@ -112,6 +116,10 @@ def _ending(run: Run, lines: list[str]) -> str:
     # one of them trains the eye past it. A cast that failed left them
     # behind; one out of steps left them for the next cast.
     not_reached = ", ".join(pull.branch for pull in run.queue)
+    # A pull request the listing never reached looks exactly like one nothing
+    # wanted doing to.
+    if run.truncated:
+        lines += ["", _TRUNCATED]
     if run.stopped:
         lines += ["", f"not reached: {not_reached}"] if not_reached else []
         lines += ["", f"the cast failed: {run.stopped}"]

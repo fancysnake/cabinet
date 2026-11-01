@@ -17,7 +17,7 @@ _FORGE = GitlabForge()
 
 _LIST = (
     "glab api 'projects/:id/merge_requests"
-    "?scope=created_by_me&state=opened&per_page=100'"
+    "?scope=created_by_me&state=opened&per_page=100&page=1'"
 )
 _DISCUSSIONS = (
     "glab api 'projects/:id/merge_requests/7/discussions?per_page=100&page=1'"
@@ -91,7 +91,7 @@ class TestPulls:
             when=_LIST, stdout=json.dumps([_mr(7, labels=["pr::wait"])])
         )
 
-        assert drive(trial, _FORGE.pulls) == [
+        assert drive(trial, _FORGE.pulls).pulls == [
             PullRequest(
                 number=7,
                 title="mr 7",
@@ -103,6 +103,23 @@ class TestPulls:
             )
         ]
         assert trial.shell.commands == [_LIST]
+
+    # A full page is not the whole listing: the merge request past it is as
+    # much yours as the first.
+    @staticmethod
+    def test_a_full_page_is_followed_by_the_next(trial: Trial) -> None:
+        trial.shell.replies(
+            when=_LIST, stdout=json.dumps([_mr(iid) for iid in range(1, 101)])
+        )
+        trial.shell.replies(
+            when=_LIST.replace("&page=1", "&page=2"),
+            stdout=json.dumps([_mr(iid) for iid in range(101, 151)]),
+        )
+
+        listed = drive(trial, _FORGE.pulls)
+
+        assert [pull.number for pull in listed.pulls] == list(range(1, 151))
+        assert not listed.truncated
 
     @staticmethod
     def test_a_glab_that_will_not_answer(trial: Trial) -> None:
@@ -135,7 +152,7 @@ class TestPulls:
         found = _mr(7, detailed_merge_status=status, has_conflicts=has_conflicts)
         trial.shell.replies(when=_LIST, stdout=json.dumps([found]))
 
-        assert drive(trial, _FORGE.pulls)[0].conflicted is conflicted
+        assert drive(trial, _FORGE.pulls).pulls[0].conflicted is conflicted
 
 
 class TestLabels:

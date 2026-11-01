@@ -19,16 +19,19 @@ from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
-from cabinet.pacts.pulls import Board, Check, PullRequest
+from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
 # `labels` rides along so the wait label can be read without a call per pull
 # request: the listing is the only place every open branch is in hand at once.
 # `--limit` because gh's own default is thirty, and a pull request that falls
-# off the end of the listing is one no ritual ever sees. A hundred, which is
-# what the GitLab adapter pages at.
+# off the end of the listing is one no ritual ever sees. gh pages behind it,
+# but `--author` sends it through search, which stops at a thousand: a listing
+# that comes back this long is reported as truncated.
+_PULL_PAGE = 1000
+
 _LIST = (
-    "gh pr list --author @me --state open --limit 100 "
+    f"gh pr list --author @me --state open --limit {_PULL_PAGE} "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 
@@ -419,13 +422,14 @@ async def _thread(found: _Thread) -> Thread:
 
 class GithubForge(ForgeProtocol):
     @override
-    async def pulls(self) -> list[PullRequest]:
+    async def pulls(self) -> PullListing:
         listed = await asked(_LIST, "gh could not list your pull requests")
         try:
-            return [_pull(found) for found in _PULLS.validate_json(listed)]
+            found = [_pull(row) for row in _PULLS.validate_json(listed)]
         except ValidationError as error:
             msg = f"gh returned something unreadable: {error}"
             raise ForgeError(msg) from error
+        return PullListing(pulls=found, truncated=len(found) >= _PULL_PAGE)
 
     @override
     async def labels(self, number: int) -> list[str]:

@@ -157,7 +157,7 @@ from cabinet.pacts.healing import (
 )
 from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import CiJob, Project
-from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.pulls import PullListing, PullRequest
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
@@ -194,7 +194,7 @@ def mustered(kind: type[_RunT], components: Heal, *tasks: Task) -> _RunT:
 
 # Before the first fetch: an ssh remote would ask for a passphrase on a
 # terminal no command under a cast has, and the answer is a config line.
-async def _listed(run: Run) -> list[PullRequest]:
+async def _listed(run: Run) -> PullListing:
     await services().scm(run.project).preflight()
     return await services().forge(run.project).pulls()
 
@@ -210,23 +210,24 @@ def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
 @step
 async def muster_mine(run: MusterMine) -> Tally | Summon:
     try:
-        pulls = await _listed(run)
+        listing = await _listed(run)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Tally)
-    return _queued(run, services().pulls.wanted(pulls, run.project), Summon)
+    queue = services().pulls.wanted(listing.pulls, run.project)
+    return _queued(run.listed(listing), queue, Summon)
 
 
 # The open pull request of yours for the branch at the cwd.
 @step
 async def muster_this(run: MusterThis) -> Chart | Survey:
     try:
-        pulls = await _listed(run)
+        listing = await _listed(run)
         here = await services().scm(run.project).here()
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
-    if not (queue := services().pulls.at(pulls, here)):
+    if not (queue := services().pulls.at(listing.pulls, here)):
         stopped = f"no open pull request of yours has {here} as its branch"
-        return run.but(stopped=stopped).to(Chart)
+        return run.listed(listing).but(stopped=stopped).to(Chart)
     return _queued(run, queue, Survey)
 
 
@@ -237,12 +238,12 @@ async def muster_this(run: MusterThis) -> Chart | Survey:
 async def muster_pr(mustering: MusterPr) -> Chart | Survey:
     run = mustering.run
     try:
-        pulls = await _listed(run)
+        listing = await _listed(run)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
-    if not (queue := services().pulls.numbered(pulls, mustering.number)):
+    if not (queue := services().pulls.numbered(listing.pulls, mustering.number)):
         stopped = f"no open pull request of yours is #{mustering.number}"
-        return run.but(stopped=stopped).to(Chart)
+        return run.listed(listing).but(stopped=stopped).to(Chart)
     return _queued(run, queue, Survey)
 
 

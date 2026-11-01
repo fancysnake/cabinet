@@ -138,6 +138,36 @@ class TestMuster:
         assert transition.reserved == services().steps.opening(2)
 
     @staticmethod
+    def test_mine_carries_a_listing_cut_short_to_the_report(
+        trial: Trial, project: Project
+    ) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(*(row(number) for number in range(1, 1001)))
+        )
+
+        transition = trial.walk(muster_mine, MusterMine(project=project))
+
+        assert isinstance(transition, Summon)
+        assert transition.truncated
+
+    # The one branch it wants may be past the end of the listing.
+    @staticmethod
+    def test_this_missing_from_a_listing_cut_short_says_so(
+        trial: Trial, project: Project
+    ) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(*(row(number) for number in range(8, 1008)))
+        )
+        trial.shell.replies(when=HERE, stdout="elsewhere\n")
+
+        transition = trial.walk(muster_this, MusterThis(project=project))
+
+        assert isinstance(transition, Chart)
+        assert transition.truncated
+
+    @staticmethod
     def test_this_takes_the_branch_at_the_cwd(trial: Trial, project: Project) -> None:
         _preflight(trial)
         trial.shell.replies(when=LIST, stdout=listing(row(8), row(7)))

@@ -83,6 +83,10 @@ fits its step budget. One that does not fit ends the cast without failing it,
 and the report names the branches left for the next cast. The budget fits a
 hundred branches at the default `--bound`.
 
+Every open pull request of yours is listed: GitLab's listing is read to the
+end, and GitHub's stops at the thousand its search returns. A listing that
+stops short says so in the report.
+
 ## merge
 
 *Transmutation.* `heal.this` with the merge task alone, the way *Mending*

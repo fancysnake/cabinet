@@ -87,6 +87,13 @@ and this project adheres to [Semantic Versioning].
 - **Breaking:** the `started`/`done` checkpoint labels and
   `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.
 
+### Fixed
+
+- The heal rituals see every open pull request of yours, not the first
+  hundred: GitLab's listing is paged to the end, and GitHub's goes to the
+  thousand its search returns. A listing cut short says so in the report.
+  ([#127](https://github.com/fancysnake/cabinet/issues/127))
+
 ### Security
 
 - On GitLab, a line opening with `/` in a note, reply or issue description

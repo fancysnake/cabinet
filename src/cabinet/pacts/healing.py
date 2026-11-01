@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Bound, Check, PullRequest
+from cabinet.pacts.pulls import Board, Bound, Check, PullListing, PullRequest
 from cabinet.pacts.threads import Thread
 
 _RunT = TypeVar("_RunT", bound="Run")
@@ -120,7 +120,8 @@ _RunUpdate: TypeAlias = dict[
     | list[Checked]
     | list[str]
     | list[Queued]
-    | str,
+    | str
+    | bool,
 ]
 
 
@@ -137,6 +138,9 @@ class Run(Reserving, Hop):
     surveyed: list[Surveyed | Unsurveyed] = Field(default_factory=list)
     checked: list[Checked] = Field(default_factory=list)
     stopped: str = ""
+    # The forge listed as many of your open pull requests as it gives, and
+    # the rest never reached this cast.
+    truncated: bool = False
     # Every verdict a gate on this cast has given up on, carried across
     # branches so the next one can recognise it: a cast where the same thing
     # is broken everywhere should pay for that answer once, not once per pull
@@ -179,6 +183,10 @@ class Run(Reserving, Hop):
     # The head of the queue taken off it, its row added.
     def took(self, row: Surveyed | Unsurveyed) -> Self:
         return self.but(queue=self.queue[1:], surveyed=[*self.surveyed, row])
+
+    # Whether `listing` stopped short of your last open pull request.
+    def listed(self, listing: PullListing) -> Self:
+        return self._copied({"truncated": listing.truncated})
 
     # `queued` handed to a cast of its own.
     def summoned(self, queued: Queued) -> Self:
