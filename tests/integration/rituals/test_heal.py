@@ -225,6 +225,20 @@ class TestMuster:
         assert transition.reserved == services().steps.opening(1)
 
     @staticmethod
+    def test_pr_found_in_a_listing_cut_short_says_so(
+        trial: Trial, project: Project
+    ) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(*(row(number) for number in range(7, 1007)))
+        )
+
+        transition = trial.walk(muster_pr, MusterPr(run=Run(project=project), number=7))
+
+        assert isinstance(transition, Survey)
+        assert transition.truncated
+
+    @staticmethod
     def test_pr_that_is_no_longer_open_goes_to_the_report(
         trial: Trial, project: Project
     ) -> None:

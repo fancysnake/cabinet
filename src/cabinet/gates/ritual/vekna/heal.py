@@ -157,7 +157,7 @@ from cabinet.pacts.healing import (
 )
 from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import CiJob, Project
-from cabinet.pacts.pulls import PullListing, PullRequest
+from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
@@ -193,10 +193,13 @@ def mustered(kind: type[_RunT], components: Heal, *tasks: Task) -> _RunT:
 
 
 # Before the first fetch: an ssh remote would ask for a passphrase on a
-# terminal no command under a cast has, and the answer is a config line.
-async def _listed(run: Run) -> PullListing:
+# terminal no command under a cast has, and the answer is a config line. The
+# run comes back already marked with whether the listing was cut short, so no
+# exit can drop that.
+async def _listed(run: _RunT) -> tuple[_RunT, list[PullRequest]]:
     await services().scm(run.project).preflight()
-    return await services().forge(run.project).pulls()
+    listing = await services().forge(run.project).pulls()
+    return run.listed(listing), listing.pulls
 
 
 # Queued, with every step that works no branch spoken for now that the queue
@@ -210,25 +213,25 @@ def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
 @step
 async def muster_mine(run: MusterMine) -> Tally | Summon:
     try:
-        listing = await _listed(run)
+        run, pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Tally)
-    queue = services().pulls.wanted(listing.pulls, run.project)
-    return _queued(run.listed(listing), queue, Summon)
+    queue = services().pulls.wanted(pulls, run.project)
+    return _queued(run, queue, Summon)
 
 
 # The open pull request of yours for the branch at the cwd.
 @step
 async def muster_this(run: MusterThis) -> Chart | Survey:
     try:
-        listing = await _listed(run)
+        run, pulls = await _listed(run)
         here = await services().scm(run.project).here()
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
-    if not (queue := services().pulls.at(listing.pulls, here)):
+    if not (queue := services().pulls.at(pulls, here)):
         stopped = f"no open pull request of yours has {here} as its branch"
-        return run.listed(listing).but(stopped=stopped).to(Chart)
-    return _queued(run.listed(listing), queue, Survey)
+        return run.but(stopped=stopped).to(Chart)
+    return _queued(run, queue, Survey)
 
 
 # The open pull request of yours `heal.mine` queued this cast for. Surveyed
@@ -238,12 +241,12 @@ async def muster_this(run: MusterThis) -> Chart | Survey:
 async def muster_pr(mustering: MusterPr) -> Chart | Survey:
     run = mustering.run
     try:
-        listing = await _listed(run)
+        run, pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
-    if not (queue := services().pulls.numbered(listing.pulls, mustering.number)):
+    if not (queue := services().pulls.numbered(pulls, mustering.number)):
         stopped = f"no open pull request of yours is #{mustering.number}"
-        return run.listed(listing).but(stopped=stopped).to(Chart)
+        return run.but(stopped=stopped).to(Chart)
     return _queued(run, queue, Survey)
 
 
@@ -320,12 +323,10 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
 
 # Nothing to await: this routes and renders. The summary is said before the
 # failure is raised, which is the whole reason every ending routes here rather
-# than raising where it happened. A plan adds nothing to the lines the survey
-# already said, bar a listing cut short, which those lines would pass off as
-# the whole of it.
+# than raising where it happened.
 @step
 def chart(run: Chart) -> Done[Healed]:
-    if run.stopped or run.tasks or run.truncated:
+    if run.has_news():
         emit_delta(services().report.healed(run))
     if run.stopped:
         raise RitualError(run.stopped)
@@ -341,7 +342,7 @@ def chart(run: Chart) -> Done[Healed]:
 # `chart` for `heal.mine`: the casts it queued rather than branches it worked.
 @step
 def tally(run: Tally) -> Done[Healed]:
-    if run.stopped or run.tasks or run.truncated:
+    if run.has_news():
         emit_delta(services().report.queued(run))
     if run.stopped:
         raise RitualError(run.stopped)

@@ -217,6 +217,12 @@ class Run(Reserving, Hop):
             if isinstance(row, Surveyed) and "answer" in row.todos
         ]
 
+    # Whether the ending has anything to say past the lines the survey
+    # already said. A plan adds nothing to those, bar a listing cut short,
+    # which they would pass off as the whole of it.
+    def has_news(self) -> bool:
+        return bool(self.stopped or self.tasks or self.truncated)
+
     # `pull` taken with the tasks it will get and the red checks `ci` works
     # through, and the worst it can spend spoken for. A fresh `Work` per pull
     # request, so no budget survives the branch change.

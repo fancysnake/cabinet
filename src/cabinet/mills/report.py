@@ -22,10 +22,6 @@ _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
 # The two things that turn a cast down: vekna's flag, and ours.
 _WAITING = "waiting for you, cast without --unattended or --attended false:"
-_TRUNCATED = (
-    "the forge listed as many of your open pull requests as it gives at once:"
-    " there may be more, and this cast would not have seen them"
-)
 
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")
@@ -101,6 +97,15 @@ def _line(row: Checked) -> str:
     return f"  #{row.number} {row.branch}: {_OUTCOME[row.outcome]}, {ahead}{note}"
 
 
+# Said wherever the forge stopped listing `what` at its cap: one the listing
+# never reached looks exactly like one nothing wanted doing to.
+def _cut_short(what: str) -> str:
+    return (
+        f"the forge listed as many of your open {what} as it gives at once:"
+        " there may be more, and this cast would not have seen them"
+    )
+
+
 # What follows a heal cast's rows, however it took its branches.
 def _ending(run: Run, lines: list[str]) -> str:
     # Said wherever the cast left any, as the way to get them answered: a
@@ -111,15 +116,13 @@ def _ending(run: Run, lines: list[str]) -> str:
         lines += [
             f"  #{row.number} {row.branch}: {_threads(row.threads)}" for row in waiting
         ]
+    if run.truncated:
+        lines += ["", _cut_short("pull requests")]
     # Only when there are any, unlike the rows: a cast that reached every
     # pull request is the normal one, and a line saying "none" on every
     # one of them trains the eye past it. A cast that failed left them
     # behind; one out of steps left them for the next cast.
     not_reached = ", ".join(pull.branch for pull in run.queue)
-    # A pull request the listing never reached looks exactly like one nothing
-    # wanted doing to.
-    if run.truncated:
-        lines += ["", _TRUNCATED]
     if run.stopped:
         lines += ["", f"not reached: {not_reached}"] if not_reached else []
         lines += ["", f"the cast failed: {run.stopped}"]
@@ -174,16 +177,9 @@ class Report(ReportProtocol):
         lines += [_identified(row) for row in identifying.identified] or [
             "  (none wanted identifying)"
         ]
-        # An issue the listing never reached looks exactly like one nothing
-        # wanted doing to, so the count above is a count of what was seen.
+        # The count above is a count of what was seen.
         if identifying.truncated:
-            lines += [
-                "",
-                (
-                    "the forge listed as many of your open issues as it gives at"
-                    " once: there may be more, and this cast would not have seen them"
-                ),
-            ]
+            lines += ["", _cut_short("issues")]
         if identifying.stopped:
             lines += ["", f"the cast stopped: {identifying.stopped}"]
             if left := identifying.queue:
