@@ -228,7 +228,7 @@ async def muster_this(run: MusterThis) -> Chart | Survey:
     if not (queue := services().pulls.at(listing.pulls, here)):
         stopped = f"no open pull request of yours has {here} as its branch"
         return run.listed(listing).but(stopped=stopped).to(Chart)
-    return _queued(run, queue, Survey)
+    return _queued(run.listed(listing), queue, Survey)
 
 
 # The open pull request of yours `heal.mine` queued this cast for. Surveyed
@@ -320,11 +320,12 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
 
 # Nothing to await: this routes and renders. The summary is said before the
 # failure is raised, which is the whole reason every ending routes here rather
-# than raising where it happened. A plan has nothing to add to the lines the
-# survey already said.
+# than raising where it happened. A plan adds nothing to the lines the survey
+# already said, bar a listing cut short, which those lines would pass off as
+# the whole of it.
 @step
 def chart(run: Chart) -> Done[Healed]:
-    if run.stopped or run.tasks:
+    if run.stopped or run.tasks or run.truncated:
         emit_delta(services().report.healed(run))
     if run.stopped:
         raise RitualError(run.stopped)
@@ -340,7 +341,7 @@ def chart(run: Chart) -> Done[Healed]:
 # `chart` for `heal.mine`: the casts it queued rather than branches it worked.
 @step
 def tally(run: Tally) -> Done[Healed]:
-    if run.stopped or run.tasks:
+    if run.stopped or run.tasks or run.truncated:
         emit_delta(services().report.queued(run))
     if run.stopped:
         raise RitualError(run.stopped)

@@ -162,9 +162,27 @@ class TestMuster:
         )
         trial.shell.replies(when=HERE, stdout="elsewhere\n")
 
+        assert trial.walk(muster_this, MusterThis(project=project)) == Run(
+            project=project,
+            stopped="no open pull request of yours has elsewhere as its branch",
+            truncated=True,
+        ).to(Chart)
+
+    # A branch may have a second pull request, against another base, past the
+    # end of the listing.
+    @staticmethod
+    def test_this_found_in_a_listing_cut_short_says_so(
+        trial: Trial, project: Project
+    ) -> None:
+        _preflight(trial)
+        trial.shell.replies(
+            when=LIST, stdout=listing(*(row(number) for number in range(7, 1007)))
+        )
+        trial.shell.replies(when=HERE, stdout="feature\n")
+
         transition = trial.walk(muster_this, MusterThis(project=project))
 
-        assert isinstance(transition, Chart)
+        assert isinstance(transition, Survey)
         assert transition.truncated
 
     @staticmethod

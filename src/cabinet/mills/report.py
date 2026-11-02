@@ -24,7 +24,7 @@ _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 _WAITING = "waiting for you, cast without --unattended or --attended false:"
 _TRUNCATED = (
     "the forge listed as many of your open pull requests as it gives at once:"
-    " there are more, and this cast never saw them"
+    " there may be more, and this cast would not have seen them"
 )
 
 
@@ -181,7 +181,7 @@ class Report(ReportProtocol):
                 "",
                 (
                     "the forge listed as many of your open issues as it gives at"
-                    " once: there are more, and this cast never saw them"
+                    " once: there may be more, and this cast would not have seen them"
                 ),
             ]
         if identifying.stopped:

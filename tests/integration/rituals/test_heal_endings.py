@@ -336,6 +336,26 @@ class TestChart:
         assert trial.walk(chart, run.to(Chart)) == Done(Healed(surveyed=[planned]))
         assert trial.deltas == []
 
+    # A plan is how a cast is previewed, and a listing cut short would preview
+    # as the whole of it.
+    @staticmethod
+    def test_a_plan_on_a_listing_cut_short_says_so(
+        trial: Trial, project: Project
+    ) -> None:
+        run = Run(project=project, tasks=[], truncated=True)
+
+        assert trial.walk(chart, run.to(Chart)) == Done(Healed())
+        assert "the forge listed as many" in trial.deltas[0]
+
+    @staticmethod
+    def test_a_planned_tally_on_a_listing_cut_short_says_so(
+        trial: Trial, project: Project
+    ) -> None:
+        run = Run(project=project, tasks=[], truncated=True)
+
+        assert trial.walk(tally, run.to(Tally)) == Done(Healed())
+        assert "the forge listed as many" in trial.deltas[0]
+
     @staticmethod
     def test_a_cast_out_of_steps_ends_without_failing(
         trial: Trial, project: Project, pull: PullRequest

@@ -115,7 +115,7 @@ class TestHealed:
         assert _REPORT.queued(_run(truncated=True)) == (
             "heal — 0 queued\n\n  (none)\n\n"
             "the forge listed as many of your open pull requests as it gives at"
-            " once: there are more, and this cast never saw them\n"
+            " once: there may be more, and this cast would not have seen them\n"
         )
 
 
@@ -241,7 +241,7 @@ class TestIdentify:
             "  (none wanted identifying)\n"
             "\n"
             "the forge listed as many of your open issues as it gives at once:"
-            " there are more, and this cast never saw them"
+            " there may be more, and this cast would not have seen them"
         )
 
     @staticmethod
