@@ -18,7 +18,7 @@ from cabinet.links.forge.asking import asked, quoted
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
-from cabinet.pacts.pulls import Board, Check, PullRequest
+from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Thread
 
 _PAGE = 100
@@ -357,14 +357,14 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
 
 class GitlabForge(ForgeProtocol):
     @override
-    async def pulls(self) -> list[PullRequest]:
-        listed = await _read(
+    async def pulls(self) -> PullListing:
+        listed = await _pages(
             _MERGE_REQUESTS,
-            _api(_LIST),
+            _LIST,
             "glab could not list your merge requests",
             "merge requests",
         )
-        return [_pull(found) for found in listed]
+        return PullListing(pulls=[_pull(found) for found in listed])
 
     @override
     async def labels(self, number: int) -> list[str]:

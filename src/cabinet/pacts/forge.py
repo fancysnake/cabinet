@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from cabinet.pacts.issues import Issues, Opened
     from cabinet.pacts.project import LabelSpec
-    from cabinet.pacts.pulls import Board, Check, PullRequest
+    from cabinet.pacts.pulls import Board, Check, PullListing
     from cabinet.pacts.threads import Finding, Posted, Thread
 
 
@@ -23,7 +23,7 @@ class ForgeError(RitualError):
 
 class ForgeProtocol(Protocol):
     # Every open pull request of yours, as the forge lists them.
-    async def pulls(self) -> list[PullRequest]: ...
+    async def pulls(self) -> PullListing: ...
 
     async def labels(self, number: int) -> list[str]: ...
 

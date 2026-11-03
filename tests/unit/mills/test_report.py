@@ -108,6 +108,16 @@ class TestHealed:
             "out of steps, left for the next cast: feature\n"
         )
 
+    # A pull request the listing never reached looks exactly like one nothing
+    # wanted doing to.
+    @staticmethod
+    def test_a_listing_the_forge_cut_short_says_so() -> None:
+        assert _REPORT.queued(_run(truncated=True)) == (
+            "heal — 0 queued\n\n  (none)\n\n"
+            "the forge listed as many of your open pull requests as it gives at"
+            " once: there may be more, and this cast would not have seen them\n"
+        )
+
 
 class TestTriage:
     @staticmethod
@@ -231,7 +241,7 @@ class TestIdentify:
             "  (none wanted identifying)\n"
             "\n"
             "the forge listed as many of your open issues as it gives at once:"
-            " there are more, and this cast never saw them"
+            " there may be more, and this cast would not have seen them"
         )
 
     @staticmethod

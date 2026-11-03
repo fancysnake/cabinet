@@ -193,10 +193,13 @@ def mustered(kind: type[_RunT], components: Heal, *tasks: Task) -> _RunT:
 
 
 # Before the first fetch: an ssh remote would ask for a passphrase on a
-# terminal no command under a cast has, and the answer is a config line.
-async def _listed(run: Run) -> list[PullRequest]:
+# terminal no command under a cast has, and the answer is a config line. The
+# run comes back already marked with whether the listing was cut short, so no
+# exit can drop that.
+async def _listed(run: _RunT) -> tuple[_RunT, list[PullRequest]]:
     await services().scm(run.project).preflight()
-    return await services().forge(run.project).pulls()
+    listing = await services().forge(run.project).pulls()
+    return run.listed(listing), listing.pulls
 
 
 # Queued, with every step that works no branch spoken for now that the queue
@@ -210,17 +213,18 @@ def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
 @step
 async def muster_mine(run: MusterMine) -> Tally | Summon:
     try:
-        pulls = await _listed(run)
+        run, pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Tally)
-    return _queued(run, services().pulls.wanted(pulls, run.project), Summon)
+    queue = services().pulls.wanted(pulls, run.project)
+    return _queued(run, queue, Summon)
 
 
 # The open pull request of yours for the branch at the cwd.
 @step
 async def muster_this(run: MusterThis) -> Chart | Survey:
     try:
-        pulls = await _listed(run)
+        run, pulls = await _listed(run)
         here = await services().scm(run.project).here()
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
@@ -237,7 +241,7 @@ async def muster_this(run: MusterThis) -> Chart | Survey:
 async def muster_pr(mustering: MusterPr) -> Chart | Survey:
     run = mustering.run
     try:
-        pulls = await _listed(run)
+        run, pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
     if not (queue := services().pulls.numbered(pulls, mustering.number)):
@@ -319,11 +323,10 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
 
 # Nothing to await: this routes and renders. The summary is said before the
 # failure is raised, which is the whole reason every ending routes here rather
-# than raising where it happened. A plan has nothing to add to the lines the
-# survey already said.
+# than raising where it happened.
 @step
 def chart(run: Chart) -> Done[Healed]:
-    if run.stopped or run.tasks:
+    if run.has_news():
         emit_delta(services().report.healed(run))
     if run.stopped:
         raise RitualError(run.stopped)
@@ -339,7 +342,7 @@ def chart(run: Chart) -> Done[Healed]:
 # `chart` for `heal.mine`: the casts it queued rather than branches it worked.
 @step
 def tally(run: Tally) -> Done[Healed]:
-    if run.stopped or run.tasks:
+    if run.has_news():
         emit_delta(services().report.queued(run))
     if run.stopped:
         raise RitualError(run.stopped)

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Bound, Check, PullRequest
+from cabinet.pacts.pulls import Board, Bound, Check, PullListing, PullRequest
 from cabinet.pacts.threads import Thread
 
 _RunT = TypeVar("_RunT", bound="Run")
@@ -120,7 +120,8 @@ _RunUpdate: TypeAlias = dict[
     | list[Checked]
     | list[str]
     | list[Queued]
-    | str,
+    | str
+    | bool,
 ]
 
 
@@ -137,6 +138,9 @@ class Run(Reserving, Hop):
     surveyed: list[Surveyed | Unsurveyed] = Field(default_factory=list)
     checked: list[Checked] = Field(default_factory=list)
     stopped: str = ""
+    # The forge listed as many of your open pull requests as it gives, and
+    # the rest never reached this cast.
+    truncated: bool = False
     # Every verdict a gate on this cast has given up on, carried across
     # branches so the next one can recognise it: a cast where the same thing
     # is broken everywhere should pay for that answer once, not once per pull
@@ -180,6 +184,10 @@ class Run(Reserving, Hop):
     def took(self, row: Surveyed | Unsurveyed) -> Self:
         return self.but(queue=self.queue[1:], surveyed=[*self.surveyed, row])
 
+    # Whether `listing` stopped short of your last open pull request.
+    def listed(self, listing: PullListing) -> Self:
+        return self._copied({"truncated": listing.truncated})
+
     # `queued` handed to a cast of its own.
     def summoned(self, queued: Queued) -> Self:
         return self._copied({"queued": [*self.queued, queued]})
@@ -208,6 +216,12 @@ class Run(Reserving, Hop):
             for row in self.surveyed
             if isinstance(row, Surveyed) and "answer" in row.todos
         ]
+
+    # Whether the ending has anything to say past the lines the survey
+    # already said. A plan adds nothing to those, bar a listing cut short,
+    # which they would pass off as the whole of it.
+    def has_news(self) -> bool:
+        return bool(self.stopped or self.tasks or self.truncated)
 
     # `pull` taken with the tasks it will get and the red checks `ci` works
     # through, and the worst it can spend spoken for. A fresh `Work` per pull

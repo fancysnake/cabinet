@@ -31,6 +31,14 @@ class PullRequest(BaseModel):
         return label in self.labels
 
 
+# Your open pull requests, and whether the forge listed them all: a listing
+# that hit its cap hides the rest, and a hidden pull request looks exactly
+# like one with nothing to do.
+class PullListing(BaseModel):
+    pulls: list[PullRequest] = []
+    truncated: bool = False
+
+
 # What CI says about one thing it ran. `passed` is None while a run is still
 # going, which is why nothing reads it as anything but "not success yet".
 # `title` is the one-line summary a job writes for itself: absent for most of
