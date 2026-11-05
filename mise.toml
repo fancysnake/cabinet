@@ -19,9 +19,12 @@ SRC_PATHS = "src"
 TEST_PATHS = "tests"
 SCRIPT_PATHS = ""
 TOML_PATHS = ".taplo.toml .vekna.toml pyproject.toml mise.toml tingle.toml"
+TEST_ENV_FILE = ".env.test"
 
 [task_config]
-includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"]
+includes = [
+    "git::https://github.com/fancysnake/shared-configs.git//python.toml?ref=b6b86faa90848e7f6e0cf8a11e0cc1ada439e8d2",
+]
 
 [tasks.update]
 run = [{ task = "dep:upgrade:py" }]
