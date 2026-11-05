@@ -30,8 +30,10 @@ class TestAsk:
     def test_every_call_is_bound_by_its_role(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        assert drive(trial, lambda: _AGENT.ask("do it", role="writer")) is None
-        assert trial.coding.calls[0].model == "opus"
+        assert (
+            drive(trial, lambda: _AGENT.ask("do it", job="fix", role="writer")) is None
+        )
+        assert trial.coding.calls[0].model == "sonnet"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
             allowed_tools=_WRITER,
@@ -41,10 +43,23 @@ class TestAsk:
         assert trial.coding.calls[0].resume is None
 
     @staticmethod
+    def test_the_job_picks_the_model(trial: Trial) -> None:
+        trial.coding.replies("did it")
+        agent = ClaudeAgent(
+            Project.model_validate({"agent": {"models": {"fix": "claude-opus-5-5"}}})
+        )
+
+        drive(trial, lambda: agent.ask("do it", job="fix", role="writer"))
+
+        assert trial.coding.calls[0].model == "claude-opus-5-5"
+
+    @staticmethod
     def test_an_attended_call_runs_in_auto_mode(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        drive(trial, lambda: _AGENT.ask("do it", role="writer", attended=True))
+        attended = ClaudeAgent(_PROJECT, attended=True)
+
+        drive(trial, lambda: attended.ask("do it", job="fix", role="writer"))
 
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="auto", allowed_tools=_WRITER, effort="high", max_turns=30
@@ -56,8 +71,8 @@ class TestAsk:
         trial.coding.replies("second")
 
         async def twice() -> None:
-            await _AGENT.ask("do it", role="writer", key="repair")
-            await _AGENT.ask("do it again", role="writer", key="repair")
+            await _AGENT.ask("do it", job="fix", role="writer", key="repair")
+            await _AGENT.ask("do it again", job="fix", role="writer", key="repair")
 
         drive(trial, twice)
 
@@ -68,7 +83,9 @@ class TestAsk:
     # this test can make happen from the outside.
     @staticmethod
     def test_a_medium_that_raises_comes_back_as_fallen(trial: Trial) -> None:
-        came = drive(trial, lambda: _AGENT.ask("do it", role="writer", key=""))
+        came = drive(
+            trial, lambda: _AGENT.ask("do it", job="fix", role="writer", key="")
+        )
 
         assert isinstance(came, Fallen)
         assert "stopped mid-flight" in came.reason
@@ -81,10 +98,14 @@ class TestAskFor:
         trial.coding.replies(TriageNotes(items=[]))
 
         came = drive(
-            trial, lambda: _AGENT.ask_for("read it", output=TriageNotes, role="reader")
+            trial,
+            lambda: _AGENT.ask_for(
+                "read it", output=TriageNotes, job="plan", role="reader"
+            ),
         )
 
         assert came == TriageNotes(items=[])
+        assert trial.coding.calls[0].model == "opus"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
             allowed_tools=_READER,
@@ -97,7 +118,10 @@ class TestAskFor:
         trial.coding.replies("no idea, sorry")
 
         came = drive(
-            trial, lambda: _AGENT.ask_for("read it", output=TriageNotes, role="reader")
+            trial,
+            lambda: _AGENT.ask_for(
+                "read it", output=TriageNotes, job="plan", role="reader"
+            ),
         )
 
         assert isinstance(came, Misread)
@@ -108,7 +132,7 @@ class TestAskFor:
         came = drive(
             trial,
             lambda: _AGENT.ask_for(
-                "read it", output=TriageNotes, role="reader", key=""
+                "read it", output=TriageNotes, job="plan", role="reader", key=""
             ),
         )
 

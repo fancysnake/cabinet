@@ -9,6 +9,11 @@ from pydantic import BaseModel
 # `writer` edits.
 Role = Literal["reader", "writer"]
 
+# The work a call is doing, which picks its model. `plan` verifies, plans or
+# checks an issue against the code; `build` implements; `review` judges a
+# branch; `fix` repairs what came back; `doc` writes from the branch.
+Job = Literal["plan", "build", "review", "fix", "doc"]
+
 
 # The agent died mid-flight — a spent token budget, a killed CLI. This ends the
 # run, but the report is owed first, so it comes back as a value.
@@ -27,12 +32,11 @@ _OutputT = TypeVar("_OutputT", bound=BaseModel)
 
 
 class AgentProtocol(Protocol):
-    # Nothing reads what the agent said back: the call is judged by what it
-    # left in the worktree. A key joins the call to a thread, so a retry meets
-    # an agent that remembers the attempt that just failed. `attended` says
-    # somebody is at the terminal to be asked.
+    # A job picks the model. Nothing reads what the agent said back: the call is
+    # judged by what it left in the worktree. A key joins the call to a thread,
+    # so a retry meets an agent that remembers the attempt that just failed.
     async def ask(
-        self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
+        self, prompt: str, *, job: Job, role: Role, key: str | None = None
     ) -> Fallen | None: ...
 
     async def ask_for(
@@ -40,7 +44,7 @@ class AgentProtocol(Protocol):
         prompt: str,
         *,
         output: type[_OutputT],
+        job: Job,
         role: Role,
         key: str | None = None,
-        attended: bool = False,
     ) -> _OutputT | Fallen | Misread: ...

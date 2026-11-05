@@ -84,7 +84,7 @@ async def identify_page(page: Page) -> Tally | Pinning:
     said = (
         await services()
         .agent(project)
-        .ask_for(prompt, output=Identified, role="reader", key=_THREAD)
+        .ask_for(prompt, output=Identified, job="plan", role="reader", key=_THREAD)
     )
     if isinstance(said, Fallen | Misread):
         return page.stopped().but(stopped=said.reason).to(Tally)

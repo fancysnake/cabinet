@@ -10,6 +10,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from vekna.lexicon import RitualError
 
+from cabinet.pacts.agent import Job
+
 Forge = Literal["github", "gitlab"]
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
@@ -123,10 +125,30 @@ class Ci(BaseModel):
         return job is not None and job.covering
 
 
+# The Claude model each job runs on.
+class Models(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    plan: str = "opus"
+    build: str = "opus"
+    review: str = "opus"
+    fix: str = "sonnet"
+    doc: str = "sonnet"
+
+    def of(self, job: Job) -> str:
+        return {
+            "plan": self.plan,
+            "build": self.build,
+            "review": self.review,
+            "fix": self.fix,
+            "doc": self.doc,
+        }[job]
+
+
 class Agent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    model: str = "opus"
+    models: Models = Models()
     effort: Effort = "high"
     # Zero is unbounded; the SDK's own default.
     max_turns: Annotated[int, Field(ge=0)] = 0

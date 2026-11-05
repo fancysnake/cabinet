@@ -37,6 +37,26 @@ A reader gets no edit tools, but it is not read-only: its shell writes. The
 role says what the call is for. It limits which tools the agent holds, never
 which paths they touch, so it is no substitute for the sandbox.
 
+## Field rules
+
+Every agent call names its job, and the job picks the model.
+
+| job    | what the call does                              | default  |
+| ------ | ----------------------------------------------- | -------- |
+| plan   | verifies a bug, plans, checks issues against code, reads review threads for triage | `opus`   |
+| build  | implements a plan or a feature                  | `opus`   |
+| review | judges a branch                                 | `opus`   |
+| fix    | resolves conflicts, repairs a gate or a CI job, closes a coverage gap, works triaged threads | `sonnet` |
+| doc    | writes from the branch: the smoke-test guide    | `sonnet` |
+
+No ritual runs `build` yet. Set a model per job under
+`[cabinet.agent.models]`; `effort` stays one setting for every job:
+
+```toml
+[cabinet.agent.models]
+fix = "opus"
+```
+
 ## What the ritual owns
 
 The ritual commits, pushes and runs the long tasks, and makes every forge

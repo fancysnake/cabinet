@@ -151,6 +151,7 @@ class TestMendJob:
         red = _on(work, _SUITE)
 
         assert trial.walk(mend_job, red.to(MendJob)) == red.to(JobGate)
+        assert trial.coding.calls[0].model == "sonnet"
         prompt = trial.coding.prompts[0]
         assert prompt.startswith("A CI job is red on this branch.")
         assert "The ritual runs `mise run test` after you" in prompt

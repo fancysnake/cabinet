@@ -18,7 +18,7 @@ from vekna.folio.coding import CodingOpts, CodingOutputError, Session, coding
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import RitualError
 
-from cabinet.pacts.agent import AgentProtocol, Fallen, Misread, Role
+from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread, Role
 from cabinet.pacts.project import Project
 
 _LOG = logging.getLogger(__name__)
@@ -62,15 +62,16 @@ async def _guarded(
 
 
 class ClaudeAgent(AgentProtocol):
-    def __init__(self, project: Project) -> None:
+    def __init__(self, project: Project, *, attended: bool = False) -> None:
         self._project = project
+        self._attended = attended
 
-    def _opts(self, role: Role, *, attended: bool) -> CodingOpts:
+    def _opts(self, job: Job, role: Role) -> CodingOpts:
         agent = self._project.agent
         return CodingOpts(
-            model=agent.model,
+            model=agent.models.of(job),
             focus_options=ClaudeOptions(
-                permission_mode="auto" if attended else "dontAsk",
+                permission_mode="auto" if self._attended else "dontAsk",
                 allowed_tools=allowed_tools(role),
                 effort=agent.effort,
                 max_turns=agent.max_turns or None,
@@ -79,14 +80,11 @@ class ClaudeAgent(AgentProtocol):
 
     @override
     async def ask(
-        self, prompt: str, *, role: Role, key: str | None = None, attended: bool = False
+        self, prompt: str, *, job: Job, role: Role, key: str | None = None
     ) -> Fallen | None:
         answered = await _guarded(
             lambda: coding(
-                prompt,
-                opts=self._opts(role, attended=attended),
-                session=_session(key),
-                key=key,
+                prompt, opts=self._opts(job, role), session=_session(key), key=key
             )
         )
         # Nothing was asked for in a shape, so there is no shape to misread:
@@ -99,15 +97,15 @@ class ClaudeAgent(AgentProtocol):
         prompt: str,
         *,
         output: type[_OutputT],
+        job: Job,
         role: Role,
         key: str | None = None,
-        attended: bool = False,
     ) -> _OutputT | Fallen | Misread:
         return await _guarded(
             lambda: coding(
                 prompt,
                 output=output,
-                opts=self._opts(role, attended=attended),
+                opts=self._opts(job, role),
                 session=_session(key),
                 key=key,
             )

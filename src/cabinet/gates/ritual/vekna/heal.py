@@ -471,13 +471,8 @@ async def resolve_conflicts(
     )
     fallen = (
         await services()
-        .agent(project)
-        .ask(
-            prompt,
-            role="writer",
-            key=_session(work, "merge"),
-            attended=work.run.attended,
-        )
+        .agent(project, attended=work.run.attended)
+        .ask(prompt, job="fix", role="writer", key=_session(work, "merge"))
     )
     if fallen:
         return work.abandoned(fallen.reason).to(Chart)
@@ -551,13 +546,13 @@ def _session(work: Work, name: str) -> str:
     return f"{name}-{work.pr.number}"
 
 
-# A writer, in the session `key` names on this branch: every round of a loop
-# continues the one before it.
+# A writer on a repair, in the session `key` names on this branch: every round
+# of a loop continues the one before it.
 async def _asked(work: Work, prompt: str, *, key: str) -> Fallen | None:
     return (
         await services()
-        .agent(work.run.project)
-        .ask(prompt, role="writer", key=_session(work, key), attended=work.run.attended)
+        .agent(work.run.project, attended=work.run.attended)
+        .ask(prompt, job="fix", role="writer", key=_session(work, key))
     )
 
 
@@ -881,12 +876,12 @@ async def read_threads(
         return await _landing(work)
     read = (
         await services()
-        .agent(work.run.project)
+        .agent(work.run.project, attended=work.run.attended)
         .ask_for(
             services().prompts.triage_read(work.pr.number, batch),
             output=TriageNotes,
+            job="plan",
             role="reader",
-            attended=work.run.attended,
         )
     )
     if isinstance(read, Fallen):
@@ -935,13 +930,13 @@ async def answer_threads(
     work = instructed.work.charged(answer_threads.name)
     came = (
         await services()
-        .agent(work.run.project)
+        .agent(work.run.project, attended=work.run.attended)
         .ask_for(
             instructed.prompt,
             output=Answered,
+            job="fix",
             role="writer",
             key=_session(work, answer_gate.name),
-            attended=work.run.attended,
         )
     )
     if isinstance(came, Fallen):
@@ -1035,13 +1030,13 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     )
     read = (
         await services()
-        .agent(project)
+        .agent(project, attended=work.run.attended)
         .ask_for(
             prompt,
             output=Findings,
+            job="review",
             role="reader",
             key=_session(work, "review"),
-            attended=work.run.attended,
         )
     )
     if isinstance(read, Fallen):
@@ -1084,13 +1079,13 @@ async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
     number = work.pr.number
     read = (
         await services()
-        .agent(project)
+        .agent(project, attended=work.run.attended)
         .ask_for(
             services().prompts.guide(project, base=work.base_ref),
             output=Guide,
+            job="doc",
             role="reader",
             key=_session(work, "guide"),
-            attended=work.run.attended,
         )
     )
     if isinstance(read, Fallen):
