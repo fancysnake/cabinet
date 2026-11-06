@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from typing_extensions import override
 
 from cabinet.inits.services import Services
-from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread, Role
+from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import bind
 
@@ -21,26 +21,20 @@ _OutputT = TypeVar("_OutputT", bound=BaseModel)
 class FallingAgent(AgentProtocol):
     @override
     async def ask(
-        self, prompt: str, *, job: Job, role: Role, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None
     ) -> Fallen | None:
         return Fallen(reason="the agent stopped mid-flight: boom")
 
     @override
     async def ask_for(
-        self,
-        prompt: str,
-        *,
-        output: type[_OutputT],
-        job: Job,
-        role: Role,
-        key: str | None = None,
+        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
     ) -> _OutputT | Fallen | Misread:
         return Fallen(reason="the agent stopped mid-flight: boom")
 
 
 class _Falling(Services):
     @override
-    def agent(self, project: Project, *, attended: bool = False) -> AgentProtocol:
+    def agent(self, project: Project, *, attended: bool) -> AgentProtocol:
         return FallingAgent()
 
 

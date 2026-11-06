@@ -4,14 +4,10 @@ from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-# What an agent is meant to do. Every role has a shell. A `reader` is not
-# given the edit tools, and is not read-only either: its shell writes. A
-# `writer` edits.
-Role = Literal["reader", "writer"]
-
-# The work a call is doing, which picks its model. `plan` verifies, plans or
-# checks an issue against the code; `build` implements; `review` judges a
-# branch; `fix` repairs what came back; `doc` writes from the branch.
+# The work a call is doing, which picks its model and its tools. `plan`
+# verifies, plans or checks an issue against the code; `build` implements;
+# `review` judges a branch; `fix` repairs what came back; `doc` writes from the
+# branch.
 Job = Literal["plan", "build", "review", "fix", "doc"]
 
 
@@ -32,19 +28,14 @@ _OutputT = TypeVar("_OutputT", bound=BaseModel)
 
 
 class AgentProtocol(Protocol):
-    # A job picks the model. Nothing reads what the agent said back: the call is
-    # judged by what it left in the worktree. A key joins the call to a thread,
-    # so a retry meets an agent that remembers the attempt that just failed.
+    # A job picks the model and the tools. Nothing reads what the agent said
+    # back: the call is judged by what it left in the worktree. A key joins the
+    # call to a thread, so a retry meets an agent that remembers the attempt
+    # that just failed.
     async def ask(
-        self, prompt: str, *, job: Job, role: Role, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None
     ) -> Fallen | None: ...
 
     async def ask_for(
-        self,
-        prompt: str,
-        *,
-        output: type[_OutputT],
-        job: Job,
-        role: Role,
-        key: str | None = None,
+        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
     ) -> _OutputT | Fallen | Misread: ...

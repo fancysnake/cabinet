@@ -110,7 +110,7 @@ heal's).
 ### Who runs what
 
 Agents (`links/agent/claude.py`) run under `dontAsk` with plain `Bash` for
-every role (reader / writer) and no deny list: a shell gets round any prefix
+every job and no deny list: a shell gets round any prefix
 list, so the sandbox every cast runs in is the boundary. The prompt names
 `Project.long_tasks()` (gate, coverage commands, `project.agent.may_not_run`)
 and asks the agent to run narrow checks instead. Every commit, push, long

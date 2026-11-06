@@ -103,7 +103,7 @@ from typing import TypeAlias, TypeVar
 from vekna.folio.flow import decide, enqueue
 from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta, step
 
-from cabinet.pacts.agent import Fallen, Misread
+from cabinet.pacts.agent import AgentProtocol, Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.guide import GUIDE_MARK, Guide
@@ -469,12 +469,7 @@ async def resolve_conflicts(
     prompt = services().prompts.resolve(
         project, base=work.base_ref, branch=work.pr.branch, files="\n".join(unmerged)
     )
-    fallen = (
-        await services()
-        .agent(project, attended=work.run.attended)
-        .ask(prompt, job="fix", role="writer", key=_session(work, "merge"))
-    )
-    if fallen:
+    if fallen := await _asked(work, prompt, key="merge"):
         return work.abandoned(fallen.reason).to(Chart)
     # Back through this same step, which re-reads git rather than believing
     # the agent. The note goes now: past here the merge failing is just what a
@@ -546,14 +541,15 @@ def _session(work: Work, name: str) -> str:
     return f"{name}-{work.pr.number}"
 
 
-# A writer on a repair, in the session `key` names on this branch: every round
-# of a loop continues the one before it.
+# The agent for `work`, on the cast's project and attendance.
+def _agent(work: Work) -> AgentProtocol:
+    return services().agent(work.run.project, attended=work.run.attended)
+
+
+# A repair, in the session `key` names on this branch: every round of a loop
+# continues the one before it.
 async def _asked(work: Work, prompt: str, *, key: str) -> Fallen | None:
-    return (
-        await services()
-        .agent(work.run.project, attended=work.run.attended)
-        .ask(prompt, job="fix", role="writer", key=_session(work, key))
-    )
+    return await _agent(work).ask(prompt, job="fix", key=_session(work, key))
 
 
 # Run the gate, and repair it until it is green or the budget is gone.
@@ -874,15 +870,10 @@ async def read_threads(
         return await _landing(work, str(error))
     if not batch:
         return await _landing(work)
-    read = (
-        await services()
-        .agent(work.run.project, attended=work.run.attended)
-        .ask_for(
-            services().prompts.triage_read(work.pr.number, batch),
-            output=TriageNotes,
-            job="plan",
-            role="reader",
-        )
+    read = await _agent(work).ask_for(
+        services().prompts.triage_read(work.pr.number, batch),
+        output=TriageNotes,
+        job="plan",
     )
     if isinstance(read, Fallen):
         return work.abandoned(read.reason).to(Chart)
@@ -928,16 +919,11 @@ async def answer_threads(
     instructed: AnswerThreads,
 ) -> PostAnswers | Tend | AnswerGate | SetAside | Chart:
     work = instructed.work.charged(answer_threads.name)
-    came = (
-        await services()
-        .agent(work.run.project, attended=work.run.attended)
-        .ask_for(
-            instructed.prompt,
-            output=Answered,
-            job="fix",
-            role="writer",
-            key=_session(work, answer_gate.name),
-        )
+    came = await _agent(work).ask_for(
+        instructed.prompt,
+        output=Answered,
+        job="fix",
+        key=_session(work, answer_gate.name),
     )
     if isinstance(came, Fallen):
         return work.abandoned(came.reason).to(Chart)
@@ -1028,16 +1014,8 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     prompt = services().prompts.review(
         project, base=work.base_ref, threads=threads, reason=work.reason
     )
-    read = (
-        await services()
-        .agent(project, attended=work.run.attended)
-        .ask_for(
-            prompt,
-            output=Findings,
-            job="review",
-            role="reader",
-            key=_session(work, "review"),
-        )
+    read = await _agent(work).ask_for(
+        prompt, output=Findings, job="review", key=_session(work, "review")
     )
     if isinstance(read, Fallen):
         return work.abandoned(read.reason).to(Chart)
@@ -1077,16 +1055,11 @@ async def _put_up(project: Project, number: int, findings: list[Finding]) -> str
 async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
     project = work.run.project
     number = work.pr.number
-    read = (
-        await services()
-        .agent(project, attended=work.run.attended)
-        .ask_for(
-            services().prompts.guide(project, base=work.base_ref),
-            output=Guide,
-            job="doc",
-            role="reader",
-            key=_session(work, "guide"),
-        )
+    read = await _agent(work).ask_for(
+        services().prompts.guide(project, base=work.base_ref),
+        output=Guide,
+        job="doc",
+        key=_session(work, "guide"),
     )
     if isinstance(read, Fallen):
         return work.abandoned(read.reason).to(Chart)

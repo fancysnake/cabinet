@@ -162,7 +162,7 @@ class TestIdentifyPage:
             Page(identifying=Identifying(project=project), issues=[_issue(1)]),
         )
 
-        assert trial.coding.calls[0].model == "opus"
+        assert trial.coding.calls[0].model == "plan-model"
         focus = trial.coding.calls[0].focus_options
         options = str(focus)
         assert "Edit" not in focus.allowed_tools

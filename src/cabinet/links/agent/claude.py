@@ -1,6 +1,6 @@
 """Asking Claude, with a shell.
 
-Every role has plain `Bash`, and nothing here denies a command: a prefix list
+Every job has plain `Bash`, and nothing here denies a command: a prefix list
 cannot, when `mise exec` or `sh -c` runs anything. The sandbox the cast runs
 in is the boundary. Unattended, every call runs under `dontAsk`, so a cast
 never hangs on a prompt. Attended, the mode is `auto`, with somebody there to
@@ -18,7 +18,7 @@ from vekna.folio.coding import CodingOpts, CodingOutputError, Session, coding
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import RitualError
 
-from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread, Role
+from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread
 from cabinet.pacts.project import Project
 
 _LOG = logging.getLogger(__name__)
@@ -29,8 +29,13 @@ _READER = ["Read", "Grep", "Glob", "Bash"]
 _WRITER = ["Edit", "Write", "MultiEdit"]
 
 
-def allowed_tools(role: Role) -> list[str]:
-    return [*_READER] if role == "reader" else [*_READER, *_WRITER]
+# A job without the edit tools is not read-only: its shell writes.
+def allowed_tools(job: Job) -> list[str]:
+    match job:
+        case "plan" | "review" | "doc":
+            return [*_READER]
+        case "build" | "fix":
+            return [*_READER, *_WRITER]
 
 
 # A key is what makes a call a continuation: the same key twice is an agent
@@ -62,17 +67,17 @@ async def _guarded(
 
 
 class ClaudeAgent(AgentProtocol):
-    def __init__(self, project: Project, *, attended: bool = False) -> None:
+    def __init__(self, project: Project, *, attended: bool) -> None:
         self._project = project
         self._attended = attended
 
-    def _opts(self, job: Job, role: Role) -> CodingOpts:
+    def _opts(self, job: Job) -> CodingOpts:
         agent = self._project.agent
         return CodingOpts(
             model=agent.models.of(job),
             focus_options=ClaudeOptions(
                 permission_mode="auto" if self._attended else "dontAsk",
-                allowed_tools=allowed_tools(role),
+                allowed_tools=allowed_tools(job),
                 effort=agent.effort,
                 max_turns=agent.max_turns or None,
             ),
@@ -80,12 +85,10 @@ class ClaudeAgent(AgentProtocol):
 
     @override
     async def ask(
-        self, prompt: str, *, job: Job, role: Role, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None
     ) -> Fallen | None:
         answered = await _guarded(
-            lambda: coding(
-                prompt, opts=self._opts(job, role), session=_session(key), key=key
-            )
+            lambda: coding(prompt, opts=self._opts(job), session=_session(key), key=key)
         )
         # Nothing was asked for in a shape, so there is no shape to misread:
         # what a caller of this one wants to know is whether the agent died.
@@ -93,19 +96,13 @@ class ClaudeAgent(AgentProtocol):
 
     @override
     async def ask_for(
-        self,
-        prompt: str,
-        *,
-        output: type[_OutputT],
-        job: Job,
-        role: Role,
-        key: str | None = None,
+        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
     ) -> _OutputT | Fallen | Misread:
         return await _guarded(
             lambda: coding(
                 prompt,
                 output=output,
-                opts=self._opts(job, role),
+                opts=self._opts(job),
                 session=_session(key),
                 key=key,
             )

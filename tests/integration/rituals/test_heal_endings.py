@@ -107,7 +107,7 @@ class TestQualityReview:
             "\n\nsplit the change'"
         )
         assert trial.shell.commands[-1] == _LABEL
-        assert trial.coding.calls[0].model == "opus"
+        assert trial.coding.calls[0].model == "review-model"
         assert trial.coding.calls[0].focus_options is not None
         assert "Edit" not in str(trial.coding.calls[0].focus_options)
 

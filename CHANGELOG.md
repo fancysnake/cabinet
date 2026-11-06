@@ -79,8 +79,8 @@ and this project adheres to [Semantic Versioning].
 - **Breaking:** `[cabinet.agent] model`. Each agent call names its job, and
   `[cabinet.agent.models]` sets a model per job: `plan`, `build` and `review`
   default to `opus`, `fix` and `doc` to `sonnet`. A `.vekna.toml` that sets
-  `model` is refused. Repairs, conflict resolution and the smoke-test guide
-  now run on `sonnet` unless you set otherwise.
+  `model` is refused. Repairs, conflict resolution, answering review threads
+  and the smoke-test guide now run on `sonnet` unless you set otherwise.
   ([#82](https://github.com/fancysnake/cabinet/issues/82))
 - **Breaking:** `refresh` and `cover`; `heal.mine` replaces `refresh`, and
   the `ci` task's `covering` jobs replace `cover`. Answering threads returns

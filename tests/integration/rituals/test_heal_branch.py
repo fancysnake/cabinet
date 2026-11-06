@@ -147,7 +147,7 @@ class TestResolveConflicts:
             resolve_conflicts, work.merging_on("git merge failed").to(ResolveConflicts)
         )
 
-        assert trial.coding.calls[0].model == "sonnet"
+        assert trial.coding.calls[0].model == "fix-model"
         assert transition == work.merging_on("").charged(resolve_conflicts.name).to(
             ResolveConflicts
         )

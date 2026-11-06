@@ -95,7 +95,7 @@ class Services(ServicesProtocol):
         return MiseTasks()
 
     @override
-    def agent(self, project: Project, *, attended: bool = False) -> AgentProtocol:
+    def agent(self, project: Project, *, attended: bool) -> AgentProtocol:
         return ClaudeAgent(project, attended=attended)
 
 

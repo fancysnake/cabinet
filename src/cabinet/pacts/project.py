@@ -136,13 +136,17 @@ class Models(BaseModel):
     doc: str = "sonnet"
 
     def of(self, job: Job) -> str:
-        return {
-            "plan": self.plan,
-            "build": self.build,
-            "review": self.review,
-            "fix": self.fix,
-            "doc": self.doc,
-        }[job]
+        match job:
+            case "plan":
+                return self.plan
+            case "build":
+                return self.build
+            case "review":
+                return self.review
+            case "fix":
+                return self.fix
+            case "doc":
+                return self.doc
 
 
 class Agent(BaseModel):
