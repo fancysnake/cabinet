@@ -12,9 +12,8 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from typing_extensions import override
-from vekna.folio.shell import shell
 
-from cabinet.links.forge.asking import asked, quoted
+from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
@@ -329,7 +328,7 @@ async def _anchor(number: int, findings: Sequence[Finding]) -> _DiffRefs | None:
 async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
     body = quoted(_inert(finding.body))
     if finding.line is not None and refs is not None:
-        anchored = await shell(
+        anchored = await tried(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions",
                 "-X POST",
@@ -341,8 +340,7 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
                 f"-f position[new_path]={quoted(finding.path)}",
                 f"-f position[old_path]={quoted(finding.path)}",
                 f"-F 'position[new_line]={finding.line}'",
-            ),
-            stream=False,
+            )
         )
         if anchored.exit_code == 0:
             return ""
@@ -574,15 +572,14 @@ class GitlabForge(ForgeProtocol):
     async def ensure_label(self, spec: LabelSpec) -> None:
         colour = f"-f color={quoted(f'#{spec.color}')}"
         description = f"-f description={quoted(spec.description)}"
-        made = await shell(
+        made = await tried(
             _api(
                 "projects/:id/labels",
                 "-X POST",
                 f"-f name={quoted(spec.name)}",
                 colour,
                 description,
-            ),
-            stream=False,
+            )
         )
         if made.exit_code == 0:
             return

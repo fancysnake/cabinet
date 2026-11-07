@@ -37,9 +37,11 @@ line per pull request as it reads it:
 #9 docs: guide
 ```
 
-A pull request the forge would not answer about gets a line saying why, and
-the cast goes on. With `--plan-only true` that is all: nothing is checked out,
-committed or labelled.
+A forge call refused for a rate limit waits and tries again, doubling the
+pause from 15 seconds; a limit that lasts past about 15 minutes fails the cast.
+A pull request the forge would not answer about for any other reason gets a
+line saying why, and the cast goes on. With `--plan-only true` that is all:
+nothing is checked out, committed or labelled.
 
 `heal.mine` works no branch itself. For each one with work it queues a
 `heal.pr` on the vekna daemon and goes on to the next, then reports which
