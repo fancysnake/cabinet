@@ -13,9 +13,8 @@ from pydantic import (
     ValidationError,
 )
 from typing_extensions import override
-from vekna.folio.shell import shell
 
-from cabinet.links.forge.asking import asked, quoted
+from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
@@ -296,12 +295,11 @@ async def _head(number: int, findings: Sequence[Finding]) -> str:
 # not. What comes back is what stopped it, or nothing.
 async def _one(number: int, finding: Finding, *, head: str) -> str:
     if finding.line is not None and head:
-        anchored = await shell(
+        anchored = await tried(
             f"gh api repos/{{owner}}/{{repo}}/pulls/{number}/comments"
             f" -f commit_id={quoted(head)}"
             f" -f path={quoted(finding.path)} -F line={finding.line}"
-            f" -f side=RIGHT -f body={quoted(finding.body)}",
-            stream=False,
+            f" -f side=RIGHT -f body={quoted(finding.body)}"
         )
         if anchored.exit_code == 0:
             return ""

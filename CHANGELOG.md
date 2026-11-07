@@ -95,6 +95,12 @@ and this project adheres to [Semantic Versioning].
 
 ### Fixed
 
+- A rate-limited `gh` or `glab` call waits and tries again, doubling the pause
+  from 15 seconds, so a short spell of limiting no longer costs a cast. Still
+  limited after about 15 minutes, the cast fails saying so. Anchored review
+  comments stay anchored through a limit, and a limited GitLab label is no
+  longer taken for a duplicate.
+  ([#132](https://github.com/fancysnake/cabinet/issues/132))
 - The heal rituals see every open pull request of yours, not the first
   hundred: GitLab's listing is paged to the end, and GitHub's goes to the
   thousand its search returns. A listing cut short says so in the report.

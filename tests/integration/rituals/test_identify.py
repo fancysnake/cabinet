@@ -368,7 +368,7 @@ class TestPin:
         trial.shell.replies(
             when="gh api repos/{owner}/{repo}/issues -X POST*",
             exit_code=1,
-            stderr="rate limited",
+            stderr="HTTP 502",
         )
         item = IdentifiedItem(
             number=1,
@@ -382,7 +382,7 @@ class TestPin:
 
         assert isinstance(transition, Leaf)
         assert transition.identified == [
-            Pinned(item=item, refused=["could not open the issue: rate limited"])
+            Pinned(item=item, refused=["could not open the issue: HTTP 502"])
         ]
         assert trial.shell.commands[-1].startswith(
             "gh api repos/{owner}/{repo}/issues -X POST"
