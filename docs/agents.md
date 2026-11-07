@@ -26,16 +26,30 @@ asked. Unattended, every agent call runs under Claude's `dontAsk` permission
 mode, so a cast at 3am never hangs on a prompt. A cron job must pass
 `--unattended`, or its agents run in `auto` with nobody to answer.
 
-## Roles
+## Field rules
 
-| role   | may use                               |
-| ------ | ------------------------------------- |
-| reader | `Read`, `Grep`, `Glob`, `Bash`        |
-| writer | reader + `Edit`, `Write`, `MultiEdit` |
+Every agent call names its job, and the job picks the model and the tools.
 
-A reader gets no edit tools, but it is not read-only: its shell writes. The
-role says what the call is for. It limits which tools the agent holds, never
-which paths they touch, so it is no substitute for the sandbox.
+| job    | what the call does                              | default  | tools  |
+| ------ | ----------------------------------------------- | -------- | ------ |
+| plan   | verifies a bug, plans, checks issues against code, reads review threads for triage | `opus`   | shell  |
+| build  | implements a plan or a feature                  | `opus`   | edit   |
+| review | judges a branch                                 | `opus`   | shell  |
+| fix    | resolves conflicts, repairs a gate or a CI job, closes a coverage gap, works triaged threads | `sonnet` | edit   |
+| doc    | writes from the branch: the smoke-test guide    | `sonnet` | shell  |
+
+`shell` means `Read`, `Grep`, `Glob` and `Bash`; `edit` adds `Edit`, `Write`
+and `MultiEdit`. A `shell` job gets no edit tools, but it is not read-only: its
+shell writes. A job limits which tools the agent holds, never which paths they
+touch, so it is no substitute for the sandbox.
+
+No ritual runs `build` yet. Set a model per job under
+`[cabinet.agent.models]`; `effort` stays one setting for every job:
+
+```toml
+[cabinet.agent.models]
+fix = "opus"
+```
 
 ## What the ritual owns
 

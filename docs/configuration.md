@@ -39,10 +39,16 @@ fast = ""                             # re-run between repair rounds; "" is gate
 covering = true
 
 [cabinet.agent]
-model = "opus"
 effort = "high"
 max_turns = 0                         # 0 is unbounded
 may_not_run = []                      # slow tasks the prompt asks an agent to leave alone
+
+[cabinet.agent.models]                # each job's model; these are the defaults
+plan = "opus"
+build = "opus"
+review = "opus"
+fix = "sonnet"
+doc = "sonnet"
 ```
 
 ## The keys
@@ -106,7 +112,7 @@ to read: give it `covering`, not `rerun`.
 
 | key           | what it is                                                                     |
 | ------------- | ------------------------------------------------------------------------------ |
-| `model`       | the Claude model every agent call uses                                         |
+| `models`      | the Claude model for each job: `plan`, `build`, `review`, `fix`, `doc`; see [Agents](agents.md) |
 | `effort`      | `low`, `medium`, `high`, `xhigh` or `max`                                      |
 | `max_turns`   | the turn limit per agent call; `0` is unbounded                                |
 | `may_not_run` | slow tasks the prompt asks an agent to leave alone, beside the gate and coverage commands; see [Agents](agents.md) |

@@ -39,6 +39,7 @@ class TestPostGuide:
         trial.shell.replies(when=_LABEL)
 
         assert trial.walk(post_guide, work.to(PostGuide)) == work.to(Tend)
+        assert trial.coding.calls[0].model == "doc-model"
         assert "smoke-test/SKILL.md" in trial.coding.prompts[0]
         assert "origin/main...HEAD" in trial.coding.prompts[0]
         assert trial.shell.commands[-2:] == [_POSTED, _LABEL]

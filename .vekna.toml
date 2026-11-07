@@ -34,7 +34,6 @@ qa = "v:guide:done"
 covering = true
 
 [cabinet.agent]
-model = "opus"
 effort = "high"
 max_turns = 0
 # The whole-repository linter sweeps, which the gate runs anyway. One linter

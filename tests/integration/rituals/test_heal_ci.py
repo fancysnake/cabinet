@@ -28,7 +28,7 @@ from cabinet.pacts.heal import (
 from cabinet.pacts.healing import Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check
-from tests.conftest import commit
+from tests.conftest import AGENT, commit
 from tests.integration.rituals.falling import falling
 from tests.integration.rituals.keyed import keyed
 
@@ -38,13 +38,14 @@ _SUITE_NEXT = Check(name="suite (3.12)", passed=False, id=44)
 _PATCH = Check(name="codecov/patch", passed=True, title="96.84% of diff hit", id=43)
 _PROJECT = Project.model_validate(
     {
+        "agent": AGENT,
         "ci": {
             "jobs": {
                 "suite": {"gate": "mise run test", "fast": "mise run test:unit"},
                 "lint": {"rerun": True},
                 "codecov/patch": {"covering": True},
             }
-        }
+        },
     }
 )
 _LOG = "gh run view --job {id} --log-failed"
@@ -151,6 +152,7 @@ class TestMendJob:
         red = _on(work, _SUITE)
 
         assert trial.walk(mend_job, red.to(MendJob)) == red.to(JobGate)
+        assert trial.coding.calls[0].model == "fix-model"
         prompt = trial.coding.prompts[0]
         assert prompt.startswith("A CI job is red on this branch.")
         assert "The ritual runs `mise run test` after you" in prompt

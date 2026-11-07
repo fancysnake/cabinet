@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from cabinet.pacts.project import Ci, CiJob, Labels, Project
+from cabinet.pacts.agent import Job
+from cabinet.pacts.project import Ci, CiJob, Labels, Models, Project
 
 # A hex triplet without the hash, the way GitHub takes it.
 _HEX = 6
@@ -69,6 +70,36 @@ class TestConjured:
         assert "guide was posted" in qa.description
         assert "answered" in answered.description
         assert all(len(spec.color) == _HEX for spec in Labels().conjured())
+
+
+class TestModels:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("job", "model"),
+        [
+            ("plan", "opus"),
+            ("build", "opus"),
+            ("review", "opus"),
+            ("fix", "sonnet"),
+            ("doc", "sonnet"),
+        ],
+    )
+    def test_a_job_starts_on_its_first_choice(job: Job, model: str) -> None:
+        assert Models().of(job) == model
+
+    @staticmethod
+    def test_a_job_can_be_given_another_model() -> None:
+        project = Project.model_validate(
+            {"agent": {"models": {"fix": "claude-opus-5-5"}}}
+        )
+
+        assert project.agent.models.of("fix") == "claude-opus-5-5"
+        assert project.agent.models.of("doc") == "sonnet"
+
+    @staticmethod
+    def test_one_model_for_every_job_is_refused() -> None:
+        with pytest.raises(ValidationError, match="model"):
+            Project.model_validate({"agent": {"model": "opus"}})
 
 
 class TestLongTasks:

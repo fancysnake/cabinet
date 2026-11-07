@@ -12,7 +12,7 @@ from vekna.trial import Trial
 
 from cabinet.inits.services import Services
 from cabinet.pacts.healing import Run, Work
-from cabinet.pacts.project import Project
+from cabinet.pacts.project import Agent, Models, Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import bind
 
@@ -33,6 +33,17 @@ THREADS = "slug=*gh api graphql*-F number=7"
 
 # The one pull request most tests are about.
 _NUMBER = 7
+
+# A model per job, so a test reads off the model which job a call ran as.
+AGENT = Agent(
+    models=Models(
+        plan="plan-model",
+        build="build-model",
+        review="review-model",
+        fix="fix-model",
+        doc="doc-model",
+    )
+)
 
 _LAST = {"hasNextPage": False}
 
@@ -126,7 +137,7 @@ def _wired() -> None:
 
 @pytest.fixture
 def project() -> Project:
-    return Project()
+    return Project(agent=AGENT)
 
 
 @pytest.fixture
@@ -136,7 +147,7 @@ def pull() -> PullRequest:
 
 @pytest.fixture
 def work() -> Work:
-    return Work(run=Run(project=Project(), attended=False), pr=_pull())
+    return Work(run=Run(project=Project(agent=AGENT), attended=False), pr=_pull())
 
 
 # A whole cast reads its project from the cwd, the way a real one does.

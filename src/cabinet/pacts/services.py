@@ -176,7 +176,8 @@ class ServicesProtocol(Protocol):
 
     def tasks(self, project: Project) -> TasksProtocol: ...
 
-    def agent(self, project: Project) -> AgentProtocol: ...
+    # `attended` says somebody is at the terminal to be asked.
+    def agent(self, project: Project, *, attended: bool) -> AgentProtocol: ...
 
 
 class ServicesUnboundError(RitualError):
