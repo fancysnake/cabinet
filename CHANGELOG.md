@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-11-08
+
 ### Added
 
 - `heal.mine` and `heal.this` act: after the survey they merge a conflicting
-  branch and post the quality review, push what they committed, and report
-  each branch. `--plan-only true` still only surveys. Both take `--bound` and
-  `--attended`.
+  branch, post the quality review, push what they committed and report each
+  branch. Both take `--bound` and `--attended`.
+- `heal.pr --number N`: one pull request of yours, healed in a worktree from
+  vekna's pool.
 - `ci`: the red CI jobs in `[cabinet.ci.jobs]`, rerun once where `rerun` is
   set, otherwise fixed from the job's log against its `gate` or covered with
   tests where it is `covering`, one commit per job and one fixed check per
@@ -24,55 +27,51 @@ and this project adheres to [Semantic Versioning].
   fix, and the ritual files the issues, posts the replies, settles the
   threads and commits the fixes once the gate is green. `heal.pr` and
   `heal.this` work it after ci when attended; an unattended cast reports how
-  many threads wait for you. `--batch` sets how
-  many threads one round takes, three rounds a cast. A branch it leaves with
-  no thread open wears `[cabinet.labels] answered`, default `v:answer:done`.
+  many threads wait for you. `--batch` sets how many threads one round
+  takes, three rounds a cast. A branch it leaves with no thread open wears
+  `[cabinet.labels] answered`, default `v:answer:done`.
 - `merge` and `review`: `heal.this` with that one task, on the branch at the
   cwd.
-- `labels.heal` makes the reviewed, wait, qa and answered labels.
 - `guide`: once a branch has nothing else to do, an agent writes its manual
   smoke test, and the ritual posts it as a plain comment and puts
   `[cabinet.labels] qa` on. Taking the label off asks again, and the comment
   is edited in place. `heal.pr` and `heal.this` work it last.
 - `[cabinet] smoke_skill`, default `~/.claude/skills/smoke-test/SKILL.md`: the
   skill the guide is written with.
-- Each release carries its sdist and wheel, and its notes are the changelog
-  section; install docs lead with the wheel URL.
-- `release-bump` plugin: where a workflow publishes the release on a tag push,
-  the report names pushing the tag as the last step.
-
-- `heal.pr --number N`: one pull request of yours, healed in a worktree from
-  vekna's pool.
+- `labels.heal` makes the reviewed, wait, qa and answered labels.
 - `[defaults."cabinet:<ritual>"]` in `.vekna.toml` sets a ritual's flags per
   repository, `attended = false` among them.
+- Each release carries its sdist and wheel, and its notes are the changelog
+  section.
+- `release-bump` plugin: where a workflow publishes the release on a tag push,
+  the report names pushing the tag as the last step.
 
 ### Changed
 
 - **Breaking:** casts are attended by default. `--attended false`, or vekna's
   own `vekna cast --unattended`, turns a cast down, and `--unattended` wins
-  over `--attended true`. A cron job that never passed `--unattended` now runs
-  its agents in `auto` mode and asks before each repair; add the flag.
+  over `--attended true`. A cron job that never passed `--unattended` runs its
+  agents in `auto` mode and asks before each repair; add the flag.
   ([#109](https://github.com/fancysnake/cabinet/issues/109))
 - **Breaking:** `heal.mine` queues a `heal.pr` on the vekna daemon for each
   pull request with work, and the branches heal side by side, each in a
   pooled worktree. Your own checkout never moves. With no daemon it prints
   the survey and fails. A verdict a gate gave up on is no longer carried from
   one pull request to the next.
-- The heal rituals fetch the remote and read the base as the remote has it,
-  without checking it out or updating your local base branch.
-- cabinet requires vekna 0.15.
 - **Breaking:** a merge happens only where the branch conflicts with its base;
   a branch that is merely behind is left alone.
-- **Breaking:** `review` posts the quality review on your branch; it no longer
-  answers review threads; `answer` does.
-- `mkdocs-site` plugin: the site it sets up is findable and previews well
-  when linked: an `overrides/main.html` head with Open Graph and JSON-LD
-  tags, a description on every page, `robots.txt` on a root-hosted site,
-  and a check of the built head. `theme.custom_dir: overrides` is now
-  always set (an existing site without it gets it), and the site
-  workflow's `paths:` filter includes `overrides/**`. Pages make no claim
-  the code does not back, and a diagram gets alt text and is checked
-  against the code it names.
+- **Breaking:** `review` posts the quality review on your branch; `answer`
+  answers review threads.
+- The heal rituals fetch the remote and read the base as the remote has it,
+  without checking it out or updating your local base branch.
+- cabinet accepts vekna 1.x, and requires 0.15 or later.
+- `mkdocs-site` plugin: the site it sets up gets an `overrides/main.html` head
+  with Open Graph and JSON-LD tags, a description on every page, `robots.txt`
+  on a root-hosted site, and a check of the built head.
+  `theme.custom_dir: overrides` is always set (an existing site without it
+  gets it), and the site workflow's `paths:` filter includes `overrides/**`.
+  Pages make no claim the code does not back, and a diagram gets alt text and
+  is checked against the code it names.
 
 ### Removed
 
@@ -80,18 +79,17 @@ and this project adheres to [Semantic Versioning].
   `[cabinet.agent.models]` sets a model per job: `plan`, `build` and `review`
   default to `opus`, `fix` and `doc` to `sonnet`. A `.vekna.toml` that sets
   `model` is refused. Repairs, conflict resolution, answering review threads
-  and the smoke-test guide now run on `sonnet` unless you set otherwise.
+  and the smoke-test guide run on `sonnet` unless you set otherwise.
   ([#82](https://github.com/fancysnake/cabinet/issues/82))
 - **Breaking:** `refresh` and `cover`; `heal.mine` replaces `refresh`, and
-  the `ci` task's `covering` jobs replace `cover`. Answering threads returns
-  with the `answer` task.
+  the `ci` task's `covering` jobs replace `cover`.
 - **Breaking:** `labels.pr`, replaced by `labels.heal`.
+- **Breaking:** the `started`/`done` checkpoint labels and
+  `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.
 - `issues` plugin: filing an issue no longer asks for a priority or sets
   `backlog`, a priority label, or issue or Project fields; it sets only the
   type, size and links.
   ([#116](https://github.com/fancysnake/cabinet/issues/116))
-- **Breaking:** the `started`/`done` checkpoint labels and
-  `[cabinet.labels] marker`. A `.vekna.toml` that sets `marker` is refused.
 
 ### Fixed
 
@@ -314,7 +312,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v4.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/fancysnake/cabinet/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/fancysnake/cabinet/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/fancysnake/cabinet/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/fancysnake/cabinet/compare/v1.0.1...v2.0.0

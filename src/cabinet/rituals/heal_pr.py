@@ -1,6 +1,7 @@
 """Evocation: ``heal.pr`` heals one pull request, in a worktree of its own.
 
-    vekna cast heal.pr --number N [--plan-only true] [--bound N] [--batch N]
+    vekna cast heal.pr --number N [--plan-only true] [--bound N] [--attended false]
+        [--batch N]
 
 The open pull request of yours numbered ``--number``, whatever the cwd stands
 on. ``heal.mine`` queues one for each branch it surveys work on, and the daemon
