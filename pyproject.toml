@@ -266,5 +266,5 @@ omit = ["src/cabinet/edges/*"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-exclude_also = ["if TYPE_CHECKING:", "# pragma: no cover"]
+exclude_also = ["if TYPE_CHECKING:", "# pragma: no cover", "assert_never\\("]
 precision = 2
