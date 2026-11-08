@@ -21,6 +21,10 @@ _ABUSE = "gh: You have triggered an abuse detection mechanism. (HTTP 403)"
 _GITLAB = "glab: 429 Too Many Requests"
 _PAUSES = (15, 30, 60, 120, 240, 480)
 _ANCHORED = [Finding(path="src/thing.py", line=12, body="hm")]
+_SEVERAL = [
+    Finding(path="src/thing.py", line=12, body="one"),
+    Finding(path="src/other.py", line=3, body="two"),
+]
 _MR = "glab api projects/:id/merge_requests/7"
 _DISCUSSIONS = "glab api projects/:id/merge_requests/7/discussions*"
 
@@ -145,10 +149,40 @@ class TestAnchors:
 
         forge = GithubForge()
 
-        with pytest.raises(ForgeLimitedError):
-            drive(trial, lambda: forge.comment(7, _ANCHORED))
+        posted = drive(trial, lambda: forge.comment(7, _ANCHORED))
 
+        assert posted.count == 0
+        assert "still rate limited" in posted.stopped
         assert not any(c.startswith("gh pr comment") for c in trial.shell.commands)
+
+    @staticmethod
+    def test_github_reports_how_far_a_limit_let_the_posting_get(trial: Trial) -> None:
+        anchored = "gh api repos/{owner}/{repo}/pulls/7/comments*"
+        trial.shell.replies(when="gh pr view 7*", stdout="abc123\n")
+        trial.shell.replies(when=anchored)
+        _limit_outlasts_every_pause(trial, anchored)
+
+        forge = GithubForge()
+
+        posted = drive(trial, lambda: forge.comment(7, _SEVERAL))
+
+        assert posted.count == 1
+        assert "still rate limited" in posted.stopped
+
+    @staticmethod
+    def test_gitlab_reports_how_far_a_limit_let_the_posting_get(trial: Trial) -> None:
+        refs = {"diff_refs": {"base_sha": "b", "head_sha": "h", "start_sha": "s"}}
+        trial.shell.replies(when=_MR, stdout=json.dumps(refs))
+        trial.shell.replies(when=_DISCUSSIONS)
+        trial.shell.replies(when=_DISCUSSIONS, always=True, exit_code=1, stderr=_GITLAB)
+        trial.shell.replies(when="sleep *", always=True)
+
+        forge = GitlabForge()
+
+        posted = drive(trial, lambda: forge.comment(7, _SEVERAL))
+
+        assert posted.count == 1
+        assert "still rate limited" in posted.stopped
 
 
 class TestGitlabLabel:

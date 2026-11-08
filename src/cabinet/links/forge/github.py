@@ -15,7 +15,7 @@ from pydantic import (
 from typing_extensions import override
 
 from cabinet.links.forge.asking import asked, quoted, tried
-from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
@@ -531,7 +531,11 @@ class GithubForge(ForgeProtocol):
         head = await _head(number, findings)
         posted = 0
         for finding in findings:
-            if stopped := await _one(number, finding, head=head):
+            try:
+                stopped = await _one(number, finding, head=head)
+            except ForgeLimitedError as error:
+                return Posted(count=posted, stopped=str(error))
+            if stopped:
                 return Posted(count=posted, stopped=stopped)
             posted += 1
         return Posted(count=posted)
