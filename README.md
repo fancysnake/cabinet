@@ -102,8 +102,8 @@ page, or how many open threads one round of answers takes, default 7.
 ## Install
 
 cabinet is not on PyPI; it installs from its
-[releases](https://github.com/fancysnake/cabinet/releases) and runs on
-Python 3.11 through 3.15. In the repository that wants the rituals:
+[releases](https://github.com/fancysnake/cabinet/releases). In the repository
+that wants the rituals:
 
 <!-- --8<-- [start:install] -->
 ```bash
@@ -117,6 +117,9 @@ released, install from the git source instead:
 ```bash
 poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha>
 ```
+
+It runs on the Python range its `pyproject.toml` declares:
+![supported Python](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffancysnake%2Fcabinet%2Fmain%2Fpyproject.toml&query=%24.project%5B%22requires-python%22%5D&label=python)
 <!-- --8<-- [end:install] -->
 
 Either way `poetry install` brings `vekna` and its `trial` extra with it. Then tell

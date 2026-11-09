@@ -56,7 +56,8 @@ next task, and every task ends back at `tend`.
 
 ## Development
 
-Python 3.11 through 3.15 via mise; `mise tasks` lists everything.
+Any Python that `requires-python` in `pyproject.toml` allows, via mise;
+`mise tasks` lists everything.
 
 --8<-- "README.md:development"
 
