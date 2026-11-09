@@ -9,7 +9,7 @@ be asked.
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import TypeVar, assert_never
 
 from claude_agent_sdk import ClaudeSDKError
 from pydantic import BaseModel
@@ -36,6 +36,8 @@ def allowed_tools(job: Job) -> list[str]:
             return [*_READER]
         case "build" | "fix":
             return [*_READER, *_WRITER]
+        case _:
+            assert_never(job)
 
 
 # A key is what makes a call a continuation: the same key twice is an agent

@@ -5,7 +5,7 @@ at the boundary so a misspelled key dies before a branch is checked out. The
 values are strings: a task name is only tested by running it.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field
 from vekna.lexicon import RitualError
@@ -147,6 +147,8 @@ class Models(BaseModel):
                 return self.fix
             case "doc":
                 return self.doc
+            case _:
+                assert_never(job)
 
 
 class Agent(BaseModel):
