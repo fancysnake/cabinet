@@ -21,6 +21,12 @@ class ForgeError(RitualError):
     pass
 
 
+# Still rate limited after every pause. Apart from ForgeError because steps
+# catch that one and carry on: the next call would wait the whole budget again.
+class ForgeLimitedError(RitualError):
+    pass
+
+
 class ForgeProtocol(Protocol):
     # Every open pull request of yours, as the forge lists them.
     async def pulls(self) -> PullListing: ...

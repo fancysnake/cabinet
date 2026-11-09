@@ -15,6 +15,7 @@ from cabinet.gates.ritual.vekna.heal import (
     summon,
     survey,
 )
+from cabinet.pacts.forge import ForgeLimitedError
 from cabinet.pacts.heal import (
     Chart,
     CheckClean,
@@ -360,14 +361,25 @@ class TestSurvey:
     def test_a_branch_the_forge_will_not_answer_about_is_a_row(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
-        trial.shell.replies(when=board(), exit_code=1, stderr="rate limited")
+        trial.shell.replies(when=board(), exit_code=1, stderr="HTTP 502")
 
         transition = trial.walk(survey, _surveying(pull, project))
 
         assert isinstance(transition, Survey)
         assert isinstance(unread := transition.surveyed[0], Unsurveyed)
-        assert "rate limited" in unread.note
+        assert "HTTP 502" in unread.note
         assert trial.deltas[0].startswith("#7 feature: could not survey:")
+
+    @staticmethod
+    def test_a_limit_outlasting_every_pause_ends_the_cast(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        stderr = "gh: API rate limit exceeded (HTTP 403)"
+        trial.shell.replies(when=board(), always=True, exit_code=1, stderr=stderr)
+        trial.shell.replies(when="sleep *", always=True)
+
+        with pytest.raises(ForgeLimitedError, match="still rate limited"):
+            trial.walk(survey, _surveying(pull, project))
 
     # Taken with what this cast works and nothing else, the worst it can
     # spend spoken for.
