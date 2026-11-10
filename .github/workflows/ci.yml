@@ -51,7 +51,8 @@ jobs:
           persist-credentials: false
       - id: range
         run: |
-          spec=$(sed -n 's/^requires-python = "\(.*\)"$/\1/p' pyproject.toml)
+          spec=$(yq -p toml '.project.requires-python' pyproject.toml)
+          spec=${spec//[[:space:]]/}
           if [[ ! $spec =~ ^\>=3\.([0-9]+),\<3\.([0-9]+)$ ]]; then
             echo "::error::requires-python must read >=3.X,<3.Y, got '$spec'"
             exit 1

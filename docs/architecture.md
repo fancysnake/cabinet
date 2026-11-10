@@ -56,8 +56,8 @@ next task, and every task ends back at `tend`.
 
 ## Development
 
-Any Python that `requires-python` in `pyproject.toml` allows, via mise;
-`mise tasks` lists everything.
+mise pins the floor of `requires-python` in `pyproject.toml` locally, and CI
+tests every version it allows; `mise tasks` lists everything.
 
 --8<-- "README.md:development"
 
