@@ -39,17 +39,43 @@ jobs:
       - run: mise run lint:tingle
         continue-on-error: true
 
+  # The matrix comes from `requires-python`, so the range has one source.
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      all: ${{ steps.range.outputs.all }}
+      floor: ${{ steps.range.outputs.floor }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: range
+        run: |
+          spec=$(yq -p toml '.project.requires-python' pyproject.toml)
+          spec=${spec//[[:space:]]/}
+          if [[ ! $spec =~ ^\>=3\.([0-9]+),\<3\.([0-9]+)$ ]]; then
+            echo "::error::requires-python must read >=3.X,<3.Y, got '$spec'"
+            exit 1
+          fi
+          floor=${BASH_REMATCH[1]}
+          ceiling=${BASH_REMATCH[2]}
+          {
+            echo "floor=3.$floor"
+            echo "all=$(seq "$floor" $((ceiling - 1)) | jq -Rnc '[inputs | "3." + .]')"
+          } >> "$GITHUB_OUTPUT"
+
   test:
+    needs: versions
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.14", "3.15"]
+        python-version: ${{ fromJSON(needs.versions.outputs.all) }}
         include:
           # One report per commit is enough, so one leg carries the flag that
           # uploads it and the others only prove the suite passes on their
           # interpreter. Which leg it is lives here, not in the step's `if`.
-          - python-version: "3.11"
+          - python-version: ${{ needs.versions.outputs.floor }}
             coverage: true
     env:
       # Overrides the pin in mise.toml, so one config file serves every leg.
