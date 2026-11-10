@@ -119,7 +119,7 @@ poetry add --group dev git+https://github.com/fancysnake/cabinet.git#<tag-or-sha
 ```
 
 It runs on the Python range its `pyproject.toml` declares:
-![supported Python](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffancysnake%2Fcabinet%2Fmain%2Fpyproject.toml&query=%24.project%5B%22requires-python%22%5D&label=python)
+[![supported Python](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffancysnake%2Fcabinet%2Fmain%2Fpyproject.toml&query=%24.project%5B%22requires-python%22%5D&label=python)](https://github.com/fancysnake/cabinet/blob/main/pyproject.toml)
 <!-- --8<-- [end:install] -->
 
 Either way `poetry install` brings `vekna` and its `trial` extra with it. Then tell
