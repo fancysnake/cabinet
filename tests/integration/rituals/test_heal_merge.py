@@ -91,9 +91,8 @@ class TestGateCheck:
         assert "permission_mode='dontAsk'" in str(trial.coding.calls[0].focus_options)
 
     @staticmethod
-    def test_an_attended_cast_asks_before_each_repair(trial: Trial, work: Work) -> None:
+    def test_an_attended_cast_repairs_without_asking(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
-        trial.decide.answers(answer=True, when="repair `mise run pr-fix`*")
         trial.coding.replies("fixed")
         attended = _attended(work).charged(gate_check.name)
 
@@ -102,21 +101,8 @@ class TestGateCheck:
         assert transition == attended.but(gate="").charged(gate_check.name).to(
             GateCheck
         )
-        assert trial.decide.prompts == [
-            "repair `mise run pr-fix` on feature (attempt 2)?"
-        ]
+        assert not trial.decide.prompts
         assert "permission_mode='auto'" in str(trial.coding.calls[0].focus_options)
-
-    @staticmethod
-    def test_a_declined_repair_stands_the_branch_down(trial: Trial, work: Work) -> None:
-        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
-        trial.decide.answers(answer=False, when="repair `mise run pr-fix`*")
-        attended = _attended(work)
-
-        assert trial.walk(gate_check, attended.to(GateCheck)) == attended.stopped_by(
-            "`mise run pr-fix` was not tried again, as you decided:\n1 failed"
-        ).but(run=attended.run.but(seen=["1 failed"])).to(StandDown)
-        assert not trial.coding.prompts
 
     @staticmethod
     def test_a_green_gate_lands(trial: Trial, work: Work) -> None:

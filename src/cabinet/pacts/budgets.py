@@ -48,13 +48,6 @@ class Budgeted(BaseModel):
     def spent(self, name: str) -> int:
         return self.budgets.get(name, 0)
 
-    # Every attempt this payload has paid for, whichever step spent it: what
-    # the operator is asked about is the next attempt on this branch, not the
-    # next attempt at one step of it. Summed rather than listed by name, so a
-    # loop added later counts itself.
-    def attempts(self) -> int:
-        return sum(self.budgets.values())
-
     def charged(self, name: str) -> Self:
         return self._budgeted({**self.budgets, name: self.spent(name) + 1})
 
