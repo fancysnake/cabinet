@@ -35,7 +35,8 @@ _CHECKS = Check(name="checks", passed=False, id=1)
 _BRANCH = "fix/main-abc1234"
 _FETCH = "git fetch --prune origin"
 _HEAD = "git rev-parse --short origin/main"
-_CUT = f"git checkout --no-track -b {_BRANCH} origin/main || git checkout {_BRANCH}"
+_VERIFY = f"git rev-parse --verify --quiet refs/heads/{_BRANCH}"
+_CUT = f"git checkout --no-track -b {_BRANCH} origin/main"
 _BEYOND = "git rev-list --count origin/main..HEAD"
 _PUSH = f"git push origin {_BRANCH}"
 _OPEN = "gh api repos*pulls -X POST*"
@@ -45,14 +46,7 @@ _SURVEYED = Surveyed(
     number=0, branch="main", url="", todos=["ci"], red=[_CHECKS], threads=0
 )
 _NOTHING = Surveyed(number=0, branch="main", url="", todos=[], red=[], threads=0)
-_FIX = PullRequest(
-    number=0,
-    title="fix: make main green",
-    url="",
-    branch=_BRANCH,
-    base="main",
-    updated_at="",
-)
+_FIX = PullRequest.unopened(_BRANCH, "main", "fix: make main green")
 
 
 def _pulls(trial: Trial, *rows: dict[str, object]) -> None:
@@ -86,6 +80,7 @@ class TestMusterMain:
         trial.shell.replies(when=STATUS)
         trial.shell.replies(when=_FETCH)
         trial.shell.replies(when=_HEAD, stdout="abc1234\n")
+        trial.shell.replies(when=_VERIFY, exit_code=1)
         trial.shell.replies(when="git checkout --no-track*")
         run = _run(project)
 
@@ -94,7 +89,7 @@ class TestMusterMain:
         assert transition == Work(
             run=run.but(surveyed=[_SURVEYED]), pr=_FIX, red=[_CHECKS]
         ).to(PickJob)
-        assert trial.shell.commands[-4:] == [STATUS, _FETCH, _HEAD, _CUT]
+        assert trial.shell.commands[-5:] == [STATUS, _FETCH, _HEAD, _VERIFY, _CUT]
         assert trial.deltas == ["main: ci (checks)"]
 
     @staticmethod
@@ -168,27 +163,24 @@ class TestTend:
     ) -> None:
         assert trial.walk(tend, fixing.to(Tend)) == fixing.to(OpenPull)
 
-
-class TestPushWork:
-    # A fix that stood down with nothing committed: pushed, the branch would
-    # be a copy of the base on the remote, with no pull request to it.
+    # Pushed by `open_pull`, and only with a commit past the base: a fix that
+    # stood down with none would otherwise land as a copy of the base.
     @staticmethod
-    def test_a_branch_with_no_commit_past_the_base_is_not_pushed(
-        trial: Trial, fixing: Work
+    def test_a_branch_with_no_pull_request_is_never_pushed_first(
+        fixing: Work, trial: Trial
     ) -> None:
-        trial.shell.replies(when=_BEYOND, stdout="0\n")
         stood_down = fixing.standing_down("")
 
-        assert trial.walk(push_work, stood_down.to(PushWork)) == fixing.to(Tend)
-        assert trial.shell.commands == [_BEYOND]
+        assert trial.walk(tend, stood_down.to(Tend)) == stood_down.to(OpenPull)
 
+
+class TestPushWork:
     @staticmethod
-    def test_a_fix_that_was_committed_is_pushed(trial: Trial, fixing: Work) -> None:
-        trial.shell.replies(when=_BEYOND, stdout="1\n")
-        trial.shell.replies(when=f"git push origin {_BRANCH}")
+    def test_the_branch_is_pushed(trial: Trial, fixing: Work) -> None:
+        trial.shell.replies(when=_PUSH)
 
         assert trial.walk(push_work, fixing.landed().to(PushWork)) == fixing.to(Tend)
-        assert trial.shell.commands == [_BEYOND, f"git push origin {_BRANCH}"]
+        assert trial.shell.commands == [_PUSH]
 
 
 class TestOpenPull:
@@ -233,7 +225,7 @@ class TestOpenPull:
             "gh api repos/{owner}/{repo}/pulls -X POST"
             f" -f head={_BRANCH} -f base=main"
             " -f title='fix: make main green'"
-            " -f body='`heal.main` found `main` red and fixed it on this branch.'"
+            " -f body='`heal.main` found `main` red and worked on it on this branch.'"
         )
 
     @staticmethod

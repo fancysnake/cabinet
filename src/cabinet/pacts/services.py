@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.healing import Facts, Run, Surveyed, Unsurveyed
     from cabinet.pacts.issues import Identifying, Issue, Issues, Listing
     from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import Board, Check, PullRequest
+    from cabinet.pacts.pulls import Board, PullRequest
     from cabinet.pacts.repairs import Attempt, Ruling
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
@@ -44,8 +44,8 @@ class PullsProtocol(Protocol):
 
 
 class TodosProtocol(Protocol):
-    # The configured CI jobs whose checks are red on `board`.
-    def red(self, board: Board, project: Project) -> list[Check]: ...
+    # What the base needs: `ci` where a configured job is red on `board`.
+    def base(self, board: Board, project: Project) -> Surveyed: ...
 
     # What the pull request needs next, in the order a cast does it, and what
     # each todo would work through.

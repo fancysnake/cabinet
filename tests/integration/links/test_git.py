@@ -33,6 +33,7 @@ _ISOLATED = {k: v for k, v in os.environ.items() if k not in _ELSEWHERE} | {
 _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
+_VERIFY = "git rev-parse --verify --quiet refs/heads/fix/main-abc1234"
 _FETCH = "git fetch origin main feature"
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
@@ -168,19 +169,37 @@ class TestMoving:
         assert drive(trial, lambda: _SCM.head("origin/main")) == "abc1234"
         assert trial.shell.commands == ["git rev-parse --short origin/main"]
 
-    # One that exists is taken as it is: its commits are still to push.
     @staticmethod
     def test_a_branch_is_cut_where_there_is_none(trial: Trial) -> None:
+        trial.shell.replies(when=_VERIFY, exit_code=1)
         trial.shell.replies(when="git checkout --no-track*")
 
         drive(trial, lambda: _SCM.branch("fix/main-abc1234", "origin/main"))
 
         assert trial.shell.commands == [
-            (
-                "git checkout --no-track -b fix/main-abc1234 origin/main"
-                " || git checkout fix/main-abc1234"
-            )
+            _VERIFY,
+            "git checkout --no-track -b fix/main-abc1234 origin/main",
         ]
+
+    # One that exists is taken as it is: its commits are still to push.
+    @staticmethod
+    def test_a_branch_that_exists_is_taken_as_it_is(trial: Trial) -> None:
+        trial.shell.replies(when=_VERIFY)
+        trial.shell.replies(when="git checkout fix/main-abc1234")
+
+        drive(trial, lambda: _SCM.branch("fix/main-abc1234", "origin/main"))
+
+        assert trial.shell.commands == [_VERIFY, "git checkout fix/main-abc1234"]
+
+    @staticmethod
+    def test_a_cut_that_fails_says_why(trial: Trial) -> None:
+        trial.shell.replies(when="git rev-parse --verify*", exit_code=1)
+        trial.shell.replies(
+            when="git checkout --no-track*", exit_code=1, stderr="bad ref"
+        )
+
+        with pytest.raises(ScmError, match="could not take fix/x: bad ref"):
+            drive(trial, lambda: _SCM.branch("fix/x", "origin/nope"))
 
     @staticmethod
     @pytest.mark.parametrize(("count", "beyond"), [("2\n", True), ("0\n", False)])

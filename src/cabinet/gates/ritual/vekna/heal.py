@@ -272,23 +272,19 @@ async def muster_main(run: MusterMain) -> Chart | PickJob:
         run, red = await _base_read(run)
         if not (red and run.tasks):
             return run.to(Chart)
+        if dirty := await _dirty(project):
+            return run.but(stopped=dirty).to(Chart)
         branch = await _fix_cut(project)
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
-    pull = PullRequest(
-        number=0,
-        title=f"fix: make {project.base} green",
-        url="",
-        branch=branch,
-        base=project.base,
-        updated_at="",
-    )
+    title = f"fix: make {project.base} green"
+    pull = PullRequest.unopened(branch, project.base, title)
     return Work(run=run, pr=pull, red=red).one_per_job().to(PickJob)
 
 
 # The configured jobs red on the base, said on one line as a pull request's
 # todos are. None while a fix of yours is open: one fix at a time.
-async def _base_read(run: _RunT) -> tuple[_RunT, list[Check]]:
+async def _base_read(run: MusterMain) -> tuple[MusterMain, list[Check]]:
     project = run.project
     run, pulls = await _listed(run)
     if fixing := services().pulls.fixing(pulls, project):
@@ -298,22 +294,23 @@ async def _base_read(run: _RunT) -> tuple[_RunT, list[Check]]:
         )
         return run, []
     board = await services().forge(project).board(project.base)
-    red = services().todos.red(board, project)
-    todos: list[Task] = ["ci"] if red else []
-    row = Surveyed(
-        number=0, branch=project.base, url="", todos=todos, red=red, threads=0
-    )
+    row = services().todos.base(board, project)
     emit_delta(services().report.surveyed(row))
-    return run.but(surveyed=[row]), red
+    return run.but(surveyed=[row]), row.red
+
+
+# What stands in the way of moving branches around, or nothing: everything
+# that moves one does it over someone's uncommitted work otherwise, and that is
+# how it gets lost.
+async def _dirty(project: Project) -> str:
+    dirty = await services().scm(project).status()
+    return f"the worktree is not clean:\n{dirty}" if dirty else ""
 
 
 # Stand on the fix branch, cut from the base as the remote has it now.
 async def _fix_cut(project: Project) -> str:
     scm = services().scm(project)
     base = f"{project.remote}/{project.base}"
-    if dirty := await scm.status():
-        msg = f"the worktree is not clean:\n{dirty}"
-        raise ScmError(msg)
     await scm.fetch()
     branch = project.fix_branch(await scm.head(base))
     await scm.branch(branch, base)
@@ -431,13 +428,12 @@ def tally(run: Tally) -> Done[Healed]:
 @step
 async def check_clean(work: CheckClean) -> Chart | SyncBranch:
     try:
-        dirty = await services().scm(work.run.project).status()
+        dirty = await _dirty(work.run.project)
     except ScmError as error:
         return work.abandoned(str(error)).to(Chart)
     if dirty:
-        # Fatal by design: everything below this line moves branches around,
-        # and doing that over someone's uncommitted work is how it gets lost.
-        return work.abandoned(f"the worktree is not clean:\n{dirty}").to(Chart)
+        # Fatal by design.
+        return work.abandoned(dirty).to(Chart)
     return work.to(SyncBranch)
 
 
@@ -483,11 +479,14 @@ _FIRST: dict[Task, type[_First]] = {
 # branch is not left with commits only this worktree holds.
 @step
 def tend(work: Tend) -> PushWork | OpenPull | FinishPr | _First:
-    if work.changed:
+    opened = work.pr.is_opened
+    # `heal.main`'s branch has no pull request until `open_pull` makes one, and
+    # pushes it then: a branch that stood down must not land on the remote as a
+    # copy of the base.
+    if work.changed and opened:
         return work.to(PushWork)
     if not work.todos:
-        # No number yet is `heal.main`'s branch, with no pull request open.
-        return work.to(FinishPr) if work.pr.number else work.to(OpenPull)
+        return work.to(FinishPr) if opened else work.to(OpenPull)
     task, *rest = work.todos
     taken = work.but(todos=rest)
     return taken.to(_FIRST[task])
@@ -673,15 +672,10 @@ async def stand_down(work: StandDown) -> Tend:
 # Not fatal, and not `set_aside`: a push that will not go through costs the
 # review its anchors and nothing else. What is left behind is said twice over:
 # in this note, and in the row's `unpushed`, counted off git at the end.
-# `heal.main`'s branch, the one with no number yet, goes up only with a commit
-# past the base: one that stood down with none would land as a copy of the
-# base, with no pull request to it.
 @step
 async def push_work(work: PushWork) -> Tend:
-    scm = services().scm(work.run.project)
     try:
-        if work.pr.number or await scm.beyond(work.base_ref):
-            await scm.push(work.pr.branch)
+        await services().scm(work.run.project).push(work.pr.branch)
     except ScmError as error:
         work = work.noting(str(error))
     return work.pushed().to(Tend)
@@ -1163,7 +1157,7 @@ async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
 async def open_pull(work: OpenPull) -> FinishPr:
     project = work.run.project
     pull = work.pr
-    found = f"`heal.main` found `{pull.base}` red and fixed it on this branch."
+    found = f"`heal.main` found `{pull.base}` red and worked on it on this branch."
     body = "\n\n".join(part for part in (found, work.telling()) if part)
     try:
         scm = services().scm(project)

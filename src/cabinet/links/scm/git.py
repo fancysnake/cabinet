@@ -123,15 +123,22 @@ class GitScm(ScmProtocol):
         )
         return ran.stdout.strip()
 
-    # `--no-track`: the branch is pushed by name, and its upstream is not the
-    # base it was cut from.
+    # A branch that exists is taken as it is: its commits are still to push.
+    # Otherwise cut with `--no-track`: the branch is pushed by name, and its
+    # upstream is not the base it was cut from.
     @override
     async def branch(self, branch: str, ref: str) -> None:
         name = _quoted(branch)
-        await _asked(
-            f"git checkout --no-track -b {name} {_quoted(ref)} || git checkout {name}",
-            f"could not take {branch}",
+        exists = await shell(
+            f"git rev-parse --verify --quiet {_quoted(f'refs/heads/{branch}')}",
+            stream=False,
         )
+        command = (
+            f"git checkout {name}"
+            if exists.exit_code == 0
+            else f"git checkout --no-track -b {name} {_quoted(ref)}"
+        )
+        await _asked(command, f"could not take {branch}")
 
     @override
     async def beyond(self, ref: str) -> bool:
