@@ -12,7 +12,8 @@ class Ran(BaseModel):
 
 
 class TasksProtocol(Protocol):
-    # Captured, not streamed, and in the tool's log shape rather than its
+    # Output is streamed to the window while the task runs, and the result
+    # holds the full text. It comes in the tool's log shape rather than its
     # terminal one: what comes back is read by an agent and by the morning
     # report, and a terminal recording is neither.
     async def run(self, task: str) -> Ran: ...

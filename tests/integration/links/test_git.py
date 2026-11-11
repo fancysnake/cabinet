@@ -365,20 +365,13 @@ class TestAhead:
 
 class TestMise:
     @staticmethod
-    def test_a_task_runs_captured_under_ci(trial: Trial) -> None:
+    def test_a_task_streams_under_ci(trial: Trial) -> None:
         trial.shell.replies(
-            when="CI=1 mise run pr-fix", exit_code=1, stdout="1 failed", stderr="x"
+            when="CI=1 mise run pr-fix", exit_code=1, stdout="1 failed\n", stderr="x"
         )
 
         assert drive(trial, lambda: MiseTasks().run("mise run pr-fix")) == Ran(
-            stdout="1 failed", stderr="x", exit_code=1
+            stdout="1 failed\n", stderr="x", exit_code=1
         )
         assert trial.shell.calls[0].command == "CI=1 mise run pr-fix"
-
-    @staticmethod
-    def test_a_task_shows_its_lines_while_it_runs(trial: Trial) -> None:
-        trial.shell.replies(when="CI=1 mise run pr-fix", stdout="1 failed\n")
-
-        drive(trial, lambda: MiseTasks().run("mise run pr-fix"))
-
-        assert trial.deltas == ["1 failed"]
+        assert trial.deltas == ["1 failed", "x"]

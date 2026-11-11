@@ -12,9 +12,6 @@ class MiseTasks(TasksProtocol):
     # rendering, and that is worth knowing before a gate's answer is read as
     # the answer you would have got yourself: a test runner under it may retry
     # a failure before it counts, pin its workers, or refuse a focused test.
-    # Streamed: a gate runs for minutes, and a hung one looks the same as a
-    # slow one unless its lines reach the window. The result holds the same
-    # text either way.
     @override
     async def run(self, task: str) -> Ran:
         result = await shell(f"CI=1 {task}")
