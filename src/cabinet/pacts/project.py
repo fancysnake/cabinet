@@ -169,6 +169,11 @@ class Project(BaseModel):
 
     forge: Forge = "github"
     base: str = "main"
+    # The branch `heal.main` fixes a red base on. `{sha}` is the base's head
+    # as it was fetched, so a branch an earlier fix left behind never has the
+    # name of the next one, and an open pull request on any branch of this
+    # shape is a fix already under way.
+    main_fix_branch: Annotated[str, Field(pattern=r"\{sha\}")] = "fix/main-{sha}"
     # Pushed to and fetched from by name. Must be https with the forge CLI as
     # its credential helper: a command under a cast has no terminal for ssh to
     # ask a passphrase on.
@@ -192,6 +197,18 @@ class Project(BaseModel):
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()
+
+    def fix_branch(self, sha: str) -> str:
+        return self.main_fix_branch.replace("{sha}", sha)
+
+    # Whether `branch` is a fix branch for some head of the base.
+    def fixes_main(self, branch: str) -> bool:
+        before, _, after = self.main_fix_branch.partition("{sha}")
+        return (
+            len(branch) > len(before) + len(after)
+            and branch.startswith(before)
+            and branch.endswith(after)
+        )
 
     # The long tasks an agent is asked to leave alone: the ones the ritual runs
     # itself as soon as the agent stops, and the project's own slow ones.

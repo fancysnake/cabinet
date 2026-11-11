@@ -1,10 +1,11 @@
 # Rituals
 
-Twelve rituals, one facade each under `cabinet.rituals`. Eight work your pull
-requests through one graph: `heal.mine` sweeps every open pull request of
-yours, `heal.pr` takes one by number in a worktree of its own, `heal.this`
-takes your branch's, and `merge`, `ci`, `answer`, `review` and `guide` each
-run a single task on your branch. One identifies your open issues, and three make
+Thirteen rituals, one facade each under `cabinet.rituals`. Nine share one
+graph: `heal.mine` sweeps every open pull request of yours, `heal.pr` takes
+one by number in a worktree of its own, `heal.this` takes your branch's,
+`heal.main` fixes a red base on a branch and opens a pull request, and
+`merge`, `ci`, `answer`, `review` and `guide` each run a single task on your
+branch. One identifies your open issues, and three make
 the labels the others read and put on.
 
 --8<-- "README.md:cast"
@@ -88,6 +89,32 @@ hundred branches at the default `--bound`.
 Every open pull request of yours is listed: GitLab's listing is read to the
 end, and GitHub's stops at the thousand its search returns. A listing that
 stops short says so in the report.
+
+## heal.main
+
+*Evocation.* Fixes a red base. It reads the checks on `base` whose job is in
+`ci.jobs`, the same list the pull requests use, and prints what it found:
+
+```text
+main: ci (checks)
+```
+
+Where a job is red, it cuts the branch `main_fix_branch` names from the base
+as the remote has it, and fixes each red job the way [ci](#ci) does, one
+commit per job. It reruns nothing: a red job is fixed. Then it pushes the
+branch and opens a pull request, which `heal.mine` tends from there. It never
+pushes to the base and never merges.
+
+A branch whose gate will not go green is opened all the same, and the pull
+request says what stopped it. Where no fix was committed, no pull request is
+opened.
+
+One fix at a time: while an open pull request of yours sits on a branch of
+the `main_fix_branch` shape, `heal.main` says so and ends. With
+`--plan-only true` it prints the red jobs and cuts no branch.
+
+A job that runs only on the base, never on a pull request, is fixed only if
+it is in `ci.jobs`.
 
 ## merge
 
@@ -291,4 +318,5 @@ modules = ["cabinet.rituals.review"]
 ```
 
 `modules = ["cabinet.rituals"]` loads every ritual. `cabinet.rituals.heal_mine`
-also loads `heal.pr`, the ritual it queues.
+also loads `heal.pr`, the ritual it queues. `heal.main` has a facade of its
+own, `cabinet.rituals.heal_main`.

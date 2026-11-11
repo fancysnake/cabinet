@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `heal.main`: where a configured CI job is red on the base and no fix of
+  yours is open, it cuts a branch from the base, fixes each red job as `ci`
+  does, pushes, and opens a pull request. It never pushes to the base.
+- `[cabinet] main_fix_branch`, default `fix/main-{sha}`: the branch
+  `heal.main` works on. It must hold `{sha}`, the base's head commit.
+
 ## [5.0.0] - 2026-11-08
 
 ### Added

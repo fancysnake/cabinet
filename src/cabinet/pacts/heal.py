@@ -26,6 +26,10 @@ class MusterPr(BaseModel):
     number: int
 
 
+class MusterMain(Run):
+    pass
+
+
 class Survey(Run):
     pass
 
@@ -149,6 +153,10 @@ class PostGuide(Work):
 
 
 class StandDown(Work):
+    pass
+
+
+class OpenPull(Work):
     pass
 
 

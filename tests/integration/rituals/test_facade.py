@@ -14,6 +14,7 @@ from cabinet.rituals import (
     answer,
     ci,
     guide,
+    heal_main,
     heal_mine,
     heal_pr,
     heal_this,
@@ -32,6 +33,7 @@ _HEALS = [
         heal_mine, {"heal_mine": "heal.mine", "heal_pr": "heal.pr"}, id="heal.mine"
     ),
     pytest.param(heal_pr, {"heal_pr": "heal.pr"}, id="heal.pr"),
+    pytest.param(heal_main, {"heal_main": "heal.main"}, id="heal.main"),
     pytest.param(heal_this, {"heal_this": "heal.this"}, id="heal.this"),
     pytest.param(merge, {"merge": "merge"}, id="merge"),
     pytest.param(ci, {"ci": "ci"}, id="ci"),

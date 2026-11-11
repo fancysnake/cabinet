@@ -365,6 +365,25 @@ class GitlabForge(ForgeProtocol):
         return PullListing(pulls=[_pull(found) for found in listed])
 
     @override
+    async def open_pull(
+        self, branch: str, base: str, *, title: str, body: str
+    ) -> Opened:
+        opened = await _read(
+            _ISSUE,
+            _api(
+                "projects/:id/merge_requests",
+                "-X POST",
+                f"-f source_branch={quoted(branch)}",
+                f"-f target_branch={quoted(base)}",
+                f"-f title={quoted(title)}",
+                f"-f description={quoted(_inert(body))}",
+            ),
+            "could not open the merge request",
+            "a merge request",
+        )
+        return Opened(number=opened.iid, url=opened.web_url)
+
+    @override
     async def labels(self, number: int) -> list[str]:
         seen = await _read(
             _MERGE_REQUEST,

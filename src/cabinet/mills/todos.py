@@ -26,6 +26,10 @@ _DIFF_HIT = re.compile(r"([\d.]+)% of diff hit")
 
 class Todos(TodosProtocol):
     @override
+    def red(self, board: Board, project: Project) -> list[Check]:
+        return _red(board, project)
+
+    @override
     def surveyed(self, facts: Facts, project: Project) -> Surveyed:
         pull = facts.pull
         red = _red(facts.board, project)

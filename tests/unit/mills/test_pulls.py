@@ -73,3 +73,24 @@ class TestNumbered:
         other = _pull(2, updated_at="2026-08-01T00:00:00Z")
 
         assert _PULLS.numbered([other, asked], 1) == [asked]
+
+
+class TestFixing:
+    @staticmethod
+    def test_only_a_branch_of_the_fix_branch_s_shape() -> None:
+        feature = _pull(1, updated_at="2026-08-01T00:00:00Z")
+        fix = feature.model_copy(update={"number": 2, "branch": "fix/main-abc1234"})
+        bare = feature.model_copy(update={"number": 3, "branch": "fix/main-"})
+
+        assert _PULLS.fixing([feature, fix, bare], _PROJECT) == [fix]
+
+    @staticmethod
+    def test_the_shape_is_the_projects() -> None:
+        project = Project(main_fix_branch="mend/{sha}/main")
+        fix = _pull(1, updated_at="2026-08-01T00:00:00Z").model_copy(
+            update={"branch": "mend/abc1234/main"}
+        )
+
+        assert _PULLS.fixing([fix], project) == [fix]
+        assert project.fix_branch("abc1234") == "mend/abc1234/main"
+        assert _PULLS.fixing([fix], _PROJECT) == []

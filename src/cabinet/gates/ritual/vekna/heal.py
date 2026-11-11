@@ -3,6 +3,7 @@
     vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
     vekna cast heal.this [--plan-only true] [--bound N] [--attended false] [--batch N]
     vekna cast heal.pr --number N [--plan-only true] [--bound N] [--batch N]
+    vekna cast heal.main [--plan-only true] [--bound N] [--attended false]
     vekna cast merge [--plan-only true] [--bound N] [--attended false]
     vekna cast ci [--plan-only true] [--bound N] [--attended false]
     vekna cast answer [--plan-only true] [--bound N] [--batch N]
@@ -16,6 +17,14 @@ a pooled worktree beside the others. With no daemon listening it says so and
 fails. ``heal.pr`` takes the pull request it is given the number of;
 ``heal.this`` and the task rituals take the pull request of the branch at the
 cwd. A task ritual is ``heal.this`` that may work one task and no other.
+
+``heal.main`` takes no pull request: it reads the configured CI jobs on the
+base. Where one is red and no fix of yours is open, it cuts
+``main_fix_branch`` from the base as the remote has it, fixes each red job
+the way the ci task does, without the rerun, pushes, and opens a pull
+request. A branch its gate will not go green on is opened all the same, and
+the pull request says what stopped it. Where nothing was committed, nothing
+is opened.
 
 Each pull request is surveyed first: whether it conflicts with its base, which
 of the configured CI jobs are red, how many review threads are open, and which
@@ -122,9 +131,11 @@ from cabinet.pacts.heal import (
     LandJob,
     MendJob,
     MergeBase,
+    MusterMain,
     MusterMine,
     MusterPr,
     MusterThis,
+    OpenPull,
     PickJob,
     PostAnswers,
     PostGuide,
@@ -157,7 +168,7 @@ from cabinet.pacts.healing import (
 )
 from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import CiJob, Project
-from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
@@ -248,6 +259,65 @@ async def muster_pr(mustering: MusterPr) -> Chart | Survey:
         stopped = f"no open pull request of yours is #{mustering.number}"
         return run.but(stopped=stopped).to(Chart)
     return _queued(run, queue, Survey)
+
+
+# The base itself, where a configured job is red on it and no fix of yours is
+# open: a branch cut from the base as the remote has it, handed straight to
+# the job loop. No rerun first: `rerun_jobs` counts a check's runs on the
+# pull request's branch, and this branch has none.
+@step
+async def muster_main(run: MusterMain) -> Chart | PickJob:
+    project = run.project
+    try:
+        run, red = await _base_read(run)
+        if not (red and run.tasks):
+            return run.to(Chart)
+        branch = await _fix_cut(project)
+    except (ScmError, ForgeError) as error:
+        return run.but(stopped=str(error)).to(Chart)
+    pull = PullRequest(
+        number=0,
+        title=f"fix: make {project.base} green",
+        url="",
+        branch=branch,
+        base=project.base,
+        updated_at="",
+    )
+    return Work(run=run, pr=pull, red=red).one_per_job().to(PickJob)
+
+
+# The configured jobs red on the base, said on one line as a pull request's
+# todos are. None while a fix of yours is open: one fix at a time.
+async def _base_read(run: _RunT) -> tuple[_RunT, list[Check]]:
+    project = run.project
+    run, pulls = await _listed(run)
+    if fixing := services().pulls.fixing(pulls, project):
+        fix = fixing[0]
+        emit_delta(
+            f"a fix for {project.base} is already open: #{fix.number} {fix.branch}"
+        )
+        return run, []
+    board = await services().forge(project).board(project.base)
+    red = services().todos.red(board, project)
+    todos: list[Task] = ["ci"] if red else []
+    row = Surveyed(
+        number=0, branch=project.base, url="", todos=todos, red=red, threads=0
+    )
+    emit_delta(services().report.surveyed(row))
+    return run.but(surveyed=[row]), red
+
+
+# Stand on the fix branch, cut from the base as the remote has it now.
+async def _fix_cut(project: Project) -> str:
+    scm = services().scm(project)
+    base = f"{project.remote}/{project.base}"
+    if dirty := await scm.status():
+        msg = f"the worktree is not clean:\n{dirty}"
+        raise ScmError(msg)
+    await scm.fetch()
+    branch = project.fix_branch(await scm.head(base))
+    await scm.branch(branch, base)
+    return branch
 
 
 # Read the next pull request's facts, say what it needs, and take it where
@@ -412,11 +482,12 @@ _FIRST: dict[Task, type[_First]] = {
 # pushed first: every task after the merge works on code the forge has, and a
 # branch is not left with commits only this worktree holds.
 @step
-def tend(work: Tend) -> PushWork | FinishPr | _First:
+def tend(work: Tend) -> PushWork | OpenPull | FinishPr | _First:
     if work.changed:
         return work.to(PushWork)
     if not work.todos:
-        return work.to(FinishPr)
+        # No number yet is `heal.main`'s branch, with no pull request open.
+        return work.to(FinishPr) if work.pr.number else work.to(OpenPull)
     task, *rest = work.todos
     taken = work.but(todos=rest)
     return taken.to(_FIRST[task])
@@ -602,10 +673,15 @@ async def stand_down(work: StandDown) -> Tend:
 # Not fatal, and not `set_aside`: a push that will not go through costs the
 # review its anchors and nothing else. What is left behind is said twice over:
 # in this note, and in the row's `unpushed`, counted off git at the end.
+# `heal.main`'s branch, the one with no number yet, goes up only with a commit
+# past the base: one that stood down with none would land as a copy of the
+# base, with no pull request to it.
 @step
 async def push_work(work: PushWork) -> Tend:
+    scm = services().scm(work.run.project)
     try:
-        await services().scm(work.run.project).push(work.pr.branch)
+        if work.pr.number or await scm.beyond(work.base_ref):
+            await scm.push(work.pr.branch)
     except ScmError as error:
         work = work.noting(str(error))
     return work.pushed().to(Tend)
@@ -1075,6 +1151,30 @@ async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
 
 
 # --- endings ---------------------------------------------------------------
+
+
+# `heal.main`'s branch, pushed: open its pull request, which `heal.mine` tends
+# from here on. A blocked branch is opened too, so the next `heal.main` finds
+# a fix under way, and the pull request says what stopped it. A branch with
+# no commit past the base has nothing to open.
+@step
+async def open_pull(work: OpenPull) -> FinishPr:
+    project = work.run.project
+    pull = work.pr
+    found = f"`heal.main` found `{pull.base}` red and fixed it on this branch."
+    body = "\n\n".join(part for part in (found, work.telling()) if part)
+    try:
+        if not await services().scm(project).beyond(work.base_ref):
+            left = "nothing was committed, so no pull request was opened"
+            return work.noting(left).to(FinishPr)
+        opened = (
+            await services()
+            .forge(project)
+            .open_pull(pull.branch, pull.base, title=pull.title, body=body)
+        )
+    except (ScmError, ForgeError) as error:
+        return work.noting(str(error)).to(FinishPr)
+    return work.opened(opened.number, opened.url).noting(opened.url).to(FinishPr)
 
 
 # Write the branch's row into the cast, and go on to the next one.

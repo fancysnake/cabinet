@@ -237,7 +237,7 @@ class Run(Reserving, Hop):
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
 _Update: TypeAlias = dict[
-    str, Run | dict[str, int] | list[Task] | list[Check] | bool | str
+    str, Run | PullRequest | dict[str, int] | list[Task] | list[Check] | bool | str
 ]
 
 
@@ -360,6 +360,11 @@ class Work(Budgeted, Hop):
 
     def pushed(self) -> Self:
         return self._copied({"changed": False})
+
+    # The forge opened the branch's pull request, as this number at this URL.
+    def opened(self, number: int, url: str) -> Self:
+        update: dict[str, int | str] = {"number": number, "url": url}
+        return self._copied({"pr": self.pr.model_copy(update=update)})
 
     # The step that gives up on the branch says why, once.
     def stopped_by(self, reason: str) -> Self:

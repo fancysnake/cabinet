@@ -86,6 +86,12 @@ def _threads(count: int) -> str:
     return f"{count} thread" if count == 1 else f"{count} threads"
 
 
+# A branch `heal.main` works has no pull request, so no number, until it opens
+# one.
+def _head(number: int, branch: str) -> str:
+    return f"#{number} {branch}" if number else branch
+
+
 def _line(row: Checked) -> str:
     ahead = "unknown" if row.unpushed is None else f"{row.unpushed} unpushed"
     # A blocked row's note carries the gate's verdict, which is a dozen lines
@@ -94,7 +100,8 @@ def _line(row: Checked) -> str:
     # ends that list wherever it lands.
     wrapped = row.note.replace("\n", "\n      ")
     note = f" — {wrapped}" if row.note else ""
-    return f"  #{row.number} {row.branch}: {_OUTCOME[row.outcome]}, {ahead}{note}"
+    head = _head(row.number, row.branch)
+    return f"  {head}: {_OUTCOME[row.outcome]}, {ahead}{note}"
 
 
 # Said wherever the forge stopped listing `what` at its cap: one the listing
@@ -189,7 +196,7 @@ class Report(ReportProtocol):
     # `#7 feature: merge, ci (checks), answer (3 threads), review`.
     @override
     def surveyed(self, row: Surveyed | Unsurveyed) -> str:
-        head = f"#{row.number} {row.branch}"
+        head = _head(row.number, row.branch)
         # Indented the way a worked row's note is: git's complaint is often
         # stdout and stderr on lines of their own, and one in column zero
         # reads as the next pull request.

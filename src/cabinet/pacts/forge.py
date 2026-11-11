@@ -31,6 +31,12 @@ class ForgeProtocol(Protocol):
     # Every open pull request of yours, as the forge lists them.
     async def pulls(self) -> PullListing: ...
 
+    # Open a pull request for `branch` against `base`, both as the forge has
+    # them.
+    async def open_pull(
+        self, branch: str, base: str, *, title: str, body: str
+    ) -> Opened: ...
+
     async def labels(self, number: int) -> list[str]: ...
 
     # Several go on or off in one call rather than one apiece: two labels put

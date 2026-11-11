@@ -162,6 +162,37 @@ class TestMoving:
             drive(trial, lambda: _SCM.checkout("feature"))
 
     @staticmethod
+    def test_head_is_the_short_name_of_the_commit(trial: Trial) -> None:
+        trial.shell.replies(when="git rev-parse --short*", stdout="abc1234\n")
+
+        assert drive(trial, lambda: _SCM.head("origin/main")) == "abc1234"
+        assert trial.shell.commands == ["git rev-parse --short origin/main"]
+
+    # One that exists is taken as it is: its commits are still to push.
+    @staticmethod
+    def test_a_branch_is_cut_where_there_is_none(trial: Trial) -> None:
+        trial.shell.replies(when="git checkout --no-track*")
+
+        drive(trial, lambda: _SCM.branch("fix/main-abc1234", "origin/main"))
+
+        assert trial.shell.commands == [
+            (
+                "git checkout --no-track -b fix/main-abc1234 origin/main"
+                " || git checkout fix/main-abc1234"
+            )
+        ]
+
+    @staticmethod
+    @pytest.mark.parametrize(("count", "beyond"), [("2\n", True), ("0\n", False)])
+    def test_beyond_counts_the_commits_past_a_ref(
+        trial: Trial, count: str, *, beyond: bool
+    ) -> None:
+        trial.shell.replies(when="git rev-list --count*", stdout=count)
+
+        assert drive(trial, lambda: _SCM.beyond("origin/main")) is beyond
+        assert trial.shell.commands == ["git rev-list --count origin/main..HEAD"]
+
+    @staticmethod
     def test_fetch_touches_no_branch(trial: Trial) -> None:
         trial.shell.replies(when="git fetch*")
 
