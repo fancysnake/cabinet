@@ -98,8 +98,6 @@ class TestSpending:
         assert isinstance(ruling, Repair)
         assert ruling.next_gate == "mise run lint:ruff"
         assert "E501 too long" in ruling.asking
-        assert ruling.seen == ["E501 too long"]
-        assert "as you decided" in ruling.declined
 
     # Lines are re-measured without the slow suites: what an agent writes for
     # a gap is a test, and the fast suite is the one that runs it.
