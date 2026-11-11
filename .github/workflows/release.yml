@@ -26,6 +26,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      # A tag on a feature branch would publish code main never took. The
+      # forge answers, since the checkout is one commit deep.
+      - name: Check the tagged commit is on main
+        run: |
+          sha="$(git rev-parse HEAD)"
+          status="$(gh api "repos/${GH_REPO}/compare/main...${sha}" --jq .status)"
+          case "${status}" in
+            identical | behind) ;;
+            *)
+              echo "::error::tag ${TAG} points at ${sha}, which is not on main (${status})"
+              exit 1
+              ;;
+          esac
       - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
       - run: mise install
       # A tag ahead of or behind the manifest would build a wheel named for a
