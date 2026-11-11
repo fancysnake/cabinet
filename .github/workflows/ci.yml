@@ -40,6 +40,8 @@ jobs:
         continue-on-error: true
 
   # The matrix comes from `requires-python`, so the range has one source.
+  # black, mypy and pylint take the floor from it or from the interpreter mise
+  # pins, so that pin is the one copy, and this job refuses one that drifted.
   versions:
     runs-on: ubuntu-latest
     outputs:
@@ -59,6 +61,11 @@ jobs:
           fi
           floor=${BASH_REMATCH[1]}
           ceiling=${BASH_REMATCH[2]}
+          pin=$(yq -p toml '.tools.python' mise.toml)
+          if [[ ! $pin =~ ^3\.$floor(\.|$) ]]; then
+            echo "::error::mise.toml pins python $pin, requires-python starts at 3.$floor"
+            exit 1
+          fi
           {
             echo "floor=3.$floor"
             echo "all=$(seq "$floor" $((ceiling - 1)) | jq -Rnc '[inputs | "3." + .]')"
