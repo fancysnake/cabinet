@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning].
 ### Changed
 
 - An attended cast no longer asks before a repair attempt: resolving merge
-  conflicts, repairing the gate and fixing a CI job all go ahead, and
-  `--bound` alone stops them. The review threads of the answer task are the
-  only question a cast asks.
+  conflicts, repairing the gate and fixing a CI job all go ahead without
+  waiting for you. The review threads of the answer task are the only
+  question a cast asks.
 
 ## [5.0.0] - 2026-11-08
 
