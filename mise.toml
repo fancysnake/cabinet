@@ -1,6 +1,6 @@
 [tools]
 actionlint = "1.7.12"
-hk = { version = "2.10.0", workflow = "release.yml" }
+hk = { version = "2.11.1", workflow = "release.yml" }
 pipx = "1.18.10"
 "pipx:poetry" = "2.5.1"
 pkl = "0.32.2"
