@@ -60,8 +60,8 @@ _COMMITTED = "[feature abc123] fix\ncommitted\n"
 _SUITE_LOOP = "job_gate-suite"
 
 
-def _on(work: Work, *red: Check, attended: bool = False) -> Work:
-    run = work.run.model_copy(update={"project": _PROJECT, "attended": attended})
+def _on(work: Work, *red: Check) -> Work:
+    run = work.run.model_copy(update={"project": _PROJECT})
     return work.but(run=run).model_copy(update={"red": list(red)})
 
 
@@ -229,17 +229,6 @@ class TestMendJob:
         assert trial.walk(mend_job, red.to(MendJob)) == red.passed_over(
             "gh could not read the log of lint: gone"
         ).to(PickJob)
-
-    @staticmethod
-    def test_an_attended_cast_may_leave_a_job_red(trial: Trial, work: Work) -> None:
-        trial.shell.replies(when=_LOG.format(id=42), stdout="E501\n")
-        trial.decide.answers(answer=False, when="fix the `lint` job*")
-        red = _on(work, _LINT, attended=True)
-
-        assert trial.walk(mend_job, red.to(MendJob)) == red.passed_over(
-            "`lint` was left red, as you decided"
-        ).to(PickJob)
-        assert not trial.coding.prompts
 
     @staticmethod
     def test_an_agent_that_dies_ends_the_cast(trial: Trial, work: Work) -> None:

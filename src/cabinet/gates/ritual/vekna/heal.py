@@ -90,8 +90,8 @@ spending its budget. Each ``heal.pr`` is a cast of its own, and pays once.
 A cast is attended unless vekna was told ``--unattended`` or the ritual
 ``--attended false``, which ``[defaults."cabinet:<ritual>"]`` can set per
 repository.
-Unattended, nothing is asked and the budgets decide; attended, each repair
-attempt is put to you first.
+The budgets decide every repair either way. Attended, the review threads are
+put to you, the one question a cast asks.
 
 A branch is taken only where the worst it can spend still fits the engine's
 step budget; one that does not ends the cast without failing it, and the report
@@ -460,10 +460,7 @@ async def resolve_conflicts(
         if not work.spent(resolve_conflicts.name):
             return work.but(note=f"no conflicts: {work.note}").to(SetAside)
         return work.but(note="").cleared(resolve_conflicts.name).to(GateCheck)
-    # The budget's say or the operator's: the branch stands down either way.
-    if work.exhausted(resolve_conflicts.name) or not await _worth_another(
-        work, "resolve the conflicts"
-    ):
+    if work.exhausted(resolve_conflicts.name):
         stopped = work.stopped_by("the merge conflicts were not resolved")
         return stopped.to(StandDown)
     prompt = services().prompts.resolve(
@@ -482,15 +479,6 @@ async def resolve_conflicts(
 # down without spending a budget of its own.
 def _gave_up(work: Work, reason: str, seen: list[str]) -> Work:
     return work.stopped_by(reason).but(run=work.run.but(seen=seen))
-
-
-# Spending the agent's time is the operator's call where there is one: an
-# attended cast asks before every repair attempt, an unattended one lets the
-# budget answer, since with nobody there a prompt is a hang.
-async def _worth_another(work: Work, what: str) -> bool:
-    if not work.run.attended:
-        return True
-    return await decide(f"{what} on {work.pr.branch} (attempt {work.attempts() + 1})?")
 
 
 # One round of a repair loop, shared by every loop that runs a gate, against
@@ -526,10 +514,6 @@ async def _repaired(
         return work.but(gate="").cleared(name).to(then)
     if isinstance(ruling, Stalled):
         return _gave_up(work, ruling.reason, ruling.seen).to(StandDown)
-    # The budget had its say; the operator gets the last one, and a verdict
-    # nobody will pay for again is remembered either way.
-    if not await _worth_another(work, f"repair `{gate}`"):
-        return _gave_up(work, ruling.declined, ruling.seen).to(StandDown)
     if fallen := await _asked(work, ruling.asking, key=name):
         return work.abandoned(fallen.reason).to(Chart)
     return work.but(gate=ruling.next_gate).charged(name)
@@ -680,10 +664,6 @@ async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
         if gate:
             return work.noting(str(error)).to(JobGate)
         return work.passed_over(str(error)).to(PickJob)
-    if not await _worth_another(work, f"fix the `{check.name}` job"):
-        return work.passed_over(f"`{check.name}` was left red, as you decided").to(
-            PickJob
-        )
     prompt = services().prompts.fix_job(
         project, services().verdicts.logged(log), job=check.name, gate=gate
     )

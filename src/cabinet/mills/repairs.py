@@ -11,10 +11,6 @@ from typing_extensions import override
 from cabinet.pacts.repairs import Attempt, Fixed, Repair, Ruling, Stalled
 from cabinet.pacts.services import PromptsProtocol, RepairsProtocol, VerdictsProtocol
 
-# What the report says where the attempt was the operator's to approve and
-# they said no.
-DECLINED = "was not tried again, as you decided"
-
 
 class Repairs(RepairsProtocol):
     def __init__(self, prompts: PromptsProtocol, verdicts: VerdictsProtocol) -> None:
@@ -52,7 +48,6 @@ class Repairs(RepairsProtocol):
             asking=self._asking(attempt, report=report, missing=missing),
             next_gate=self._next_gate(attempt, missing=missing),
             seen=seen,
-            declined=f"`{attempt.gate}` {DECLINED}:\n{said}",
         )
 
     # The work list, whole: a tail of a coverage report is an agent asked to

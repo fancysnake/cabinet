@@ -157,22 +157,18 @@ class TestResolveConflicts:
         assert trial.coding.calls[0].resume is None
 
     @staticmethod
-    def test_an_attended_cast_asks_before_a_resolver_is_spent(
-        trial: Trial, work: Work
-    ) -> None:
+    def test_an_attended_cast_resolves_without_asking(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_UNMERGED, stdout="src/thing.py\n")
-        trial.decide.answers(answer=False, when="resolve the conflicts*")
+        trial.coding.replies("resolved")
         attended = work.but(run=work.run.model_copy(update={"attended": True}))
 
         assert trial.walk(
             resolve_conflicts, attended.merging_on("").to(ResolveConflicts)
-        ) == attended.merging_on("").stopped_by(
-            "the merge conflicts were not resolved"
-        ).to(
-            StandDown
+        ) == attended.merging_on("").charged(resolve_conflicts.name).to(
+            ResolveConflicts
         )
-        assert trial.decide.prompts == ["resolve the conflicts on feature (attempt 1)?"]
-        assert not trial.coding.prompts
+        assert not trial.decide.prompts
+        assert len(trial.coding.prompts) == 1
 
     @staticmethod
     def test_an_index_that_cannot_be_read_is_set_aside(

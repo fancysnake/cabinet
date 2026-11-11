@@ -92,11 +92,12 @@ vekna cast labels.identify
 
 `--bound` is how many times one step may be retried on one branch, 1 to 5,
 default 3. A cast is attended unless you cast it with `vekna cast --unattended`
-or pass `--attended false`. An attended cast answers review threads with you,
-asks before every repair attempt instead of letting the budget decide, and runs
-its agents in Claude's `auto` permission mode. `[defaults."cabinet:heal.mine"]
+or pass `--attended false`. An attended cast answers review threads with you
+and runs its agents in Claude's `auto` permission mode; the review threads
+are the only thing a cast asks you about, and the budget decides every repair.
+`[defaults."cabinet:heal.mine"]
 attended = false` in `.vekna.toml` turns one ritual down for a repository.
-`identify` asks you about every page. `--batch` is how many issues go on one
+`--batch` is how many issues go on one
 page, or how many open threads one round of answers takes, default 7.
 
 ## Install

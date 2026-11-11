@@ -473,12 +473,11 @@ def _worst_jobs(trial: Trial, bound: int) -> None:
         trial.shell.replies(when=f"CI=1 mise run {job}:x", always=True)
 
 
-# Attended, so every repair attempt is asked about and said yes to. One thread
+# Attended, so the answer task is worked. One thread
 # open through every round the share allows, each read, answered as the
 # reading says, replied to and settled; the forge keeps saying it is open,
 # and the worktree has changed when the rounds are spent.
 def _worst_answers(trial: Trial) -> None:
-    trial.decide.answers(answer=True, when="* (attempt *)?", always=True)
     trial.decide.answers(answer="", when="1. *", always=True)
     opened = threads_page(page([node("PRRT_1", page([comment(101)]))]))
     # The survey, `settle_left`, and a read and a post every round.
@@ -692,7 +691,6 @@ class TestTaskRituals:
         trial.shell.replies(when=_RELEASE, always=True)
         trial.shell.replies(when="git add -A*")
         trial.shell.replies(when="git push origin feature")
-        trial.decide.answers(answer=True, when="resolve the conflicts on feature*")
 
         result = trial.cast(merge, Heal())
 

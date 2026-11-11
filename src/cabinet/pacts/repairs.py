@@ -48,13 +48,11 @@ class Stalled(BaseModel):
     seen: list[str]
 
 
-# One more attempt, with the asking already written. `declined` is the reason
-# where the attempt is the operator's to approve and they say no.
+# One more attempt, with the asking already written.
 class Repair(BaseModel):
     asking: str
     next_gate: str
     seen: list[str]
-    declined: str
 
 
 Ruling = Fixed | Stalled | Repair
