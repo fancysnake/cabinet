@@ -37,6 +37,7 @@ _FETCH = "git fetch --prune origin"
 _HEAD = "git rev-parse --short origin/main"
 _CUT = f"git checkout --no-track -b {_BRANCH} origin/main || git checkout {_BRANCH}"
 _BEYOND = "git rev-list --count origin/main..HEAD"
+_PUSH = f"git push origin {_BRANCH}"
 _OPEN = "gh api repos*pulls -X POST*"
 _URL = "https://github.com/o/r/pull/9"
 _OPENED = json.dumps({"number": 9, "html_url": _URL})
@@ -191,11 +192,38 @@ class TestPushWork:
 
 
 class TestOpenPull:
+    # A branch reused from an earlier cast has commits the remote may never
+    # have got, and no new one of its own to send them with.
+    @staticmethod
+    def test_the_branch_is_pushed_before_its_pull_request_is_opened(
+        trial: Trial, fixing: Work
+    ) -> None:
+        trial.shell.replies(when=_BEYOND, stdout="1\n")
+        trial.shell.replies(when=_PUSH)
+        trial.shell.replies(when=_OPEN, stdout=_OPENED)
+
+        trial.walk(open_pull, fixing.to(OpenPull))
+
+        assert trial.shell.commands[:2] == [_BEYOND, _PUSH]
+
+    @staticmethod
+    def test_a_push_the_remote_refuses_opens_nothing(
+        trial: Trial, fixing: Work
+    ) -> None:
+        trial.shell.replies(when=_BEYOND, stdout="1\n")
+        trial.shell.replies(when=_PUSH, exit_code=1, stderr="rejected")
+
+        assert trial.walk(open_pull, fixing.to(OpenPull)) == fixing.noting(
+            f"could not push {_BRANCH}: rejected"
+        ).to(FinishPr)
+        assert trial.shell.commands == [_BEYOND, _PUSH]
+
     @staticmethod
     def test_the_row_takes_the_number_the_forge_gave(
         trial: Trial, fixing: Work
     ) -> None:
         trial.shell.replies(when=_BEYOND, stdout="1\n")
+        trial.shell.replies(when=_PUSH)
         trial.shell.replies(when=_OPEN, stdout=_OPENED)
 
         assert trial.walk(open_pull, fixing.to(OpenPull)) == fixing.opened(
@@ -213,6 +241,7 @@ class TestOpenPull:
         trial: Trial, fixing: Work
     ) -> None:
         trial.shell.replies(when=_BEYOND, stdout="1\n")
+        trial.shell.replies(when=_PUSH)
         trial.shell.replies(when=_OPEN, stdout=_OPENED)
         blocked = fixing.stopped_by("the gate is still red")
 
@@ -234,6 +263,7 @@ class TestOpenPull:
     @staticmethod
     def test_a_forge_that_refuses_is_noted(trial: Trial, fixing: Work) -> None:
         trial.shell.replies(when=_BEYOND, stdout="1\n")
+        trial.shell.replies(when=_PUSH)
         trial.shell.replies(when=_OPEN, exit_code=1, stderr="no such head")
 
         assert trial.walk(open_pull, fixing.to(OpenPull)) == fixing.noting(

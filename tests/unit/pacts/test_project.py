@@ -46,6 +46,13 @@ class TestFixBranch:
         with pytest.raises(ValidationError, match="main_fix_branch"):
             Project(main_fix_branch="fix/red-main")
 
+    # `fixes_main` splits on the one `{sha}`; a second would leave the branches
+    # the template makes unrecognised.
+    @staticmethod
+    def test_a_name_with_the_commit_twice_is_refused() -> None:
+        with pytest.raises(ValidationError, match="main_fix_branch"):
+            Project(main_fix_branch="fix/{sha}/{sha}")
+
 
 class TestConjured:
     @staticmethod

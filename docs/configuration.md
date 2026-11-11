@@ -11,7 +11,7 @@ ritual runs it.
 [cabinet]
 forge = "github"                      # or "gitlab"
 base = "main"
-main_fix_branch = "fix/main-{sha}"    # must hold {sha}
+main_fix_branch = "fix/main-{sha}"    # must hold {sha} once
 remote = "origin"
 gate = "mise run pr-fix"
 coverage = "mise run diff-cover"

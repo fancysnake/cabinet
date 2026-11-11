@@ -1153,10 +1153,12 @@ async def post_guide(work: PostGuide) -> Tend | SetAside | Chart:
 # --- endings ---------------------------------------------------------------
 
 
-# `heal.main`'s branch, pushed: open its pull request, which `heal.mine` tends
-# from here on. A blocked branch is opened too, so the next `heal.main` finds
-# a fix under way, and the pull request says what stopped it. A branch with
-# no commit past the base has nothing to open.
+# `heal.main`'s branch: push it, then open its pull request, which `heal.mine`
+# tends from here on. The push is repeated here because a branch reused from an
+# earlier cast can hold commits the remote never got, with no new one to send
+# it through `push_work`. A blocked branch is opened too, so the next
+# `heal.main` finds a fix under way, and the pull request says what stopped it.
+# A branch with no commit past the base has nothing to open.
 @step
 async def open_pull(work: OpenPull) -> FinishPr:
     project = work.run.project
@@ -1164,9 +1166,11 @@ async def open_pull(work: OpenPull) -> FinishPr:
     found = f"`heal.main` found `{pull.base}` red and fixed it on this branch."
     body = "\n\n".join(part for part in (found, work.telling()) if part)
     try:
-        if not await services().scm(project).beyond(work.base_ref):
+        scm = services().scm(project)
+        if not await scm.beyond(work.base_ref):
             left = "nothing was committed, so no pull request was opened"
             return work.noting(left).to(FinishPr)
+        await scm.push(pull.branch)
         opened = (
             await services()
             .forge(project)
