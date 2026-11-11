@@ -2371,14 +2371,14 @@ testing = ["aboutcode-toolkit (>=6.0.0)", "black", "pytest (>=6,!=7.0.0)", "pyte
 
 [[package]]
 name = "platformdirs"
-version = "4.14.4"
+version = "4.14.5"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
 optional = false
 python-versions = ">=3.11"
 groups = ["main", "dev", "docs"]
 files = [
-    {file = "platformdirs-4.14.4-py3-none-any.whl", hash = "sha256:89c1bfa30434b2dcc08655bcfb1789e1a6f97602c11ff990615d09a4b823d6be"},
-    {file = "platformdirs-4.14.4.tar.gz", hash = "sha256:edb4a4aea570d69eb83e6b0973b588bbf868fb0dde2894106d6667739f017751"},
+    {file = "platformdirs-4.14.5-py3-none-any.whl", hash = "sha256:8e778c6fa421516f4d3369449f8df3b0e1b72c0e0005fe88e3ec772d0a14e750"},
+    {file = "platformdirs-4.14.5.tar.gz", hash = "sha256:32e9921db7385aa8169bee4fe9501923e5715ba9fb7ea3b9c69b0d8e0639f7a1"},
 ]
 
 [[package]]
@@ -3571,14 +3571,14 @@ standard = ["httptools (>=0.8.0)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "
 
 [[package]]
 name = "vekna"
-version = "0.15.0"
+version = "1.0.0"
 description = "Run coding agents as rituals: ordinary Python programs whose steps you control"
 optional = false
 python-versions = "<3.16,>=3.11"
 groups = ["main"]
 files = [
-    {file = "vekna-0.15.0-py3-none-any.whl", hash = "sha256:f5e52b345cd91a39ebf5dcf14692011f6a68ec42c7822f4999ced37d8c47f705"},
-    {file = "vekna-0.15.0.tar.gz", hash = "sha256:e18c19903c44a791cc439c59becc022cb48051e0cd0f6bd234ce764ac0cee344"},
+    {file = "vekna-1.0.0-py3-none-any.whl", hash = "sha256:14728664cf2b1b55ddaa9926b403a74073a7c4cf964aa03bca23f42ced2f6395"},
+    {file = "vekna-1.0.0.tar.gz", hash = "sha256:176ba40568295167261a0f780548c9e4ae1cdacf44d34bc8b2122dfdaa214da2"},
 ]
 
 [package.dependencies]
