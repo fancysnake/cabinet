@@ -374,3 +374,11 @@ class TestMise:
             stdout="1 failed", stderr="x", exit_code=1
         )
         assert trial.shell.calls[0].command == "CI=1 mise run pr-fix"
+
+    @staticmethod
+    def test_a_task_shows_its_lines_while_it_runs(trial: Trial) -> None:
+        trial.shell.replies(when="CI=1 mise run pr-fix", stdout="1 failed\n")
+
+        drive(trial, lambda: MiseTasks().run("mise run pr-fix"))
+
+        assert trial.deltas == ["1 failed"]
