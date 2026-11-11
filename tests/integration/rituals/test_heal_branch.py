@@ -169,6 +169,7 @@ class TestResolveConflicts:
         )
         assert not trial.decide.prompts
         assert len(trial.coding.prompts) == 1
+        assert "permission_mode='auto'" in str(trial.coding.calls[0].focus_options)
 
     @staticmethod
     def test_an_index_that_cannot_be_read_is_set_aside(

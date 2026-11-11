@@ -52,7 +52,6 @@ class Stalled(BaseModel):
 class Repair(BaseModel):
     asking: str
     next_gate: str
-    seen: list[str]
 
 
 Ruling = Fixed | Stalled | Repair

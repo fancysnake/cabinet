@@ -26,10 +26,6 @@ class Repairs(RepairsProtocol):
         if not missing and not attempt.ran.exit_code:
             return Fixed(whole=attempt.gate == attempt.whole)
         said = self._verdicts.verdict(attempt.ran)
-        # Only a red gate is worth remembering across branches: what lines a
-        # branch left uncovered is that branch's own business, and two
-        # branches missing lines in the same file look identical from here.
-        seen = attempt.seen if missing else [*attempt.seen, said]
         # Asked before the first repair and not after, so this reads "the
         # branch arrived broken the same way", never "the agent failed to fix
         # it twice". The memory it is read against is the one the run came in
@@ -43,11 +39,14 @@ class Repairs(RepairsProtocol):
             return Stalled(reason=reason, seen=attempt.seen)
         left = "still reports missing lines" if missing else "is still red"
         if attempt.spent >= attempt.bound:
+            # Only a red gate is worth remembering across branches: what lines
+            # a branch left uncovered is that branch's own business, and two
+            # branches missing lines in the same file look identical from here.
+            seen = attempt.seen if missing else [*attempt.seen, said]
             return Stalled(reason=f"`{attempt.gate}` {left}:\n{said}", seen=seen)
         return Repair(
             asking=self._asking(attempt, report=report, missing=missing),
             next_gate=self._next_gate(attempt, missing=missing),
-            seen=seen,
         )
 
     # The work list, whole: a tail of a coverage report is an agent asked to
