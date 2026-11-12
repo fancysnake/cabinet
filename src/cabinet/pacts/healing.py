@@ -192,6 +192,18 @@ class Run(Reserving, Hop):
     def summoned(self, queued: Queued) -> Self:
         return self._copied({"queued": [*self.queued, queued]})
 
+    # Why the cast fails, or nothing: it stopped, or it gave up on a branch
+    # whose task is then still owed.
+    def failed(self) -> str:
+        if self.stopped:
+            return self.stopped
+        blocked = ", ".join(
+            f"#{row.number} {row.branch}"
+            for row in self.checked
+            if row.outcome == "blocked"
+        )
+        return f"blocked: {blocked}" if blocked else ""
+
     # The one way a `Run` is copied, typed on the way in as `Work._copied` is.
     def _copied(self, update: _RunUpdate) -> Self:
         return self.model_copy(update=update)

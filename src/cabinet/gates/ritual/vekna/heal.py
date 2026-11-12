@@ -328,8 +328,8 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
 def chart(run: Chart) -> Done[Healed]:
     if run.has_news():
         emit_delta(services().report.healed(run))
-    if run.stopped:
-        raise RitualError(run.stopped)
+    if failed := run.failed():
+        raise RitualError(failed)
     return Done(
         Healed(
             surveyed=run.surveyed,
