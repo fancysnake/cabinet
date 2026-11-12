@@ -384,10 +384,11 @@ class TestChart:
         blocked = _WORKED_ROW.model_copy(update={"outcome": "blocked", "note": "red"})
         run = Run(project=project, checked=[_WORKED_ROW, blocked])
 
-        with pytest.raises(RitualError, match=r"blocked: #7 feature$"):
+        with pytest.raises(RitualError, match=r"branches blocked: 1$"):
             trial.walk(chart, run.to(Chart))
 
         assert "#7 feature: blocked" in trial.deltas[0]
+        assert "the cast failed: branches blocked: 1" in trial.deltas[0]
 
     # `heal.mine`'s ending fails the same way, after its own summary.
     @staticmethod
@@ -630,7 +631,7 @@ class TestWholeCast:
         _worst_answer_gate(trial, bound)
         _reviewed(trial)
 
-        with pytest.raises(RitualError, match="blocked: #7 feature"):
+        with pytest.raises(RitualError, match="branches blocked: 1"):
             trial.cast(heal_pr, HealPr(number=7, bound=bound))
 
         job = ["pick_job", "mend_job", *["job_gate"] * (2 * bound + 1), "land_job"]

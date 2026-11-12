@@ -123,9 +123,10 @@ def _ending(run: Run, lines: list[str]) -> str:
     # one of them trains the eye past it. A cast that failed left them
     # behind; one out of steps left them for the next cast.
     not_reached = ", ".join(pull.branch for pull in run.queue)
-    if run.stopped:
+    if run.failed():
+        why = run.stopped or f"branches blocked: {len(run.blocked())}"
         lines += ["", f"not reached: {not_reached}"] if not_reached else []
-        lines += ["", f"the cast failed: {run.stopped}"]
+        lines += ["", f"the cast failed: {why}"]
     elif not_reached:
         lines += ["", f"out of steps, left for the next cast: {not_reached}"]
     return "\n".join(lines) + "\n"

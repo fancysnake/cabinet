@@ -328,8 +328,9 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
 def chart(run: Chart) -> Done[Healed]:
     if run.has_news():
         emit_delta(services().report.healed(run))
-    if failed := run.failed():
-        raise RitualError(failed)
+    if run.failed():
+        # The rows above name the branches; the error only counts them.
+        raise RitualError(run.stopped or f"branches blocked: {len(run.blocked())}")
     return Done(
         Healed(
             surveyed=run.surveyed,
@@ -344,7 +345,7 @@ def chart(run: Chart) -> Done[Healed]:
 def tally(run: Tally) -> Done[Healed]:
     if run.has_news():
         emit_delta(services().report.queued(run))
-    if run.stopped:
+    if run.failed():
         raise RitualError(run.stopped)
     return Done(
         Healed(
