@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning].
 - `[cabinet] main_fix_branch`, default `fix/main-{sha}`: the branch
   `heal.main` works on. It must hold `{sha}`, the base's head commit.
 
+### Fixed
+
+- A gate, coverage or CI job task shows its lines in the vekna window while it
+  runs, so a hung task shows where it stopped. The agent still reads the
+  trimmed output.
+
+### Changed
+
+- An attended cast no longer asks before a repair attempt: resolving merge
+  conflicts, repairing the gate and fixing a CI job all go ahead without
+  waiting for you. The review threads of the answer task are the only
+  question a cast asks.
+
 ## [5.0.0] - 2026-11-08
 
 ### Added

@@ -56,7 +56,6 @@ optional = true
 line-length = 88
 preview = true
 skip-magic-trailing-comma = true
-target-version = ['py311']
 
 # DEPTRY
 
@@ -196,7 +195,6 @@ implicit_reexport = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 pretty = true
-python_version = "3.11"
 strict = true
 strict_equality = true
 strict_equality_for_none = true

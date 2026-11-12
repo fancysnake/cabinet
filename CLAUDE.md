@@ -22,9 +22,11 @@ a broken internal link fails both `site:build` and `site:dev`.
 
 Python in the `requires-python` range of `pyproject.toml`, via mise; never
 call python tools directly, always `mise run`.
-The local interpreter, mypy and pylint are pinned to the 3.11 floor on
+`mise.toml` pins the local interpreter to the floor of that range on
 purpose — that is where a syntax or stdlib break shows first — and CI's test
-matrix covers the rest of the range.
+matrix covers the rest of the range. black reads the floor from
+`requires-python`; mypy and pylint take it from the interpreter. CI's
+`versions` job fails when the mise pin leaves the floor.
 `mise tasks` lists everything. Task definitions come from the shared
 `fancysnake/shared-configs` include in `mise.toml`, so `mise tasks info <task>`
 shows what one actually runs.

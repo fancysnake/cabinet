@@ -12,11 +12,9 @@ class MiseTasks(TasksProtocol):
     # rendering, and that is worth knowing before a gate's answer is read as
     # the answer you would have got yourself: a test runner under it may retry
     # a failure before it counts, pin its workers, or refuse a focused test.
-    # Captured rather than streamed: what comes back is read by an agent and
-    # by the morning, and a terminal recording is neither.
     @override
     async def run(self, task: str) -> Ran:
-        result = await shell(f"CI=1 {task}", stream=False)
+        result = await shell(f"CI=1 {task}")
         return Ran(
             stdout=result.stdout, stderr=result.stderr, exit_code=result.exit_code
         )

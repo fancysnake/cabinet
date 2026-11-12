@@ -1,10 +1,9 @@
 """What vekna sweeps: one facade per ritual, and the services already bound."""
 
 from types import ModuleType
-from typing import TypeGuard
 
 import pytest
-from vekna.lexicon._pacts import Ritual, Step
+from vekna.lexicon._pacts import Ritual
 
 from cabinet.gates.ritual.vekna import heal as heal_steps
 from cabinet.gates.ritual.vekna import identify as identify_steps
@@ -44,17 +43,17 @@ _HEALS = [
 ]
 
 
-# `Step` is a protocol that `isinstance` refuses, so a step is told by the
-# payloads it takes, which a ritual has no use for.
-def _is_step(found: object) -> TypeGuard[Step]:
-    return hasattr(found, "payloads")
-
-
 # A facade exports every step of the module behind it, so it names the whole
 # graph it casts. Read off that module rather than off the facade's own
 # `__all__`, which cannot catch a step nobody imported.
 def _steps(module: ModuleType) -> set[str]:
     return {name for name, found in vars(module).items() if _is_step(found)}
+
+
+# `Step` is a structural type that `isinstance` refuses, so a step is told by
+# `payloads`, which only the object `@step` builds carries.
+def _is_step(found: object) -> bool:
+    return hasattr(found, "payloads")
 
 
 # The names vekna will register off a facade: each step's own, and the
