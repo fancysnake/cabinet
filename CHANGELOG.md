@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Fixed
+
+- A gate, coverage or CI job task shows its lines in the vekna window while it
+  runs, so a hung task shows where it stopped. The agent still reads the
+  trimmed output.
+
 ### Changed
 
 - An attended cast no longer asks before a repair attempt: resolving merge
