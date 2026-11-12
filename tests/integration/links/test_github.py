@@ -597,6 +597,32 @@ class TestIssue:
             drive(trial, lambda: _FORGE.issue("a title", "a body"))
 
 
+class TestOpenPull:
+    @staticmethod
+    def test_the_number_and_the_url_come_back(trial: Trial) -> None:
+        trial.shell.replies(when="gh api repos*pulls -X POST*", stdout=_OPENED)
+
+        assert drive(
+            trial,
+            lambda: _FORGE.open_pull("fix/it", "main", title="a title", body="a body"),
+        ) == Opened(number=9, url="https://github.com/o/r/issues/9")
+        assert trial.shell.commands == [
+            (
+                "gh api repos/{owner}/{repo}/pulls -X POST"
+                " -f head=fix/it -f base=main -f title='a title' -f body='a body'"
+            )
+        ]
+
+    @staticmethod
+    def test_an_answer_without_a_number_will_not_do(trial: Trial) -> None:
+        trial.shell.replies(when="gh api repos*pulls -X POST*", stdout="{}")
+
+        with pytest.raises(ForgeError, match="pull request this could not read"):
+            drive(
+                trial, lambda: _FORGE.open_pull("fix/it", "main", title="t", body="b")
+            )
+
+
 class TestLabelIssue:
     @staticmethod
     def test_what_goes_on_and_what_comes_off_in_one_call(trial: Trial) -> None:

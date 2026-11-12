@@ -11,6 +11,7 @@ ritual runs it.
 [cabinet]
 forge = "github"                      # or "gitlab"
 base = "main"
+main_fix_branch = "fix/main-{sha}"    # must hold {sha} once
 remote = "origin"
 gate = "mise run pr-fix"
 coverage = "mise run diff-cover"
@@ -57,6 +58,7 @@ doc = "sonnet"
 | --------------- | --------------------------------------------------------------------------- |
 | `forge`         | `github` through `gh`, or `gitlab` through `glab`, hosted or self-hosted    |
 | `base`          | the branch every pull request is merged from                                |
+| `main_fix_branch` | the branch `heal.main` fixes a red base on; `{sha}` becomes the base's head commit, so each fix gets a name of its own, and an open pull request of yours on any branch of this shape counts as a fix already open |
 | `remote`        | pushed to and fetched from by name; must be https, see [the remote](#the-remote) |
 | `gate`          | the command a merge has to pass before it is committed; the merge task repairs until it does |
 | `coverage`      | the full diff coverage measurement a `covering` job runs, named to agents as a task to leave alone |

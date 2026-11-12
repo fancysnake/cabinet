@@ -38,6 +38,22 @@ class TestDocumented:
         assert _Documented.model_validate(tomllib.loads(_shown())).cabinet == Project()
 
 
+class TestFixBranch:
+    # Without the commit in it, a branch an earlier fix left behind would take
+    # the next fix's name.
+    @staticmethod
+    def test_a_name_without_the_commit_is_refused() -> None:
+        with pytest.raises(ValidationError, match="main_fix_branch"):
+            Project(main_fix_branch="fix/red-main")
+
+    # `fixes_main` splits on the one `{sha}`; a second would leave the branches
+    # the template makes unrecognised.
+    @staticmethod
+    def test_a_name_with_the_commit_twice_is_refused() -> None:
+        with pytest.raises(ValidationError, match="main_fix_branch"):
+            Project(main_fix_branch="fix/{sha}/{sha}")
+
+
 class TestConjured:
     @staticmethod
     def test_every_label_heal_touches_with_the_defaults() -> None:

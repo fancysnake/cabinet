@@ -30,6 +30,17 @@ class ScmProtocol(Protocol):
 
     async def checkout(self, branch: str) -> None: ...
 
+    # The short name of the commit `ref` stands on.
+    async def head(self, ref: str) -> str: ...
+
+    # Stand on `branch`, made at `ref` where it does not exist yet. One that
+    # does is taken as it is: what an earlier cast committed there and could
+    # not push is still to push.
+    async def branch(self, branch: str, ref: str) -> None: ...
+
+    # Whether HEAD has a commit `ref` has not.
+    async def beyond(self, ref: str) -> bool: ...
+
     # Fetch the remote, and touch no branch: the base is read as the remote
     # has it, since a pooled worktree cannot stand on a base the tree it was
     # made from is standing on.

@@ -430,6 +430,23 @@ class GithubForge(ForgeProtocol):
         return PullListing(pulls=found, truncated=len(found) >= _PULL_PAGE)
 
     @override
+    async def open_pull(
+        self, branch: str, base: str, *, title: str, body: str
+    ) -> Opened:
+        made = await asked(
+            "gh api repos/{owner}/{repo}/pulls -X POST"
+            f" -f head={quoted(branch)} -f base={quoted(base)}"
+            f" -f title={quoted(title)} -f body={quoted(body)}",
+            "could not open the pull request",
+        )
+        try:
+            opened = _Opened.model_validate_json(made)
+        except ValidationError as error:
+            msg = f"gh returned a pull request this could not read: {error}"
+            raise ForgeError(msg) from error
+        return Opened(number=opened.number, url=opened.html_url)
+
+    @override
     async def labels(self, number: int) -> list[str]:
         seen = await asked(
             f"gh pr view {number} --json labels", "gh could not read the labels"

@@ -670,6 +670,30 @@ class TestIssue:
             drive(trial, lambda: _FORGE.issue("a title", "a body"))
 
 
+class TestOpenPull:
+    # The description is escaped as an issue's is: it runs quick actions too.
+    @staticmethod
+    def test_the_number_and_the_url_are_read_off_the_answer(trial: Trial) -> None:
+        url = "https://gitlab.example/o/r/-/merge_requests/9"
+        trial.shell.replies(
+            when="glab api projects/:id/merge_requests -X POST*",
+            stdout=json.dumps({"iid": 9, "web_url": url}),
+        )
+
+        assert drive(
+            trial,
+            lambda: _FORGE.open_pull(
+                "fix/it", "main", title="a title", body=_COMMANDING
+            ),
+        ) == Opened(number=9, url=url)
+        assert trial.shell.commands == [
+            (
+                "glab api projects/:id/merge_requests -X POST -f source_branch=fix/it"
+                f" -f target_branch=main -f title='a title' -f description={_ESCAPED}"
+            )
+        ]
+
+
 class TestLabelIssue:
     @staticmethod
     def test_what_goes_on_and_what_comes_off_in_one_call(trial: Trial) -> None:

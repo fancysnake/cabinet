@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.healing import Facts, Run, Surveyed, Unsurveyed
     from cabinet.pacts.issues import Identifying, Issue, Issues, Listing
     from cabinet.pacts.project import Project
-    from cabinet.pacts.pulls import PullRequest
+    from cabinet.pacts.pulls import Board, PullRequest
     from cabinet.pacts.repairs import Attempt, Ruling
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
@@ -37,8 +37,16 @@ class PullsProtocol(Protocol):
     # The open pull request numbered `number`, or none.
     def numbered(self, pulls: list[PullRequest], number: int) -> list[PullRequest]: ...
 
+    # The open pull requests on a branch `heal.main` fixes the base on.
+    def fixing(
+        self, pulls: list[PullRequest], project: Project
+    ) -> list[PullRequest]: ...
+
 
 class TodosProtocol(Protocol):
+    # What the base needs: `ci` where a configured job is red on `board`.
+    def base(self, board: Board, project: Project) -> Surveyed: ...
+
     # What the pull request needs next, in the order a cast does it, and what
     # each todo would work through.
     def surveyed(self, facts: Facts, project: Project) -> Surveyed: ...

@@ -191,3 +191,19 @@ class TestSurveyed:
             red=[Check(name="checks", passed=False, id=1)],
             threads=1,
         )
+
+
+class TestBase:
+    @staticmethod
+    def test_red_on_the_base_is_a_ci_todo_with_no_pull_request() -> None:
+        red = Check(name="checks", passed=False, id=1)
+
+        assert _TODOS.base(Board(checks=[red]), _PROJECT) == Surveyed(
+            number=0, branch="main", url="", todos=["ci"], red=[red], threads=0
+        )
+
+    @staticmethod
+    def test_a_green_base_has_nothing_to_do() -> None:
+        green = Check(name="checks", passed=True, id=1)
+
+        assert not _TODOS.base(Board(checks=[green]), _PROJECT).todos

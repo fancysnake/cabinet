@@ -34,3 +34,7 @@ class Pulls(PullsProtocol):
     @override
     def numbered(self, pulls: list[PullRequest], number: int) -> list[PullRequest]:
         return [pull for pull in pulls if pull.number == number]
+
+    @override
+    def fixing(self, pulls: list[PullRequest], project: Project) -> list[PullRequest]:
+        return [pull for pull in pulls if project.fixes_main(pull.branch)]

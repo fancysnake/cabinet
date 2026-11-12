@@ -39,6 +39,15 @@ class TestHealed:
             "heal — 1 worked\n\n  #7 feature: worked, 0 unpushed\n"
         )
 
+    # `heal.main`'s branch where no pull request was opened for it.
+    @staticmethod
+    def test_a_branch_without_a_pull_request_has_no_number() -> None:
+        row = _WORKED.model_copy(update={"number": 0, "branch": "fix/main-abc1234"})
+
+        assert _REPORT.healed(_run(checked=[row])) == (
+            "heal — 1 worked\n\n  fix/main-abc1234: worked, 0 unpushed\n"
+        )
+
     @staticmethod
     def test_a_blocked_row_indents_its_note() -> None:
         row = _WORKED.model_copy(

@@ -25,6 +25,16 @@ _DIFF_HIT = re.compile(r"([\d.]+)% of diff hit")
 
 
 class Todos(TodosProtocol):
+    # The base has no pull request, so no number or threads: red on it is a
+    # `ci` todo and nothing else.
+    @override
+    def base(self, board: Board, project: Project) -> Surveyed:
+        red = _red(board, project)
+        todos: list[Task] = ["ci"] if red else []
+        return Surveyed(
+            number=0, branch=project.base, url="", todos=todos, red=red, threads=0
+        )
+
     @override
     def surveyed(self, facts: Facts, project: Project) -> Surveyed:
         pull = facts.pull

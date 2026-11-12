@@ -22,6 +22,10 @@ Grouped by school, the way a spellbook is.
   The daemon runs those side by side, each in a pooled worktree, so your own
   checkout never moves. An unattended cast leaves review threads for you.
   `--plan-only true` stops after the survey and changes nothing.
+- **`heal.main`**: fixes a red base. Where a configured CI job is red on the
+  base and no fix of yours is open, it cuts a branch from the base, has an
+  agent fix each red job, pushes, and opens a pull request for `heal.mine` to
+  tend. It never pushes to the base and never merges.
 
 ### Transmutation
 
@@ -78,6 +82,7 @@ casting one twice is as safe as once.
 vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
 vekna cast heal.pr --number N [--plan-only true] [--bound N] [--attended false] [--batch N]
 vekna cast heal.this [--plan-only true] [--bound N] [--attended false] [--batch N]
+vekna cast heal.main [--plan-only true] [--bound N] [--attended false]
 vekna cast merge [--plan-only true] [--bound N] [--attended false]
 vekna cast ci [--plan-only true] [--bound N] [--attended false]
 vekna cast answer [--plan-only true] [--bound N] [--batch N]

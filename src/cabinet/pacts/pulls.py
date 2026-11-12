@@ -1,6 +1,6 @@
 """Pull requests as the forge lists them, and what CI says about them."""
 
-from typing import Annotated
+from typing import Annotated, Self
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +26,18 @@ class PullRequest(BaseModel):
     # Whether the branch conflicts with its base, as the forge last worked
     # out. None while the forge has not worked it out: git can, locally.
     conflicted: bool | None = None
+
+    # A branch `heal.main` works on before the forge has a pull request for it:
+    # no number, URL or listing time yet.
+    @classmethod
+    def unopened(cls, branch: str, base: str, title: str) -> Self:
+        return cls(
+            number=0, title=title, url="", branch=branch, base=base, updated_at=""
+        )
+
+    @property
+    def is_opened(self) -> bool:
+        return self.number != 0
 
     def wears(self, label: str) -> bool:
         return label in self.labels

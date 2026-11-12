@@ -115,6 +115,41 @@ class GitScm(ScmProtocol):
         await _asked(f"git checkout {_quoted(branch)}", f"could not take {branch}")
 
     @override
+    async def head(self, ref: str) -> str:
+        ran = await _asked(
+            f"git rev-parse --short {_quoted(ref)}",
+            f"could not read {ref}",
+            stream=False,
+        )
+        return ran.stdout.strip()
+
+    # A branch that exists is taken as it is: its commits are still to push.
+    # Otherwise cut with `--no-track`: the branch is pushed by name, and its
+    # upstream is not the base it was cut from.
+    @override
+    async def branch(self, branch: str, ref: str) -> None:
+        name = _quoted(branch)
+        exists = await shell(
+            f"git rev-parse --verify --quiet {_quoted(f'refs/heads/{branch}')}",
+            stream=False,
+        )
+        command = (
+            f"git checkout {name}"
+            if exists.exit_code == 0
+            else f"git checkout --no-track -b {name} {_quoted(ref)}"
+        )
+        await _asked(command, f"could not take {branch}")
+
+    @override
+    async def beyond(self, ref: str) -> bool:
+        ran = await _asked(
+            f"git rev-list --count {_quoted(f'{ref}..HEAD')}",
+            f"could not count the commits past {ref}",
+            stream=False,
+        )
+        return ran.stdout.strip() != "0"
+
+    @override
     async def fetch(self) -> None:
         await _asked(
             f"git fetch --prune {_quoted(self._remote)}",
