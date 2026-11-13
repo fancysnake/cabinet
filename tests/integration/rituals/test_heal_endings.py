@@ -377,6 +377,19 @@ class TestChart:
 
         assert "the cast failed: gh died" in trial.deltas[0]
 
+    @staticmethod
+    def test_a_blocked_branch_is_said_before_the_cast_fails(
+        trial: Trial, project: Project
+    ) -> None:
+        blocked = _WORKED_ROW.model_copy(update={"outcome": "blocked", "note": "red"})
+        run = Run(project=project, checked=[_WORKED_ROW, blocked])
+
+        with pytest.raises(RitualError, match=r"branches blocked: 1$"):
+            trial.walk(chart, run.to(Chart))
+
+        assert "#7 feature: blocked" in trial.deltas[0]
+        assert "the cast failed: branches blocked: 1" in trial.deltas[0]
+
     # `heal.mine`'s ending fails the same way, after its own summary.
     @staticmethod
     def test_a_stopped_tally_is_said_before_it_fails(
@@ -618,9 +631,9 @@ class TestWholeCast:
         _worst_answer_gate(trial, bound)
         _reviewed(trial)
 
-        result = trial.cast(heal_pr, HealPr(number=7, bound=bound))
+        with pytest.raises(RitualError, match="branches blocked: 1"):
+            trial.cast(heal_pr, HealPr(number=7, bound=bound))
 
-        assert [one.outcome for one in result.checked] == ["blocked"]
         job = ["pick_job", "mend_job", *["job_gate"] * (2 * bound + 1), "land_job"]
         round_ = ["read_threads", "ask_triage", "answer_threads", "post_answers"]
         assert trial.steps == [

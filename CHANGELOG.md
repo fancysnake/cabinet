@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
+- A cast that leaves a branch blocked fails, once the other branches are
+  worked and the report is printed. It used to end as a success, so
+  `vekna log` showed nothing wrong.
 - An attended cast no longer asks before a repair attempt: resolving merge
   conflicts, repairing the gate and fixing a CI job all go ahead without
   waiting for you. The review threads of the answer task are the only

@@ -129,7 +129,9 @@ joins what was split. Only a conflict makes a merge todo:
 3. Commit the merge and the repairs, and push.
 
 A branch the gate will not go green on stands down: the worktree is released,
-the rest of its tasks are worked anyway, and the report calls it blocked.
+the rest of its tasks are worked anyway, and the report calls it blocked. A
+cast that leaves a branch blocked fails, after the other branches are worked
+and the report is printed.
 
 ## ci
 
