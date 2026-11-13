@@ -7,29 +7,30 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-11-13
+
 ### Added
 
 - `heal.main`: where a configured CI job is red on the base and no fix of
   yours is open, it cuts a branch from the base, fixes each red job as `ci`
   does, pushes, and opens a pull request. It never pushes to the base.
 - `[cabinet] main_fix_branch`, default `fix/main-{sha}`: the branch
-  `heal.main` works on. It must hold `{sha}`, the base's head commit.
-
-### Fixed
-
-- A gate, coverage or CI job task shows its lines in the vekna window while it
-  runs, so a hung task shows where it stopped. The agent still reads the
-  trimmed output.
+  `heal.main` works on. It must hold `{sha}`, the base's head commit, once.
 
 ### Changed
 
 - A cast that leaves a branch blocked fails, once the other branches are
-  worked and the report is printed. It used to end as a success, so
-  `vekna log` showed nothing wrong.
-- An attended cast no longer asks before a repair attempt: resolving merge
-  conflicts, repairing the gate and fixing a CI job all go ahead without
-  waiting for you. The review threads of the answer task are the only
-  question a cast asks.
+  worked and the report is printed.
+- An attended cast no longer asks before a repair attempt; the review threads
+  of the answer task are the only question a cast asks.
+
+### Fixed
+
+- A gate, coverage or CI job task shows its lines in the vekna window while it
+  runs, so a hung task shows where it stopped.
+- A forge call refused for a rate limit waits and tries again for about 15
+  minutes before it fails the cast.
+  ([#132](https://github.com/fancysnake/cabinet/issues/132))
 
 ## [5.0.0] - 2026-11-08
 
@@ -343,7 +344,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v5.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v5.1.0...HEAD
+[5.1.0]: https://github.com/fancysnake/cabinet/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/fancysnake/cabinet/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/fancysnake/cabinet/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/fancysnake/cabinet/compare/v2.0.0...v3.0.0
