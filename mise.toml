@@ -1,7 +1,7 @@
 [tools]
 actionlint = "1.7.12"
 hk = { version = "2.11.1", workflow = "release.yml" }
-pipx = "1.18.13"
+pipx = "1.18.16"
 "pipx:poetry" = "2.5.1"
 pkl = "0.32.2"
 python = "3.11.16"
