@@ -31,11 +31,18 @@ class AgentProtocol(Protocol):
     # A job picks the model and the tools. Nothing reads what the agent said
     # back: the call is judged by what it left in the worktree. A key joins the
     # call to a thread, so a retry meets an agent that remembers the attempt
-    # that just failed.
+    # that just failed. An escalated call runs on the job's stronger model, in
+    # the same thread.
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
     ) -> Fallen | None: ...
 
     async def ask_for(
-        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[_OutputT],
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> _OutputT | Fallen | Misread: ...

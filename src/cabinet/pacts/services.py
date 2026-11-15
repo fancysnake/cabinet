@@ -119,6 +119,14 @@ class RepairsProtocol(Protocol):
     def ruling(self, attempt: Attempt) -> Ruling: ...
 
 
+class SizesProtocol(Protocol):
+    # Whether a call moves to the escalated model: the problem is big by one
+    # of its counts, or the step already spent an attempt on it.
+    def escalates(
+        self, *, conflicts: int = 0, red: int = 0, threads: int = 0, spent: int = 0
+    ) -> bool: ...
+
+
 class StepsProtocol(Protocol):
     # Steps a cast spends on a queue of `queue` branches outside any branch.
     def opening(self, queue: int) -> int: ...
@@ -168,6 +176,9 @@ class ServicesProtocol(Protocol):
 
     @property
     def repairs(self) -> RepairsProtocol: ...
+
+    @property
+    def sizes(self) -> SizesProtocol: ...
 
     @property
     def steps(self) -> StepsProtocol: ...

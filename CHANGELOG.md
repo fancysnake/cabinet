@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- A `fix` call escalates to a stronger model when the merge left 5 or more
+  files conflicted, 3 or more checks are red, 10 or more review threads are
+  open, or the step is retrying. A retry keeps its agent session.
+- `[cabinet.agent.models] escalated`, default `opus`: the model an escalated
+  `fix` runs on.
+
 ## [5.1.0] - 2026-11-13
 
 ### Added

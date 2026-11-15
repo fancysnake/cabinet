@@ -51,6 +51,23 @@ No ritual runs `build` yet. Set a model per job under
 fix = "opus"
 ```
 
+### Escalation
+
+A `fix` call moves from the `fix` model to the `escalated` model, `opus` by
+default, when the problem is big or the step is retrying:
+
+| signal         | escalates at                                   | used by                              |
+| -------------- | ---------------------------------------------- | ------------------------------------ |
+| conflicts      | 5 files left conflicted by the merge           | merge: resolving conflicts           |
+| failing checks | 3 red checks still to work on the branch       | every gate repair, a CI job's fix    |
+| open threads   | 10 review threads open on the pull request     | answer: working the triaged threads  |
+| retry          | the step already spent an attempt              | resolving conflicts, every gate repair |
+
+A retry continues the same agent session on the stronger model, so the agent
+still remembers the attempt that failed. The thresholds are fixed. Only `fix`
+escalates: the other jobs a ritual runs start on `opus` already. Set
+`escalated` to the `fix` model to turn escalation off.
+
 ## What the ritual owns
 
 The ritual commits, pushes and runs the long tasks, and makes every forge

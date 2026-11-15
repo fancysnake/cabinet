@@ -23,14 +23,20 @@ class KeyedAgent(AgentProtocol):
 
     @override
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
     ) -> Fallen | None:
         self._keys.append(key)
         return None
 
     @override
     async def ask_for(
-        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[_OutputT],
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> _OutputT | Fallen | Misread:
         self._keys.append(key)
         return Misread(reason="a keyed agent answers nothing")

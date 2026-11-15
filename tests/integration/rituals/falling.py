@@ -21,13 +21,19 @@ _OutputT = TypeVar("_OutputT", bound=BaseModel)
 class FallingAgent(AgentProtocol):
     @override
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
     ) -> Fallen | None:
         return Fallen(reason="the agent stopped mid-flight: boom")
 
     @override
     async def ask_for(
-        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[_OutputT],
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> _OutputT | Fallen | Misread:
         return Fallen(reason="the agent stopped mid-flight: boom")
 

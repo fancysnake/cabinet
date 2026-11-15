@@ -23,3 +23,11 @@ WHOLE = 100.0
 # default CI jobs, three rounds of `answer` among them: eighty-two steps a
 # branch at worst, and a hundred and three around them.
 HEAL_STEPS = 100 * 82 + 103
+
+# A problem this big goes to the escalated model on the first ask: files left
+# conflicted by a merge, red checks on the branch's board, review threads open
+# on the pull request. The threads sit above the default batch of seven, so
+# one full round of `answer` is not a big one.
+MANY_CONFLICTS = 5
+MANY_RED = 3
+MANY_THREADS = 10

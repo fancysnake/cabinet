@@ -42,6 +42,7 @@ AGENT = Agent(
         review="review-model",
         fix="fix-model",
         doc="doc-model",
+        escalated="escalated-model",
     )
 )
 

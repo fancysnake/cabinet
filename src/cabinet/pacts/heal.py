@@ -115,10 +115,14 @@ class AskTriage(BaseModel):
     work: Work
     items: list[TriageItem]
     threads: list[Thread]
+    # Every thread open on the pull request, the ones past the batch too: how
+    # big the answering is.
+    unsettled: int
 
 
 class AnswerThreads(BaseModel):
     work: Work
+    unsettled: int
     # The whole thing the agent is sent, assembled where the triage and your
     # answers to it are both in hand.
     prompt: str

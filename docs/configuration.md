@@ -50,6 +50,7 @@ build = "opus"
 review = "opus"
 fix = "sonnet"
 doc = "sonnet"
+escalated = "opus"                    # where a big or retried fix goes
 ```
 
 ## The keys
@@ -114,7 +115,7 @@ to read: give it `covering`, not `rerun`.
 
 | key           | what it is                                                                     |
 | ------------- | ------------------------------------------------------------------------------ |
-| `models`      | the Claude model for each job: `plan`, `build`, `review`, `fix`, `doc`; see [Agents](agents.md) |
+| `models`      | the Claude model for each job: `plan`, `build`, `review`, `fix`, `doc`, and `escalated` for a big or retried `fix`; see [Agents](agents.md) |
 | `effort`      | `low`, `medium`, `high`, `xhigh` or `max`                                      |
 | `max_turns`   | the turn limit per agent call; `0` is unbounded                                |
 | `may_not_run` | slow tasks the prompt asks an agent to leave alone, beside the gate and coverage commands; see [Agents](agents.md) |

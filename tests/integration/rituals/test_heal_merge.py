@@ -140,6 +140,16 @@ class TestGateCheck:
         assert "do not disable a lint rule" in prompt
         assert "You have a shell" in prompt
         assert trial.coding.calls[0].resume is None
+        assert trial.coding.calls[0].model == "fix-model"
+
+    @staticmethod
+    def test_a_retry_goes_to_the_escalated_model(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when=_GATE, exit_code=1, stdout="1 failed")
+        trial.coding.replies("fixed")
+
+        trial.walk(gate_check, work.charged(gate_check.name).to(GateCheck))
+
+        assert trial.coding.calls[0].model == "escalated-model"
 
     @staticmethod
     def test_a_spent_budget_stands_the_branch_down_and_remembers(

@@ -56,6 +56,22 @@ class TestAsk:
         assert trial.coding.calls[0].model == "claude-opus-5-5"
 
     @staticmethod
+    def test_an_escalated_fix_continues_its_session_on_the_stronger_model(
+        trial: Trial,
+    ) -> None:
+        trial.coding.replies("did it")
+        trial.coding.replies("did it again")
+
+        async def twice() -> None:
+            await _AGENT.ask("do it", job="fix", key="repair")
+            await _AGENT.ask("do it again", job="fix", key="repair", escalated=True)
+
+        drive(trial, twice)
+
+        assert [call.model for call in trial.coding.calls] == ["sonnet", "opus"]
+        assert trial.coding.calls[1].resume is not None
+
+    @staticmethod
     def test_an_attended_call_runs_in_auto_mode(trial: Trial) -> None:
         trial.coding.replies("did it")
 

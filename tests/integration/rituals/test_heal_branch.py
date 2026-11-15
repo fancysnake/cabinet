@@ -21,6 +21,7 @@ from cabinet.pacts.heal import (
     Tend,
 )
 from cabinet.pacts.healing import Work
+from cabinet.specs import MANY_CONFLICTS
 from tests.conftest import STATUS
 from tests.integration.rituals.falling import falling
 
@@ -155,6 +156,18 @@ class TestResolveConflicts:
         assert "src/thing.py" in trial.coding.prompts[0]
         assert "git add" in trial.coding.prompts[0]
         assert trial.coding.calls[0].resume is None
+
+    @staticmethod
+    def test_many_conflicted_files_go_to_the_escalated_model(
+        trial: Trial, work: Work
+    ) -> None:
+        files = "".join(f"src/{index}.py\n" for index in range(MANY_CONFLICTS))
+        trial.shell.replies(when=_UNMERGED, stdout=files)
+        trial.coding.replies("resolved")
+
+        trial.walk(resolve_conflicts, work.merging_on("x").to(ResolveConflicts))
+
+        assert trial.coding.calls[0].model == "escalated-model"
 
     @staticmethod
     def test_an_attended_cast_resolves_without_asking(trial: Trial, work: Work) -> None:

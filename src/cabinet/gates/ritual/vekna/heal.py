@@ -537,7 +537,10 @@ async def resolve_conflicts(
     prompt = services().prompts.resolve(
         project, base=work.base_ref, branch=work.pr.branch, files="\n".join(unmerged)
     )
-    if fallen := await _asked(work, prompt, key="merge"):
+    escalated = services().sizes.escalates(
+        conflicts=len(unmerged), spent=work.spent(resolve_conflicts.name)
+    )
+    if fallen := await _asked(work, prompt, key="merge", escalated=escalated):
         return work.abandoned(fallen.reason).to(Chart)
     # Back through this same step, which re-reads git rather than believing
     # the agent. The note goes now: past here the merge failing is just what a
@@ -585,7 +588,8 @@ async def _repaired(
         return work.but(gate="").cleared(name).to(then)
     if isinstance(ruling, Stalled):
         return _gave_up(work, ruling.reason, ruling.seen).to(StandDown)
-    if fallen := await _asked(work, ruling.asking, key=name):
+    escalated = services().sizes.escalates(red=len(work.red), spent=work.spent(name))
+    if fallen := await _asked(work, ruling.asking, key=name, escalated=escalated):
         return work.abandoned(fallen.reason).to(Chart)
     return work.but(gate=ruling.next_gate).charged(name)
 
@@ -602,9 +606,13 @@ def _agent(work: Work) -> AgentProtocol:
 
 
 # A repair, in the session `key` names on this branch: every round of a loop
-# continues the one before it.
-async def _asked(work: Work, prompt: str, *, key: str) -> Fallen | None:
-    return await _agent(work).ask(prompt, job="fix", key=_session(work, key))
+# continues the one before it, on the stronger model where `escalated`.
+async def _asked(
+    work: Work, prompt: str, *, key: str, escalated: bool
+) -> Fallen | None:
+    return await _agent(work).ask(
+        prompt, job="fix", key=_session(work, key), escalated=escalated
+    )
 
 
 # Run the gate, and repair it until it is green or the budget is gone.
@@ -738,7 +746,10 @@ async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
     prompt = services().prompts.fix_job(
         project, services().verdicts.logged(log), job=check.name, gate=gate
     )
-    if fallen := await _asked(work, prompt, key=_loop(work, job_gate.name)):
+    escalated = services().sizes.escalates(red=len(work.red))
+    if fallen := await _asked(
+        work, prompt, key=_loop(work, job_gate.name), escalated=escalated
+    ):
         return work.abandoned(fallen.reason).to(Chart)
     return work.to(JobGate) if gate else work.to(LandJob)
 
@@ -890,10 +901,11 @@ async def _landing(work: Work, note: str = "") -> Tend | AnswerGate | SetAside:
 
 # The next batch of open threads, saying how many it leaves for later; none
 # once the rounds are spent, without asking the forge. A forge with none open
-# is the task done, and the branch wears the answered label for it.
-async def _batch(work: Work) -> list[Thread]:
+# is the task done, and the branch wears the answered label for it. Beside the
+# batch, how many threads are open in all.
+async def _batch(work: Work) -> tuple[list[Thread], int]:
     if work.spent(read_threads.name) >= ROUNDS:
-        return []
+        return [], 0
     project = work.run.project
     if not (threads := await _unsettled(project, work.pr.number)):
         await services().forge(project).label(
@@ -905,7 +917,7 @@ async def _batch(work: Work) -> list[Thread]:
             f"{work.pr.branch}: {len(threads)} threads open,"
             f" reading {len(batch)} of them"
         )
-    return batch
+    return batch, len(threads)
 
 
 # Read the next batch of open threads into a triage. Read again after every
@@ -916,7 +928,7 @@ async def read_threads(
     work: ReadThreads,
 ) -> AskTriage | Tend | AnswerGate | SetAside | Chart:
     try:
-        batch = await _batch(work)
+        batch, unsettled = await _batch(work)
     except ForgeError as error:
         return await _landing(work, str(error))
     if not batch:
@@ -937,7 +949,10 @@ async def read_threads(
             work, "the reading found nothing, but the forge says otherwise"
         )
     return AskTriage(
-        work=work.charged(read_threads.name), items=read.items, threads=batch
+        work=work.charged(read_threads.name),
+        items=read.items,
+        threads=batch,
+        unsettled=unsettled,
     )
 
 
@@ -957,7 +972,9 @@ async def ask_triage(triage: AskTriage) -> AnswerThreads:
     prompt = services().prompts.triage_work(work.pr.number, triage.items, told)
     triaged = {item.thread for item in triage.items}
     threads = [thread for thread in triage.threads if thread.id in triaged]
-    return AnswerThreads(work=work, prompt=prompt, threads=threads)
+    return AnswerThreads(
+        work=work, prompt=prompt, threads=threads, unsettled=triage.unsettled
+    )
 
 
 # The agent edits code and drafts every reply; it reaches the forge for
@@ -975,6 +992,7 @@ async def answer_threads(
         output=Answered,
         job="fix",
         key=_session(work, answer_gate.name),
+        escalated=services().sizes.escalates(threads=instructed.unsettled),
     )
     if isinstance(came, Fallen):
         return work.abandoned(came.reason).to(Chart)

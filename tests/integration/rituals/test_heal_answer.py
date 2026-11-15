@@ -42,6 +42,7 @@ from cabinet.pacts.threads import (
 )
 from cabinet.rituals.answer import answer
 from cabinet.rituals.heal_mine import heal_mine
+from cabinet.specs import MANY_THREADS
 from tests.conftest import (
     HERE,
     LIST,
@@ -255,7 +256,10 @@ class TestReadThreads:
         attended = _attended(work)
 
         assert trial.walk(read_threads, attended.to(ReadThreads)) == AskTriage(
-            work=attended.charged(read_threads.name), items=[_ITEM], threads=[_THREAD]
+            work=attended.charged(read_threads.name),
+            items=[_ITEM],
+            threads=[_THREAD],
+            unsettled=1,
         )
         prompt = trial.coding.prompts[0]
         assert prompt.startswith("Triage the open review threads on pull request #7")
@@ -277,8 +281,10 @@ class TestReadThreads:
         trial.coding.replies(TriageNotes(items=[_ITEM]))
         batched = work.but(run=work.run.model_copy(update={"batch": 2}))
 
-        trial.walk(read_threads, batched.to(ReadThreads))
+        transition = trial.walk(read_threads, batched.to(ReadThreads))
 
+        assert isinstance(transition, AskTriage)
+        assert transition.unsettled == len(["PRRT_1", "PRRT_2", "PRRT_3"])
         prompt = trial.coding.prompts[0]
         assert "thread PRRT_2 (open)" in prompt
         assert "PRRT_3" not in prompt
@@ -422,13 +428,17 @@ class TestAskTriage:
         trial.decide.answers(answer="it guards the empty case", when="1. *")
         trial.decide.answers(answer="", when="2. *")
         triage = AskTriage(
-            work=work, items=[_ITEM, second], threads=[_THREAD, other, untriaged]
+            work=work,
+            items=[_ITEM, second],
+            threads=[_THREAD, other, untriaged],
+            unsettled=MANY_THREADS,
         )
 
         transition = trial.walk(ask_triage, triage)
 
         assert isinstance(transition, AnswerThreads)
         assert transition.work == work
+        assert transition.unsettled == MANY_THREADS
         # Each item's reading is fenced and the answer to it is not, so the
         # `what I want` line sits after the closing marker.
         closed = "--- END UNTRUSTED REVIEW DATA ---"
@@ -450,7 +460,12 @@ class TestAnswerThreads:
         answered = Answered(items=[Answer(thread="PRRT_1", reply="guarded")])
         trial.coding.replies(answered)
         attended = _attended(work)
-        told = AnswerThreads(work=attended, prompt="the triage", threads=[_THREAD])
+        told = AnswerThreads(
+            work=attended,
+            prompt="the triage",
+            threads=[_THREAD],
+            unsettled=MANY_THREADS - 1,
+        )
 
         assert trial.walk(answer_threads, told) == PostAnswers(
             work=attended.charged(answer_threads.name),
@@ -462,12 +477,25 @@ class TestAnswerThreads:
         assert "Edit" in str(trial.coding.calls[0].focus_options)
 
     @staticmethod
+    def test_many_open_threads_go_to_the_escalated_model(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.coding.replies(Answered(items=[]))
+        told = AnswerThreads(
+            work=work, prompt="x", threads=[_THREAD], unsettled=MANY_THREADS
+        )
+
+        trial.walk(answer_threads, told)
+
+        assert trial.coding.calls[0].model == "escalated-model"
+
+    @staticmethod
     def test_an_answer_in_the_wrong_shape_still_lands_what_it_changed(
         trial: Trial, work: Work
     ) -> None:
         trial.coding.replies("no idea, sorry")
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
-        told = AnswerThreads(work=work, prompt="x", threads=[_THREAD])
+        told = AnswerThreads(work=work, prompt="x", threads=[_THREAD], unsettled=1)
 
         transition = trial.walk(answer_threads, told)
 
@@ -477,7 +505,7 @@ class TestAnswerThreads:
     @staticmethod
     def test_an_agent_that_dies_ends_the_cast(trial: Trial, work: Work) -> None:
         falling()
-        told = AnswerThreads(work=work, prompt="x", threads=[])
+        told = AnswerThreads(work=work, prompt="x", threads=[], unsettled=0)
 
         assert trial.walk(answer_threads, told) == work.charged(
             answer_threads.name
