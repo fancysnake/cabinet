@@ -28,6 +28,7 @@ from cabinet.pacts.heal import (
 from cabinet.pacts.healing import Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check
+from cabinet.specs import MANY_RED
 from tests.conftest import AGENT, commit
 from tests.integration.rituals.falling import falling
 from tests.integration.rituals.keyed import keyed
@@ -145,6 +146,19 @@ class TestPickJob:
 
 
 class TestMendJob:
+    @staticmethod
+    def test_many_red_checks_go_to_the_escalated_model(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=_LOG.format(id=41), stdout="FAILED test_it\n")
+        trial.coding.replies("fixed")
+        red = _on(work, _SUITE, _LINT, _SUITE_NEXT)
+
+        trial.walk(mend_job, red.to(MendJob))
+
+        assert len(red.red) == MANY_RED
+        assert trial.coding.calls[0].model == "escalated-model"
+
     @staticmethod
     def test_a_gated_job_goes_round_its_gate(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=_LOG.format(id=41), stdout="FAILED test_it\n")

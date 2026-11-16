@@ -73,10 +73,10 @@ class ClaudeAgent(AgentProtocol):
         self._project = project
         self._attended = attended
 
-    def _opts(self, job: Job) -> CodingOpts:
+    def _opts(self, job: Job, *, escalated: bool) -> CodingOpts:
         agent = self._project.agent
         return CodingOpts(
-            model=agent.models.of(job),
+            model=agent.models.of(job, escalated=escalated),
             focus_options=ClaudeOptions(
                 permission_mode="auto" if self._attended else "dontAsk",
                 allowed_tools=allowed_tools(job),
@@ -87,10 +87,15 @@ class ClaudeAgent(AgentProtocol):
 
     @override
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None
+        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
     ) -> Fallen | None:
         answered = await _guarded(
-            lambda: coding(prompt, opts=self._opts(job), session=_session(key), key=key)
+            lambda: coding(
+                prompt,
+                opts=self._opts(job, escalated=escalated),
+                session=_session(key),
+                key=key,
+            )
         )
         # Nothing was asked for in a shape, so there is no shape to misread:
         # what a caller of this one wants to know is whether the agent died.
@@ -98,13 +103,19 @@ class ClaudeAgent(AgentProtocol):
 
     @override
     async def ask_for(
-        self, prompt: str, *, output: type[_OutputT], job: Job, key: str | None = None
+        self,
+        prompt: str,
+        *,
+        output: type[_OutputT],
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> _OutputT | Fallen | Misread:
         return await _guarded(
             lambda: coding(
                 prompt,
                 output=output,
-                opts=self._opts(job),
+                opts=self._opts(job, escalated=escalated),
                 session=_session(key),
                 key=key,
             )

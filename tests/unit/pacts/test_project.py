@@ -113,6 +113,18 @@ class TestModels:
         assert project.agent.models.of("doc") == "sonnet"
 
     @staticmethod
+    def test_an_escalated_fix_moves_to_the_escalated_model() -> None:
+        models = Models(fix="small", escalated="big")
+
+        assert models.of("fix", escalated=True) == "big"
+
+    @staticmethod
+    def test_no_other_job_escalates() -> None:
+        models = Models(plan="first", escalated="big")
+
+        assert models.of("plan", escalated=True) == "first"
+
+    @staticmethod
     def test_one_model_for_every_job_is_refused() -> None:
         with pytest.raises(ValidationError, match="model"):
             Project.model_validate({"agent": {"model": "opus"}})

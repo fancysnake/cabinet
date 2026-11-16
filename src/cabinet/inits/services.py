@@ -21,6 +21,7 @@ from cabinet.mills.prompts import Prompts
 from cabinet.mills.pulls import Pulls
 from cabinet.mills.repairs import Repairs
 from cabinet.mills.report import Report
+from cabinet.mills.sizes import Sizes
 from cabinet.mills.steps import Steps
 from cabinet.mills.todos import Todos
 from cabinet.mills.verdicts import Verdicts
@@ -62,6 +63,11 @@ class Services(ServicesProtocol):
     @override
     def repairs(self) -> Repairs:
         return Repairs(self.prompts, self.verdicts)
+
+    @cached_property
+    @override
+    def sizes(self) -> Sizes:
+        return Sizes()
 
     @cached_property
     @override

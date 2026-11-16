@@ -134,8 +134,12 @@ class Models(BaseModel):
     review: str = "opus"
     fix: str = "sonnet"
     doc: str = "sonnet"
+    # Where a `fix` goes when the problem is big or its first attempt did not
+    # take. Only `fix` escalates: the other jobs a ritual runs start on the
+    # stronger model already.
+    escalated: str = "opus"
 
-    def of(self, job: Job) -> str:
+    def of(self, job: Job, *, escalated: bool = False) -> str:
         match job:
             case "plan":
                 return self.plan
@@ -144,7 +148,7 @@ class Models(BaseModel):
             case "review":
                 return self.review
             case "fix":
-                return self.fix
+                return self.escalated if escalated else self.fix
             case "doc":
                 return self.doc
             case _:
