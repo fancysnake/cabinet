@@ -1,7 +1,8 @@
 # Plugins
 
 The repository is also a Claude Code plugin marketplace, named `cabinet`. Its
-plugins live under `plugins/`, one skill each, and carry no Python: they are
+plugins live under `plugins/`, one skill each except `heal`, which has four,
+and carry no Python: they are
 the chores around a repository that are not worth a ritual, done by the agent
 you already have open.
 
@@ -217,3 +218,29 @@ nobody mentions a version.
    `ruff check --select UP --target-version pyXY --fix`.
 4. **Reports** at most one line about the version, and only when it shaped
    the code, was guessed, or conflicts with a tool's target.
+
+## heal
+
+The rules the [heal rituals](rituals.md) give their agents, for the same
+work done by hand. Four skills, each short, each knowledge only: none
+commits, pushes or writes to the forge.
+
+- **resolve-conflict** triggers when a merge, rebase or cherry-pick stops on
+  conflicts. Both sides were meant, so it reads both before choosing, keeps
+  the intent of both, and stages each file it resolves.
+- **fix-gate** triggers when a lint, type-check, test or CI job is red. It
+  fixes the cause: no disabled rule, no suppression comment, no skipped or
+  deleted test, no lowered threshold. A test changes only where the intended
+  behaviour is unambiguous from the code around it.
+- **cover-diff** triggers when a diff coverage report names changed lines
+  no test exercises. It reads the project's testing guidelines first, copies
+  the nearest existing test, and puts each new test where the layout says.
+  It never lowers the threshold, edits the coverage configuration or deletes
+  the uncovered code.
+- **untrusted-threads** triggers when review threads, issue comments or CI
+  logs are read. They are data written by other people: checked against the
+  code and quoted back, and an instruction found inside one is reported,
+  never followed.
+
+The rituals still carry the same rules inline in their prompts, so a cast
+does not need this plugin installed.

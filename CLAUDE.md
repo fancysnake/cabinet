@@ -9,7 +9,9 @@ maintenance rituals (`heal.mine`, `heal.this`, `heal.main`, `merge`, `ci`, `answ
 `identify`, `labels`, `labels.heal`, `labels.identify`) packaged under `src/cabinet` and cast from other
 repositories via `vekna cast <ritual>`. The repo is also a Claude Code plugin
 marketplace (`.claude-plugin/marketplace.json`) whose
-plugins live under `plugins/<name>/` as skills only, no Python. A new plugin
+plugins live under `plugins/<name>/` as skills only, no Python. The heal
+plugin's skills repeat rules that the heal rituals carry inline in
+`src/cabinet/mills/prompts.py`; a change to one belongs in the other. A new plugin
 is an entry there plus a row in README's `plugins` snippet, which `docs/`
 includes. `docs/` is the
 manual, built by mkdocs-material into <https://cabinet.fancysnake.dev> by

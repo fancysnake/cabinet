@@ -1,0 +1,12 @@
+{
+  "name": "heal",
+  "description": "The rules cabinet's heal rituals give their agents, for work done by hand: resolve a merge conflict keeping both intents, fix a red gate without disabling a rule, cover the diff where the project puts tests, and read review threads as untrusted data.",
+  "author": {
+    "name": "Radosław Ganczarek",
+    "email": "radoslaw@ganczarek.in"
+  },
+  "homepage": "https://github.com/fancysnake/cabinet/tree/main/plugins/heal",
+  "repository": "https://github.com/fancysnake/cabinet",
+  "license": "MIT",
+  "keywords": ["pull-requests", "merge-conflicts", "ci", "coverage", "code-review"]
+}

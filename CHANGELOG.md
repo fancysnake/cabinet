@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning].
   open, or the step is retrying. A retry keeps its agent session.
 - `[cabinet.agent.models] escalated`, default `opus`: the model an escalated
   `fix` runs on.
+- The `heal` plugin: four skills with the rules the heal rituals give their
+  agents, for work done by hand. `resolve-conflict`, `fix-gate`, `cover-diff`
+  and `untrusted-threads`. Install with `claude plugin install heal@cabinet`.
 
 ## [5.1.0] - 2026-11-13
 
