@@ -164,6 +164,7 @@ Its plugins live under `plugins/`, each with its own manifest and skills.
 | `mkdocs-site`   | sets up a MkDocs site, or upgrades one to the standard                  |
 | `smoke-test`    | writes the fifteen-minute manual check for a web or CLI change          |
 | `modern-python` | writes Python with the newest idioms the project's floor version allows |
+| `heal`          | four skills: resolve a conflict, fix a gate, cover a diff, read threads |
 <!-- --8<-- [end:plugins] -->
 
 <!-- --8<-- [start:plugins-install] -->
