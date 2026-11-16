@@ -42,10 +42,11 @@ The diff coverage report below names lines this branch changed that no test
 exercises. Cover them, following this project's own testing guidelines: read
 CLAUDE.md or CONTRIBUTING.md and whatever testing documentation they point at
 before writing anything. Open the nearest existing test for the code the report
-names and match it. Put each test where that layout says it belongs.
+names and match it. Put each test where those guidelines say it belongs.
 
-Do not lower the coverage threshold, edit the coverage configuration, or delete
-the offending code. Do not commit or push — the ritual owns the commits.
+Do not lower the coverage threshold, edit the coverage configuration, add an
+exclusion comment, or delete the offending code. Do not commit or push — the
+ritual owns the commits.
 """
 
 # What the browserless measurement cannot see. Said only when that is where

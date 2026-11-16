@@ -11,7 +11,9 @@ description: >-
 A conflict is between work already on the base branch and work this branch
 adds. Both were meant. The resolution keeps the intent of both.
 
-1. **List the conflicted files**: `git diff --name-only --diff-filter=U`.
+1. **List the conflicted files**: `git diff --name-only --diff-filter=U`,
+   plus any file that still holds markers without an unmerged entry
+   (`git grep -l '^<<<<<<< '`) and any file the user names.
 2. **Read both sides before choosing one.** For each file, read what each
    side changed and why: `git log --merge -p -- <file>` shows the commits of
    both sides that touch it. When it shows nothing, as after a stash pop,
@@ -31,6 +33,3 @@ adds. Both were meant. The resolution keeps the intent of both.
 Do not run `git merge --abort` to escape a hard conflict, and do not finish
 the merge until every file is staged. When an automation started the merge,
 staging is where you stop: it finishes the merge itself.
-
-cabinet's heal rituals carry these rules inline, in
-`src/cabinet/mills/prompts.py`. A change to one belongs in the other.
