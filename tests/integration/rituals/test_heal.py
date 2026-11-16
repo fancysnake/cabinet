@@ -35,8 +35,8 @@ from cabinet.pacts.healing import (
     Surveyed,
     Unsurveyed,
 )
-from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Check, PullRequest
+from cabinet.pacts.project import CiJob, Project
+from cabinet.pacts.pulls import Check, PullRequest, Watched
 from cabinet.pacts.services import services
 from cabinet.rituals.heal_mine import heal_mine
 from cabinet.rituals.heal_this import heal_this
@@ -65,7 +65,9 @@ _RED = json.dumps(
     }
 )
 _GREEN = json.dumps({"total_count": 0, "check_runs": []})
-_CHECKS = Check(name="checks", passed=False, id=1)
+_CHECKS = Watched(
+    check=Check(name="checks", passed=False, id=1), key="checks", job=CiJob()
+)
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"

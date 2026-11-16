@@ -11,7 +11,7 @@ from typing_extensions import override
 
 from cabinet.pacts.healing import Facts, Surveyed, Task
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Check
+from cabinet.pacts.pulls import Board, Watched
 from cabinet.pacts.services import TodosProtocol
 from cabinet.specs import WHOLE
 
@@ -68,16 +68,16 @@ class Todos(TodosProtocol):
 # A check still running is not red: the next cast reads what it came to. A
 # green patch check naming a gap is, because the coverage is not right yet.
 # One per name, the first the board lists.
-def _red(board: Board, project: Project) -> list[Check]:
-    red: dict[str, Check] = {}
-    for check in board.watched(project.ci):
-        if check.passed is False or _names_a_gap(check, project):
-            red.setdefault(check.name, check)
+def _red(board: Board, project: Project) -> list[Watched]:
+    red: dict[str, Watched] = {}
+    for watched in board.watched(project.ci):
+        if watched.check.passed is False or _names_a_gap(watched):
+            red.setdefault(watched.check.name, watched)
     return list(red.values())
 
 
-def _names_a_gap(check: Check, project: Project) -> bool:
-    if not project.ci.covering(check.name) or not check.title:
+def _names_a_gap(watched: Watched) -> bool:
+    if not watched.job.covering or not watched.check.title:
         return False
-    found = _DIFF_HIT.search(check.title)
+    found = _DIFF_HIT.search(watched.check.title)
     return found is not None and float(found.group(1)) < WHOLE

@@ -4,7 +4,7 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.project import Ci
+from cabinet.pacts.project import Ci, CiJob
 
 # A bound counts attempts at one step, so zero would mean a step that may never
 # be tried at all; past five a repair loop has stopped being a repair loop.
@@ -64,6 +64,15 @@ class Check(BaseModel):
     id: int
 
 
+# A check with the configured job it belongs to, resolved once where the
+# board is read: `key` is the job's key in `[cabinet.ci.jobs]`, which every
+# entry of a matrix job shares.
+class Watched(BaseModel):
+    check: Check
+    key: str
+    job: CiJob
+
+
 class Board(BaseModel):
     checks: list[Check] = []
     # A page that stopped short of the whole board. What fell off the end could
@@ -73,5 +82,9 @@ class Board(BaseModel):
 
     # The checks whose job is configured: red anywhere else is not the
     # rituals' business.
-    def watched(self, ci: Ci) -> list[Check]:
-        return [check for check in self.checks if ci.job(check.name) is not None]
+    def watched(self, ci: Ci) -> list[Watched]:
+        return [
+            Watched(check=check, key=key, job=ci.jobs[key])
+            for check in self.checks
+            if (key := ci.key(check.name)) is not None
+        ]

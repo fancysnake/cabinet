@@ -116,14 +116,6 @@ class Ci(BaseModel):
         keys = [key for key in self.jobs if check.startswith(key)]
         return max(keys, key=len) if keys else None
 
-    def job(self, check: str) -> CiJob | None:
-        key = self.key(check)
-        return None if key is None else self.jobs[key]
-
-    def covering(self, check: str) -> bool:
-        job = self.job(check)
-        return job is not None and job.covering
-
 
 # The Claude model each job runs on.
 class Models(BaseModel):

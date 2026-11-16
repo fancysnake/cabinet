@@ -17,7 +17,8 @@ from cabinet.pacts.heal import (
     Tend,
 )
 from cabinet.pacts.healing import TASKS, Task, Work
-from cabinet.pacts.pulls import Check
+from cabinet.pacts.project import CiJob
+from cabinet.pacts.pulls import Check, Watched
 from cabinet.specs import BUDGET
 from tests.conftest import commit
 from tests.integration.rituals.falling import falling
@@ -25,7 +26,7 @@ from tests.integration.rituals.falling import falling
 _GATE = "CI=1 mise run pr-fix"
 _MERGE_COMMIT = commit("chore: merge main and fix the gates")
 _PUSH = "git push origin feature"
-_RED = Check(name="test", passed=False, id=41)
+_RED = Watched(check=Check(name="test", passed=False, id=41), key="test", job=CiJob())
 
 
 class TestTend:
