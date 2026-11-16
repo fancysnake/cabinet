@@ -40,8 +40,9 @@ Do not commit or push — the ritual owns the commits.
 _COVER = """\
 The diff coverage report below names lines this branch changed that no test
 exercises. Cover them, following this project's own testing guidelines: read
-CLAUDE.md and whatever testing documentation it points at before writing
-anything, and put each test where that layout says it belongs.
+CLAUDE.md or CONTRIBUTING.md and whatever testing documentation they point at
+before writing anything. Open the nearest existing test for the code the report
+names and match it. Put each test where that layout says it belongs.
 
 Do not lower the coverage threshold, edit the coverage configuration, or delete
 the offending code. Do not commit or push — the ritual owns the commits.

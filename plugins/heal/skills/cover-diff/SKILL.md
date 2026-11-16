@@ -14,8 +14,9 @@ A diff coverage report names lines this branch changed that no test
 exercises. Cover them with tests the project would have written itself.
 
 1. **Read the project's testing guidelines before writing anything**:
-   `CLAUDE.md` and whatever testing documentation it points at. They say
-   which kind of test each part of the code gets and where it lives.
+   `CLAUDE.md` or `CONTRIBUTING.md`, and whatever testing documentation they
+   point at. They say which kind of test each part of the code gets and where
+   it lives.
 2. **Open the nearest existing test** for the code the report names and
    match it: its directory, its fixtures, its naming, what it asserts on.
 3. **Write a test for the behaviour, not for the line.** Each uncovered line
