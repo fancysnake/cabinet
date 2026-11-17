@@ -70,7 +70,7 @@ class Todos(TodosProtocol):
 # One per name, the first the board lists.
 def _red(board: Board, project: Project) -> list[Watched]:
     red: dict[str, Watched] = {}
-    for watched in board.watched(project.ci):
+    for watched in board.watched(project):
         if watched.check.passed is False or _names_a_gap(watched):
             red.setdefault(watched.check.name, watched)
     return list(red.values())

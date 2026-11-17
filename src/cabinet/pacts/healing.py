@@ -249,15 +249,23 @@ _Update: TypeAlias = dict[
 ]
 
 
+# The red checks `ci` has still to work, the one in hand first.
+class Red(BaseModel):
+    red: list[Watched] = Field(default_factory=list)
+
+    # The check in hand: the first of those still red.
+    @property
+    def in_hand(self) -> Watched:
+        return self.red[0]
+
+
 # `budgets` dies with this payload, which is what "a branch change clears all
 # budgets" means — a fresh Work is built per pull request and inherits nothing.
-class Work(Budgeted, Hop):
+class Work(Budgeted, Red, Hop):
     run: Run
     pr: PullRequest
     # The tasks still to work on this branch, the next one first.
     todos: list[Task] = Field(default_factory=list)
-    # The red checks `ci` has still to work, the one in hand first.
-    red: list[Watched] = Field(default_factory=list)
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by

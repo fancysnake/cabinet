@@ -4,7 +4,7 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, Field
 
-from cabinet.pacts.project import Ci, CiJob
+from cabinet.pacts.project import CiJob, Project
 
 # A bound counts attempts at one step, so zero would mean a step that may never
 # be tried at all; past five a repair loop has stopped being a repair loop.
@@ -81,10 +81,21 @@ class Board(BaseModel):
     truncated: bool = False
 
     # The checks whose job is configured: red anywhere else is not the
-    # rituals' business.
-    def watched(self, ci: Ci) -> list[Watched]:
-        return [
-            Watched(check=check, key=key, job=ci.jobs[key])
-            for check in self.checks
-            if (key := ci.key(check.name)) is not None
-        ]
+    # rituals' business. A covering job measures with the project's coverage
+    # commands where it names none of its own.
+    def watched(self, project: Project) -> list[Watched]:
+        ci = project.ci
+        watched: list[Watched] = []
+        for check in self.checks:
+            if (key := ci.key(check.name)) is None:
+                continue
+            job = ci.jobs[key]
+            if job.covering:
+                # Typed on the way in, as `model_copy` reads a bare literal as `Any`.
+                update: dict[str, str] = {
+                    "gate": job.gate or project.coverage,
+                    "fast": job.fast or project.fast_coverage,
+                }
+                job = job.model_copy(update=update)
+            watched.append(Watched(check=check, key=key, job=job))
+        return watched

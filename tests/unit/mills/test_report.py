@@ -3,9 +3,10 @@
 from cabinet.mills.report import Report
 from cabinet.pacts.healing import Checked, Queued, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
-from cabinet.pacts.project import CiJob, Project
-from cabinet.pacts.pulls import Check, PullRequest, Watched
+from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.threads import Finding, TriageItem
+from tests.conftest import watched
 
 _REPORT = Report()
 _PROJECT = Project()
@@ -286,10 +287,7 @@ class TestSurveyed:
             branch="feature",
             url=_PULL.url,
             todos=["merge", "ci", "answer", "review"],
-            red=[
-                Watched(check=Check(name=name, id=1), key=name, job=CiJob())
-                for name in ("checks", "test")
-            ],
+            red=watched(Check(name="checks", id=1), Check(name="test", id=1)),
             threads=3,
         )
 

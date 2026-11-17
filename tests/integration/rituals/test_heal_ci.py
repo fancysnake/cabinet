@@ -27,9 +27,9 @@ from cabinet.pacts.heal import (
 )
 from cabinet.pacts.healing import Work
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Check
+from cabinet.pacts.pulls import Check
 from cabinet.specs import MANY_RED
-from tests.conftest import AGENT, commit
+from tests.conftest import AGENT, commit, watched
 from tests.integration.rituals.falling import falling
 from tests.integration.rituals.keyed import keyed
 
@@ -63,9 +63,7 @@ _SUITE_LOOP = "job_gate-suite"
 
 def _on(work: Work, *red: Check) -> Work:
     run = work.run.model_copy(update={"project": _PROJECT})
-    return work.but(run=run).model_copy(
-        update={"red": Board(checks=list(red)).watched(_PROJECT.ci)}
-    )
+    return work.but(run=run).model_copy(update={"red": watched(*red, of=_PROJECT)})
 
 
 def _runs(count: int) -> str:

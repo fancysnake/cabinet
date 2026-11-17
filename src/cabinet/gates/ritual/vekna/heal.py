@@ -681,7 +681,7 @@ async def push_work(work: PushWork) -> Tend:
 # session every round continues, from the mend that read the log through the
 # gate. The next job starts on a session of its own.
 def _loop(work: Work, name: str) -> str:
-    return f"{name}-{work.red[0].check.name}"
+    return f"{name}-{work.in_hand.check.name}"
 
 
 # Rerun first, wherever the job asks for it. Whatever went again is CI's to
@@ -717,7 +717,7 @@ async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
 def pick_job(work: PickJob) -> Tend | CloseGap | MendJob:
     if not work.red:
         return work.to(Tend)
-    if work.red[0].job.covering:
+    if work.in_hand.job.covering:
         return work.to(CloseGap)
     return work.to(MendJob)
 
@@ -728,8 +728,8 @@ def pick_job(work: PickJob) -> Tend | CloseGap | MendJob:
 @step
 async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
     project = work.run.project
-    check = work.red[0].check
-    gate = work.red[0].job.gate
+    check = work.in_hand.check
+    gate = work.in_hand.job.gate
     try:
         log = await services().forge(project).log(check)
     except ForgeError as error:
@@ -761,7 +761,7 @@ async def _mended(
 # the job's own commands.
 @step
 async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
-    return await _mended(work, work.red[0].job, name=_loop(work, job_gate.name))
+    return await _mended(work, work.in_hand.job, name=_loop(work, job_gate.name))
 
 
 # Close the coverage gap, repairing a red suite like any other gate. The first
@@ -769,16 +769,9 @@ async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
 # all; a repair round re-runs the fast one, or the single task that broke.
 @step
 async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
-    project = work.run.project
-    job = work.red[0].job
-    against = CiJob(
-        gate=job.gate or project.coverage,
-        fast=job.fast or project.fast_coverage,
-        covering=True,
-    )
     # Anything but the full measurement is a reason to spend the full
     # measurement, not a branch that is covered.
-    return await _mended(work, against, name=_loop(work, close_gap.name))
+    return await _mended(work, work.in_hand.job, name=_loop(work, close_gap.name))
 
 
 # Each job's fix is a commit of its own. A fix that changed nothing is no
@@ -786,10 +779,10 @@ async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
 # red and the row says so.
 @step
 async def land_job(work: LandJob) -> PickJob | SetAside:
-    name = work.red[0].check.name
+    name = work.in_hand.check.name
     message = (
         "test: cover the lines this branch changes"
-        if work.red[0].job.covering
+        if work.in_hand.job.covering
         else f"fix: make the {name} job green"
     )
     try:
