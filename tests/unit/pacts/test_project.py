@@ -156,7 +156,7 @@ class TestLongTasks:
 class TestCiJobs:
     @staticmethod
     def test_a_check_belongs_to_the_job_its_name_starts_with() -> None:
-        assert Project().ci.job("test-postgres") == CiJob()
+        assert Project().ci.key("test-postgres") == "test"
 
     @staticmethod
     def test_the_longest_key_wins() -> None:
@@ -164,13 +164,12 @@ class TestCiJobs:
             {"jobs": {"codecov/": {}, "codecov/patch": {"covering": True}}}
         )
 
-        assert ci.covering("codecov/patch")
-        assert not ci.covering("codecov/project")
+        assert ci.key("codecov/patch") == "codecov/patch"
+        assert ci.key("codecov/project") == "codecov/"
 
     @staticmethod
     def test_a_check_no_key_matches_has_no_job() -> None:
-        assert Project().ci.job("docs") is None
-        assert not Project().ci.covering("docs")
+        assert Project().ci.key("docs") is None
 
     @staticmethod
     def test_a_job_refuses_a_key_it_does_not_know() -> None:

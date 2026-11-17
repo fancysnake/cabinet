@@ -168,7 +168,7 @@ from cabinet.pacts.healing import (
 )
 from cabinet.pacts.issues import Listing
 from cabinet.pacts.project import CiJob, Project
-from cabinet.pacts.pulls import Check, PullRequest
+from cabinet.pacts.pulls import PullRequest, Watched
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
@@ -284,7 +284,7 @@ async def muster_main(run: MusterMain) -> Chart | PickJob:
 
 # The configured jobs red on the base, said on one line as a pull request's
 # todos are. None while a fix of yours is open: one fix at a time.
-async def _base_read(run: MusterMain) -> tuple[MusterMain, list[Check]]:
+async def _base_read(run: MusterMain) -> tuple[MusterMain, list[Watched]]:
     project = run.project
     run, pulls = await _listed(run)
     if fixing := services().pulls.fixing(pulls, project):
@@ -677,17 +677,11 @@ async def push_work(work: PushWork) -> Tend:
 # --- ci --------------------------------------------------------------------
 
 
-# The job the check in hand belongs to. Every red check has one: the survey
-# reads only the checks a job is configured for.
-def _job(work: Work) -> CiJob:
-    return work.run.project.ci.job(work.red[0].name) or CiJob()
-
-
 # A job loop's name for the check in hand: the budget it spends, and the
 # session every round continues, from the mend that read the log through the
 # gate. The next job starts on a session of its own.
 def _loop(work: Work, name: str) -> str:
-    return f"{name}-{work.red[0].name}"
+    return f"{name}-{work.in_hand.check.name}"
 
 
 # Rerun first, wherever the job asks for it. Whatever went again is CI's to
@@ -701,9 +695,9 @@ async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
     forge = services().forge(project)
     went: list[str] = []
     notes: list[str] = []
-    for check in work.red:
-        job = project.ci.job(check.name)
-        if job is None or not job.rerun:
+    for red in work.red:
+        check = red.check
+        if not red.job.rerun:
             continue
         try:
             if await forge.runs(work.pr.branch, check) > 1:
@@ -723,7 +717,7 @@ async def rerun_jobs(work: RerunJobs) -> Tend | PickJob:
 def pick_job(work: PickJob) -> Tend | CloseGap | MendJob:
     if not work.red:
         return work.to(Tend)
-    if _job(work).covering:
+    if work.in_hand.job.covering:
         return work.to(CloseGap)
     return work.to(MendJob)
 
@@ -734,8 +728,8 @@ def pick_job(work: PickJob) -> Tend | CloseGap | MendJob:
 @step
 async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
     project = work.run.project
-    check = work.red[0]
-    gate = _job(work).gate
+    check = work.in_hand.check
+    gate = work.in_hand.job.gate
     try:
         log = await services().forge(project).log(check)
     except ForgeError as error:
@@ -767,7 +761,7 @@ async def _mended(
 # the job's own commands.
 @step
 async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
-    return await _mended(work, _job(work), name=_loop(work, job_gate.name))
+    return await _mended(work, work.in_hand.job, name=_loop(work, job_gate.name))
 
 
 # Close the coverage gap, repairing a red suite like any other gate. The first
@@ -775,16 +769,9 @@ async def job_gate(work: JobGate) -> JobGate | LandJob | StandDown | Chart:
 # all; a repair round re-runs the fast one, or the single task that broke.
 @step
 async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
-    project = work.run.project
-    job = _job(work)
-    against = CiJob(
-        gate=job.gate or project.coverage,
-        fast=job.fast or project.fast_coverage,
-        covering=True,
-    )
     # Anything but the full measurement is a reason to spend the full
     # measurement, not a branch that is covered.
-    return await _mended(work, against, name=_loop(work, close_gap.name))
+    return await _mended(work, work.in_hand.job, name=_loop(work, close_gap.name))
 
 
 # Each job's fix is a commit of its own. A fix that changed nothing is no
@@ -792,10 +779,10 @@ async def close_gap(work: CloseGap) -> CloseGap | LandJob | StandDown | Chart:
 # red and the row says so.
 @step
 async def land_job(work: LandJob) -> PickJob | SetAside:
-    name = work.red[0].name
+    name = work.in_hand.check.name
     message = (
         "test: cover the lines this branch changes"
-        if _job(work).covering
+        if work.in_hand.job.covering
         else f"fix: make the {name} job green"
     )
     try:

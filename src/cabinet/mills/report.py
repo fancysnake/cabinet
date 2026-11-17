@@ -76,7 +76,7 @@ def triage_line(index: int, item: TriageItem) -> str:
 # A todo with what it would work through, where that is more than its name.
 def _todo(row: Surveyed, todo: Task) -> str:
     if todo == "ci":
-        return f"ci ({', '.join(check.name for check in row.red)})"
+        return f"ci ({', '.join(red.check.name for red in row.red)})"
     if todo == "answer":
         return f"answer ({_threads(row.threads)})"
     return todo

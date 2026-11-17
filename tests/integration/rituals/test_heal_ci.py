@@ -29,7 +29,7 @@ from cabinet.pacts.healing import Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check
 from cabinet.specs import MANY_RED
-from tests.conftest import AGENT, commit
+from tests.conftest import AGENT, commit, watched
 from tests.integration.rituals.falling import falling
 from tests.integration.rituals.keyed import keyed
 
@@ -63,7 +63,7 @@ _SUITE_LOOP = "job_gate-suite"
 
 def _on(work: Work, *red: Check) -> Work:
     run = work.run.model_copy(update={"project": _PROJECT})
-    return work.but(run=run).model_copy(update={"red": list(red)})
+    return work.but(run=run).model_copy(update={"red": watched(*red, of=_PROJECT)})
 
 
 def _runs(count: int) -> str:
@@ -358,7 +358,7 @@ class TestLandJob:
 
         assert trial.walk(land_job, red.to(LandJob)) == red.landed().to(PickJob)
         assert trial.shell.commands == [commit("fix: make the suite job green")]
-        assert red.landed().red == [_LINT]
+        assert red.landed().red == _on(work, _LINT).red
 
     @staticmethod
     def test_covered_lines_are_a_test_commit(trial: Trial, work: Work) -> None:

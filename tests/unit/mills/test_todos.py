@@ -2,8 +2,8 @@
 
 from cabinet.mills.todos import Todos
 from cabinet.pacts.healing import Facts, Surveyed, Task
-from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Check, PullRequest
+from cabinet.pacts.project import CiJob, Project
+from cabinet.pacts.pulls import Board, Check, PullRequest, Watched
 from cabinet.pacts.threads import Thread
 
 _TODOS = Todos()
@@ -41,7 +41,7 @@ def _todos(facts: Facts) -> list[Task]:
 
 def _red(board: Board, project: Project) -> list[str]:
     row = _TODOS.surveyed(_facts().model_copy(update={"board": board}), project)
-    return [check.name for check in row.red]
+    return [red.check.name for red in row.red]
 
 
 class TestTodos:
@@ -188,7 +188,13 @@ class TestSurveyed:
             branch="feature",
             url="https://example.test/pull/7",
             todos=["ci", "answer"],
-            red=[Check(name="checks", passed=False, id=1)],
+            red=[
+                Watched(
+                    check=Check(name="checks", passed=False, id=1),
+                    key="checks",
+                    job=CiJob(),
+                )
+            ],
             threads=1,
         )
 
@@ -199,7 +205,12 @@ class TestBase:
         red = Check(name="checks", passed=False, id=1)
 
         assert _TODOS.base(Board(checks=[red]), _PROJECT) == Surveyed(
-            number=0, branch="main", url="", todos=["ci"], red=[red], threads=0
+            number=0,
+            branch="main",
+            url="",
+            todos=["ci"],
+            red=[Watched(check=red, key="checks", job=CiJob())],
+            threads=0,
         )
 
     @staticmethod

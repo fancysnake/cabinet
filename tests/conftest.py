@@ -13,7 +13,7 @@ from vekna.trial import Trial
 from cabinet.inits.services import Services
 from cabinet.pacts.healing import Run, Work
 from cabinet.pacts.project import Agent, Models, Project
-from cabinet.pacts.pulls import PullRequest
+from cabinet.pacts.pulls import Board, Check, PullRequest, Watched
 from cabinet.pacts.services import bind
 
 _ResultT = TypeVar("_ResultT")
@@ -72,6 +72,12 @@ def row(number: int = _NUMBER, **extra: object) -> dict[str, object]:
         "labels": [],
         **extra,
     }
+
+
+# The checks as a survey reads them off the board, each with its configured
+# job: the project's own, or the defaults.
+def watched(*checks: Check, of: Project | None = None) -> list[Watched]:
+    return Board(checks=list(checks)).watched(of or Project())
 
 
 def listing(*rows: dict[str, object]) -> str:

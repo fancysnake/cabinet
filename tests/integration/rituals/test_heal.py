@@ -52,6 +52,7 @@ from tests.conftest import (
     page,
     row,
     threads_page,
+    watched,
 )
 
 _URL = "https://github.com/o/r/pull/7"
@@ -65,7 +66,7 @@ _RED = json.dumps(
     }
 )
 _GREEN = json.dumps({"total_count": 0, "check_runs": []})
-_CHECKS = Check(name="checks", passed=False, id=1)
+_CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"

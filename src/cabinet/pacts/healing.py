@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
-from cabinet.pacts.pulls import Board, Bound, Check, PullListing, PullRequest
+from cabinet.pacts.pulls import Board, Bound, PullListing, PullRequest, Watched
 from cabinet.pacts.threads import Thread
 
 _RunT = TypeVar("_RunT", bound="Run")
@@ -75,7 +75,7 @@ class Surveyed(BaseModel):
     todos: list[Task]
     # The configured CI jobs whose checks are red, and the open threads: what
     # `ci` and `answer` would work through.
-    red: list[Check]
+    red: list[Watched]
     threads: int
 
 
@@ -245,19 +245,27 @@ class Run(Reserving, Hop):
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
 _Update: TypeAlias = dict[
-    str, Run | PullRequest | dict[str, int] | list[Task] | list[Check] | bool | str
+    str, Run | PullRequest | dict[str, int] | list[Task] | list[Watched] | bool | str
 ]
+
+
+# The red checks `ci` has still to work, the one in hand first.
+class Red(BaseModel):
+    red: list[Watched] = Field(default_factory=list)
+
+    # The check in hand: the first of those still red.
+    @property
+    def in_hand(self) -> Watched:
+        return self.red[0]
 
 
 # `budgets` dies with this payload, which is what "a branch change clears all
 # budgets" means — a fresh Work is built per pull request and inherits nothing.
-class Work(Budgeted, Hop):
+class Work(Budgeted, Red, Hop):
     run: Run
     pr: PullRequest
     # The tasks still to work on this branch, the next one first.
     todos: list[Task] = Field(default_factory=list)
-    # The red checks `ci` has still to work, the one in hand first.
-    red: list[Check] = Field(default_factory=list)
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by
@@ -336,14 +344,13 @@ class Work(Budgeted, Hop):
     # budgets for: a matrix job's entries all match its one key, and the fix
     # for one entry is usually every entry's. The rest wait for the next cast.
     def one_per_job(self) -> Self:
-        ci = self.run.project.ci
-        kept: dict[str | None, Check] = {}
+        kept: dict[str, Watched] = {}
         left: list[str] = []
-        for check in self.red:
-            if (key := ci.key(check.name)) in kept:
-                left.append(check.name)
+        for red in self.red:
+            if red.key in kept:
+                left.append(red.check.name)
             else:
-                kept[key] = check
+                kept[red.key] = red
         if not left:
             return self
         names = ", ".join(left)
@@ -381,7 +388,7 @@ class Work(Budgeted, Hop):
     # The job in hand stood the branch down, and the task ends with it: the
     # checks behind it are named, since nothing works them now.
     def leaving_red(self) -> Self:
-        left = ", ".join(check.name for check in self.red[1:])
+        left = ", ".join(red.check.name for red in self.red[1:])
         note = f"left red behind it: {left}" if left else ""
         return self._copied({"red": [], "note": joined(self.note, note)})
 

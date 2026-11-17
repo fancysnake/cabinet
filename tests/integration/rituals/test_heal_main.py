@@ -19,7 +19,7 @@ from cabinet.pacts.healing import Heal, Run, Surveyed, Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.rituals.heal_main import heal_main
-from tests.conftest import LIST, STATUS, board, listing, row
+from tests.conftest import LIST, STATUS, board, listing, row, watched
 
 _RED = json.dumps(
     {
@@ -31,7 +31,7 @@ _RED = json.dumps(
     }
 )
 _GREEN = json.dumps({"total_count": 0, "check_runs": []})
-_CHECKS = Check(name="checks", passed=False, id=1)
+_CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _BRANCH = "fix/main-abc1234"
 _FETCH = "git fetch --prune origin"
 _HEAD = "git rev-parse --short origin/main"
