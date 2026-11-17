@@ -26,96 +26,61 @@ from cabinet.rituals import (
     review,
 )
 
-# Every facade over the heal graph, and the rituals each one exports: its own,
-# and for heal.mine the heal.pr it queues.
-_HEALS = [
+# Every facade, the step module behind it, and the rituals it exports: its
+# own, and for heal.mine the heal.pr it queues.
+_FACADES = [
     pytest.param(
-        heal_mine, {"heal_mine": "heal.mine", "heal_pr": "heal.pr"}, id="heal.mine"
+        heal_mine,
+        heal_steps,
+        {"heal_mine": "heal.mine", "heal_pr": "heal.pr"},
+        id="heal.mine",
     ),
-    pytest.param(heal_pr, {"heal_pr": "heal.pr"}, id="heal.pr"),
-    pytest.param(heal_main, {"heal_main": "heal.main"}, id="heal.main"),
-    pytest.param(heal_this, {"heal_this": "heal.this"}, id="heal.this"),
-    pytest.param(merge, {"merge": "merge"}, id="merge"),
-    pytest.param(ci, {"ci": "ci"}, id="ci"),
-    pytest.param(answer, {"answer": "answer"}, id="answer"),
-    pytest.param(review, {"review": "review"}, id="review"),
-    pytest.param(guide, {"guide": "guide"}, id="guide"),
+    pytest.param(heal_pr, heal_steps, {"heal_pr": "heal.pr"}, id="heal.pr"),
+    pytest.param(heal_main, heal_steps, {"heal_main": "heal.main"}, id="heal.main"),
+    pytest.param(heal_this, heal_steps, {"heal_this": "heal.this"}, id="heal.this"),
+    pytest.param(merge, heal_steps, {"merge": "merge"}, id="merge"),
+    pytest.param(ci, heal_steps, {"ci": "ci"}, id="ci"),
+    pytest.param(answer, heal_steps, {"answer": "answer"}, id="answer"),
+    pytest.param(review, heal_steps, {"review": "review"}, id="review"),
+    pytest.param(guide, heal_steps, {"guide": "guide"}, id="guide"),
+    pytest.param(identify, identify_steps, {"identify": "identify"}, id="identify"),
+    pytest.param(labels, labels_steps, {"labels": "labels"}, id="labels"),
+    pytest.param(
+        labels_heal, labels_steps, {"labels_heal": "labels.heal"}, id="labels.heal"
+    ),
+    pytest.param(
+        labels_identify,
+        labels_steps,
+        {"labels_identify": "labels.identify"},
+        id="labels.identify",
+    ),
 ]
 
 
-# A facade exports every step of the module behind it, so it names the whole
-# graph it casts. Read off that module rather than off the facade's own
-# `__all__`, which cannot catch a step nobody imported.
-def _steps(module: ModuleType) -> set[str]:
-    return {name for name, found in vars(module).items() if _is_step(found)}
-
-
-# `Step` is a structural type that `isinstance` refuses, so a step is told by
-# `payloads`, which only the object `@step` builds carries.
-def _is_step(found: object) -> bool:
-    return hasattr(found, "payloads")
-
-
-# The names vekna will register off a facade: each step's own, and the
-# ritual's — which is what `vekna cast` takes, and need not be a Python name.
-def _registered(facade: ModuleType) -> set[str]:
+# The names `vekna cast` takes off a facade, which need not be Python names.
+def _rituals(facade: ModuleType) -> set[str]:
     exported = [getattr(facade, name) for name in facade.__all__]
-    return {one.name for one in exported if _is_step(one) or isinstance(one, Ritual)}
+    return {one.name for one in exported if isinstance(one, Ritual)}
 
 
-# A step is named after its function, so a facade's steps are exactly the
-# names it exports beside its ritual.
 class TestFacade:
+    # A step registers when its module is imported, so a facade that holds the
+    # module as `steps` has registered the whole graph it casts.
     @staticmethod
-    @pytest.mark.parametrize(("facade", "rituals"), _HEALS)
-    def test_a_heal_facade_exports_its_ritual_and_every_step(
-        facade: ModuleType, rituals: dict[str, str]
+    @pytest.mark.parametrize(("facade", "steps", "rituals"), _FACADES)
+    def test_a_facade_exports_its_rituals_and_its_step_module(
+        facade: ModuleType, steps: ModuleType, rituals: dict[str, str]
     ) -> None:
-        assert set(facade.__all__) == _steps(heal_steps) | rituals.keys()
-        assert _registered(facade) == _steps(heal_steps) | set(rituals.values())
-
-    # One step object behind every one, so loading them registers each step
-    # once: a second step taking the same payload class would refuse to load.
-    @staticmethod
-    def test_the_heal_rituals_share_their_steps() -> None:
-        assert heal_this.tend is heal_mine.tend is merge.tend is review.tend
-        assert ci.tend is answer.tend is heal_mine.tend is heal_pr.tend
-        assert guide.tend is heal_mine.tend
+        assert set(facade.__all__) == rituals.keys() | {"steps"}
+        assert facade.steps is steps
+        assert _rituals(facade) == set(rituals.values())
 
     # heal.mine queues heal.pr casts, so a project loading only heal.mine
     # must still have heal.pr to run them.
     @staticmethod
     def test_heal_mine_brings_the_heal_pr_it_queues() -> None:
         assert heal_mine.heal_pr is heal_pr.heal_pr
-        assert "heal.pr" in _registered(heal_mine)
-
-    @staticmethod
-    def test_identify_exports_its_ritual_and_every_step() -> None:
-        assert set(identify.__all__) == _steps(identify_steps) | {"identify"}
-        assert _registered(identify) == set(identify.__all__)
 
     @staticmethod
     def test_importing_a_facade_wires_the_services() -> None:
         assert isinstance(services(), Services)
-
-    @staticmethod
-    def test_labels_exports_its_ritual_and_its_step() -> None:
-        assert set(labels.__all__) == _steps(labels_steps) | {"labels"}
-        assert _registered(labels) == {"labels", "conjure"}
-
-    @staticmethod
-    def test_labels_heal_exports_its_ritual_and_its_step() -> None:
-        assert set(labels_heal.__all__) == _steps(labels_steps) | {"labels_heal"}
-        assert _registered(labels_heal) == {"labels.heal", "conjure"}
-
-    @staticmethod
-    def test_labels_identify_exports_its_ritual_and_its_step() -> None:
-        assert set(labels_identify.__all__) == _steps(labels_steps) | {
-            "labels_identify"
-        }
-        assert _registered(labels_identify) == {"labels.identify", "conjure"}
-
-    # One step object behind all three, so loading them registers `conjure` once.
-    @staticmethod
-    def test_the_label_rituals_share_their_step() -> None:
-        assert labels.conjure is labels_heal.conjure is labels_identify.conjure

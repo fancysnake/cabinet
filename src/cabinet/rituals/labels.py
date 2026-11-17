@@ -9,7 +9,7 @@ the ritual itself and the surface vekna sweeps.
 
 from vekna.lexicon import NoComponents, ritual
 
-from cabinet.gates.ritual.vekna.labels import conjure
+from cabinet.gates.ritual.vekna import labels as steps
 from cabinet.pacts.issues import ISSUE_LABELS
 from cabinet.pacts.project import Conjure
 from cabinet.pacts.services import services
@@ -21,4 +21,4 @@ def labels(_: NoComponents) -> Conjure:
     return Conjure(project=project, specs=[*project.labels.conjured(), *ISSUE_LABELS])
 
 
-__all__ = ["conjure", "labels"]
+__all__ = ["labels", "steps"]

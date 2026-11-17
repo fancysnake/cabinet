@@ -10,7 +10,7 @@ mills/     pure logic: which pull requests, what a task said, what the agent is 
 links/     adapters: forge/github, forge/gitlab, scm/git, tasks/mise, agent/claude, config
 gates/     the @ritual and @step bodies, reaching everything through pacts
 inits/     the one place the adapters are chosen and bound
-rituals/   what vekna loads: one module per ritual, re-exporting its steps
+rituals/   what vekna loads: one module per ritual, importing its step module
 ```
 
 | layer      | may import                                                     |
@@ -49,8 +49,9 @@ annotation.
 
 `rituals/heal_mine.py`, `heal_pr.py`, `heal_this.py`, `heal_main.py`,
 `merge.py`, `ci.py`, `answer.py`, `review.py` and `guide.py` all wrap the heal
-steps and each re-export the full step list, so importing any one registers
-the whole graph. A new heal step is added to all nine. A task
+steps. Each imports the step module as `steps` and exports it beside its
+ritual, so importing any one registers the whole graph. A new heal step
+touches no facade. A task
 ritual is `heal.this` with `tasks` narrowed to one; `tend` hands a branch its
 next task, and every task ends back at `tend`.
 

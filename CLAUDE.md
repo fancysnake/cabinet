@@ -72,7 +72,7 @@ moving modules.
 | `links/`   | adapters: `forge/{github,gitlab}`, `scm/git`, `tasks/mise`, `agent/claude`, `config/vekna_toml` | pacts only; `links/*` subpackages independent of each other |
 | `gates/`   | `@step` bodies (`gates/ritual/vekna/{heal,identify,labels}.py`) | pacts only            |
 | `inits/`   | `Services` binds concrete adapters, `wire()`                   | everything               |
-| `rituals/` | one facade per ritual: the `@ritual` entrypoint + re-exported steps | layers; nothing imports it back |
+| `rituals/` | one facade per ritual: the `@ritual` entrypoint + its step module as `steps` | layers; nothing imports it back |
 | `edges/`   | reserved, empty, excluded from coverage                        | nothing                  |
 
 ### The services seam
@@ -101,10 +101,10 @@ bound to that carrier's own steps — is the one way across. A new step gets a n
 
 ### Facades
 
-Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/`, and facades
-sharing one (`heal.mine`, `heal.pr`, `heal.this`, `heal.main`, `merge`, `ci`, `answer`, `review` and `guide` share `heal.py`) each re-export **every**
-step in it, so importing any of them registers the whole graph. A new step
-goes in every such facade's `__all__` (`test_facade.py` checks). A ritual's
+Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/` (`heal.mine`, `heal.pr`, `heal.this`, `heal.main`, `merge`, `ci`, `answer`, `review` and `guide` share `heal.py`).
+A facade imports that module as `steps` and exports it beside its ritual, so
+importing any facade registers the whole graph and a new step touches no
+facade (`test_facade.py` checks). A ritual's
 name is the `@ritual("...")` string, not the module, and holds no `:`: vekna
 reserves it for the tome prefix (`vekna cast cabinet:review` when another
 tome offers a `review`). A ritual is named for a D&D spell or a heal task, and its facade's docstring opens
