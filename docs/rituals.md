@@ -187,8 +187,21 @@ Attended, the task goes round in batches of `--batch` open threads:
 2. **Read.** An agent reads the open threads against the code and returns a
    triage: one item per thread, with a priority (p1 to p4) and what it would
    do (fix, reject or file).
-3. **Decide.** Each item is put to you. Answer in your own words, or press
-   return to take the reading's proposal.
+3. **Decide.** Each item is put to you as one card, the most urgent first.
+   Press return to take the reading's proposal, or answer in your own words.
+
+    ```text
+    #58 Add the export page — thread 1 of 3
+    Thread:   src/export.py:41, raised by alice
+    Raised:   stop when the list of rows is empty
+    If left:  an export with no rows crashes instead of saying so
+    Action:   fix — the loop reads the first row before it checks for one
+    Grounds:  tested — ran the export with no rows and got IndexError
+    Estimate: small, 1 file, low risk
+    ```
+
+    Grounds is `tested`, `read` or `not checked`: whether the reading ran
+    something, only read the code, or did neither.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item. The ritual opens the issues you said to file, posts the
    replies and settles the threads.

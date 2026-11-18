@@ -61,6 +61,9 @@ class Thread(BaseModel):
 
 Priority = Literal["p1", "p2", "p3", "p4"]
 Action = Literal["fix", "reject", "file"]
+Grounds = Literal["tested", "read", "not checked"]
+Size = Literal["small", "medium", "large"]
+Risk = Literal["low", "medium", "high"]
 
 
 class TriageItem(BaseModel):
@@ -69,7 +72,19 @@ class TriageItem(BaseModel):
     # taken on the reading's verdict alone, with no sight of the comment
     # behind it.
     raised: str
+    # What happens when nothing is done about the thread: the stake, which the
+    # comment and the verdict both leave out.
+    left: str
+    # Why the reading would take its action.
     what: str
+    # How the reading knows, and the run or the lines that show it: a verdict
+    # nobody ran is worth less than one somebody did, and looks the same.
+    grounds: Grounds
+    proof: str
+    # What the action costs.
+    size: Size
+    files: int
+    risk: Risk
     # p4 is not a smaller p3: it is the thread that has no work in it at all —
     # already done, no longer true, or simply wrong — sorted out of the way so
     # the reading you go through is only the items worth a decision.

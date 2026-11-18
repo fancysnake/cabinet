@@ -6,9 +6,10 @@ those things; the prompt asks it not to, and the sandbox the cast runs in is
 the boundary.
 """
 
+from itertools import starmap
+
 from typing_extensions import override
 
-from cabinet.mills.report import triage_line
 from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
@@ -99,9 +100,25 @@ I say otherwise:
 - file — worth doing, not now: it becomes an issue
 
 `raised` is what the thread itself asked for, in one line and in your own words
-— what the commenter wants, not what you make of it. `what` is your reading:
-what you would do about it and why. Keep `what` to a sentence or two. Both are
-read on a terminal, one item at a time, by someone who has not seen the thread
+— what the commenter wants, not what you make of it. `left` is what happens if
+nothing is done about the thread, in one line: what a user or a maintainer
+would meet, or that nothing would happen. Write both in plain words for someone
+who has forgotten this code: no file, function, class or variable names.
+
+`what` is why you would take that action, in a sentence or two.
+
+`grounds` is how you know, and `proof` is the example that shows it:
+
+- tested — you ran something: `proof` is the command and what it printed
+- read — you read the code and ran nothing: `proof` is the lines you read
+- not checked — neither: `proof` is what stopped you
+
+`size`, `files` and `risk` are what your action costs. `size` is `small` for a
+few lines, `medium` for a function or two, `large` for more. `files` is how many
+files the action changes, 0 where it changes none. `risk` is how likely the
+change is to break something else.
+
+All of it is read as one card per thread, by someone who has not seen the thread
 and is deciding what to do with it.
 
 Fix nothing. This is a reading.
@@ -246,8 +263,8 @@ def _fenced(threads: list[Thread]) -> str:
 # somebody else's comment, and an instruction — and running them together
 # unlabelled is how an instruction gets taken from the wrong one. The lines
 # inside are the terminal's own, so you answered against this text.
-def _item(index: int, item: TriageItem, answer: str) -> str:
-    read = f"{triage_line(index, item)}\n   thread: {item.thread}"
+def _item(item: TriageItem, card: str, answer: str) -> str:
+    read = f"{card}\nthread: {item.thread}"
     return f"{_fence(read)}\nwhat I want: {answer}"
 
 
@@ -314,15 +331,12 @@ class Prompts(PromptsProtocol):
         )
 
     @override
-    def triage_work(self, number: int, items: list[TriageItem], told: list[str]) -> str:
-        # The terminal's own lines, with your answer under each: the agent is
+    def triage_work(
+        self, number: int, items: list[TriageItem], cards: list[str], told: list[str]
+    ) -> str:
+        # The terminal's own cards, with your answer under each: the agent is
         # told what you were looking at when you said it.
-        shown = "\n\n".join(
-            _item(index, item, answer)
-            for index, (item, answer) in enumerate(
-                zip(items, told, strict=True), start=1
-            )
-        )
+        shown = "\n\n".join(starmap(_item, zip(items, cards, told, strict=True)))
         return (
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"

@@ -491,7 +491,7 @@ def _worst_jobs(trial: Trial, bound: int) -> None:
 # reading says, replied to and settled; the forge keeps saying it is open,
 # and the worktree has changed when the rounds are spent.
 def _worst_answers(trial: Trial) -> None:
-    trial.decide.answers(answer="", when="1. *", always=True)
+    trial.decide.answers(answer="", when="#7 *", always=True)
     opened = threads_page(page([node("PRRT_1", page([comment(101)]))]))
     # The survey, `settle_left`, and a read and a post every round.
     for _ in range(2 + 2 * ROUNDS):
@@ -500,7 +500,18 @@ def _worst_answers(trial: Trial) -> None:
     trial.shell.replies(when=STATUS)
     trial.shell.replies(when=STATUS, stdout=" M a.py\n")
     item = TriageItem(
-        where="a.py", raised="x", what="y", priority="p1", action="fix", thread="PRRT_1"
+        where="a.py",
+        raised="x",
+        left="z",
+        what="y",
+        grounds="read",
+        proof="a.py:1",
+        size="small",
+        files=1,
+        risk="low",
+        priority="p1",
+        action="fix",
+        thread="PRRT_1",
     )
     trial.coding.replies(
         TriageNotes(items=[item]), when="Triage the open review threads*", always=True

@@ -98,8 +98,10 @@ class PromptsProtocol(Protocol):
 
     def triage_read(self, number: int, threads: list[Thread]) -> str: ...
 
+    # `cards` and `told` run beside `items`: the card you answered against
+    # and what you answered.
     def triage_work(
-        self, number: int, items: list[TriageItem], told: list[str]
+        self, number: int, items: list[TriageItem], cards: list[str], told: list[str]
     ) -> str: ...
 
     def review(
@@ -153,9 +155,10 @@ class ReportProtocol(Protocol):
     # One pull request's todos, on one line, or why it could not be read.
     def surveyed(self, row: Surveyed | Unsurveyed) -> str: ...
 
-    def triage(self, items: list[TriageItem]) -> list[str]: ...
-
-    def shown(self, index: int, item: TriageItem) -> str: ...
+    # One card per triaged item, in the items' order.
+    def cards(
+        self, pull: PullRequest, items: list[TriageItem], threads: list[Thread]
+    ) -> list[str]: ...
 
 
 class ServicesProtocol(Protocol):

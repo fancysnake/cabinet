@@ -177,6 +177,7 @@ from cabinet.pacts.threads import (
     Finding,
     Findings,
     Thread,
+    TriageItem,
     TriageNotes,
     filed_as,
     filed_for,
@@ -943,20 +944,34 @@ async def read_threads(
     )
 
 
-# Put the triage on your terminal and take your answer to each item.
+# The question under every card, naming the answers it takes.
+_TAKES = (
+    "Press return to take the action above, or answer fix, reject or file,"
+    " or say in your own words what should happen.\n->"
+)
+
+
+def _urgency(item: TriageItem) -> str:
+    return item.priority
+
+
+# Put the triage on your terminal, a card at a time, and take your answer to
+# each.
 @step
 async def ask_triage(triage: AskTriage) -> AnswerThreads:
-    report = services().report
-    emit_delta("\n".join(report.triage(triage.items)))
+    work = triage.work
+    # The priority orders the cards and shows on none: what must be fixed
+    # before the merge is asked first.
+    items = sorted(triage.items, key=_urgency)
+    cards = services().report.cards(work.pr, items, triage.threads)
     told: list[str] = []
-    for index, item in enumerate(triage.items, start=1):
+    for item, card in zip(items, cards, strict=True):
         # Free text and not a choice: an item is answered by saying how the
         # thing is supposed to work, which no four options carry. An empty
         # answer agrees with the reading's own proposal.
-        said = await decide(f"{report.shown(index, item)}\n->", free=True)
+        said = await decide(f"{card}\n{_TAKES}", free=True)
         told.append(said or f"{item.action} it, as the reading says")
-    work = triage.work
-    prompt = services().prompts.triage_work(work.pr.number, triage.items, told)
+    prompt = services().prompts.triage_work(work.pr.number, items, cards, told)
     triaged = {item.thread for item in triage.items}
     threads = [thread for thread in triage.threads if thread.id in triaged]
     return AnswerThreads(

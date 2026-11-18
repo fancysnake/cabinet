@@ -5,7 +5,7 @@ from cabinet.pacts.healing import Checked, Queued, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
-from cabinet.pacts.threads import Finding, TriageItem
+from cabinet.pacts.threads import Comment, Finding, Thread, TriageItem
 from tests.conftest import watched
 
 _REPORT = Report()
@@ -132,22 +132,48 @@ class TestHealed:
 
 class TestTriage:
     @staticmethod
-    def test_the_tally_and_every_item() -> None:
+    def test_every_item_is_a_card_with_its_place_in_the_round() -> None:
         item = TriageItem(
-            where="src/thing.py",
-            raised="add a guard",
+            where="src/thing.py:12",
+            raised="stop on an empty list",
+            left="an empty list crashes the run",
             what="the guard is missing",
+            grounds="tested",
+            proof="ran it with [] and got IndexError",
+            size="small",
+            files=1,
+            risk="low",
             priority="p1",
             action="fix",
             thread="T1",
         )
+        thread = Thread(
+            id="T1",
+            resolved=False,
+            comments=[Comment(id="1", author="reviewer", body="guard this")],
+        )
+        made_up = item.model_copy(update={"thread": "T9", "files": 2})
 
-        assert _REPORT.triage([item, item.model_copy(update={"priority": "p4"})]) == [
-            "2 outstanding — p1: 1, p2: 0, p3: 0, p4: 1",
-            "",
-            "1. [p1/fix] src/thing.py — add a guard\n   -> the guard is missing",
-            "2. [p4/fix] src/thing.py — add a guard\n   -> the guard is missing",
-        ]
+        first, second = _REPORT.cards(_PULL, [item, made_up], [thread])
+
+        assert first == (
+            "#7 Add the thing — thread 1 of 2\n"
+            "Thread:   src/thing.py:12, raised by reviewer\n"
+            "Raised:   stop on an empty list\n"
+            "If left:  an empty list crashes the run\n"
+            "Action:   fix — the guard is missing\n"
+            "Grounds:  tested — ran it with [] and got IndexError\n"
+            "Estimate: small, 1 file, low risk"
+        )
+        assert second == (
+            "#7 Add the thing — thread 2 of 2\n"
+            "Thread:   src/thing.py:12\n"
+            "Raised:   stop on an empty list\n"
+            "If left:  an empty list crashes the run\n"
+            "Action:   fix — the guard is missing\n"
+            "Grounds:  tested — ran it with [] and got IndexError\n"
+            "Estimate: small, 2 files, low risk"
+        )
 
 
 class TestFindings:
