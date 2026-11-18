@@ -70,7 +70,13 @@ _WRITER = "Below is a triage*"
 _ITEM = TriageItem(
     where="src/thing.py",
     raised="add a guard before the loop",
+    left="an empty list crashes the run",
     what="the guard is missing",
+    grounds="tested",
+    proof="ran it with [] and got IndexError",
+    size="small",
+    files=1,
+    risk="low",
     priority="p1",
     action="fix",
     thread="PRRT_1",
@@ -387,6 +393,33 @@ class TestReadThreads:
             note="the reading found nothing, but the forge says otherwise"
         ).to(Tend)
 
+    # The reading is the agent's own word: an item for a thread nobody sent it
+    # is dropped, and a reading of nothing else is no reading.
+    @staticmethod
+    def test_an_item_for_a_thread_never_sent_is_dropped(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        made_up = _ITEM.model_copy(update={"thread": "PRRT_9"})
+        trial.coding.replies(TriageNotes(items=[made_up, _ITEM]))
+
+        transition = trial.walk(read_threads, work.to(ReadThreads))
+
+        assert isinstance(transition, AskTriage)
+        assert transition.items == [_ITEM]
+
+    @staticmethod
+    def test_a_reading_of_threads_never_sent_found_nothing(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        made_up = _ITEM.model_copy(update={"thread": "PRRT_9"})
+        trial.coding.replies(TriageNotes(items=[made_up]))
+
+        assert trial.walk(read_threads, work.to(ReadThreads)) == work.but(
+            note="the reading found nothing, but the forge says otherwise"
+        ).to(Tend)
+
     @staticmethod
     def test_an_answer_in_the_wrong_shape_is_said(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=THREADS, stdout=_OPEN)
@@ -421,15 +454,23 @@ class TestReadThreads:
 
 class TestAskTriage:
     @staticmethod
-    def test_every_item_is_shown_and_asked(trial: Trial, work: Work) -> None:
-        second = _ITEM.model_copy(update={"thread": "PRRT_2", "action": "file"})
+    def test_every_item_is_asked_as_a_card_most_urgent_first(
+        trial: Trial, work: Work
+    ) -> None:
+        second = _ITEM.model_copy(
+            update={"thread": "PRRT_2", "action": "file", "priority": "p3"}
+        )
         other = _THREAD.model_copy(update={"id": "PRRT_2"})
         untriaged = _THREAD.model_copy(update={"id": "PRRT_3"})
-        trial.decide.answers(answer="it guards the empty case", when="1. *")
-        trial.decide.answers(answer="", when="2. *")
+        trial.decide.answers(
+            answer="it guards the empty case", when="#7 pr 7 — thread 1 of 2\n*"
+        )
+        trial.decide.answers(
+            answer="", when="#7 pr 7 — thread 2 of 2\n*Action:   file — *"
+        )
         triage = AskTriage(
             work=work,
-            items=[_ITEM, second],
+            items=[second, _ITEM],
             threads=[_THREAD, other, untriaged],
             unsettled=MANY_THREADS,
         )
@@ -451,7 +492,8 @@ class TestAskTriage:
             in transition.prompt
         )
         assert transition.threads == [_THREAD, other]
-        assert "2 outstanding — p1: 2, p2: 0, p3: 0, p4: 0" in trial.deltas[0]
+        assert "Thread:   src/thing.py, raised by bot" in transition.prompt
+        assert trial.deltas == []
 
 
 class TestAnswerThreads:
@@ -684,7 +726,7 @@ class TestWholeCast:
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when="git merge --ff-only*")
         trial.coding.replies(TriageNotes(items=[_ITEM]), when=_READER)
-        trial.decide.answers(answer="", when="1. *")
+        trial.decide.answers(answer="", when="#7 *")
         trial.coding.replies(
             Answered(items=[Answer(thread="PRRT_1", reply="guarded")]), when=_WRITER
         )

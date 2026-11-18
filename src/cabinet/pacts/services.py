@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.repairs import Attempt, Ruling
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
-    from cabinet.pacts.threads import Finding, Thread, TriageItem
+    from cabinet.pacts.threads import Finding, Thread, Told, TriageItem
 
 
 class PullsProtocol(Protocol):
@@ -98,9 +98,7 @@ class PromptsProtocol(Protocol):
 
     def triage_read(self, number: int, threads: list[Thread]) -> str: ...
 
-    def triage_work(
-        self, number: int, items: list[TriageItem], told: list[str]
-    ) -> str: ...
+    def triage_work(self, number: int, told: list[Told]) -> str: ...
 
     def review(
         self, project: Project, *, base: str, threads: list[Thread], reason: str
@@ -153,9 +151,14 @@ class ReportProtocol(Protocol):
     # One pull request's todos, on one line, or why it could not be read.
     def surveyed(self, row: Surveyed | Unsurveyed) -> str: ...
 
-    def triage(self, items: list[TriageItem]) -> list[str]: ...
+    # Each triaged item with its card, most urgent first: the priority orders
+    # the cards and shows on none. Every item's thread is among `threads`.
+    def cards(
+        self, pull: PullRequest, items: list[TriageItem], threads: list[Thread]
+    ) -> list[tuple[TriageItem, str]]: ...
 
-    def shown(self, index: int, item: TriageItem) -> str: ...
+    # A card with the question under it, naming the answers it takes.
+    def asked(self, card: str) -> str: ...
 
 
 class ServicesProtocol(Protocol):

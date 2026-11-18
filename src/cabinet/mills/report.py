@@ -1,8 +1,5 @@
 """What the report says, on the terminal and on the pull request."""
 
-from collections import Counter
-from itertools import starmap
-
 from typing_extensions import override
 
 from cabinet.pacts.healing import Checked, Run, Surveyed, Task, Unsurveyed
@@ -15,15 +12,14 @@ from cabinet.pacts.issues import (
     Left,
 )
 from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import ReportProtocol
-from cabinet.pacts.threads import Finding, TriageItem
+from cabinet.pacts.threads import Finding, Thread, TriageItem
 
 _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
 _WAITING = "waiting for you, cast without --unattended:"
 
-
-_PRIORITIES = ("p1", "p2", "p3", "p4")
 
 _LEFT = {
     "missed": "the agent did not answer for it",
@@ -59,16 +55,34 @@ def _identified(row: Identification) -> str:
     return "\n".join([line, *(f"    refused: {one}" for one in row.refused)])
 
 
-# What the thread asked and what the reading would do about it, in that
-# order: this is read on a terminal by somebody deciding what to do with it,
-# and the verdict alone does not say what it is a verdict on. Written here and
-# nowhere else because the agent that acts on the triage is handed these same
-# lines with your answer under each — what you decided about and what it is
-# told you decided about have to be the same text.
-def triage_line(index: int, item: TriageItem) -> str:
-    return (
-        f"{index}. [{item.priority}/{item.action}] {item.where} — {item.raised}\n"
-        f"   -> {item.what}"
+# p1 sorts before p4, and sorted is stable, so the reading's order holds within
+# a priority. A typed key: strict mypy refuses a lambda here.
+def _priority(item: TriageItem) -> str:
+    return item.priority
+
+
+_TAKES = (
+    "Press return to take the action above, or answer fix, reject or file,"
+    " or say in your own words what should happen.\n->"
+)
+
+
+# One thread, for somebody who has forgotten the code and decides from this
+# alone. Plain text, so it reads the same on a terminal, in the TUI and in a
+# chat channel. The six labels spell TRIAGE.
+def _card(head: str, item: TriageItem, author: str) -> str:
+    by = f", raised by {author}" if author else ""
+    files = "1 file" if item.files == 1 else f"{item.files} files"
+    return "\n".join(
+        [
+            head,
+            f"Thread:   {item.where}{by}",
+            f"Raised:   {item.raised}",
+            f"If left:  {item.left}",
+            f"Action:   {item.action} — {item.what}",
+            f"Grounds:  {item.grounds} — {item.proof}",
+            f"Estimate: {item.size}, {files}, {item.risk} risk",
+        ]
     )
 
 
@@ -206,14 +220,26 @@ class Report(ReportProtocol):
         todos = [_todo(row, todo) for todo in row.todos]
         return f"{head}: {', '.join(todos) or 'nothing to do'}"
 
-    # The whole triage, headed by a tally, for the terminal.
+    # The priority orders the cards and shows on none: what must be fixed
+    # before the merge is asked first.
     @override
-    def triage(self, items: list[TriageItem]) -> list[str]:
-        tally: Counter[str] = Counter(item.priority for item in items)
-        counted = ", ".join(f"{p}: {tally[p]}" for p in _PRIORITIES)
-        shown = starmap(self.shown, enumerate(items, start=1))
-        return [f"{len(items)} outstanding — {counted}", "", *shown]
+    def cards(
+        self, pull: PullRequest, items: list[TriageItem], threads: list[Thread]
+    ) -> list[tuple[TriageItem, str]]:
+        raised = {thread.id: thread.raised_by for thread in threads}
+        ordered = sorted(items, key=_priority)
+        return [
+            (
+                item,
+                _card(
+                    f"#{pull.number} {pull.title} — thread {index} of {len(ordered)}",
+                    item,
+                    raised[item.thread],
+                ),
+            )
+            for index, item in enumerate(ordered, start=1)
+        ]
 
     @override
-    def shown(self, index: int, item: TriageItem) -> str:
-        return triage_line(index, item)
+    def asked(self, card: str) -> str:
+        return f"{card}\n{_TAKES}"

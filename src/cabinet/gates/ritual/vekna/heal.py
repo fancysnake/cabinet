@@ -175,6 +175,7 @@ from cabinet.pacts.threads import (
     Finding,
     Findings,
     Thread,
+    Told,
     TriageNotes,
     filed_as,
     filed_for,
@@ -925,35 +926,44 @@ async def read_threads(
         return work.abandoned(read.reason).to(Chart)
     if isinstance(read, Misread):
         return await _landing(work, read.reason)
+    # The reading is the agent's output: an item for a thread that was not
+    # sent is made up, and is dropped.
+    sent = {thread.id for thread in batch}
     # The forge said a thread was open, so an empty reading is the reading
     # disagreeing with the forge rather than a branch with nothing to do.
-    if not read.items:
+    if not (items := [item for item in read.items if item.thread in sent]):
         return await _landing(
             work, "the reading found nothing, but the forge says otherwise"
         )
     return AskTriage(
         work=work.charged(read_threads.name),
-        items=read.items,
+        items=items,
         threads=batch,
         unsettled=unsettled,
     )
 
 
-# Put the triage on your terminal and take your answer to each item.
+# Put the triage on your terminal, a card at a time, and take your answer to
+# each.
 @step
 async def ask_triage(triage: AskTriage) -> AnswerThreads:
+    work = triage.work
     report = services().report
-    emit_delta("\n".join(report.triage(triage.items)))
-    told: list[str] = []
-    for index, item in enumerate(triage.items, start=1):
+    told: list[Told] = []
+    for item, card in report.cards(work.pr, triage.items, triage.threads):
         # Free text and not a choice: an item is answered by saying how the
         # thing is supposed to work, which no four options carry. An empty
         # answer agrees with the reading's own proposal.
-        said = await decide(f"{report.shown(index, item)}\n->", free=True)
-        told.append(said or f"{item.action} it, as the reading says")
-    work = triage.work
-    prompt = services().prompts.triage_work(work.pr.number, triage.items, told)
-    triaged = {item.thread for item in triage.items}
+        said = await decide(report.asked(card), free=True)
+        told.append(
+            Told(
+                thread=item.thread,
+                card=card,
+                said=said or f"{item.action} it, as the reading says",
+            )
+        )
+    prompt = services().prompts.triage_work(work.pr.number, told)
+    triaged = {one.thread for one in told}
     threads = [thread for thread in triage.threads if thread.id in triaged]
     return AnswerThreads(
         work=work, prompt=prompt, threads=threads, unsettled=triage.unsettled

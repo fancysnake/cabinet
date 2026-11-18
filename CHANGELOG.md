@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning].
   `[defaults."cabinet:<ritual>"]`: remove the key, and pass `--unattended`
   where nobody is there to answer.
 
+### Changed
+
+- `answer` puts each triaged thread to you as one card, printed once: the
+  thread and who raised it, what it asks, what happens if it is left, the
+  proposed action, how the reading knows, and what the action costs. The
+  cards come most urgent first, and the tally of priorities is gone.
+
 ## [5.1.0] - 2026-11-13
 
 ### Added

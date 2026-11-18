@@ -58,9 +58,18 @@ class Thread(BaseModel):
         last = self.comments[-1]
         return last.mine and ANSWERED in last.body
 
+    # Who opened the thread: its first comment's author, empty where it has
+    # none.
+    @property
+    def raised_by(self) -> str:
+        return self.comments[0].author if self.comments else ""
+
 
 Priority = Literal["p1", "p2", "p3", "p4"]
 Action = Literal["fix", "reject", "file"]
+Grounds = Literal["tested", "read", "not checked"]
+Size = Literal["small", "medium", "large"]
+Risk = Literal["low", "medium", "high"]
 
 
 class TriageItem(BaseModel):
@@ -69,7 +78,19 @@ class TriageItem(BaseModel):
     # taken on the reading's verdict alone, with no sight of the comment
     # behind it.
     raised: str
+    # What happens when nothing is done about the thread: the stake, which the
+    # comment and the verdict both leave out.
+    left: str
+    # Why the reading would take its action.
     what: str
+    # How the reading knows, and the run or the lines that show it: a verdict
+    # nobody ran is worth less than one somebody did, and looks the same.
+    grounds: Grounds
+    proof: str
+    # What the action costs.
+    size: Size
+    files: int
+    risk: Risk
     # p4 is not a smaller p3: it is the thread that has no work in it at all —
     # already done, no longer true, or simply wrong — sorted out of the way so
     # the reading you go through is only the items worth a decision.
@@ -84,6 +105,14 @@ class TriageItem(BaseModel):
 # the ritual's to know, not the agent's to repeat back.
 class TriageNotes(BaseModel):
     items: list[TriageItem]
+
+
+# One triaged thread as you went through it: the card you answered against and
+# what you said.
+class Told(BaseModel):
+    thread: str
+    card: str
+    said: str
 
 
 class IssueDraft(BaseModel):

@@ -11,6 +11,16 @@ def _thread(*bodies: str, mine: bool = True) -> Thread:
     return Thread(id="PRRT_1", resolved=False, comments=comments)
 
 
+class TestRaisedBy:
+    @staticmethod
+    def test_the_first_comments_author_raised_it() -> None:
+        assert _thread("guard", "no").raised_by == "me"
+
+    @staticmethod
+    def test_a_thread_without_comments_was_raised_by_nobody() -> None:
+        assert not _thread().raised_by
+
+
 class TestAnswered:
     @staticmethod
     def test_the_last_word_carrying_the_mark_is_answered() -> None:
