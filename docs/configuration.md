@@ -1,9 +1,19 @@
 # Configuration
 
-The rituals read the `[cabinet]` section of the casting repository's
-`.vekna.toml`. Every key has the default shown; a missing `[cabinet]` section
-means all of them. A key that is not one of these is refused before anything
-is checked out, so a misspelled key dies at the boundary. The values are not
+The rituals read the `[cabinet]` table from every place vekna reads config.
+Per key the nearest wins: `[projects.<name>.cabinet]` in your vekna user
+config, the repository's own `.vekna.toml`, then `[cabinet]` at the top level
+of the user config. A repository with no `.vekna.toml` is configured from the
+user config alone; vekna's [scopes](https://vekna.fancysnake.dev/scopes/) page
+describes the three places.
+
+Every key has the default shown; a missing `[cabinet]` table means all of
+them. A ritual checks the keys it reads when it is cast, and a refused value
+names the tables that set `[cabinet]`. The heal rituals read every key but
+`identify_skill`; `identify` reads `forge`, `identify_skill` and
+`[cabinet.agent]`; the label rituals read `forge` and `[cabinet.labels]`. A
+key that is not one of these is refused by every ritual before anything is
+checked out, so a misspelled key dies at the boundary. The values are not
 checked against anything: a task name that does not exist fails when the
 ritual runs it.
 
@@ -210,8 +220,9 @@ processes = 3                                  # casts running at once
 prepare = "mise install && poetry install"     # once, in each new tree
 ```
 
-A tree holds only what git tracks, so `.vekna.toml` must be committed for a
-`heal.pr` to find its `[cabinet]` section. Whatever `prepare` builds must be
+A tree holds only what git tracks, so a `[cabinet]` table kept in
+`.vekna.toml` must be committed for a `heal.pr` to find it; one in the user
+config speaks for every tree. Whatever `prepare` builds must be
 gitignored, or every tree reads dirty and the pool blocks it. A `heal.pr`
 that stands a branch down stashes its changes in its tree; the stash is shared
 by every worktree of the repository, so `git stash list` in your own checkout

@@ -167,7 +167,7 @@ from cabinet.pacts.healing import (
     Work,
 )
 from cabinet.pacts.issues import Listing
-from cabinet.pacts.project import CiJob, Project
+from cabinet.pacts.project import HEAL_NEEDS, CiJob, Project
 from cabinet.pacts.pulls import PullRequest, Watched
 from cabinet.pacts.repairs import Attempt, Fixed, Stalled
 from cabinet.pacts.scm import ScmError
@@ -195,7 +195,7 @@ _NextT = TypeVar("_NextT", bound=Work)
 # `--unattended` has the last word, so `attended` only ever turns a cast down.
 def mustered(kind: type[_RunT], components: Heal, *tasks: Task) -> _RunT:
     return kind(
-        project=services().project(),
+        project=services().project(HEAL_NEEDS),
         bound=components.bound,
         attended=attended() and components.attended,
         batch=components.batch,
