@@ -169,12 +169,11 @@ survey read belong to the old head.
 *Enchantment.* `heal.this` with the answer task alone, the way *Command* puts
 one word to each listener. Every unresolved review thread makes an answer
 todo, whoever wrote it. Every item is yours to decide, so only an attended
-cast works it. A cast run with `vekna cast --unattended`, or with
-`--attended false`, leaves the threads alone and ends its report with what
-waits for you:
+cast works it. A cast run with `vekna cast --unattended` leaves the threads
+alone and ends its report with what waits for you:
 
 ```text
-waiting for you, cast without --unattended or --attended false:
+waiting for you, cast without --unattended:
   #7 feature: 11 threads
 ```
 
@@ -294,7 +293,6 @@ not. The names are fixed, because the `issues` skill names them too.
 | flag         | rituals             | what it does                                           |
 | ------------ | ------------------- | ------------------------------------------------------ |
 | `--bound N`  | `heal.*`, `merge`, `ci`, `answer` | how many times one step may be retried on one branch, 1 to 5, default 3 |
-| `--attended false` | `heal.*`, `merge`, `ci`, `answer`, `review`, `guide` | nobody is at the terminal: leave the review threads and run agents in Claude's `dontAsk` permission mode rather than `auto` (see [Agents](agents.md)). A cast is attended by default; `vekna cast --unattended` turns it down too, and `--attended true` cannot turn that back up |
 | `--number N` | `heal.pr` | the pull request to heal |
 | `--plan-only true` | `heal.*`, `merge`, `ci`, `answer`, `review`, `guide` | survey and print each pull request's todos; change nothing |
 | `--batch N`  | `identify`, `heal.*`, `answer` | how many issues go on one page, or open threads in one round of answers, default 7 |
@@ -305,7 +303,6 @@ line still wins:
 
 ```toml
 [defaults."cabinet:heal.mine"]
-attended = false
 bound = 2
 ```
 

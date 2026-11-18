@@ -1,6 +1,6 @@
 """Evocation: ``heal.mine`` queues a ``heal.pr`` for each pull request with work.
 
-    vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
+    vekna cast heal.mine [--plan-only true] [--bound N] [--batch N]
 
 Every open pull request of yours not wearing the wait label, oldest-modified
 first, is surveyed, and this cast works none of them itself: each one with

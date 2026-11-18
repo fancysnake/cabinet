@@ -29,12 +29,6 @@ class Heal(BaseModel):
     # work no task.
     plan_only: bool = False
     bound: Bound = 3
-    # Somebody is at the terminal: an agent runs in Claude's `auto` permission
-    # mode instead of refusing everything outside its allowlist, and another
-    # repair attempt is asked for rather than spent on the budget's say-so.
-    # vekna's `--unattended` has the last word; this only turns a cast down,
-    # which is what `[defaults."cabinet:<ritual>"] attended = false` is for.
-    attended: bool = True
     # How many open threads one round of `answer` reads, answers and settles
     # before the next round fetches what the forge still holds open.
     batch: Batch = BATCH

@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning].
   agents, for work done by hand. `resolve-conflict`, `fix-gate`, `cover-diff`
   and `untrusted-threads`. Install with `claude plugin install heal@cabinet`.
 
+### Removed
+
+- **Breaking:** the `--attended` flag. `vekna cast --unattended` is the one
+  switch, and the report of a cast that left threads waiting names it alone.
+  vekna refuses to cast a ritual while `.vekna.toml` sets `attended` under
+  `[defaults."cabinet:<ritual>"]`: remove the key, and pass `--unattended`
+  where nobody is there to answer.
+
 ## [5.1.0] - 2026-11-13
 
 ### Added

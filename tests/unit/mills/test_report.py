@@ -96,7 +96,7 @@ class TestHealed:
     def test_threads_left_for_you_are_counted() -> None:
         assert _REPORT.healed(_run(surveyed=[_ANSWER])) == (
             "heal — 0 worked\n\n  (none)\n\n"
-            "waiting for you, cast without --unattended or --attended false:\n"
+            "waiting for you, cast without --unattended:\n"
             "  #7 feature: 11 threads\n"
         )
 

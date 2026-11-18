@@ -1,6 +1,6 @@
 """Divination: ``review`` posts the quality review on your pull request.
 
-    vekna cast review [--plan-only true] [--attended false]
+    vekna cast review [--plan-only true]
 
 ``heal.this`` that works the review task and no other. A pull request wearing
 the reviewed label has had its review; take the label off to ask again. The

@@ -537,7 +537,9 @@ class TestWholeCast:
         trial.shell.replies(when="git push origin feature")
         _reviewed(trial)
 
-        result = trial.cast(heal_pr, HealPr(number=7, attended=False))
+        trial.decide.attended = False
+
+        result = trial.cast(heal_pr, HealPr(number=7))
 
         assert result.checked == [_WORKED_ROW]
         assert result.surveyed[0] == Surveyed(
@@ -809,7 +811,9 @@ class TestTaskRituals:
         )
         trial.shell.replies(when="git push origin feature")
 
-        result = trial.cast(ci, Heal(attended=False))
+        trial.decide.attended = False
+
+        result = trial.cast(ci, Heal())
 
         assert result.checked == [_WORKED_ROW]
         assert trial.steps == [
