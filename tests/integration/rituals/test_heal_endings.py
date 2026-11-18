@@ -320,7 +320,7 @@ class TestChart:
     def test_the_summary_is_said_and_the_result_returned(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, checked=[_WORKED_ROW])
+        run = Run(attended=True, project=project, checked=[_WORKED_ROW])
 
         assert trial.walk(chart, run.to(Chart)) == Done(Healed(checked=[_WORKED_ROW]))
         assert trial.deltas[0].startswith("heal — 1 worked")
@@ -332,7 +332,7 @@ class TestChart:
         planned = Surveyed(
             number=7, branch="feature", url=_URL, todos=["review"], red=[], threads=0
         )
-        run = Run(project=project, tasks=[], surveyed=[planned])
+        run = Run(attended=True, project=project, tasks=[], surveyed=[planned])
 
         assert trial.walk(chart, run.to(Chart)) == Done(Healed(surveyed=[planned]))
         assert trial.deltas == []
@@ -343,7 +343,7 @@ class TestChart:
     def test_a_plan_on_a_listing_cut_short_says_so(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, tasks=[], truncated=True)
+        run = Run(attended=True, project=project, tasks=[], truncated=True)
 
         assert trial.walk(chart, run.to(Chart)) == Done(Healed())
         assert "the forge listed as many" in trial.deltas[0]
@@ -352,7 +352,7 @@ class TestChart:
     def test_a_planned_tally_on_a_listing_cut_short_says_so(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, tasks=[], truncated=True)
+        run = Run(attended=True, project=project, tasks=[], truncated=True)
 
         assert trial.walk(tally, run.to(Tally)) == Done(Healed())
         assert "the forge listed as many" in trial.deltas[0]
@@ -361,7 +361,7 @@ class TestChart:
     def test_a_cast_out_of_steps_ends_without_failing(
         trial: Trial, project: Project, pull: PullRequest
     ) -> None:
-        run = Run(project=project, queue=[pull])
+        run = Run(attended=True, project=project, queue=[pull])
 
         assert trial.walk(chart, run.to(Chart)) == Done(Healed(not_reached=["feature"]))
         assert "left for the next cast: feature" in trial.deltas[0]
@@ -370,7 +370,7 @@ class TestChart:
     def test_a_stopped_cast_is_said_before_it_fails(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, tasks=[], stopped="gh died")
+        run = Run(attended=True, project=project, tasks=[], stopped="gh died")
 
         with pytest.raises(RitualError, match="gh died"):
             trial.walk(chart, run.to(Chart))
@@ -382,7 +382,7 @@ class TestChart:
         trial: Trial, project: Project
     ) -> None:
         blocked = _WORKED_ROW.model_copy(update={"outcome": "blocked", "note": "red"})
-        run = Run(project=project, checked=[_WORKED_ROW, blocked])
+        run = Run(attended=True, project=project, checked=[_WORKED_ROW, blocked])
 
         with pytest.raises(RitualError, match=r"branches blocked: 1$"):
             trial.walk(chart, run.to(Chart))
@@ -395,7 +395,7 @@ class TestChart:
     def test_a_stopped_tally_is_said_before_it_fails(
         trial: Trial, project: Project
     ) -> None:
-        run = Run(project=project, stopped="no daemon")
+        run = Run(attended=True, project=project, stopped="no daemon")
 
         with pytest.raises(RitualError, match="no daemon"):
             trial.walk(tally, run.to(Tally))
@@ -674,7 +674,9 @@ class TestWholeCast:
         project = Project.model_validate(
             {"ci": {"jobs": {job: {"gate": f"mise run {job}"} for job in _JOBS}}}
         )
-        share = services().steps.heal_share(Run(project=project, bound=bound))
+        share = services().steps.heal_share(
+            Run(attended=True, project=project, bound=bound)
+        )
         assert share is not None
         assert len(trial.steps) == services().steps.opening(1) + share
 

@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from cabinet.pacts.healing import Heal, HealPr
+from cabinet.pacts.issues import Identify
 
 
 class TestHeal:
@@ -16,3 +17,10 @@ class TestHeal:
     def test_an_unknown_key_is_refused_for_one_pull_request() -> None:
         with pytest.raises(ValidationError):
             HealPr.model_validate({"number": 7, "attended": False})
+
+
+class TestIdentify:
+    @staticmethod
+    def test_an_unknown_key_is_refused() -> None:
+        with pytest.raises(ValidationError):
+            Identify.model_validate({"bacth": 5})

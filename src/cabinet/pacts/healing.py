@@ -2,9 +2,10 @@
 
 from typing import Annotated, Literal, Self, TypeAlias, TypeVar, get_args
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
+from cabinet.pacts.components import Components
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Bound, PullListing, PullRequest, Watched
@@ -24,11 +25,7 @@ def _tasks() -> list[Task]:
     return list(TASKS)
 
 
-class Heal(BaseModel):
-    # A flag this cast does not know, such as a retired `--attended`, is an
-    # error, not a silent no-op.
-    model_config = ConfigDict(extra="forbid")
-
+class Heal(Components):
     # Survey, say what each branch needs, and change nothing: a cast that may
     # work no task.
     plan_only: bool = False
@@ -127,7 +124,7 @@ _RunUpdate: TypeAlias = dict[
 class Run(Reserving, Hop):
     project: Project
     bound: Bound = 3
-    attended: bool = True
+    attended: bool
     batch: Batch = BATCH
     # Which tasks this cast may work: every one for `heal`, one for a task
     # ritual, none for a plan. The survey still says everything a branch needs.

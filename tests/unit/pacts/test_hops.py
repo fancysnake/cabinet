@@ -16,7 +16,7 @@ _PULL = PullRequest(
 
 
 def _work() -> Work:
-    return Work(run=Run(project=Project()), pr=_PULL, note="n")
+    return Work(run=Run(attended=True, project=Project()), pr=_PULL, note="n")
 
 
 class TestTo:
@@ -33,7 +33,7 @@ class TestTo:
     # was built from.
     @staticmethod
     def test_back_to_the_base_is_the_base() -> None:
-        chart = Run(project=Project()).to(Chart)
+        chart = Run(attended=True, project=Project()).to(Chart)
 
         assert chart.to(Run).__class__ is Run
 
@@ -41,7 +41,7 @@ class TestTo:
 class TestHeld:
     @staticmethod
     def test_a_run_inside_work_is_a_run() -> None:
-        queued = Run(project=Project()).to(Survey)
+        queued = Run(attended=True, project=Project()).to(Survey)
 
         assert CheckClean(run=queued, pr=_PULL).run.__class__ is Run
 

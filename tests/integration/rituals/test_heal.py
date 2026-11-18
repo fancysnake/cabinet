@@ -111,7 +111,7 @@ def _surveying(pull: PullRequest, project: Project) -> Survey:
 
 
 def _planning(pull: PullRequest, project: Project) -> Survey:
-    return Survey(project=project, tasks=[], queue=[pull])
+    return Survey(attended=True, project=project, tasks=[], queue=[pull])
 
 
 def _labelled(*names: str) -> list[dict[str, str]]:
@@ -133,7 +133,7 @@ class TestMuster:
             ),
         )
 
-        transition = trial.walk(muster_mine, MusterMine(project=project))
+        transition = trial.walk(muster_mine, MusterMine(attended=True, project=project))
 
         assert isinstance(transition, Summon)
         assert [pull.number for pull in transition.queue] == [7, 8]
@@ -148,7 +148,7 @@ class TestMuster:
             when=LIST, stdout=listing(*(row(number) for number in range(1, 1001)))
         )
 
-        transition = trial.walk(muster_mine, MusterMine(project=project))
+        transition = trial.walk(muster_mine, MusterMine(attended=True, project=project))
 
         assert isinstance(transition, Summon)
         assert transition.truncated
@@ -164,11 +164,16 @@ class TestMuster:
         )
         trial.shell.replies(when=HERE, stdout="elsewhere\n")
 
-        assert trial.walk(muster_this, MusterThis(project=project)) == Run(
+        assert trial.walk(
+            muster_this, MusterThis(attended=True, project=project)
+        ) == Run(
+            attended=True,
             project=project,
             stopped="no open pull request of yours has elsewhere as its branch",
             truncated=True,
-        ).to(Chart)
+        ).to(
+            Chart
+        )
 
     # A branch may have a second pull request, against another base, past the
     # end of the listing.
@@ -182,7 +187,7 @@ class TestMuster:
         )
         trial.shell.replies(when=HERE, stdout="feature\n")
 
-        transition = trial.walk(muster_this, MusterThis(project=project))
+        transition = trial.walk(muster_this, MusterThis(attended=True, project=project))
 
         assert isinstance(transition, Survey)
         assert transition.truncated
@@ -193,7 +198,7 @@ class TestMuster:
         trial.shell.replies(when=LIST, stdout=listing(row(8), row(7)))
         trial.shell.replies(when=HERE, stdout="feature\n")
 
-        transition = trial.walk(muster_this, MusterThis(project=project))
+        transition = trial.walk(muster_this, MusterThis(attended=True, project=project))
 
         assert isinstance(transition, Survey)
         assert [pull.number for pull in transition.queue] == [7]
@@ -206,10 +211,15 @@ class TestMuster:
         trial.shell.replies(when=LIST, stdout=listing(row(8)))
         trial.shell.replies(when=HERE, stdout="feature\n")
 
-        assert trial.walk(muster_this, MusterThis(project=project)) == Run(
+        assert trial.walk(
+            muster_this, MusterThis(attended=True, project=project)
+        ) == Run(
+            attended=True,
             project=project,
             stopped="no open pull request of yours has feature as its branch",
-        ).to(Chart)
+        ).to(
+            Chart
+        )
 
     # Wherever the cwd stands, and wait label or not: it was asked for by
     # number.
@@ -220,7 +230,9 @@ class TestMuster:
             when=LIST, stdout=listing(row(8), row(7, labels=_labelled("pr::wait")))
         )
 
-        transition = trial.walk(muster_pr, MusterPr(run=Run(project=project), number=7))
+        transition = trial.walk(
+            muster_pr, MusterPr(run=Run(attended=True, project=project), number=7)
+        )
 
         assert isinstance(transition, Survey)
         assert [pull.number for pull in transition.queue] == [7]
@@ -235,7 +247,9 @@ class TestMuster:
             when=LIST, stdout=listing(*(row(number) for number in range(7, 1007)))
         )
 
-        transition = trial.walk(muster_pr, MusterPr(run=Run(project=project), number=7))
+        transition = trial.walk(
+            muster_pr, MusterPr(run=Run(attended=True, project=project), number=7)
+        )
 
         assert isinstance(transition, Survey)
         assert transition.truncated
@@ -248,8 +262,12 @@ class TestMuster:
         trial.shell.replies(when=LIST, stdout=listing(row(8)))
 
         assert trial.walk(
-            muster_pr, MusterPr(run=Run(project=project), number=7)
-        ) == Run(project=project, stopped="no open pull request of yours is #7").to(
+            muster_pr, MusterPr(run=Run(attended=True, project=project), number=7)
+        ) == Run(
+            attended=True,
+            project=project,
+            stopped="no open pull request of yours is #7",
+        ).to(
             Chart
         )
 
@@ -261,8 +279,9 @@ class TestMuster:
         trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
 
         assert trial.walk(
-            muster_pr, MusterPr(run=Run(project=project), number=7)
+            muster_pr, MusterPr(run=Run(attended=True, project=project), number=7)
         ) == Run(
+            attended=True,
             project=project,
             stopped="gh could not list your pull requests: not logged in",
         ).to(
@@ -276,10 +295,15 @@ class TestMuster:
         _preflight(trial)
         trial.shell.replies(when=LIST, exit_code=1, stderr="not logged in")
 
-        assert trial.walk(muster_mine, MusterMine(project=project)) == Run(
+        assert trial.walk(
+            muster_mine, MusterMine(attended=True, project=project)
+        ) == Run(
+            attended=True,
             project=project,
             stopped="gh could not list your pull requests: not logged in",
-        ).to(Tally)
+        ).to(
+            Tally
+        )
 
     @staticmethod
     def test_an_ssh_remote_stops_before_anything_is_fetched(
@@ -289,7 +313,7 @@ class TestMuster:
             when="git remote get-url origin", stdout="git@github.com:o/r.git\n"
         )
 
-        transition = trial.walk(muster_this, MusterThis(project=project))
+        transition = trial.walk(muster_this, MusterThis(attended=True, project=project))
 
         assert isinstance(transition, Chart)
         assert "not https" in transition.stopped
@@ -299,7 +323,7 @@ class TestMuster:
 class TestSurvey:
     @staticmethod
     def test_an_empty_queue_is_charted(trial: Trial, project: Project) -> None:
-        run = Survey(project=project)
+        run = Survey(attended=True, project=project)
 
         assert trial.walk(survey, run) == run.to(Chart)
 
@@ -426,7 +450,9 @@ class TestSurvey:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
         conflicted = pull.model_copy(update={"conflicted": True})
-        run = Survey(project=project, tasks=["review"], queue=[conflicted])
+        run = Survey(
+            attended=True, project=project, tasks=["review"], queue=[conflicted]
+        )
 
         transition = trial.walk(survey, run)
 
@@ -440,7 +466,7 @@ class TestSurvey:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
         clean = pull.model_copy(update={"conflicted": False})
-        run = Survey(project=project, tasks=["merge"], queue=[clean])
+        run = Survey(attended=True, project=project, tasks=["merge"], queue=[clean])
 
         transition = trial.walk(survey, run)
 
@@ -453,7 +479,7 @@ class TestSurvey:
     def test_a_branch_the_budget_has_no_room_for_ends_the_cast(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
-        full = Survey(project=project, queue=[pull], reserved=HEAL_STEPS)
+        full = Survey(attended=True, project=project, queue=[pull], reserved=HEAL_STEPS)
 
         assert trial.walk(survey, full) == full.to(Chart)
         assert not trial.shell.commands
@@ -462,7 +488,7 @@ class TestSurvey:
 class TestSummon:
     @staticmethod
     def test_an_empty_queue_is_tallied(trial: Trial, project: Project) -> None:
-        run = Summon(project=project)
+        run = Summon(attended=True, project=project)
 
         assert trial.walk(summon, run) == run.to(Tally)
 
@@ -474,7 +500,9 @@ class TestSummon:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_NONE)
         conflicted = pull.model_copy(update={"conflicted": True})
-        run = Summon(project=project, bound=2, batch=4, queue=[conflicted])
+        run = Summon(
+            attended=True, project=project, bound=2, batch=4, queue=[conflicted]
+        )
 
         assert trial.walk(summon, run) == run.took(_QUEUED).summoned(
             Queued(number=7, branch="feature", cast="c1")
@@ -490,7 +518,7 @@ class TestSummon:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
         clean = pull.model_copy(update={"conflicted": False})
-        run = Summon(project=project, tasks=["merge"], queue=[clean])
+        run = Summon(attended=True, project=project, tasks=["merge"], queue=[clean])
 
         transition = trial.walk(summon, run)
 
@@ -505,7 +533,7 @@ class TestSummon:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_NONE)
         conflicted = pull.model_copy(update={"conflicted": True})
-        run = Summon(project=project, queue=[conflicted])
+        run = Summon(attended=True, project=project, queue=[conflicted])
 
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)

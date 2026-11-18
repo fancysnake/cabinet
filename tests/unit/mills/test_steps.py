@@ -9,7 +9,7 @@ _STEPS = Steps()
 
 
 def _run(reserved: int = 0) -> Run:
-    return Run(project=Project(), bound=3, reserved=reserved)
+    return Run(attended=True, project=Project(), bound=3, reserved=reserved)
 
 
 class TestOpening:

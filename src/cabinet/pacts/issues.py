@@ -11,6 +11,7 @@ from typing import Annotated, Literal, Self, TypeVar, get_args
 from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import BATCH, Batch
+from cabinet.pacts.components import Components
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import LabelSpec, Project
 
@@ -99,7 +100,7 @@ ISSUE_LABELS = [
 ]
 
 
-class Identify(BaseModel):
+class Identify(Components):
     # How many unidentified issues go on one page.
     batch: Batch = BATCH
 
