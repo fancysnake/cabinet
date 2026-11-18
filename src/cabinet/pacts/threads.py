@@ -58,6 +58,12 @@ class Thread(BaseModel):
         last = self.comments[-1]
         return last.mine and ANSWERED in last.body
 
+    # Who opened the thread: its first comment's author, empty where it has
+    # none.
+    @property
+    def raised_by(self) -> str:
+        return self.comments[0].author if self.comments else ""
+
 
 Priority = Literal["p1", "p2", "p3", "p4"]
 Action = Literal["fix", "reject", "file"]
@@ -99,6 +105,14 @@ class TriageItem(BaseModel):
 # the ritual's to know, not the agent's to repeat back.
 class TriageNotes(BaseModel):
     items: list[TriageItem]
+
+
+# One triaged thread as you went through it: the card you answered against and
+# what you said.
+class Told(BaseModel):
+    thread: str
+    card: str
+    said: str
 
 
 class IssueDraft(BaseModel):

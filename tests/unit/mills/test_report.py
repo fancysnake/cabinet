@@ -152,28 +152,45 @@ class TestTriage:
             resolved=False,
             comments=[Comment(id="1", author="reviewer", body="guard this")],
         )
-        made_up = item.model_copy(update={"thread": "T9", "files": 2})
+        later = item.model_copy(update={"thread": "T2", "files": 2, "priority": "p3"})
+        quiet = thread.model_copy(update={"id": "T2", "comments": []})
 
-        first, second = _REPORT.cards(_PULL, [item, made_up], [thread])
+        cards = _REPORT.cards(_PULL, [later, item], [thread, quiet])
 
-        assert first == (
-            "#7 Add the thing — thread 1 of 2\n"
-            "Thread:   src/thing.py:12, raised by reviewer\n"
-            "Raised:   stop on an empty list\n"
-            "If left:  an empty list crashes the run\n"
-            "Action:   fix — the guard is missing\n"
-            "Grounds:  tested — ran it with [] and got IndexError\n"
-            "Estimate: small, 1 file, low risk"
-        )
-        assert second == (
-            "#7 Add the thing — thread 2 of 2\n"
-            "Thread:   src/thing.py:12\n"
-            "Raised:   stop on an empty list\n"
-            "If left:  an empty list crashes the run\n"
-            "Action:   fix — the guard is missing\n"
-            "Grounds:  tested — ran it with [] and got IndexError\n"
-            "Estimate: small, 2 files, low risk"
-        )
+        assert cards == [
+            (
+                item,
+                (
+                    "#7 Add the thing — thread 1 of 2\n"
+                    "Thread:   src/thing.py:12, raised by reviewer\n"
+                    "Raised:   stop on an empty list\n"
+                    "If left:  an empty list crashes the run\n"
+                    "Action:   fix — the guard is missing\n"
+                    "Grounds:  tested — ran it with [] and got IndexError\n"
+                    "Estimate: small, 1 file, low risk"
+                ),
+            ),
+            (
+                later,
+                (
+                    "#7 Add the thing — thread 2 of 2\n"
+                    "Thread:   src/thing.py:12\n"
+                    "Raised:   stop on an empty list\n"
+                    "If left:  an empty list crashes the run\n"
+                    "Action:   fix — the guard is missing\n"
+                    "Grounds:  tested — ran it with [] and got IndexError\n"
+                    "Estimate: small, 2 files, low risk"
+                ),
+            ),
+        ]
+
+    @staticmethod
+    def test_the_question_names_the_answers_it_takes() -> None:
+        asked = _REPORT.asked("the card")
+
+        assert asked.startswith("the card\nPress return")
+        assert "answer fix, reject or file" in asked
+        assert asked.endswith("\n->")
 
 
 class TestFindings:

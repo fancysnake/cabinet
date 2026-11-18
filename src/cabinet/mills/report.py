@@ -56,6 +56,18 @@ def _identified(row: Identification) -> str:
     return "\n".join([line, *(f"    refused: {one}" for one in row.refused)])
 
 
+# p1 sorts before p4, and sorted is stable, so the reading's order holds within
+# a priority. A typed key: strict mypy refuses a lambda here.
+def _priority(item: TriageItem) -> str:
+    return item.priority
+
+
+_TAKES = (
+    "Press return to take the action above, or answer fix, reject or file,"
+    " or say in your own words what should happen.\n->"
+)
+
+
 # One thread, for somebody who has forgotten the code and decides from this
 # alone. Plain text, so it reads the same on a terminal, in the TUI and in a
 # chat channel. The six labels spell TRIAGE.
@@ -209,23 +221,26 @@ class Report(ReportProtocol):
         todos = [_todo(row, todo) for todo in row.todos]
         return f"{head}: {', '.join(todos) or 'nothing to do'}"
 
-    # A card per item, in the items' order. An item whose thread is not among
-    # `threads` is one the reading made up: it still gets a card, with nobody
-    # named as having raised it.
+    # The priority orders the cards and shows on none: what must be fixed
+    # before the merge is asked first.
     @override
     def cards(
         self, pull: PullRequest, items: list[TriageItem], threads: list[Thread]
-    ) -> list[str]:
-        authors = {
-            thread.id: thread.comments[0].author
-            for thread in threads
-            if thread.comments
-        }
+    ) -> list[tuple[TriageItem, str]]:
+        raised = {thread.id: thread.raised_by for thread in threads}
+        ordered = sorted(items, key=_priority)
         return [
-            _card(
-                f"#{pull.number} {pull.title} — thread {index} of {len(items)}",
+            (
                 item,
-                authors.get(item.thread, ""),
+                _card(
+                    f"#{pull.number} {pull.title} — thread {index} of {len(ordered)}",
+                    item,
+                    raised[item.thread],
+                ),
             )
-            for index, item in enumerate(items, start=1)
+            for index, item in enumerate(ordered, start=1)
         ]
+
+    @override
+    def asked(self, card: str) -> str:
+        return f"{card}\n{_TAKES}"

@@ -6,14 +6,12 @@ those things; the prompt asks it not to, and the sandbox the cast runs in is
 the boundary.
 """
 
-from itertools import starmap
-
 from typing_extensions import override
 
 from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
-from cabinet.pacts.threads import Thread, TriageItem
+from cabinet.pacts.threads import Thread, Told
 
 _RESOLVE = """\
 Resolve them. Read both sides before choosing one: the conflict is between work
@@ -263,9 +261,9 @@ def _fenced(threads: list[Thread]) -> str:
 # somebody else's comment, and an instruction — and running them together
 # unlabelled is how an instruction gets taken from the wrong one. The lines
 # inside are the terminal's own, so you answered against this text.
-def _item(item: TriageItem, card: str, answer: str) -> str:
-    read = f"{card}\nthread: {item.thread}"
-    return f"{_fence(read)}\nwhat I want: {answer}"
+def _item(told: Told) -> str:
+    read = f"{told.card}\nthread: {told.thread}"
+    return f"{_fence(read)}\nwhat I want: {told.said}"
 
 
 def _issue(issue: Issue) -> str:
@@ -331,12 +329,10 @@ class Prompts(PromptsProtocol):
         )
 
     @override
-    def triage_work(
-        self, number: int, items: list[TriageItem], cards: list[str], told: list[str]
-    ) -> str:
+    def triage_work(self, number: int, told: list[Told]) -> str:
         # The terminal's own cards, with your answer under each: the agent is
         # told what you were looking at when you said it.
-        shown = "\n\n".join(starmap(_item, zip(items, cards, told, strict=True)))
+        shown = "\n\n".join(_item(one) for one in told)
         return (
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"

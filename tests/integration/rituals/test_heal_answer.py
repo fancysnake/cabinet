@@ -393,6 +393,33 @@ class TestReadThreads:
             note="the reading found nothing, but the forge says otherwise"
         ).to(Tend)
 
+    # The reading is the agent's own word: an item for a thread nobody sent it
+    # is dropped, and a reading of nothing else is no reading.
+    @staticmethod
+    def test_an_item_for_a_thread_never_sent_is_dropped(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        made_up = _ITEM.model_copy(update={"thread": "PRRT_9"})
+        trial.coding.replies(TriageNotes(items=[made_up, _ITEM]))
+
+        transition = trial.walk(read_threads, work.to(ReadThreads))
+
+        assert isinstance(transition, AskTriage)
+        assert transition.items == [_ITEM]
+
+    @staticmethod
+    def test_a_reading_of_threads_never_sent_found_nothing(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        made_up = _ITEM.model_copy(update={"thread": "PRRT_9"})
+        trial.coding.replies(TriageNotes(items=[made_up]))
+
+        assert trial.walk(read_threads, work.to(ReadThreads)) == work.but(
+            note="the reading found nothing, but the forge says otherwise"
+        ).to(Tend)
+
     @staticmethod
     def test_an_answer_in_the_wrong_shape_is_said(trial: Trial, work: Work) -> None:
         trial.shell.replies(when=THREADS, stdout=_OPEN)
