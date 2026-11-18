@@ -109,7 +109,7 @@ Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/` (`heal.mine`, `
 A step registers when its module is imported, and `rituals/__init__.py` imports
 `rituals/steps.py`, which imports all three step modules. So naming any facade
 registers the whole graph, and a new step touches no facade (`test_facade.py`
-checks). A facade imports only what its body uses (`mustered`). A ritual's
+checks that `rituals.steps` holds the three step modules). A facade imports only what its body uses (`mustered`). A ritual's
 name is the `@ritual("...")` string, not the module, and holds no `:`: vekna
 reserves it for the tome prefix (`vekna cast cabinet:review` when another
 tome offers a `review`). A ritual is named for a D&D spell or a heal task, and its facade's docstring opens

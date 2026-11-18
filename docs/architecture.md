@@ -10,7 +10,7 @@ mills/     pure logic: which pull requests, what a task said, what the agent is 
 links/     adapters: forge/github, forge/gitlab, scm/git, tasks/mise, agent/claude, config
 gates/     the @ritual and @step bodies, reaching everything through pacts
 inits/     the one place the adapters are chosen and bound
-rituals/   what vekna loads: one module per ritual, importing its step module
+rituals/   what vekna loads: one facade per ritual; steps.py imports every step module
 ```
 
 | layer      | may import                                                     |

@@ -48,8 +48,7 @@ _FACADES = [
 
 # The names `vekna cast` takes off a facade, which need not be Python names.
 def _rituals(facade: ModuleType) -> set[str]:
-    exported = [getattr(facade, name) for name in facade.__all__]
-    return {one.name for one in exported if isinstance(one, Ritual)}
+    return {one.name for one in vars(facade).values() if isinstance(one, Ritual)}
 
 
 class TestFacade:
