@@ -7,43 +7,37 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-11-18
+
 ### Added
 
-- A `fix` call escalates to a stronger model when the merge left 5 or more
-  files conflicted, 3 or more checks are red, 10 or more review threads are
-  open, or the step is retrying. A retry keeps its agent session.
-- `[cabinet.agent.models] escalated`, default `opus`: the model an escalated
-  `fix` runs on.
-- The `heal` plugin: four skills with the rules the heal rituals give their
-  agents, for work done by hand. `resolve-conflict`, `fix-gate`, `cover-diff`
-  and `untrusted-threads`. Install with `claude plugin install heal@cabinet`.
-- `[cabinet]` is read from every place vekna reads config: the user's table
-  for the project, the project's `.vekna.toml`, then the top level of the user
-  config, key by key. A repository with no `.vekna.toml` casts the rituals
+- A `fix` call escalates to `[cabinet.agent.models] escalated`, default
+  `opus`, when the merge left 5 or more files conflicted, 3 or more checks
+  are red, 10 or more review threads are open, or the step is retrying.
+- The `heal` plugin: the heal rituals' rules as four skills for work done by
+  hand, `resolve-conflict`, `fix-gate`, `cover-diff` and `untrusted-threads`.
+  Install with `claude plugin install heal@cabinet`.
+- `[cabinet]` is read from the vekna user config as well as `.vekna.toml`,
+  merged key by key. A repository with no `.vekna.toml` casts the rituals
   from the user config alone.
 
 ### Changed
 
-- A ritual checks only the `[cabinet]` keys it reads, so a refused value under
-  a key another ritual reads no longer stops the cast. A misspelled key is
-  still refused by every ritual. A refused value names the tables that set
-  `[cabinet]`.
+- A ritual checks only the `[cabinet]` keys it reads. A misspelled key is
+  still refused by every ritual, and a refused value names the tables that
+  set `[cabinet]`.
+- `answer` puts each triaged thread to you as one card, most urgent first:
+  the thread and who raised it, what it asks, what happens if it is left, the
+  proposed action, how the reading knows, and what the action costs. The
+  tally of priorities is gone.
 - vekna 1.2.0 is the lowest supported.
 
 ### Removed
 
-- **Breaking:** the `--attended` flag. `vekna cast --unattended` is the one
-  switch, and the report of a cast that left threads waiting names it alone.
-  vekna refuses to cast a ritual while `.vekna.toml` sets `attended` under
-  `[defaults."cabinet:<ritual>"]`: remove the key, and pass `--unattended`
-  where nobody is there to answer.
-
-### Changed
-
-- `answer` puts each triaged thread to you as one card, printed once: the
-  thread and who raised it, what it asks, what happens if it is left, the
-  proposed action, how the reading knows, and what the action costs. The
-  cards come most urgent first, and the tally of priorities is gone.
+- **Breaking:** the `--attended` flag; `vekna cast --unattended` is the one
+  switch. vekna refuses to cast a ritual while `.vekna.toml` sets `attended`
+  under `[defaults."cabinet:<ritual>"]`: remove the key, and pass
+  `--unattended` where nobody is there to answer.
 
 ## [5.1.0] - 2026-11-13
 
@@ -382,7 +376,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v5.1.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v6.0.0...HEAD
+[6.0.0]: https://github.com/fancysnake/cabinet/compare/v5.1.0...v6.0.0
 [5.1.0]: https://github.com/fancysnake/cabinet/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/fancysnake/cabinet/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/fancysnake/cabinet/compare/v3.0.0...v4.0.0
