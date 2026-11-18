@@ -31,8 +31,9 @@ collaborators through `services()` in `pacts/services.py`: a single slot
 filled once by `bind()`. Importing `cabinet.rituals` wires it, exactly once,
 before any facade body runs.
 
-`Services.project()` reads `[cabinet]` from `.vekna.toml` at the current
-directory; `forge()` picks GitHub or GitLab from `project.forge`.
+`Services.project(needs)` reads `[cabinet]` through vekna's `config_table`,
+merged across the user config and the `.vekna.toml` that speak for the current
+directory, and checks only the keys in `needs`; `forge()` picks GitHub or GitLab from `project.forge`.
 
 ## Payloads are the graph
 

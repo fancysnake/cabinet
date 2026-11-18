@@ -142,6 +142,16 @@ def _wired() -> None:
     bind(Services())
 
 
+# The user config vekna reads, in place of the operator's own.
+@pytest.fixture(autouse=True)
+def user_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    home = tmp_path / "xdg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home))
+    named = home / "vekna" / "config.toml"
+    named.parent.mkdir(parents=True)
+    return named
+
+
 @pytest.fixture
 def project() -> Project:
     return Project(agent=AGENT)

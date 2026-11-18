@@ -52,8 +52,8 @@ ruff, codespell, taplo, yamllint, actionlint on staged files.
 
 ## Strictness
 
-mypy runs fully strict including `disallow_any_expr`/`disallow_any_explicit`
-(one override: `links/config/vekna_toml.py`). ruff selects `ALL`. tingle
+mypy runs fully strict including `disallow_any_expr`/`disallow_any_explicit`.
+ruff selects `ALL`. tingle
 counts every `noqa`, `type: ignore`, `pragma`, `cast`, `Any`, `object`
 symbol use and `TODO` as debt against main. Fix the code rather than
 suppress; a new suppression needs a comment saying why.
@@ -85,7 +85,11 @@ which calls `inits.services.wire()` at import, so the slot is bound before any
 facade body runs, exactly once. Calling `wire()` from a facade is a bug (each
 call discards the previous `Services` caches).
 
-`Services.project()` reads `[cabinet]` from `.vekna.toml` at `Path.cwd()`;
+`Services.project(needs)` reads `[cabinet]` through vekna's `config_table`:
+the user config and `.vekna.toml` that speak for `Path.cwd()`, merged key by
+key. Only the keys in `needs` are checked, and each ritual passes its own set
+from `pacts/project.py` (`HEAL_NEEDS`, `IDENTIFY_NEEDS`, ...); a new `Project`
+key read outside heal goes in the set of the ritual that reads it.
 `forge()` picks GitHub or GitLab from `project.forge`.
 
 ### Payloads are the graph

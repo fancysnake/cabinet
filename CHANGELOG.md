@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning].
 - The `heal` plugin: four skills with the rules the heal rituals give their
   agents, for work done by hand. `resolve-conflict`, `fix-gate`, `cover-diff`
   and `untrusted-threads`. Install with `claude plugin install heal@cabinet`.
+- `[cabinet]` is read from every place vekna reads config: the user's table
+  for the project, the project's `.vekna.toml`, then the top level of the user
+  config, key by key. A repository with no `.vekna.toml` casts the rituals
+  from the user config alone.
+
+### Changed
+
+- A ritual checks only the `[cabinet]` keys it reads, so a refused value under
+  a key another ritual reads no longer stops the cast. A misspelled key is
+  still refused by every ritual. A refused value names the tables that set
+  `[cabinet]`.
+- vekna 1.2.0 is the lowest supported.
 
 ## [5.1.0] - 2026-11-13
 

@@ -141,6 +141,8 @@ gate = "mise run pr-fix"
 ```
 <!-- --8<-- [end:vekna-toml] -->
 
+The `[cabinet]` table can also live in your vekna user config, under
+`[projects.<name>.cabinet]`, for a repository with no `.vekna.toml`.
 Every `[cabinet]` key has a default; the
 [configuration reference](https://cabinet.fancysnake.dev/configuration/)
 lists them all, with the review skill to fetch and the remote to set up before

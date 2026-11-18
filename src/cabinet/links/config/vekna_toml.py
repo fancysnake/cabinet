@@ -1,48 +1,30 @@
-"""The `[cabinet]` section of the repository's `.vekna.toml`.
+"""The `[cabinet]` table, from every place vekna reads config.
 
-Found the way vekna finds it — by walking up from the cwd — so a cast started
-anywhere in the repository reads the same file vekna loaded the rituals from.
+vekna merges it: the user's table for the project, the project's own
+`.vekna.toml`, then what the user sets for every project, key by key. Which
+project the cwd belongs to is vekna's to say.
 """
 
-import tomllib
-from pathlib import Path
+from pydantic import ValidationError
+from vekna.lexicon import config_table
 
-from pydantic import BaseModel, ValidationError
+from cabinet.pacts.project import KEYS, ConfigError, Project
 
-from cabinet.pacts.project import ConfigError, Project
-
-_NAME = ".vekna.toml"
+_TABLE = "cabinet"
 
 
-# The rest of the file is vekna's; only this section is read, and a missing
-# one means the defaults.
-class _VeknaToml(BaseModel):
-    cabinet: Project = Project()
-
-
-def read_project(start: Path) -> Project:
-    for directory in (start, *start.parents):
-        named = directory / _NAME
-        if named.is_file():
-            return _read(named)
-    msg = f"no {_NAME} found from {start} upwards"
-    raise ConfigError(msg)
-
-
-# Reading the file is inside the contract, not before it: a `.vekna.toml`
-# with a syntax error in it, or one that will not open, is a configuration
-# failure like any other and the cast is owed the file's name either way.
-def _read(named: Path) -> Project:
+# Only the keys the ritual reads are checked, so a refused value under a key
+# another ritual reads does not stop this cast. A key `Project` does not hold
+# is kept, and so refused: it may be a needed one misspelt.
+def read_project(needs: frozenset[str]) -> Project:
+    table = config_table(_TABLE)
+    read = {
+        key: value
+        for key, value in table.values.items()
+        if key in needs or key not in KEYS
+    }
     try:
-        with named.open("rb") as handle:
-            data = tomllib.load(handle)
-        return _VeknaToml.model_validate(data).cabinet
-    except tomllib.TOMLDecodeError as error:
-        msg = f"{named}: {error}"
-        raise ConfigError(msg) from error
-    except OSError as error:
-        msg = f"{named} could not be read: {error}"
-        raise ConfigError(msg) from error
+        return Project.model_validate(read)
     except ValidationError as error:
-        msg = f"{named}: [cabinet] {error}"
+        msg = f"{', '.join(table.sources)}: {error}"
         raise ConfigError(msg) from error

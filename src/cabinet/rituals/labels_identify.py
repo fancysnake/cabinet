@@ -9,13 +9,13 @@ ritual itself and the surface vekna sweeps.
 from vekna.lexicon import NoComponents, ritual
 
 from cabinet.pacts.issues import ISSUE_LABELS
-from cabinet.pacts.project import Conjure
+from cabinet.pacts.project import FORGE_NEEDS, Conjure
 from cabinet.pacts.services import services
 
 
 @ritual("labels.identify")
 def labels_identify(_: NoComponents) -> Conjure:
-    return Conjure(project=services().project(), specs=ISSUE_LABELS)
+    return Conjure(project=services().project(FORGE_NEEDS), specs=ISSUE_LABELS)
 
 
 __all__ = ["labels_identify"]
