@@ -1,14 +1,14 @@
 """Heal your pull requests: each one taken as far as its tasks go.
 
-    vekna cast heal.mine [--plan-only true] [--bound N] [--attended false] [--batch N]
-    vekna cast heal.this [--plan-only true] [--bound N] [--attended false] [--batch N]
+    vekna cast heal.mine [--plan-only true] [--bound N] [--batch N]
+    vekna cast heal.this [--plan-only true] [--bound N] [--batch N]
     vekna cast heal.pr --number N [--plan-only true] [--bound N] [--batch N]
-    vekna cast heal.main [--plan-only true] [--bound N] [--attended false]
-    vekna cast merge [--plan-only true] [--bound N] [--attended false]
-    vekna cast ci [--plan-only true] [--bound N] [--attended false]
+    vekna cast heal.main [--plan-only true] [--bound N]
+    vekna cast merge [--plan-only true] [--bound N]
+    vekna cast ci [--plan-only true] [--bound N]
     vekna cast answer [--plan-only true] [--bound N] [--batch N]
-    vekna cast review [--plan-only true] [--attended false]
-    vekna cast guide [--plan-only true] [--attended false]
+    vekna cast review [--plan-only true]
+    vekna cast guide [--plan-only true]
 
 ``heal.mine`` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first, and works none of them itself: each one with
@@ -96,9 +96,7 @@ going green clears its count, and moving to the next pull request clears them
 all. A verdict a step already gave up on once is not paid for twice: the next
 branch of the same cast whose gate says the same thing stands down without
 spending its budget. Each ``heal.pr`` is a cast of its own, and pays once.
-A cast is attended unless vekna was told ``--unattended`` or the ritual
-``--attended false``, which ``[defaults."cabinet:<ritual>"]`` can set per
-repository.
+A cast is attended unless vekna was told ``--unattended``.
 The budgets decide every repair either way. Attended, the review threads are
 put to you, the one question a cast asks.
 
@@ -191,13 +189,13 @@ _NextT = TypeVar("_NextT", bound=Work)
 
 
 # What every heal ritual's body makes of its components: the first step's
-# payload, working `tasks`, or every task where none is named. vekna's
-# `--unattended` has the last word, so `attended` only ever turns a cast down.
+# payload, working `tasks`, or every task where none is named. Whether anybody
+# is there to ask is vekna's to say.
 def mustered(kind: type[_RunT], components: Heal, *tasks: Task) -> _RunT:
     return kind(
         project=services().project(HEAL_NEEDS),
         bound=components.bound,
-        attended=attended() and components.attended,
+        attended=attended(),
         batch=components.batch,
         tasks=components.working(*tasks),
     )
@@ -356,9 +354,7 @@ async def summon(run: Summon) -> Tally | Summon:
     after = run.took(row)
     if isinstance(row, Unsurveyed) or not after.worked(row.todos):
         return after.to(Summon)
-    asked = HealPr(
-        number=pull.number, bound=run.bound, attended=run.attended, batch=run.batch
-    )
+    asked = HealPr(number=pull.number, bound=run.bound, batch=run.batch)
     try:
         cast = await enqueue("heal.pr", asked)
     except NoDaemonError:

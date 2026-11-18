@@ -116,7 +116,7 @@ class TestMusterMain:
         trial: Trial, project: Project
     ) -> None:
         _listed(trial)
-        run = Run(project=project, tasks=[])
+        run = Run(attended=True, project=project, tasks=[])
 
         assert trial.walk(muster_main, run.to(MusterMain)) == run.but(
             surveyed=[_SURVEYED]

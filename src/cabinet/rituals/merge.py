@@ -1,6 +1,6 @@
 """Transmutation: ``merge`` brings the base into your branch, gate green.
 
-    vekna cast merge [--plan-only true] [--bound N] [--attended false]
+    vekna cast merge [--plan-only true] [--bound N]
 
 ``heal.this`` that works the merge task and no other, the way *Mending* joins
 what was split. Only a conflict makes a merge todo, so a branch that is merely

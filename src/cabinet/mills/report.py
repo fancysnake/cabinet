@@ -20,8 +20,7 @@ from cabinet.pacts.threads import Finding, TriageItem
 
 _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
-# The two things that turn a cast down: vekna's flag, and ours.
-_WAITING = "waiting for you, cast without --unattended or --attended false:"
+_WAITING = "waiting for you, cast without --unattended:"
 
 
 _PRIORITIES = ("p1", "p2", "p3", "p4")

@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Self, TypeAlias, TypeVar, get_args
 from pydantic import BaseModel, Field
 
 from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
+from cabinet.pacts.components import Components
 from cabinet.pacts.hops import Hop
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Bound, PullListing, PullRequest, Watched
@@ -24,17 +25,11 @@ def _tasks() -> list[Task]:
     return list(TASKS)
 
 
-class Heal(BaseModel):
+class Heal(Components):
     # Survey, say what each branch needs, and change nothing: a cast that may
     # work no task.
     plan_only: bool = False
     bound: Bound = 3
-    # Somebody is at the terminal: an agent runs in Claude's `auto` permission
-    # mode instead of refusing everything outside its allowlist, and another
-    # repair attempt is asked for rather than spent on the budget's say-so.
-    # vekna's `--unattended` has the last word; this only turns a cast down,
-    # which is what `[defaults."cabinet:<ritual>"] attended = false` is for.
-    attended: bool = True
     # How many open threads one round of `answer` reads, answers and settles
     # before the next round fetches what the forge still holds open.
     batch: Batch = BATCH
@@ -129,7 +124,7 @@ _RunUpdate: TypeAlias = dict[
 class Run(Reserving, Hop):
     project: Project
     bound: Bound = 3
-    attended: bool = True
+    attended: bool
     batch: Batch = BATCH
     # Which tasks this cast may work: every one for `heal`, one for a task
     # ritual, none for a plan. The survey still says everything a branch needs.

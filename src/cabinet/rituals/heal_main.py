@@ -1,6 +1,6 @@
 """Evocation: ``heal.main`` fixes a red base on a branch and opens a pull request.
 
-    vekna cast heal.main [--plan-only true] [--bound N] [--attended false]
+    vekna cast heal.main [--plan-only true] [--bound N]
 
 Where a configured CI job is red on the base and no fix of yours is open, a
 branch named by ``main_fix_branch`` is cut from the base, each red job is fixed

@@ -1,6 +1,6 @@
 """Divination: ``guide`` posts the smoke-test guide on your pull request.
 
-    vekna cast guide [--plan-only true] [--attended false]
+    vekna cast guide [--plan-only true]
 
 ``heal.this`` that works the guide task and no other, the way *Guidance* lends
 the one who checks a hand. Only a branch with nothing else to do gets a guide,

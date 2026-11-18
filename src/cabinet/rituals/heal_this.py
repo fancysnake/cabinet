@@ -1,6 +1,6 @@
 """Evocation: ``heal.this`` takes your branch's pull request as far as it goes.
 
-    vekna cast heal.this [--plan-only true] [--bound N] [--attended false] [--batch N]
+    vekna cast heal.this [--plan-only true] [--bound N] [--batch N]
 
 The pull request of the branch at the cwd. The steps live in
 ``cabinet.gates.ritual.vekna.heal``, shared with ``heal.mine`` and the task

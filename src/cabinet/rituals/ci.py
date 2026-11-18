@@ -1,6 +1,6 @@
 """Abjuration: ``ci`` makes your branch's red CI jobs green.
 
-    vekna cast ci [--plan-only true] [--bound N] [--attended false]
+    vekna cast ci [--plan-only true] [--bound N]
 
 ``heal.this`` that works the ci task and no other, the way *Lesser
 Restoration* ends one condition at a time. Only a red check on a job in
