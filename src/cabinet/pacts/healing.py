@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal, Self, TypeAlias, TypeVar, get_args
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from cabinet.pacts.budgets import BATCH, Batch, Budgeted, Reserving
 from cabinet.pacts.hops import Hop
@@ -25,6 +25,10 @@ def _tasks() -> list[Task]:
 
 
 class Heal(BaseModel):
+    # A flag this cast does not know, such as a retired `--attended`, is an
+    # error, not a silent no-op.
+    model_config = ConfigDict(extra="forbid")
+
     # Survey, say what each branch needs, and change nothing: a cast that may
     # work no task.
     plan_only: bool = False
