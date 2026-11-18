@@ -9,7 +9,7 @@ rituals; this module is the ritual itself and the surface vekna sweeps.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna import heal as steps
+from cabinet.gates.ritual.vekna.heal import mustered
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
 from cabinet.specs import HEAL_STEPS
@@ -17,7 +17,7 @@ from cabinet.specs import HEAL_STEPS
 
 @ritual("heal.this", max_steps=HEAL_STEPS)
 def heal_this(components: Heal) -> MusterThis:
-    return steps.mustered(MusterThis, components)
+    return mustered(MusterThis, components)
 
 
-__all__ = ["heal_this", "steps"]
+__all__ = ["heal_this"]

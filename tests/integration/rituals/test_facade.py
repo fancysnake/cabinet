@@ -1,4 +1,4 @@
-"""What vekna sweeps: one facade per ritual, and the services already bound."""
+"""What vekna sweeps: one facade per ritual, with steps and services ready."""
 
 from types import ModuleType
 
@@ -24,36 +24,25 @@ from cabinet.rituals import (
     labels_identify,
     merge,
     review,
+    steps,
 )
 
-# Every facade, the step module behind it, and the rituals it exports: its
-# own, and for heal.mine the heal.pr it queues.
+# The rituals each facade exports: its own, and for heal.mine the heal.pr it
+# queues.
 _FACADES = [
-    pytest.param(
-        heal_mine,
-        heal_steps,
-        {"heal_mine": "heal.mine", "heal_pr": "heal.pr"},
-        id="heal.mine",
-    ),
-    pytest.param(heal_pr, heal_steps, {"heal_pr": "heal.pr"}, id="heal.pr"),
-    pytest.param(heal_main, heal_steps, {"heal_main": "heal.main"}, id="heal.main"),
-    pytest.param(heal_this, heal_steps, {"heal_this": "heal.this"}, id="heal.this"),
-    pytest.param(merge, heal_steps, {"merge": "merge"}, id="merge"),
-    pytest.param(ci, heal_steps, {"ci": "ci"}, id="ci"),
-    pytest.param(answer, heal_steps, {"answer": "answer"}, id="answer"),
-    pytest.param(review, heal_steps, {"review": "review"}, id="review"),
-    pytest.param(guide, heal_steps, {"guide": "guide"}, id="guide"),
-    pytest.param(identify, identify_steps, {"identify": "identify"}, id="identify"),
-    pytest.param(labels, labels_steps, {"labels": "labels"}, id="labels"),
-    pytest.param(
-        labels_heal, labels_steps, {"labels_heal": "labels.heal"}, id="labels.heal"
-    ),
-    pytest.param(
-        labels_identify,
-        labels_steps,
-        {"labels_identify": "labels.identify"},
-        id="labels.identify",
-    ),
+    pytest.param(heal_mine, {"heal.mine", "heal.pr"}, id="heal.mine"),
+    pytest.param(heal_pr, {"heal.pr"}, id="heal.pr"),
+    pytest.param(heal_main, {"heal.main"}, id="heal.main"),
+    pytest.param(heal_this, {"heal.this"}, id="heal.this"),
+    pytest.param(merge, {"merge"}, id="merge"),
+    pytest.param(ci, {"ci"}, id="ci"),
+    pytest.param(answer, {"answer"}, id="answer"),
+    pytest.param(review, {"review"}, id="review"),
+    pytest.param(guide, {"guide"}, id="guide"),
+    pytest.param(identify, {"identify"}, id="identify"),
+    pytest.param(labels, {"labels"}, id="labels"),
+    pytest.param(labels_heal, {"labels.heal"}, id="labels.heal"),
+    pytest.param(labels_identify, {"labels.identify"}, id="labels.identify"),
 ]
 
 
@@ -64,16 +53,22 @@ def _rituals(facade: ModuleType) -> set[str]:
 
 
 class TestFacade:
-    # A step registers when its module is imported, so a facade that holds the
-    # module as `steps` has registered the whole graph it casts.
     @staticmethod
-    @pytest.mark.parametrize(("facade", "steps", "rituals"), _FACADES)
-    def test_a_facade_exports_its_rituals_and_its_step_module(
-        facade: ModuleType, steps: ModuleType, rituals: dict[str, str]
+    @pytest.mark.parametrize(("facade", "rituals"), _FACADES)
+    def test_a_facade_exports_its_rituals(
+        facade: ModuleType, rituals: set[str]
     ) -> None:
-        assert set(facade.__all__) == rituals.keys() | {"steps"}
-        assert facade.steps is steps
-        assert _rituals(facade) == set(rituals.values())
+        assert _rituals(facade) == rituals
+
+    # A step registers when its module is imported, and the package imports
+    # every step module, whichever facade a project names.
+    @staticmethod
+    def test_the_package_imports_every_step_module() -> None:
+        assert (steps.heal, steps.identify, steps.labels) == (
+            heal_steps,
+            identify_steps,
+            labels_steps,
+        )
 
     # heal.mine queues heal.pr casts, so a project loading only heal.mine
     # must still have heal.pr to run them.

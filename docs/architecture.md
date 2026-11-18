@@ -49,9 +49,9 @@ annotation.
 
 `rituals/heal_mine.py`, `heal_pr.py`, `heal_this.py`, `heal_main.py`,
 `merge.py`, `ci.py`, `answer.py`, `review.py` and `guide.py` all wrap the heal
-steps. Each imports the step module as `steps` and exports it beside its
-ritual, so importing any one registers the whole graph. A new heal step
-touches no facade. A task
+steps. A step registers when its module is imported, and the `rituals`
+package imports every step module, so naming any one facade registers the
+whole graph. A new heal step touches no facade. A task
 ritual is `heal.this` with `tasks` narrowed to one; `tend` hands a branch its
 next task, and every task ends back at `tend`.
 

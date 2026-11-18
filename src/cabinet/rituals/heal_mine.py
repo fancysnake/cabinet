@@ -14,7 +14,7 @@ only this facade can still run what it queues.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna import heal as steps
+from cabinet.gates.ritual.vekna.heal import mustered
 from cabinet.pacts.heal import MusterMine
 from cabinet.pacts.healing import Heal
 from cabinet.rituals.heal_pr import heal_pr
@@ -23,7 +23,7 @@ from cabinet.specs import HEAL_STEPS
 
 @ritual("heal.mine", max_steps=HEAL_STEPS)
 def heal_mine(components: Heal) -> MusterMine:
-    return steps.mustered(MusterMine, components)
+    return mustered(MusterMine, components)
 
 
-__all__ = ["heal_mine", "heal_pr", "steps"]
+__all__ = ["heal_mine", "heal_pr"]

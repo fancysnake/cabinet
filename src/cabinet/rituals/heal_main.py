@@ -12,7 +12,7 @@ the ritual itself and the surface vekna sweeps.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna import heal as steps
+from cabinet.gates.ritual.vekna.heal import mustered
 from cabinet.pacts.heal import MusterMain
 from cabinet.pacts.healing import Heal
 from cabinet.specs import HEAL_STEPS
@@ -21,7 +21,7 @@ from cabinet.specs import HEAL_STEPS
 # A tree of its own: the cast cuts a branch and commits on it.
 @ritual("heal.main", max_steps=HEAL_STEPS, worktree=True)
 def heal_main(components: Heal) -> MusterMain:
-    return steps.mustered(MusterMain, components, "ci")
+    return mustered(MusterMain, components, "ci")
 
 
-__all__ = ["heal_main", "steps"]
+__all__ = ["heal_main"]

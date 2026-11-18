@@ -11,7 +11,7 @@ itself and the surface vekna sweeps.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna import heal as steps
+from cabinet.gates.ritual.vekna.heal import mustered
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
 from cabinet.specs import HEAL_STEPS
@@ -19,7 +19,7 @@ from cabinet.specs import HEAL_STEPS
 
 @ritual("guide", max_steps=HEAL_STEPS)
 def guide(components: Heal) -> MusterThis:
-    return steps.mustered(MusterThis, components, "guide")
+    return mustered(MusterThis, components, "guide")
 
 
-__all__ = ["guide", "steps"]
+__all__ = ["guide"]
