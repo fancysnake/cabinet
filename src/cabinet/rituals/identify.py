@@ -9,7 +9,6 @@ surface vekna sweeps.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.identify import gather, identify_page, leaf, pin, tally
 from cabinet.pacts.identify import Gather
 from cabinet.pacts.issues import Identify
 from cabinet.pacts.project import IDENTIFY_NEEDS
@@ -21,4 +20,4 @@ def identify(components: Identify) -> Gather:
     return Gather(project=services().project(IDENTIFY_NEEDS), batch=components.batch)
 
 
-__all__ = ["gather", "identify", "identify_page", "leaf", "pin", "tally"]
+__all__ = ["identify"]
