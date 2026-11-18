@@ -6,7 +6,6 @@ tome before any step runs.
 """
 
 from functools import cached_property
-from pathlib import Path
 
 from typing_extensions import override
 
@@ -79,11 +78,10 @@ class Services(ServicesProtocol):
     def report(self) -> Report:
         return Report()
 
-    # The cwd, because that is where vekna found the `.vekna.toml` naming this
-    # tome, and the same walk finds the same file.
+    # From the cwd: vekna says which project stands there.
     @override
-    def project(self) -> Project:
-        return read_project(Path.cwd())
+    def project(self, needs: frozenset[str]) -> Project:
+        return read_project(needs)
 
     # Both forges are wired; which one answers is the repository's own choice.
     @override

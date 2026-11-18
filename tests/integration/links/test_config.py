@@ -1,12 +1,12 @@
-"""The `[cabinet]` section, found the way vekna finds its own."""
+"""The `[cabinet]` table, merged by vekna across the places it reads config."""
 
-import os
 from pathlib import Path
 
 import pytest
+from vekna.lexicon import RitualDefinitionError
 
 from cabinet.links.config.vekna_toml import read_project
-from cabinet.pacts.project import ConfigError, Project
+from cabinet.pacts.project import HEAL_NEEDS, IDENTIFY_NEEDS, ConfigError, Project
 
 _SECTION = """\
 [rituals]
@@ -27,10 +27,10 @@ may_not_run = ["mise run test:e2e"]
 
 class TestReadProject:
     @staticmethod
-    def test_the_section_is_read_and_the_rest_is_ignored(tmp_path: Path) -> None:
-        (tmp_path / ".vekna.toml").write_text(_SECTION)
+    def test_the_section_is_read_and_the_rest_is_ignored(here: Path) -> None:
+        (here / ".vekna.toml").write_text(_SECTION)
 
-        project = read_project(tmp_path)
+        project = read_project(HEAL_NEEDS)
 
         assert project.forge == "gitlab"
         assert project.gate == "mise run check"
@@ -40,51 +40,78 @@ class TestReadProject:
         assert project.agent.may_not_run == ["mise run test:e2e"]
 
     @staticmethod
-    def test_found_by_walking_up(tmp_path: Path) -> None:
-        (tmp_path / ".vekna.toml").write_text(_SECTION)
-        nested = tmp_path / "src" / "pkg"
+    def test_found_by_walking_up(here: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (here / ".vekna.toml").write_text(_SECTION)
+        nested = here / "src" / "pkg"
         nested.mkdir(parents=True)
+        monkeypatch.chdir(nested)
 
-        assert read_project(nested).forge == "gitlab"
+        assert read_project(HEAL_NEEDS).forge == "gitlab"
 
     @staticmethod
-    def test_a_file_without_the_section_means_the_defaults(tmp_path: Path) -> None:
-        (tmp_path / ".vekna.toml").write_text(
-            '[rituals]\nmodules = ["cabinet.rituals"]\n'
+    @pytest.mark.usefixtures("here")
+    def test_a_file_without_the_section_means_the_defaults() -> None:
+        assert read_project(HEAL_NEEDS) == Project()
+
+    @staticmethod
+    def test_a_project_with_no_file_reads_the_user_config(
+        tmp_path: Path, user_config: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        user_config.write_text(
+            f'[projects.mine]\npath = "{tmp_path}"\n\n'
+            '[projects.mine.cabinet]\ngate = "mise run check"\n',
+            encoding="utf-8",
         )
 
-        assert read_project(tmp_path) == Project()
+        assert read_project(HEAL_NEEDS).gate == "mise run check"
+
+    # Key by key: the user's table for the project, the project's own file,
+    # then what the user sets for every project.
+    @staticmethod
+    def test_the_nearest_place_wins_each_key(here: Path, user_config: Path) -> None:
+        (here / ".vekna.toml").write_text(
+            '[cabinet]\ngate = "from the file"\nbase = "from the file"\n'
+        )
+        user_config.write_text(
+            '[cabinet]\nbase = "for every project"\nremote = "for every project"\n\n'
+            f'[projects.mine]\npath = "{here}"\n\n'
+            '[projects.mine.cabinet]\ngate = "for this project"\n',
+            encoding="utf-8",
+        )
+
+        project = read_project(HEAL_NEEDS)
+
+        assert project.gate == "for this project"
+        assert project.base == "from the file"
+        assert project.remote == "for every project"
 
     @staticmethod
-    def test_a_typo_dies_at_the_boundary(tmp_path: Path) -> None:
-        (tmp_path / ".vekna.toml").write_text('[cabinet]\ngates = "mise run x"\n')
+    def test_a_refused_value_names_where_it_was_set(here: Path) -> None:
+        (here / ".vekna.toml").write_text('[cabinet]\nforge = "sourcehut"\n')
+
+        with pytest.raises(ConfigError, match=r"(?s)\.vekna\.toml: \[cabinet\].*forge"):
+            read_project(HEAL_NEEDS)
+
+    @staticmethod
+    def test_a_value_only_another_ritual_reads_is_not_checked(here: Path) -> None:
+        (here / ".vekna.toml").write_text("[cabinet]\nidentify_skill = 7\n")
+
+        assert read_project(HEAL_NEEDS) == Project()
+        with pytest.raises(ConfigError, match="identify_skill"):
+            read_project(IDENTIFY_NEEDS)
+
+    # Refused for every ritual: it may be a needed key misspelt.
+    @staticmethod
+    def test_a_typo_dies_at_the_boundary(here: Path) -> None:
+        (here / ".vekna.toml").write_text('[cabinet]\ngates = "mise run x"\n')
 
         with pytest.raises(ConfigError, match=r"(?s)\.vekna\.toml: \[cabinet\].*gates"):
-            read_project(tmp_path)
-
-    # A syntax error is a configuration failure like any other: the cast is
-    # owed the file's name, not a raw TOMLDecodeError out of startup.
-    @staticmethod
-    def test_a_file_that_will_not_parse_dies_at_the_boundary(tmp_path: Path) -> None:
-        (tmp_path / ".vekna.toml").write_text('[cabinet]\ngate = "unclosed\n')
-
-        with pytest.raises(ConfigError, match=r"\.vekna\.toml: "):
-            read_project(tmp_path)
-
-    # Root opens a file it has no permission bits for, so the error this
-    # waits on never comes and the assertion is about the runner, not the
-    # boundary.
-    @staticmethod
-    @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the mode bits")
-    def test_a_file_that_will_not_open_dies_at_the_boundary(tmp_path: Path) -> None:
-        named = tmp_path / ".vekna.toml"
-        named.write_text(_SECTION)
-        named.chmod(0o000)
-
-        with pytest.raises(ConfigError, match=r"\.vekna\.toml could not be read"):
-            read_project(tmp_path)
+            read_project(IDENTIFY_NEEDS)
 
     @staticmethod
-    def test_no_file_anywhere_up(tmp_path: Path) -> None:
-        with pytest.raises(ConfigError, match=r"no \.vekna\.toml found"):
-            read_project(tmp_path)
+    def test_a_file_that_will_not_parse_dies_at_the_boundary(here: Path) -> None:
+        (here / ".vekna.toml").write_text('[cabinet]\ngate = "unclosed\n')
+
+        with pytest.raises(RitualDefinitionError, match=r"\.vekna\.toml: "):
+            read_project(HEAL_NEEDS)

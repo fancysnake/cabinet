@@ -10,7 +10,7 @@ dependencies = [
     "claude-agent-sdk (>=0.2,<1.0)",
     "pydantic (>=2.12.5,<3.0.0)",
     "typing-extensions (>=4.4,<5.0)",
-    "vekna[trial] (>=0.15.0,<2.0.0)",
+    "vekna[trial] (>=1.2.0,<2.0.0)",
 ]
 
 [build-system]
@@ -209,12 +209,6 @@ warn_unused_ignores = true
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true
-
-# `tomllib.load` hands back `dict[str, Any]`, and the one thing done with it
-# is handing it to pydantic. The boundary is this one module.
-[[tool.mypy.overrides]]
-module = "cabinet.links.config.vekna_toml"
-disallow_any_expr = false
 
 # RUFF
 

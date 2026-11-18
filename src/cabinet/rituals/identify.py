@@ -12,12 +12,13 @@ from vekna.lexicon import ritual
 from cabinet.gates.ritual.vekna.identify import gather, identify_page, leaf, pin, tally
 from cabinet.pacts.identify import Gather
 from cabinet.pacts.issues import Identify
+from cabinet.pacts.project import IDENTIFY_NEEDS
 from cabinet.pacts.services import services
 
 
 @ritual("identify")
 def identify(components: Identify) -> Gather:
-    return Gather(project=services().project(), batch=components.batch)
+    return Gather(project=services().project(IDENTIFY_NEEDS), batch=components.batch)
 
 
 __all__ = ["gather", "identify", "identify_page", "leaf", "pin", "tally"]

@@ -7,7 +7,17 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from cabinet.pacts.agent import Job
-from cabinet.pacts.project import Ci, CiJob, Labels, Models, Project
+from cabinet.pacts.project import (
+    FORGE_NEEDS,
+    HEAL_NEEDS,
+    IDENTIFY_NEEDS,
+    LABELS_NEEDS,
+    Ci,
+    CiJob,
+    Labels,
+    Models,
+    Project,
+)
 
 # A hex triplet without the hash, the way GitHub takes it.
 _HEX = 6
@@ -175,3 +185,13 @@ class TestCiJobs:
     def test_a_job_refuses_a_key_it_does_not_know() -> None:
         with pytest.raises(ValidationError):
             CiJob.model_validate({"cover": True})
+
+
+class TestNeeds:
+    # A name that is no key of `Project` would filter nothing and check nothing.
+    @staticmethod
+    @pytest.mark.parametrize(
+        "needs", [HEAL_NEEDS, IDENTIFY_NEEDS, LABELS_NEEDS, FORGE_NEEDS]
+    )
+    def test_every_need_is_a_key(needs: frozenset[str]) -> None:
+        assert needs <= Project.model_fields.keys()

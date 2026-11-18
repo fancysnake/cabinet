@@ -1,6 +1,6 @@
 """What one repository tells the rituals about itself.
 
-Read from the `[cabinet]` section of the repository's `.vekna.toml`, validated
+Read from the `[cabinet]` table vekna merges for the repository, validated
 at the boundary so a misspelled key dies before a branch is checked out. The
 values are strings: a task name is only tested by running it.
 """
@@ -223,6 +223,15 @@ class Project(BaseModel):
         # A value spelled out: with none, or `None`, its values type as `Any`.
         listed = (*named, *self.agent.may_not_run)
         return list(dict.fromkeys(listed, True))
+
+
+# The top-level keys each ritual reads, and so the ones checked at its cast.
+# The heal rituals share one graph, and one set.
+KEYS = frozenset(Project.model_fields)
+HEAL_NEEDS = KEYS - {"identify_skill"}
+IDENTIFY_NEEDS = frozenset({"forge", "identify_skill", "agent"})
+LABELS_NEEDS = frozenset({"forge", "labels"})
+FORGE_NEEDS = frozenset({"forge"})
 
 
 # `conjure`'s payload: which labels to make, and on which forge. Its own class
