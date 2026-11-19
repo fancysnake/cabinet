@@ -13,7 +13,8 @@
 ``heal.mine`` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first, and works none of them itself: each one with
 work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in
-a pooled worktree beside the others. With no daemon listening it says so and
+a pooled worktree beside the others, and the cast stays until they end and
+reports their rows. With no daemon listening it says so and
 fails. ``heal.pr`` takes the pull request it is given the number of;
 ``heal.this`` and the task rituals take the pull request of the branch at the
 cwd. A task ritual is ``heal.this`` that may work one task and no other.
@@ -108,7 +109,19 @@ names what was not reached.
 from typing import TypeAlias, TypeVar
 
 from vekna.folio.flow import decide, enqueue
-from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta, step
+
+# The wait `await_cast` makes after its own enqueue, taken alone: `summon`
+# has queued the casts by then, and vekna exports no other way to wait on one.
+from vekna.folio.flow._mills import awaited
+from vekna.lexicon import (
+    CastFailedError,
+    Done,
+    NoDaemonError,
+    RitualError,
+    attended,
+    emit_delta,
+    step,
+)
 
 from cabinet.pacts.agent import AgentProtocol, Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
@@ -118,6 +131,7 @@ from cabinet.pacts.heal import (
     AnswerGate,
     AnswerThreads,
     AskTriage,
+    Attend,
     Chart,
     CheckClean,
     CloseGap,
@@ -149,10 +163,10 @@ from cabinet.pacts.heal import (
     Summon,
     Survey,
     SyncBranch,
-    Tally,
     Tend,
 )
 from cabinet.pacts.healing import (
+    Checked,
     Facts,
     Heal,
     Healed,
@@ -221,11 +235,11 @@ def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
 
 # Every open pull request of yours the forge lists, bar the parked ones.
 @step
-async def muster_mine(run: MusterMine) -> Tally | Summon:
+async def muster_mine(run: MusterMine) -> Chart | Summon:
     try:
         run, pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
-        return run.but(stopped=str(error)).to(Tally)
+        return run.but(stopped=str(error)).to(Chart)
     queue = services().pulls.wanted(pulls, run.project)
     return _queued(run, queue, Summon)
 
@@ -341,14 +355,14 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
 # `heal.mine`'s survey: read the next pull request's facts, say what it
 # needs, and hand it to a `heal.pr` of its own where any of that is work.
 # The daemon runs each in a pooled worktree as it has a slot and a tree, so
-# this cast takes no branch and asks for no share. Queued rather than
-# awaited: each branch's row is its own cast's to say. Every component is
-# passed on as this cast took it, so the children work the way the parent
-# was asked to; `--unattended` reaches them through vekna.
+# this cast takes no branch and asks for no share. Queued here and awaited
+# in `attend`: awaiting each as it is queued would run them one at a time.
+# Every component is passed on as this cast took it, so the children work the
+# way the parent was asked to; `--unattended` reaches them through vekna.
 @step
-async def summon(run: Summon) -> Tally | Summon:
+async def summon(run: Summon) -> Attend | Summon:
     if not run.queue:
-        return run.to(Tally)
+        return run.to(Attend)
     pull = run.queue[0]
     row = await _surveyed(run.project, pull)
     emit_delta(services().report.surveyed(row))
@@ -358,14 +372,13 @@ async def summon(run: Summon) -> Tally | Summon:
     asked = HealPr(number=pull.number, bound=run.bound, batch=run.batch)
     try:
         cast = await enqueue("heal.pr", asked)
-    except NoDaemonError:
+    except NoDaemonError as error:
         stopped = (
-            "heal.mine queues a cast per pull request and needs the daemon:"
-            " start it with `vekna`"
+            f"heal.mine queues a cast per pull request and needs the daemon: {error}"
         )
-        return after.but(stopped=stopped).to(Tally)
-    queued = Queued(number=pull.number, branch=pull.branch, cast=cast)
-    return after.summoned(queued).to(Summon)
+        # Casts already handed off keep running: `attend` gives each a row.
+        return after.but(stopped=stopped).to(Attend)
+    return after.summoned(Queued(pr=pull, cast=cast)).to(Summon)
 
 
 # One pull request the forge or git would not answer about is a row saying
@@ -404,20 +417,29 @@ def chart(run: Chart) -> Done[Healed]:
     )
 
 
-# `chart` for `heal.mine`: the casts it queued rather than branches it worked.
+# `heal.mine` stays until every cast it queued has ended, and takes their rows
+# for its own report. One wait at a time, in the order queued: the casts run
+# side by side whichever is waited on, and a resumed cast replays the waits in
+# the order it made them. A cast that failed took its rows with it, so the
+# branch is blocked on what vekna said of the ending. With the daemon gone
+# the wait cannot be made, and the branch is blocked with its outcome unknown.
 @step
-def tally(run: Tally) -> Done[Healed]:
-    if run.has_news():
-        emit_delta(services().report.queued(run))
-    if run.failed():
-        raise RitualError(run.stopped)
-    return Done(
-        Healed(
-            surveyed=run.surveyed,
-            not_reached=[pull.branch for pull in run.queue],
-            queued=run.queued,
-        )
-    )
+async def attend(run: Attend) -> Chart:
+    after = run
+    for one in run.queued:
+        try:
+            healed = Healed.model_validate(await awaited(one.cast))
+        except CastFailedError as error:
+            healed = _blocked(one, str(error))
+        except NoDaemonError as error:
+            healed = _blocked(one, f"outcome unknown, the daemon is gone: {error}")
+        after = after.merged(one, healed)
+    return after.to(Chart)
+
+
+def _blocked(one: Queued, note: str) -> Healed:
+    row = Checked.of(one.pr, "blocked", unpushed=None, note=note)
+    return Healed(checked=[row])
 
 
 # --- taking a branch -------------------------------------------------------

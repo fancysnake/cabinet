@@ -208,16 +208,6 @@ class Report(ReportProtocol):
         lines += [_line(row) for row in run.checked] or ["  (none)"]
         return _ending(run, lines)
 
-    # A cast that queued its branches says which cast took each: their rows
-    # are theirs to say, as each one ends.
-    @override
-    def queued(self, run: Run) -> str:
-        lines = [f"heal — {len(run.queued)} queued", ""]
-        lines += [
-            f"  #{one.number} {one.branch}: cast {one.cast}" for one in run.queued
-        ] or ["  (none)"]
-        return _ending(run, lines)
-
     # The page as it goes to the agent, before anything is read or written: the
     # same indent and the same `#n` as the rows that say what became of it, so
     # what was taken up and what came back of it read as one list.
