@@ -6,10 +6,16 @@ from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinne
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Thread, TriageItem
+from cabinet.specs import CARD_WIDTH
 from tests.conftest import watched
 
 _REPORT = Report()
 _PROJECT = Project()
+
+
+def _ruled(title: str) -> str:
+    return title.ljust(CARD_WIDTH, "─")
+
 
 _PULL = PullRequest(
     number=7,
@@ -152,7 +158,18 @@ class TestTriage:
             resolved=False,
             comments=[Comment(id="1", author="reviewer", body="guard this")],
         )
-        later = item.model_copy(update={"thread": "T2", "files": 2, "priority": "p3"})
+        later = item.model_copy(
+            update={
+                "thread": "T2",
+                "files": 2,
+                "priority": "p3",
+                "action": "file",
+                "left": (
+                    "an empty list crashes the run, and the cast that called it"
+                    " reports the pull request as answered"
+                ),
+            }
+        )
         quiet = thread.model_copy(update={"id": "T2", "comments": []})
 
         cards = _REPORT.cards(_PULL, [later, item], [thread, quiet])
@@ -162,9 +179,13 @@ class TestTriage:
                 item,
                 (
                     "#7 Add the thing — thread 1 of 2\n"
+                    "\n"
+                    f"{_ruled('── The thread ')}\n"
                     "Thread:   src/thing.py:12, raised by reviewer\n"
                     "Raised:   stop on an empty list\n"
                     "If left:  an empty list crashes the run\n"
+                    "\n"
+                    f"{_ruled('── The reading would FIX it ')}\n"
                     "Action:   fix — the guard is missing\n"
                     "Grounds:  tested — ran it with [] and got IndexError\n"
                     "Estimate: small, 1 file, low risk"
@@ -174,21 +195,51 @@ class TestTriage:
                 later,
                 (
                     "#7 Add the thing — thread 2 of 2\n"
+                    "\n"
+                    f"{_ruled('── The thread ')}\n"
                     "Thread:   src/thing.py:12\n"
                     "Raised:   stop on an empty list\n"
-                    "If left:  an empty list crashes the run\n"
-                    "Action:   fix — the guard is missing\n"
+                    "If left:  an empty list crashes the run, and the cast that"
+                    " called it reports the\n"
+                    "          pull request as answered\n"
+                    "\n"
+                    f"{_ruled('── The reading would FILE it ')}\n"
+                    "Action:   file — the guard is missing\n"
                     "Grounds:  tested — ran it with [] and got IndexError\n"
                     "Estimate: small, 2 files, low risk"
                 ),
             ),
         ]
 
+    # A path broken across two lines cannot be copied.
+    @staticmethod
+    def test_a_word_longer_than_the_line_stays_whole() -> None:
+        path = "src/" + "deep/" * 20 + "thing.py:12"
+        item = TriageItem(
+            where=path,
+            raised="stop",
+            left="it crashes",
+            what="the guard is missing",
+            grounds="read",
+            proof="thing.py:12",
+            size="small",
+            files=1,
+            risk="low",
+            priority="p1",
+            action="fix",
+            thread="T1",
+        )
+        thread = Thread(id="T1", resolved=False, comments=[])
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [thread])
+
+        assert f"Thread:   {path}\n" in card
+
     @staticmethod
     def test_the_question_names_the_answers_it_takes() -> None:
         asked = _REPORT.asked("the card")
 
-        assert asked.startswith("the card\nPress return")
+        assert asked.startswith("the card\n\nPress return")
         assert "answer fix, reject or file" in asked
         assert asked.endswith("\n->")
 

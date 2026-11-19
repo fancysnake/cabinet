@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- The triage card of `answer` has two titled halves, the thread and what the
+  reading would do, and wraps long values under their label at 80 columns.
+  The second title names the action a return key takes.
+
 ## [6.0.0] - 2026-11-18
 
 ### Added
