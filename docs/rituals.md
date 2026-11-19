@@ -45,21 +45,28 @@ line saying why, and the cast goes on. With `--plan-only true` that is all:
 nothing is checked out, committed or labelled.
 
 `heal.mine` works no branch itself. For each one with work it queues a
-`heal.pr` on the vekna daemon and goes on to the next, then reports which
-cast took which branch:
+`heal.pr` on the vekna daemon and goes on to the next. Then it waits until
+every cast it queued has ended, and reports their rows as its own:
 
 ```text
-heal — 2 queued
+heal — 2 worked
 
-  #7 feature: cast c41
-  #9 docs: cast c42
+  #7 feature: worked, 0 unpushed
+  #9 docs: blocked, unknown — cast c42 ended error: branches blocked: 1
 ```
+
+A `heal.pr` that failed blocks its branch in that report, and a blocked
+branch fails `heal.mine` the way it fails `heal.this`. A `heal.pr` that ran
+out of steps before its branch is named in the report as left for the next
+cast.
 
 The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
 up, so the branches heal side by side and the checkout you cast from never
-moves. `vekna cast heal.mine` follows them and prints each one's rows and
+moves. While it waits, `vekna cast heal.mine` prints each one's rows and
 prompts as they come. With no daemon running, `heal.mine` prints its survey
-and fails: start one with `vekna`. [Configuration](configuration.md#worktrees)
+and fails: start one with `vekna`. If the daemon goes away after some
+casts were queued, those keep running, and the report blocks each one as
+outcome unknown. [Configuration](configuration.md#worktrees)
 sizes the pool. Typed by hand, `heal.pr` runs where it was typed.
 
 Otherwise each branch with a task the cast works is taken: the worktree must

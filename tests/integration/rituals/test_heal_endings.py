@@ -14,7 +14,6 @@ from cabinet.gates.ritual.vekna.heal import (
     set_aside,
     skip_pr,
     stand_down,
-    tally,
 )
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.guide import Guide
@@ -26,7 +25,6 @@ from cabinet.pacts.heal import (
     SkipPr,
     StandDown,
     Survey,
-    Tally,
     Tend,
 )
 from cabinet.pacts.healing import Checked, Heal, Healed, HealPr, Run, Surveyed, Work
@@ -349,15 +347,6 @@ class TestChart:
         assert "the forge listed as many" in trial.deltas[0]
 
     @staticmethod
-    def test_a_planned_tally_on_a_listing_cut_short_says_so(
-        trial: Trial, project: Project
-    ) -> None:
-        run = Run(attended=True, project=project, tasks=[], truncated=True)
-
-        assert trial.walk(tally, run.to(Tally)) == Done(Healed())
-        assert "the forge listed as many" in trial.deltas[0]
-
-    @staticmethod
     def test_a_cast_out_of_steps_ends_without_failing(
         trial: Trial, project: Project, pull: PullRequest
     ) -> None:
@@ -389,19 +378,6 @@ class TestChart:
 
         assert "#7 feature: blocked" in trial.deltas[0]
         assert "the cast failed: branches blocked: 1" in trial.deltas[0]
-
-    # `heal.mine`'s ending fails the same way, after its own summary.
-    @staticmethod
-    def test_a_stopped_tally_is_said_before_it_fails(
-        trial: Trial, project: Project
-    ) -> None:
-        run = Run(attended=True, project=project, stopped="no daemon")
-
-        with pytest.raises(RitualError, match="no daemon"):
-            trial.walk(tally, run.to(Tally))
-
-        assert trial.deltas[0].startswith("heal — 0 queued")
-        assert "the cast failed: no daemon" in trial.deltas[0]
 
 
 # The forge's listing and git's preflight, the branch taken, and the count at
@@ -609,7 +585,7 @@ class TestWholeCast:
         result = trial.cast(heal_mine, Heal())
 
         assert result.checked == []
-        assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "attend", "chart"]
         assert trial.deltas[0] == "#7 feature: nothing to do"
 
     # Every attempt the bound allows on every loop, each with its free extra
@@ -704,7 +680,7 @@ class TestWholeCast:
 
         assert result == Healed()
         assert trial.shell.commands[-1].startswith("glab api")
-        assert trial.steps == ["muster_mine", "summon", "tally"]
+        assert trial.steps == ["muster_mine", "summon", "attend", "chart"]
 
 
 class TestTaskRituals:
