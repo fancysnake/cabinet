@@ -9,7 +9,7 @@ from cabinet.links.forge.asking import asked
 from cabinet.links.forge.github import GithubForge
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError, ForgeLimitedError
-from cabinet.pacts.project import LabelSpec, Project
+from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.threads import Finding, Posted
 from tests.conftest import drive
 
@@ -120,7 +120,7 @@ class TestAnchors:
         trial.shell.replies(when="sleep 15")
         trial.shell.replies(when=anchored)
 
-        forge = GithubForge(Project())
+        forge = GithubForge()
 
         assert drive(trial, lambda: forge.comment(7, _ANCHORED)) == Posted(count=1)
         assert not any(c.startswith("gh pr comment") for c in trial.shell.commands)
@@ -133,7 +133,7 @@ class TestAnchors:
         trial.shell.replies(when="sleep 15")
         trial.shell.replies(when=_DISCUSSIONS)
 
-        forge = GitlabForge(Project())
+        forge = GitlabForge()
 
         assert drive(trial, lambda: forge.comment(7, _ANCHORED)) == Posted(count=1)
         assert not any(c.startswith("glab mr note") for c in trial.shell.commands)
@@ -147,7 +147,7 @@ class TestAnchors:
             trial, "gh api repos/{owner}/{repo}/pulls/7/comments*"
         )
 
-        forge = GithubForge(Project())
+        forge = GithubForge()
 
         posted = drive(trial, lambda: forge.comment(7, _ANCHORED))
 
@@ -162,7 +162,7 @@ class TestAnchors:
         trial.shell.replies(when=anchored)
         _limit_outlasts_every_pause(trial, anchored)
 
-        forge = GithubForge(Project())
+        forge = GithubForge()
 
         posted = drive(trial, lambda: forge.comment(7, _SEVERAL))
 
@@ -177,7 +177,7 @@ class TestAnchors:
         trial.shell.replies(when=_DISCUSSIONS, always=True, exit_code=1, stderr=_GITLAB)
         trial.shell.replies(when="sleep *", always=True)
 
-        forge = GitlabForge(Project())
+        forge = GitlabForge()
 
         posted = drive(trial, lambda: forge.comment(7, _SEVERAL))
 
@@ -196,7 +196,7 @@ class TestGitlabLabel:
         trial.shell.replies(when=create)
 
         spec = LabelSpec(name="bug", color="d73a4a", description="broken")
-        forge = GitlabForge(Project())
+        forge = GitlabForge()
         drive(trial, lambda: forge.ensure_label(spec))
 
         assert not any("-X PUT" in c for c in trial.shell.commands)

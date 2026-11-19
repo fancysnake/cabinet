@@ -16,17 +16,9 @@ from typing_extensions import override
 from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
-from cabinet.pacts.project import LabelSpec, Project
+from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
-from cabinet.pacts.threads import (
-    Comment,
-    Finding,
-    Posted,
-    Remark,
-    Thread,
-    remarked,
-    settling,
-)
+from cabinet.pacts.threads import Comment, Finding, Posted, Remark, Thread, remarked
 
 _PAGE = 100
 
@@ -70,6 +62,10 @@ class _DiffRefs(BaseModel):
 
 class _Anchored(BaseModel):
     diff_refs: _DiffRefs
+
+
+class _Located(BaseModel):
+    web_url: str
 
 
 class _Position(BaseModel):
@@ -136,6 +132,7 @@ _LISTED: TypeAdapter[list[_Listed]] = TypeAdapter(list[_Listed])
 _LINKED: TypeAdapter[list[_Linked]] = TypeAdapter(list[_Linked])
 _MERGE_REQUEST: TypeAdapter[_MergeRequest] = TypeAdapter(_MergeRequest)
 _ANCHORED: TypeAdapter[_Anchored] = TypeAdapter(_Anchored)
+_LOCATED: TypeAdapter[_Located] = TypeAdapter(_Located)
 _ISSUE: TypeAdapter[_Issue] = TypeAdapter(_Issue)
 _PROJECT: TypeAdapter[_Project] = TypeAdapter(_Project)
 _USER: TypeAdapter[_User] = TypeAdapter(_User)
@@ -259,9 +256,9 @@ def _marked(note: _Note, marker: str, *, me: int) -> bool:
     return _plain(note) and note.author.id == me and marker in note.body
 
 
-def _remark(note: _Note, me: int) -> Remark:
+def _remark(note: _Note, me: int, *, at: str) -> Remark:
     return Remark(
-        ref=f"#note_{note.id}",
+        ref=f"{at}#note_{note.id}",
         author=note.author.username,
         body=note.body,
         mine=note.author.id == me,
@@ -375,10 +372,6 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
 
 
 class GitlabForge(ForgeProtocol):
-    def __init__(self, project: Project) -> None:
-        self._title = project.review_title
-        self._settled = project.review_settled
-
     @override
     async def pulls(self) -> PullListing:
         listed = await _pages(
@@ -442,25 +435,17 @@ class GitlabForge(ForgeProtocol):
             "discussions",
         )
         held = [thread for one in found if (thread := _thread(one, me.id)) is not None]
-        notes = [note for one in found for note in one.notes if _plain(note)]
-        plain = remarked(
-            [_remark(note, me.id) for note in notes],
-            title=self._title,
-            done=self._settled,
+        at = await _read(
+            _LOCATED,
+            _api(f"projects/:id/merge_requests/{number}"),
+            "glab could not read the merge request",
+            "a merge request",
         )
-        return held + plain
+        notes = [note for one in found for note in one.notes if _plain(note)]
+        return held + remarked([_remark(note, me.id, at=at.web_url) for note in notes])
 
-    # A plain note has no discussion to reply in, so the reply is a plain note
-    # naming it.
     @override
     async def reply(self, number: int, thread: Thread, body: str) -> None:
-        if thread.plain:
-            said = settling(body, done=self._settled, ref=thread.id)
-            await asked(
-                f"glab mr note {number} -m {quoted(_inert(said))}",
-                f"could not comment on !{number}",
-            )
-            return
         await asked(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}/notes",
@@ -470,11 +455,8 @@ class GitlabForge(ForgeProtocol):
             f"could not reply on discussion {thread.id}",
         )
 
-    # The reply to a plain note already settled it.
     @override
     async def resolve(self, number: int, thread: Thread) -> None:
-        if thread.plain:
-            return
         await asked(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}",

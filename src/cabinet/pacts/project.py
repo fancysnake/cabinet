@@ -184,10 +184,6 @@ class Project(BaseModel):
     sign_commits: bool = True
     review_skill: str = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
     review_title: str = "Thermo-nuclear code quality review"
-    # What the reply to a review item posted as a plain comment ends with,
-    # before the item's reference: the forge cannot resolve a plain comment,
-    # so this line is what says the item is settled.
-    review_settled: str = "Settles"
     # The skill file `identify` has the agent read once, at the top of its
     # session: what the types and sizes mean and how issues are linked.
     identify_skill: str = "~/.claude/skills/issues/SKILL.md"

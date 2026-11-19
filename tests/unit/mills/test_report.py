@@ -5,7 +5,7 @@ from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Thread, TriageItem
+from cabinet.pacts.threads import ITEM, Comment, Finding, Thread, TriageItem
 from tests.conftest import watched
 
 _REPORT = Report()
@@ -183,7 +183,7 @@ class TestTriage:
 
 class TestFindings:
     # The heading is for whoever opens the pull request and finds a comment on
-    # their line. Nothing reads it back, so what it owes is a person.
+    # their line; the hidden mark is what `answer` knows the item by.
     @staticmethod
     def test_every_item_is_headed_with_the_reviews_title() -> None:
         found = [
@@ -195,11 +195,14 @@ class TestFindings:
             Finding(
                 path="src/thing.py",
                 line=12,
-                body="## Thermo-nuclear code quality review\n\nguard this",
+                body=f"## Thermo-nuclear code quality review\n\nguard this\n\n{ITEM}",
             ),
             Finding(
                 path="",
-                body="## Thermo-nuclear code quality review\n\nsplit the change",
+                body=(
+                    "## Thermo-nuclear code quality review\n\n"
+                    f"split the change\n\n{ITEM}"
+                ),
             ),
         ]
 
@@ -209,7 +212,7 @@ class TestFindings:
 
         headed = _REPORT.findings(project, [Finding(path="", body="hm")])
 
-        assert headed[0].body == "## Night review\n\nhm"
+        assert headed[0].body == f"## Night review\n\nhm\n\n{ITEM}"
 
 
 _ISSUE = Issue(number=5, title="t", url="https://example.test/5")

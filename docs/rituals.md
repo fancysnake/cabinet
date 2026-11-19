@@ -220,10 +220,8 @@ A gate that will not go green stands the branch down, as a merge does.
 The review posts an item as a plain comment when the forge refuses its line,
 as it does for a file the pull request does not change. A forge cannot resolve
 a plain comment, so `answer` treats each such comment of yours as an open
-thread. The comment must open with the `review_title` heading. The ritual
-replies in a new plain comment whose last line is the `review_settled` text
-and a link to the item. That line settles the item: delete the reply to open
-the item again.
+thread. The ritual replies in a new plain comment that links to the item.
+That reply settles the item: delete it to open the item again.
 
 A round that finds no thread open puts the answered label on, so the pull
 request tells you its review is answered. The next answer task takes it off
