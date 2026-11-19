@@ -373,12 +373,13 @@ async def summon(run: Summon) -> Chart | Attend | Summon:
     asked = HealPr(number=pull.number, bound=run.bound, batch=run.batch)
     try:
         cast = await enqueue("heal.pr", asked)
-    except NoDaemonError:
+    except NoDaemonError as error:
         stopped = (
-            "heal.mine queues a cast per pull request and needs the daemon:"
-            " start it with `vekna`"
+            f"heal.mine queues a cast per pull request and needs the daemon: {error}"
         )
-        return after.but(stopped=stopped).to(Chart)
+        gone = after.but(stopped=stopped)
+        # Casts already handed off keep running: `attend` gives each a row.
+        return gone.to(Attend) if gone.queued else gone.to(Chart)
     queued = Queued(number=pull.number, branch=pull.branch, url=pull.url, cast=cast)
     return after.summoned(queued).to(Summon)
 
@@ -423,7 +424,8 @@ def chart(run: Chart) -> Done[Healed]:
 # for its own report. One wait at a time, in the order queued: the casts run
 # side by side whichever is waited on, and a resumed cast replays the waits in
 # the order it made them. A cast that failed took its rows with it, so the
-# branch is blocked on what vekna said of the ending.
+# branch is blocked on what vekna said of the ending. With the daemon gone
+# the wait cannot be made, and the branch is blocked with its outcome unknown.
 @step
 async def attend(run: Attend) -> Chart:
     after = run
@@ -431,19 +433,23 @@ async def attend(run: Attend) -> Chart:
         try:
             rows = Healed.model_validate(await awaited(one.cast)).checked
         except CastFailedError as error:
-            rows = [
-                Checked(
-                    number=one.number,
-                    branch=one.branch,
-                    url=one.url,
-                    outcome="blocked",
-                    unpushed=None,
-                    note=str(error),
-                )
-            ]
+            rows = [_blocked(one, str(error))]
+        except NoDaemonError as error:
+            rows = [_blocked(one, f"outcome unknown, the daemon is gone: {error}")]
         for row in rows:
             after = after.rowed(row)
     return after.to(Chart)
+
+
+def _blocked(one: Queued, note: str) -> Checked:
+    return Checked(
+        number=one.number,
+        branch=one.branch,
+        url=one.url,
+        outcome="blocked",
+        unpushed=None,
+        note=note,
+    )
 
 
 # --- taking a branch -------------------------------------------------------

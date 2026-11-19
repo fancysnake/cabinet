@@ -62,7 +62,9 @@ The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
 up, so the branches heal side by side and the checkout you cast from never
 moves. While it waits, `vekna cast heal.mine` prints each one's rows and
 prompts as they come. With no daemon running, `heal.mine` prints its survey
-and fails: start one with `vekna`. [Configuration](configuration.md#worktrees)
+and fails: start one with `vekna`. If the daemon goes away after some
+casts were queued, those keep running, and the report blocks each one as
+outcome unknown. [Configuration](configuration.md#worktrees)
 sizes the pool. Typed by hand, `heal.pr` runs where it was typed.
 
 Otherwise each branch with a task the cast works is taken: the worktree must

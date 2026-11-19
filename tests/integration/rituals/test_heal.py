@@ -85,10 +85,8 @@ _QUEUED = Surveyed(
 )
 _CAST = Queued(number=7, branch="feature", url=_URL, cast="c1")
 _WORKED = Checked(number=7, branch="feature", url=_URL, outcome="worked", unpushed=0)
-_NO_DAEMON = (
-    "heal.mine queues a cast per pull request and needs the daemon:"
-    " start it with `vekna`"
-)
+_NO_DAEMON = "heal.mine queues a cast per pull request and needs the daemon: heal.pr"
+_GONE_NOTE = "outcome unknown, the daemon is gone: c1"
 
 
 # What a cast meets with no daemon listening, as vekna's own CLI binds it.
@@ -554,6 +552,21 @@ class TestSummon:
 
         assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Chart)
 
+    # What was queued before the daemon went still runs, so it is waited on.
+    @staticmethod
+    def test_with_no_daemon_after_a_queued_cast_the_wait_still_comes(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        conflicted = pull.model_copy(update={"conflicted": True})
+        run = Summon(attended=True, project=project, queue=[conflicted]).summoned(_CAST)
+
+        with CAST_QUEUE.scope(_Daemonless()):
+            transition = trial.walk(summon, run)
+
+        assert transition == (run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Attend))
+
 
 class TestAttend:
     @staticmethod
@@ -581,6 +594,20 @@ class TestAttend:
             }
         )
         assert trial.walk(attend, run) == run.rowed(blocked).to(Chart)
+
+    @staticmethod
+    def test_a_daemon_that_is_gone_leaves_the_outcome_unknown(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        run = _summoned(trial, pull, project)
+
+        with CAST_QUEUE.scope(_Daemonless()):
+            transition = trial.walk(attend, run)
+
+        unknown = _WORKED.model_copy(
+            update={"outcome": "blocked", "unpushed": None, "note": _GONE_NOTE}
+        )
+        assert transition == run.rowed(unknown).to(Chart)
 
     @staticmethod
     def test_a_cast_that_queued_nothing_waits_on_nothing(
