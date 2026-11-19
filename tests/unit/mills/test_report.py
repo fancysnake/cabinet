@@ -235,6 +235,29 @@ class TestTriage:
 
         assert f"Thread:   {path}\n" in card
 
+    # `fill` returns nothing for a blank value, which would drop the label.
+    @staticmethod
+    def test_a_blank_field_still_prints_its_label() -> None:
+        item = TriageItem(
+            where="src/thing.py:12",
+            raised="stop",
+            left="",
+            what="the guard is missing",
+            grounds="read",
+            proof="thing.py:12",
+            size="small",
+            files=1,
+            risk="low",
+            priority="p1",
+            action="fix",
+            thread="T1",
+        )
+        thread = Thread(id="T1", resolved=False, comments=[])
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [thread])
+
+        assert "Raised:   stop\nIf left:\n\n" in card
+
     @staticmethod
     def test_the_question_names_the_answers_it_takes() -> None:
         asked = _REPORT.asked("the card")

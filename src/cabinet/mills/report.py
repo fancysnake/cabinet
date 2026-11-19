@@ -73,16 +73,20 @@ _LABEL = len("Estimate: ")
 
 
 # A label and its value, wrapped lines indented under the value so the label
-# column holds labels only. A path or a command longer than the line stays
-# whole: one broken across lines cannot be copied.
+# column holds labels only. A path longer than the line stays whole: one broken
+# across lines cannot be copied. A command with spaces in it can still break at
+# them. A blank value keeps its label, which `fill` alone would drop.
 def _row(label: str, value: str) -> str:
-    return fill(
-        value,
-        CARD_WIDTH,
-        initial_indent=f"{label}:".ljust(_LABEL),
-        subsequent_indent=" " * _LABEL,
-        break_long_words=False,
-        break_on_hyphens=False,
+    return (
+        fill(
+            value,
+            CARD_WIDTH,
+            initial_indent=f"{label}:".ljust(_LABEL),
+            subsequent_indent=" " * _LABEL,
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+        or f"{label}:"
     )
 
 
