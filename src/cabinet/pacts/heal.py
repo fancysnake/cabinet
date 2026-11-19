@@ -42,7 +42,7 @@ class Chart(Run):
     pass
 
 
-class Tally(Run):
+class Attend(Run):
     pass
 
 

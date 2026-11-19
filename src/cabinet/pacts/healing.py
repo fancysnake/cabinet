@@ -50,6 +50,7 @@ class HealPr(Heal):
 class Queued(BaseModel):
     number: int
     branch: str
+    url: str
     cast: str
 
 
@@ -436,4 +437,3 @@ class Healed(BaseModel):
     surveyed: list[Surveyed | Unsurveyed] = []
     checked: list[Checked] = []
     not_reached: list[str] = []
-    queued: list[Queued] = []

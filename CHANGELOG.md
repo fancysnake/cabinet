@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- `heal.mine` stays until every `heal.pr` it queued has ended and reports
+  their rows as its own, the way `heal.this` does. A `heal.pr` that failed
+  blocks its branch, and a blocked branch fails `heal.mine`. Its result no
+  longer carries `queued`.
+
 ## [6.0.0] - 2026-11-18
 
 ### Added
