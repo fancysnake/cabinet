@@ -358,10 +358,9 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
 # this cast takes no branch and asks for no share. Queued here and awaited
 # in `attend`: awaiting each as it is queued would run them one at a time.
 # Every component is passed on as this cast took it, so the children work the
-# way the parent
-# was asked to; `--unattended` reaches them through vekna.
+# way the parent was asked to; `--unattended` reaches them through vekna.
 @step
-async def summon(run: Summon) -> Chart | Attend | Summon:
+async def summon(run: Summon) -> Attend | Summon:
     if not run.queue:
         return run.to(Attend)
     pull = run.queue[0]
@@ -377,11 +376,9 @@ async def summon(run: Summon) -> Chart | Attend | Summon:
         stopped = (
             f"heal.mine queues a cast per pull request and needs the daemon: {error}"
         )
-        gone = after.but(stopped=stopped)
         # Casts already handed off keep running: `attend` gives each a row.
-        return gone.to(Attend) if gone.queued else gone.to(Chart)
-    queued = Queued(number=pull.number, branch=pull.branch, url=pull.url, cast=cast)
-    return after.summoned(queued).to(Summon)
+        return after.but(stopped=stopped).to(Attend)
+    return after.summoned(Queued(pr=pull, cast=cast)).to(Summon)
 
 
 # One pull request the forge or git would not answer about is a row saying
@@ -431,25 +428,18 @@ async def attend(run: Attend) -> Chart:
     after = run
     for one in run.queued:
         try:
-            rows = Healed.model_validate(await awaited(one.cast)).checked
+            healed = Healed.model_validate(await awaited(one.cast))
         except CastFailedError as error:
-            rows = [_blocked(one, str(error))]
+            healed = _blocked(one, str(error))
         except NoDaemonError as error:
-            rows = [_blocked(one, f"outcome unknown, the daemon is gone: {error}")]
-        for row in rows:
-            after = after.rowed(row)
+            healed = _blocked(one, f"outcome unknown, the daemon is gone: {error}")
+        after = after.merged(one, healed)
     return after.to(Chart)
 
 
-def _blocked(one: Queued, note: str) -> Checked:
-    return Checked(
-        number=one.number,
-        branch=one.branch,
-        url=one.url,
-        outcome="blocked",
-        unpushed=None,
-        note=note,
-    )
+def _blocked(one: Queued, note: str) -> Healed:
+    row = Checked.of(one.pr, "blocked", unpushed=None, note=note)
+    return Healed(checked=[row])
 
 
 # --- taking a branch -------------------------------------------------------

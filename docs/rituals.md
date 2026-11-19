@@ -56,7 +56,9 @@ heal — 2 worked
 ```
 
 A `heal.pr` that failed blocks its branch in that report, and a blocked
-branch fails `heal.mine` the way it fails `heal.this`.
+branch fails `heal.mine` the way it fails `heal.this`. A `heal.pr` that ran
+out of steps before its branch is named in the report as left for the next
+cast.
 
 The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
 up, so the branches heal side by side and the checkout you cast from never

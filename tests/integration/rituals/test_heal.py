@@ -83,10 +83,15 @@ _QUEUED = Surveyed(
     red=[_CHECKS],
     threads=0,
 )
-_CAST = Queued(number=7, branch="feature", url=_URL, cast="c1")
+
 _WORKED = Checked(number=7, branch="feature", url=_URL, outcome="worked", unpushed=0)
 _NO_DAEMON = "heal.mine queues a cast per pull request and needs the daemon: heal.pr"
 _GONE_NOTE = "outcome unknown, the daemon is gone: c1"
+
+
+# The cast `summon` queued for `pull`, which it read as conflicted.
+def _cast(pull: PullRequest) -> Queued:
+    return Queued(pr=pull.model_copy(update={"conflicted": True}), cast="c1")
 
 
 # What a cast meets with no daemon listening, as vekna's own CLI binds it.
@@ -518,7 +523,7 @@ class TestSummon:
             attended=True, project=project, bound=2, batch=4, queue=[conflicted]
         )
 
-        assert trial.walk(summon, run) == run.took(_QUEUED).summoned(_CAST)
+        assert trial.walk(summon, run) == run.took(_QUEUED).summoned(_cast(pull))
         [queued] = trial.queue.enqueued
         assert queued.ritual == "heal.pr"
         assert queued.components == HealPr(number=7, bound=2, batch=4)
@@ -550,7 +555,7 @@ class TestSummon:
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
 
-        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Chart)
+        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Attend)
 
     # What was queued before the daemon went still runs, so it is waited on.
     @staticmethod
@@ -560,7 +565,9 @@ class TestSummon:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_NONE)
         conflicted = pull.model_copy(update={"conflicted": True})
-        run = Summon(attended=True, project=project, queue=[conflicted]).summoned(_CAST)
+        run = Summon(attended=True, project=project, queue=[conflicted]).summoned(
+            _cast(pull)
+        )
 
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
@@ -577,6 +584,17 @@ class TestAttend:
         run = _summoned(trial, pull, project)
 
         assert trial.walk(attend, run) == run.rowed(_WORKED).to(Chart)
+
+    # A child that ends without failing and without reaching its branch says
+    # so in its result: the parent's report names the branch as well.
+    @staticmethod
+    def test_a_branch_a_cast_did_not_reach_is_not_reached_here_either(
+        trial: Trial, pull: PullRequest, project: Project
+    ) -> None:
+        trial.queue.returns(Healed(not_reached=["feature"]), when="heal.pr")
+        run = _summoned(trial, pull, project)
+
+        assert trial.walk(attend, run) == run.but(queue=[_cast(pull).pr]).to(Chart)
 
     # The rest are still waited on: one failed cast is one blocked branch.
     @staticmethod

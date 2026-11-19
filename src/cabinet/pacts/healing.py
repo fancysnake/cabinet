@@ -48,9 +48,7 @@ class HealPr(Heal):
 
 # A branch `heal.mine` handed to a cast of its own.
 class Queued(BaseModel):
-    number: int
-    branch: str
-    url: str
+    pr: PullRequest
     cast: str
 
 
@@ -99,6 +97,20 @@ class Checked(BaseModel):
     # different answers, and the report prints them differently.
     unpushed: int | None
     note: str = ""
+
+    # The one way a row is built, for the branch `pull` names.
+    @classmethod
+    def of(
+        cls, pull: PullRequest, outcome: Outcome, *, unpushed: int | None, note: str
+    ) -> Self:
+        return cls(
+            number=pull.number,
+            branch=pull.branch,
+            url=pull.url,
+            outcome=outcome,
+            unpushed=unpushed,
+            note=note,
+        )
 
 
 # A note grows by joining rather than replacing, so no half of it writes over
@@ -236,6 +248,14 @@ class Run(Reserving, Hop):
 
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])
+
+    # What the cast `one` queued came to, taken as this cast's own: its rows,
+    # and its branch among the ones not reached where the cast left it so.
+    def merged(self, one: Queued, healed: "Healed") -> Self:
+        unreached = [one.pr] if one.pr.branch in healed.not_reached else []
+        return self.but(
+            queue=[*self.queue, *unreached], checked=[*self.checked, *healed.checked]
+        )
 
 
 # Every field a step may route forward, in one annotation, so the copy that
@@ -415,14 +435,7 @@ class Work(Budgeted, Red, Hop):
         return joined(self.reason, self.note, *extra)
 
     def checked(self, outcome: Outcome, *, unpushed: int | None, note: str) -> Checked:
-        return Checked(
-            number=self.pr.number,
-            branch=self.pr.branch,
-            url=self.pr.url,
-            outcome=outcome,
-            unpushed=unpushed,
-            note=note,
-        )
+        return Checked.of(self.pr, outcome, unpushed=unpushed, note=note)
 
     # The cast gives up with a pull request in flight: it goes into the report
     # as blocked, because the branch is left wherever the failure left it.
