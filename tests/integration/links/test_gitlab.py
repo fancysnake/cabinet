@@ -10,7 +10,7 @@ from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from cabinet.pacts.threads import ITEM, Comment, Finding, Posted, Thread, settles
 from tests.conftest import drive
 
 _FORGE = GitlabForge()
@@ -79,9 +79,37 @@ def _opened(numbers: Iterable[int]) -> list[Thread]:
     ]
 
 
+_WEB = "https://gitlab.example/o/r/-/merge_requests/7"
+_NOTE = f"{_WEB}#note_12"
+_ITEM = f"## Review\n\nthe docs are stale\n\n{ITEM}"
+_PLAIN = Thread(
+    id=_NOTE,
+    resolved=False,
+    plain=True,
+    comments=[Comment(id=_NOTE, author="me", body=_ITEM, mine=True)],
+)
+
+
+# A plain note of yours: `_logged_in` answers that you are user 1.
+def _note(number: int, body: str) -> dict[str, object]:
+    return {"id": number, "body": body, "author": {"id": 1, "username": "me"}}
+
+
+# Each note alone in a discussion of its own, as GitLab lists a plain one.
+def _notes(*notes: dict[str, object]) -> str:
+    return json.dumps(
+        [{"id": f"d{index}", "notes": [one]} for index, one in enumerate(notes)]
+    )
+
+
 # Whoever glab is logged in as, asked before the discussions are read.
 def _logged_in(trial: Trial) -> None:
     trial.shell.replies(when=_USER, stdout=json.dumps({"id": 1}))
+
+
+# Where the merge request lives, which a plain note is linked by.
+def _located(trial: Trial) -> None:
+    trial.shell.replies(when=_MR, stdout=json.dumps({"web_url": _WEB}))
 
 
 class TestPulls:
@@ -195,6 +223,7 @@ class TestThreads:
     @staticmethod
     def test_resolvable_discussions_become_threads(trial: Trial) -> None:
         _logged_in(trial)
+        _located(trial)
         answer = [
             {
                 "id": "d1",
@@ -218,34 +247,38 @@ class TestThreads:
     @staticmethod
     def test_discussions_past_a_full_page_are_asked_for(trial: Trial) -> None:
         _logged_in(trial)
+        _located(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
         trial.shell.replies(when=_SECOND, stdout=_discussions([100]))
 
         assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(101))
-        assert trial.shell.commands == [_USER, _DISCUSSIONS, _SECOND]
+        assert trial.shell.commands == [_USER, _DISCUSSIONS, _SECOND, _MR]
 
     # The next-page headers go unread, so a full last page costs one
     # more ask, which comes back empty.
     @staticmethod
     def test_an_exactly_full_last_page(trial: Trial) -> None:
         _logged_in(trial)
+        _located(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(100)))
         trial.shell.replies(when=_SECOND, stdout="[]")
 
         assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(100))
-        assert trial.shell.commands == [_USER, _DISCUSSIONS, _SECOND]
+        assert trial.shell.commands == [_USER, _DISCUSSIONS, _SECOND, _MR]
 
     @staticmethod
     def test_a_short_page_is_the_last(trial: Trial) -> None:
         _logged_in(trial)
+        _located(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout=_discussions(range(3)))
 
         assert drive(trial, lambda: _FORGE.threads(7)) == _opened(range(3))
-        assert trial.shell.commands == [_USER, _DISCUSSIONS]
+        assert trial.shell.commands == [_USER, _DISCUSSIONS, _MR]
 
     @staticmethod
     def test_discussions_that_will_not_parse(trial: Trial) -> None:
         _logged_in(trial)
+        _located(trial)
         trial.shell.replies(when=_DISCUSSIONS, stdout='[{"notes": []}]')
 
         with pytest.raises(ForgeError, match="discussions this could not read"):
@@ -255,6 +288,7 @@ class TestThreads:
     @staticmethod
     def test_a_note_by_whoever_glab_is_logged_in_as_is_yours(trial: Trial) -> None:
         _logged_in(trial)
+        _located(trial)
         notes = [
             {"id": 101, "author": {"id": 1}, "resolvable": True},
             {"id": 102, "author": {"id": 2}},
@@ -295,6 +329,27 @@ class TestThreads:
         drive(trial, lambda: _FORGE.reply(7, _THREAD, _COMMANDING))
 
         assert trial.shell.commands[-1].endswith(f"-f body={_ESCAPED}")
+
+    # An item the review could not anchor went up as a plain note, which no
+    # discussion can resolve. GitLab links a note by the merge request's URL.
+    @staticmethod
+    def test_a_plain_review_note_of_yours_is_an_open_thread(trial: Trial) -> None:
+        _logged_in(trial)
+        _located(trial)
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_notes(_note(12, _ITEM)))
+
+        assert drive(trial, lambda: _FORGE.threads(7)) == [_PLAIN]
+
+    @staticmethod
+    def test_a_plain_review_note_your_note_settles_is_settled(trial: Trial) -> None:
+        _logged_in(trial)
+        _located(trial)
+        reply = _note(13, f"fixed\n\n{settles(_NOTE)}")
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_notes(_note(12, _ITEM), reply))
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert thread.resolved
 
     @staticmethod
     def test_resolving_is_a_put(trial: Trial) -> None:

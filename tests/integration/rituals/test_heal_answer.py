@@ -1,5 +1,7 @@
 """The answer task: finish what was left, triage, answer, post, gate, commit."""
 
+import shlex
+
 import pytest
 from vekna.trial import Trial
 
@@ -38,6 +40,7 @@ from cabinet.pacts.threads import (
     TriageItem,
     TriageNotes,
     filed_for,
+    settles,
     signed,
 )
 from cabinet.rituals.answer import answer
@@ -102,6 +105,15 @@ _THREAD = Thread(
     path="src/thing.py",
     line=12,
     comments=[Comment(id="101", author="bot", body="guard")],
+)
+
+_ITEM_URL = "https://github.com/o/r/pull/7#issuecomment-12"
+# A review item posted as a plain comment, which the forge cannot resolve.
+_PLAIN = Thread(
+    id=_ITEM_URL,
+    resolved=False,
+    plain=True,
+    comments=[Comment(id=_ITEM_URL, author="me", body="guard", mine=True)],
 )
 
 
@@ -620,6 +632,43 @@ class TestPostAnswers:
 
         assert isinstance(transition, AnswerGate)
         assert "could not reply on thread PRRT_1" in transition.note
+
+    # A plain comment is neither replied under nor resolved: one comment naming
+    # it is both.
+    @staticmethod
+    def test_a_plain_item_is_settled_by_one_comment_naming_it(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when="gh pr comment*")
+        written = _written(work)
+        answering = PostAnswers(
+            work=written,
+            items=[Answer(thread=_ITEM_URL, reply="guarded")],
+            threads=[_PLAIN],
+        )
+
+        assert trial.walk(post_answers, answering) == written.to(ReadThreads)
+        said = f"guarded\n\nSettles {_ITEM_URL}\n\n{settles(_ITEM_URL)}"
+        assert trial.shell.commands == [
+            f"gh pr comment 7 --body {shlex.quote(signed(said))}"
+        ]
+
+    @staticmethod
+    def test_a_comment_the_forge_refuses_still_lands_the_fixes(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when="gh pr comment*", exit_code=1, stderr="403")
+        trial.shell.replies(when=STATUS, stdout=" M a.py\n")
+        answering = PostAnswers(
+            work=_written(work),
+            items=[Answer(thread=_ITEM_URL, reply="guarded")],
+            threads=[_PLAIN],
+        )
+
+        transition = trial.walk(post_answers, answering)
+
+        assert isinstance(transition, AnswerGate)
+        assert "could not comment on #7" in transition.note
 
 
 class TestAnswerGate:

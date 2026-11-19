@@ -10,7 +10,7 @@ from cabinet.links.forge.github import GithubForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from cabinet.pacts.threads import ITEM, Comment, Finding, Posted, Thread, settles
 from tests.conftest import comment, drive, node, page, threads_page
 
 _FORGE = GithubForge()
@@ -28,6 +28,8 @@ _THREAD = Thread(
     comments=[Comment(id="101", author="reviewer", body="guard this")],
 )
 _GRAPHQL = "slug=*gh api graphql*"
+_USER = "gh api user*"
+_REMARKED = "gh api repos/{owner}/{repo}/issues/7/comments --paginate --jq *{ref:*"
 _REPO = ' -f repo="${slug#*/}"'
 _ANCHORED = [Finding(path="src/thing.py", line=12, body="hm")]
 # Two anchored items in one review, which is what the head commit is read
@@ -36,6 +38,27 @@ _SEVERAL = [
     Finding(path="src/thing.py", line=12, body="one"),
     Finding(path="src/other.py", line=3, body="two"),
 ]
+
+
+_ITEM_URL = "https://github.com/o/r/pull/7#issuecomment-12"
+_ITEM = f"## Review\n\nthe docs are stale\n\n{ITEM}"
+_PLAIN = Thread(
+    id=_ITEM_URL,
+    resolved=False,
+    plain=True,
+    comments=[Comment(id=_ITEM_URL, author="me", body=_ITEM, mine=True)],
+)
+
+
+def _remark(url: str, body: str, *, mine: bool = True) -> dict[str, object]:
+    return {"ref": url, "author": "me", "body": body, "mine": mine}
+
+
+# What gh answers to the plain comments: one object a line.
+def _remarks(trial: Trial, *rows: dict[str, object]) -> None:
+    trial.shell.replies(when=_USER, stdout="me\n")
+    said = "".join(f"{json.dumps(one)}\n" for one in rows)
+    trial.shell.replies(when=_REMARKED, stdout=said)
 
 
 def _comments_page(connection: dict[str, object]) -> str:
@@ -185,6 +208,7 @@ class TestThreads:
         held = node("PRRT_1", guarded, path="src/thing.py", line=12)
         settled = node("PRRT_2", page([]), resolved=True)
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([held, settled])))
+        _remarks(trial)
 
         assert drive(trial, lambda: _FORGE.threads(7)) == [
             _THREAD,
@@ -199,6 +223,7 @@ class TestThreads:
         trial.shell.replies(
             when=_GRAPHQL, stdout=threads_page(page([node("PRRT_1", mine)]))
         )
+        _remarks(trial)
 
         [thread] = drive(trial, lambda: _FORGE.threads(7))
 
@@ -210,6 +235,7 @@ class TestThreads:
         second = page([node("PRRT_2", page([comment(102)]))])
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(first))
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(second))
+        _remarks(trial)
 
         assert drive(trial, lambda: _FORGE.threads(7)) == [
             _open("PRRT_1", 101),
@@ -222,11 +248,12 @@ class TestThreads:
     def test_a_full_last_page_is_the_last(trial: Trial) -> None:
         nodes = [node(f"PRRT_{one}", page([])) for one in range(100)]
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page(nodes)))
+        _remarks(trial)
 
         assert drive(trial, lambda: _FORGE.threads(7)) == [
             _open(f"PRRT_{one}") for one in range(100)
         ]
-        assert len(trial.shell.commands) == 1
+        assert len([c for c in trial.shell.commands if "graphql" in c]) == 1
 
     @staticmethod
     def test_comments_past_the_first_page_are_asked_for(trial: Trial) -> None:
@@ -235,6 +262,7 @@ class TestThreads:
         trial.shell.replies(when=_GRAPHQL, stdout=threads_page(held))
         trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(rest))
         trial.shell.replies(when=_GRAPHQL, stdout=_comments_page(page([])))
+        _remarks(trial)
 
         assert drive(trial, lambda: _FORGE.threads(7)) == [_open("PRRT_1", 101, 102)]
         assert trial.shell.commands[1].endswith(f"{_REPO} -f id=PRRT_1 -f after=k1")
@@ -305,6 +333,48 @@ class TestThreads:
         drive(trial, lambda: _FORGE.resolve(7, _THREAD))
 
         assert trial.shell.commands[0].endswith(' -f repo="${slug#*/}" -f id=PRRT_1')
+
+    # An item the review could not anchor has no thread to resolve, so it is
+    # read off the pull request's own comments.
+    @staticmethod
+    def test_a_plain_review_item_of_yours_is_an_open_thread(trial: Trial) -> None:
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([])))
+        _remarks(trial, _remark(_ITEM_URL, _ITEM))
+
+        assert drive(trial, lambda: _FORGE.threads(7)) == [_PLAIN]
+
+    # Every page of them, as `note` reads them: the graphql answer holds the
+    # last hundred only.
+    @staticmethod
+    def test_plain_comments_are_read_through_every_page_of_the_rest_api(
+        trial: Trial,
+    ) -> None:
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([])))
+        _remarks(trial)
+
+        drive(trial, lambda: _FORGE.threads(7))
+
+        assert "--paginate" in trial.shell.commands[-1]
+        assert '.user.login == "me"' in trial.shell.commands[-1]
+
+    @staticmethod
+    def test_plain_comments_in_the_wrong_shape_are_said(trial: Trial) -> None:
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([])))
+        trial.shell.replies(when=_USER, stdout="me\n")
+        trial.shell.replies(when=_REMARKED, stdout='{"ref": "u"}\n')
+
+        with pytest.raises(ForgeError, match="comments this could not read"):
+            drive(trial, lambda: _FORGE.threads(7))
+
+    @staticmethod
+    def test_a_plain_review_item_your_comment_settles_is_settled(trial: Trial) -> None:
+        trial.shell.replies(when=_GRAPHQL, stdout=threads_page(page([])))
+        reply = _remark(f"{_ITEM_URL}9", f"fixed\n\n{settles(_ITEM_URL)}")
+        _remarks(trial, _remark(_ITEM_URL, _ITEM), reply)
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert thread.resolved
 
 
 class TestBoard:

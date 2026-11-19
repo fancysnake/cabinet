@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning].
   reading would do, and wraps long values under their label at 80 columns.
   The second title names the action a return key takes.
 
+### Fixed
+
+- `answer` picks up a review item that the review posted as a plain comment
+  because the forge refused its line. The comment counts as an open thread
+  until a reply of yours links to it.
+
 ## [7.0.0] - 2026-11-19
 
 ### Changed

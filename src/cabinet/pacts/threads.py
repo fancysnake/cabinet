@@ -1,5 +1,6 @@
 """Review threads as the forge holds them, and what the agents make of them."""
 
+from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import BaseModel
@@ -47,6 +48,10 @@ class Thread(BaseModel):
     path: str = ""
     line: int | None = None
     comments: list[Comment] = []
+    # A plain comment standing as a thread: a review item the forge would not
+    # anchor. The forge cannot resolve one, so `id` is the reference the reply
+    # names it by, and that reply is what settles it.
+    plain: bool = False
 
     # The last word, not any word: a reviewer answering the reply reopens
     # the conversation. And your word: anyone who can reply can write the
@@ -63,6 +68,42 @@ class Thread(BaseModel):
     @property
     def raised_by(self) -> str:
         return self.comments[0].author if self.comments else ""
+
+
+# One plain comment on the pull request, outside every review thread.
+class Remark(BaseModel):
+    # What a reply names it by: its URL on both forges.
+    ref: str
+    author: str
+    body: str
+    mine: bool = False
+
+
+# Hidden in every item the review posts, so a plain comment is known for one
+# of its items, and in the reply that settles a plain item: a forge cannot
+# resolve a plain comment, so that reply is the record.
+ITEM = "<!-- cabinet:item -->"
+
+
+def settles(ref: str) -> str:
+    return f"<!-- cabinet:settles {ref} -->"
+
+
+# The review items among the plain comments, as threads. Yours only, both the
+# item and the reply settling it: anyone can type a mark. The mark ends in
+# ` -->`, so one reference opening another (`…-12` and `…-123`) cannot match.
+def remarked(remarks: Sequence[Remark]) -> list[Thread]:
+    mine = [one for one in remarks if one.mine]
+    return [
+        Thread(
+            id=one.ref,
+            resolved=any(settles(one.ref) in other.body for other in mine),
+            plain=True,
+            comments=[Comment(id=one.ref, author=one.author, body=one.body, mine=True)],
+        )
+        for one in mine
+        if ITEM in one.body
+    ]
 
 
 Priority = Literal["p1", "p2", "p3", "p4"]

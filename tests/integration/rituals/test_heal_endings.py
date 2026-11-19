@@ -32,6 +32,7 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import (
+    ITEM,
     Answer,
     Answered,
     Finding,
@@ -98,11 +99,11 @@ class TestQualityReview:
         assert "Thermo-nuclear code quality review" in trial.coding.prompts[0]
         assert "origin/main...HEAD" in trial.coding.prompts[0]
         assert trial.shell.commands[-3].endswith(
-            "-f body='## Thermo-nuclear code quality review\n\nguard this'"
+            f"-f body='## Thermo-nuclear code quality review\n\nguard this\n\n{ITEM}'"
         )
         assert trial.shell.commands[-2] == (
             "gh pr comment 7 --body '## Thermo-nuclear code quality review"
-            "\n\nsplit the change'"
+            f"\n\nsplit the change\n\n{ITEM}'"
         )
         assert trial.shell.commands[-1] == _LABEL
         assert trial.coding.calls[0].model == "review-model"
@@ -210,9 +211,9 @@ class TestQualityReview:
         trial.coding.replies(
             Findings(items=[Finding(path="", body="one"), Finding(path="", body="two")])
         )
-        trial.shell.replies(when="gh pr comment 7 --body '## Thermo*one'")
+        trial.shell.replies(when="gh pr comment 7 --body '## Thermo*one*'")
         trial.shell.replies(
-            when="gh pr comment 7 --body '## Thermo*two'", exit_code=1, stderr="403"
+            when="gh pr comment 7 --body '## Thermo*two*'", exit_code=1, stderr="403"
         )
         trial.shell.replies(when=_LABEL)
 
