@@ -51,6 +51,16 @@ plan, not a checklist of acceptance criteria.
 - Read enough surrounding code to name the entry point: the URL, the button,
   the command and its flags. Stop there.
 
+### Nothing to check by hand
+
+A change that alters nothing a user, a job or stored data meets needs no
+smoke test: dead code removed, a rename, a refactor that keeps behaviour,
+comments, docs, tests, CI config. Say so and stop. Skip steps 2 to 5; the
+report is the short form in step 6, and nothing is added to fill it.
+
+Removed code that was still reachable is not this case. A dropped command,
+flag, config key or public name is a changed behaviour, and it takes a path.
+
 ## 2. Pick the target
 
 Where the change runs as users will meet it, by the kind from step 1. Read
@@ -91,7 +101,8 @@ The medium the test is driven through, by the kind from step 1.
   file written, the log, the row, the commit made, the comment posted.
 - Never a step for what the deploy or step 0 already proved — migrations,
   static files, restarts, "the site loads", the bare command exiting 0 —
-  and never a unit test. The ban reaches exactly that far: an install does
+  and never a step for what CI runs: the test suite, the linters, the type
+  checker, the build. The ban reaches exactly that far: an install does
   not prove an entry point resolves, which is why that check is step 0's
   acceptance line rather than something forbidden.
 
@@ -181,3 +192,12 @@ pixel position, not copy, not layout, not every byte of output. Quote
 expected text only when the text is the feature. `Skipped` is for cuts made
 for the budget and for paths that need data the target does not have; leave
 it out when empty.
+
+The short form, when step 1 found nothing to check by hand, is the whole
+report:
+
+```markdown
+# Smoke test: <branch>
+
+No manual check needed: <one line, what the change is and why no user meets it>.
+```

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
+- The `smoke-test` skill answers a change no user meets (dead code removed,
+  a rename, docs, tests, CI config) with one line saying no manual check is
+  needed, and never writes a step for what CI runs.
 - The triage card of `answer` has two titled halves, the thread and what the
   reading would do, and wraps long values under their label at 80 columns.
   The second title names the action a return key takes.
