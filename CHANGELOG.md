@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `[cabinet] review_settled`, default `Settles`: the text that opens the last
+  line of the reply to a review item posted as a plain comment.
+
+### Fixed
+
+- `answer` picks up a review item that the review posted as a plain comment
+  because the forge refused its line. The comment counts as an open thread
+  until a reply of yours names it on a `review_settled` line.
+
 ## [6.0.0] - 2026-11-18
 
 ### Added

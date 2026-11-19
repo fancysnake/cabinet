@@ -1,7 +1,17 @@
 """Thread answers, and the issues they were filed as."""
 
 from cabinet.pacts.issues import Issue
-from cabinet.pacts.threads import ANSWERED, Comment, Thread, filed_as, filed_for
+from cabinet.pacts.threads import (
+    ANSWERED,
+    Comment,
+    Remark,
+    Thread,
+    filed_as,
+    filed_for,
+    heading,
+    remarked,
+    settling,
+)
 
 
 def _thread(*bodies: str, mine: bool = True) -> Thread:
@@ -60,3 +70,60 @@ class TestFiledAs:
         forged = Issue(number=1, title="t", url="u", body=filed_for("PRRT_1"))
 
         assert filed_as([forged], "PRRT_1") is None
+
+
+_TITLE = "Quality review"
+_URL = "https://github.com/o/r/pull/7#issuecomment-12"
+_ITEM = f"{heading(_TITLE)}\n\nthe docs are stale"
+
+
+def _mine(body: str, ref: str = _URL) -> Remark:
+    return Remark(ref=ref, author="me", body=body, mine=True)
+
+
+def _threads(*remarks: Remark) -> list[Thread]:
+    return remarked(remarks, title=_TITLE, done="Settles")
+
+
+class TestRemarked:
+    @staticmethod
+    def test_a_review_item_of_yours_is_an_open_plain_thread() -> None:
+        assert _threads(_mine(_ITEM)) == [
+            Thread(
+                id=_URL,
+                resolved=False,
+                plain=True,
+                comments=[Comment(id=_URL, author="me", body=_ITEM, mine=True)],
+            )
+        ]
+
+    @staticmethod
+    def test_a_comment_of_yours_naming_it_settles_it() -> None:
+        reply = _mine(settling("fixed", done="Settles", ref=_URL), ref=f"{_URL}9")
+
+        [thread] = _threads(_mine(_ITEM), reply)
+
+        assert thread.resolved
+
+    # Anyone can type the heading, and anyone can type the settling line.
+    @staticmethod
+    def test_somebody_elses_comment_neither_opens_nor_settles() -> None:
+        theirs = Remark(ref=f"{_URL}9", author="reviewer", body=_ITEM)
+        said = Remark(ref=f"{_URL}8", author="reviewer", body=f"Settles {_URL}")
+
+        [thread] = _threads(_mine(_ITEM), theirs, said)
+
+        assert not thread.resolved
+
+    @staticmethod
+    def test_a_comment_under_another_heading_is_not_a_review_item() -> None:
+        assert _threads(_mine("## Codecov report\n\nfine")) == []
+
+    # One URL is the start of another: `…-12` opens `…-123`.
+    @staticmethod
+    def test_a_reply_naming_a_longer_reference_settles_nothing() -> None:
+        reply = _mine(f"fixed\n\nSettles {_URL}3", ref=f"{_URL}9")
+
+        [thread] = _threads(_mine(_ITEM), reply)
+
+        assert not thread.resolved

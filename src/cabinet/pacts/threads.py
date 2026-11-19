@@ -1,5 +1,6 @@
 """Review threads as the forge holds them, and what the agents make of them."""
 
+from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import BaseModel
@@ -47,6 +48,10 @@ class Thread(BaseModel):
     path: str = ""
     line: int | None = None
     comments: list[Comment] = []
+    # A plain comment standing as a thread: a review item the forge would not
+    # anchor. The forge cannot resolve one, so `id` is the reference the reply
+    # names it by, and that reply is what settles it.
+    plain: bool = False
 
     # The last word, not any word: a reviewer answering the reply reopens
     # the conversation. And your word: anyone who can reply can write the
@@ -63,6 +68,46 @@ class Thread(BaseModel):
     @property
     def raised_by(self) -> str:
         return self.comments[0].author if self.comments else ""
+
+
+# One plain comment on the pull request, outside every review thread.
+class Remark(BaseModel):
+    # What a reply names it by: its URL on GitHub, `#note_<id>` on GitLab.
+    ref: str
+    author: str
+    body: str
+    mine: bool = False
+
+
+# What every review item opens with, and what a plain comment is known for a
+# review item by.
+def heading(title: str) -> str:
+    return f"## {title}"
+
+
+# The reply to a plain review item: its last line is the record that the item
+# is settled.
+def settling(reply: str, *, done: str, ref: str) -> str:
+    return f"{reply}\n\n{done} {ref}"
+
+
+# The review items among the plain comments, as threads. Yours only, both the
+# item and the comment settling it: anyone can type a heading or a line. The
+# settling line is matched whole, because one reference can open another
+# (`…-12` and `…-123`).
+def remarked(remarks: Sequence[Remark], *, title: str, done: str) -> list[Thread]:
+    mine = [one for one in remarks if one.mine]
+    said = {line.strip() for one in mine for line in one.body.splitlines()}
+    return [
+        Thread(
+            id=one.ref,
+            resolved=f"{done} {one.ref}" in said,
+            plain=True,
+            comments=[Comment(id=one.ref, author=one.author, body=one.body, mine=True)],
+        )
+        for one in mine
+        if one.body.splitlines()[:1] == [heading(title)]
+    ]
 
 
 Priority = Literal["p1", "p2", "p3", "p4"]

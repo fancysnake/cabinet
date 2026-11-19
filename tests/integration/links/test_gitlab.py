@@ -9,11 +9,12 @@ from vekna.trial import Trial
 from cabinet.links.forge.gitlab import GitlabForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Issues, Opened
+from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from cabinet.pacts.threads import Comment, Finding, Posted, Thread, heading
 from tests.conftest import drive
 
-_FORGE = GitlabForge()
+_FORGE = GitlabForge(Project())
 
 _LIST = (
     "glab api 'projects/:id/merge_requests"
@@ -77,6 +78,27 @@ def _opened(numbers: Iterable[int]) -> list[Thread]:
         )
         for one in numbers
     ]
+
+
+_ITEM = f"{heading(Project().review_title)}\n\nthe docs are stale"
+_PLAIN = Thread(
+    id="#note_12",
+    resolved=False,
+    plain=True,
+    comments=[Comment(id="#note_12", author="me", body=_ITEM, mine=True)],
+)
+
+
+# A plain note of yours: `_logged_in` answers that you are user 1.
+def _note(number: int, body: str) -> dict[str, object]:
+    return {"id": number, "body": body, "author": {"id": 1, "username": "me"}}
+
+
+# Each note alone in a discussion of its own, as GitLab lists a plain one.
+def _notes(*notes: dict[str, object]) -> str:
+    return json.dumps(
+        [{"id": f"d{index}", "notes": [one]} for index, one in enumerate(notes)]
+    )
 
 
 # Whoever glab is logged in as, asked before the discussions are read.
@@ -295,6 +317,40 @@ class TestThreads:
         drive(trial, lambda: _FORGE.reply(7, _THREAD, _COMMANDING))
 
         assert trial.shell.commands[-1].endswith(f"-f body={_ESCAPED}")
+
+    # An item the review could not anchor went up as a plain note, which no
+    # discussion can resolve.
+    @staticmethod
+    def test_a_plain_review_note_of_yours_is_an_open_thread(trial: Trial) -> None:
+        _logged_in(trial)
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_notes(_note(12, _ITEM)))
+
+        assert drive(trial, lambda: _FORGE.threads(7)) == [_PLAIN]
+
+    @staticmethod
+    def test_a_plain_review_note_your_note_names_is_settled(trial: Trial) -> None:
+        _logged_in(trial)
+        reply = _note(13, "fixed\n\nSettles #note_12")
+        trial.shell.replies(when=_DISCUSSIONS, stdout=_notes(_note(12, _ITEM), reply))
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert thread.resolved
+
+    @staticmethod
+    def test_a_reply_to_a_plain_note_is_a_note_naming_it(trial: Trial) -> None:
+        trial.shell.replies(when="glab mr note*")
+
+        drive(trial, lambda: _FORGE.reply(7, _PLAIN, "fixed"))
+
+        assert trial.shell.commands == ["glab mr note 7 -m 'fixed\n\nSettles #note_12'"]
+
+    # The reply is the record: there is no discussion to resolve.
+    @staticmethod
+    def test_resolving_a_plain_note_asks_nothing(trial: Trial) -> None:
+        drive(trial, lambda: _FORGE.resolve(7, _PLAIN))
+
+        assert trial.shell.commands == []
 
     @staticmethod
     def test_resolving_is_a_put(trial: Trial) -> None:

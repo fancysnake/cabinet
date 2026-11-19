@@ -87,8 +87,8 @@ class Services(ServicesProtocol):
     @override
     def forge(self, project: Project) -> ForgeProtocol:
         if project.forge == "gitlab":
-            return GitlabForge()
-        return GithubForge()
+            return GitlabForge(project)
+        return GithubForge(project)
 
     @override
     def scm(self, project: Project) -> ScmProtocol:

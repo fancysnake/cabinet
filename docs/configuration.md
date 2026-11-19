@@ -29,6 +29,7 @@ fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
 review_skill = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
 review_title = "Thermo-nuclear code quality review"
+review_settled = "Settles"
 identify_skill = "~/.claude/skills/issues/SKILL.md"
 smoke_skill = "~/.claude/skills/smoke-test/SKILL.md"
 
@@ -76,7 +77,8 @@ escalated = "opus"                    # where a big or retried fix goes
 | `fast_coverage` | the same measurement without the slow suites, re-run between repair rounds  |
 | `sign_commits`  | `false` commits with `commit.gpgsign=false`, for casts nobody can unlock a key for |
 | `review_skill`  | the skill file the review task reviews with; see [the review skill](#the-review-skill) |
-| `review_title`  | the heading its review comments open with                                   |
+| `review_title`  | the heading its review comments open with; `answer` knows a review item posted as a plain comment by it |
+| `review_settled` | the text that opens the last line of the reply to such an item, before a link to the item; that line marks the item settled |
 | `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
 | `smoke_skill`   | the skill file the guide task writes its smoke test with; see [the smoke-test skill](#the-smoke-test-skill) |
 

@@ -16,9 +16,17 @@ from typing_extensions import override
 from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
-from cabinet.pacts.project import LabelSpec
+from cabinet.pacts.project import LabelSpec, Project
 from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from cabinet.pacts.threads import (
+    Comment,
+    Finding,
+    Posted,
+    Remark,
+    Thread,
+    remarked,
+    settling,
+)
 
 _PAGE = 100
 
@@ -241,10 +249,23 @@ def _thread(found: _Discussion, me: int) -> Thread | None:
     )
 
 
-# A plain note of yours carrying `marker`: neither on a line nor in a thread.
+# Neither on a line nor in a thread.
+def _plain(note: _Note) -> bool:
+    return note.position is None and not note.resolvable
+
+
+# A plain note of yours carrying `marker`.
 def _marked(note: _Note, marker: str, *, me: int) -> bool:
-    plain = note.position is None and not note.resolvable
-    return plain and note.author.id == me and marker in note.body
+    return _plain(note) and note.author.id == me and marker in note.body
+
+
+def _remark(note: _Note, me: int) -> Remark:
+    return Remark(
+        ref=f"#note_{note.id}",
+        author=note.author.username,
+        body=note.body,
+        mine=note.author.id == me,
+    )
 
 
 async def _project_id() -> int:
@@ -354,6 +375,10 @@ async def _one(number: int, finding: Finding, *, refs: _DiffRefs | None) -> str:
 
 
 class GitlabForge(ForgeProtocol):
+    def __init__(self, project: Project) -> None:
+        self._title = project.review_title
+        self._settled = project.review_settled
+
     @override
     async def pulls(self) -> PullListing:
         listed = await _pages(
@@ -416,10 +441,26 @@ class GitlabForge(ForgeProtocol):
             "glab could not read the discussions",
             "discussions",
         )
-        return [thread for one in found if (thread := _thread(one, me.id)) is not None]
+        held = [thread for one in found if (thread := _thread(one, me.id)) is not None]
+        notes = [note for one in found for note in one.notes if _plain(note)]
+        plain = remarked(
+            [_remark(note, me.id) for note in notes],
+            title=self._title,
+            done=self._settled,
+        )
+        return held + plain
 
+    # A plain note has no discussion to reply in, so the reply is a plain note
+    # naming it.
     @override
     async def reply(self, number: int, thread: Thread, body: str) -> None:
+        if thread.plain:
+            said = settling(body, done=self._settled, ref=thread.id)
+            await asked(
+                f"glab mr note {number} -m {quoted(_inert(said))}",
+                f"could not comment on !{number}",
+            )
+            return
         await asked(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}/notes",
@@ -429,8 +470,11 @@ class GitlabForge(ForgeProtocol):
             f"could not reply on discussion {thread.id}",
         )
 
+    # The reply to a plain note already settled it.
     @override
     async def resolve(self, number: int, thread: Thread) -> None:
+        if thread.plain:
+            return
         await asked(
             _api(
                 f"projects/:id/merge_requests/{number}/discussions/{thread.id}",

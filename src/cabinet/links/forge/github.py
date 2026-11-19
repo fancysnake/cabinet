@@ -17,9 +17,17 @@ from typing_extensions import override
 from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
-from cabinet.pacts.project import LabelSpec
+from cabinet.pacts.project import LabelSpec, Project
 from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from cabinet.pacts.threads import (
+    Comment,
+    Finding,
+    Posted,
+    Remark,
+    Thread,
+    remarked,
+    settling,
+)
 
 # `labels` rides along so the wait label can be read without a call per pull
 # request: the listing is the only place every open branch is in hand at once.
@@ -54,10 +62,14 @@ _RUNS = (
 # ride along: the reply endpoint takes `databaseId`, the mutation takes `id`.
 # Both connections are paged by cursor, the comments nested in each thread by
 # a query of their own: a page is never taken for the whole answer.
+# The plain comments ride along, for the review items among them.
+# shortcut: only the last 100 plain comments are read, page them when a review
+# item older than that goes unanswered.
 _THREADS = """\
 query($owner: String!, $repo: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $number) {
+      comments(last: 100) { nodes { url author { login } body viewerDidAuthor } }
       reviewThreads(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
         nodes {
@@ -186,6 +198,20 @@ class _Thread(BaseModel):
     comments: _Comments
 
 
+# A plain comment on the pull request, which is an issue comment to GitHub.
+class _Remark(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    url: str
+    author: _Author | None = None
+    body: str = ""
+    mine: bool = Field(default=False, alias="viewerDidAuthor")
+
+
+class _Remarks(BaseModel):
+    nodes: list[_Remark] = []
+
+
 class _ThreadNodes(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -203,6 +229,12 @@ class _Threads(BaseModel):
 
     threads: _ThreadNodes = Field(
         validation_alias=AliasPath("data", "repository", "pullRequest", "reviewThreads")
+    )
+    # A default here hides nothing: an answer without a pull request has no
+    # threads either, and is refused for those.
+    remarks: _Remarks = Field(
+        default=_Remarks(),
+        validation_alias=AliasPath("data", "repository", "pullRequest", "comments"),
     )
 
 
@@ -358,13 +390,13 @@ def _after(cursor: str | None) -> tuple[str, ...]:
     return () if cursor is None else (f"-f after={quoted(cursor)}",)
 
 
-async def _thread_page(number: int, cursor: str | None) -> _ThreadNodes:
+async def _thread_page(number: int, cursor: str | None) -> _Threads:
     answered = await asked(
         _graphql(_THREADS, *_after(cursor), f"-F number={number}"),
         "gh could not read the threads",
     )
     try:
-        return _Threads.model_validate_json(answered).threads
+        return _Threads.model_validate_json(answered)
     except ValidationError as error:
         msg = f"gh returned threads this could not read: {error}"
         raise ForgeError(msg) from error
@@ -390,13 +422,22 @@ async def _comment_nodes(thread: str, held: _Comments) -> list[_Comment]:
     return held.nodes + await _comment_nodes(thread, rest)
 
 
-# Every thread from the page `cursor` starts on.
-async def _threads_from(number: int, cursor: str | None) -> list[Thread]:
-    page = await _thread_page(number, cursor)
+# Every thread from `page` on.
+async def _threads_from(number: int, page: _ThreadNodes) -> list[Thread]:
     found = [await _thread(node) for node in page.nodes]
     if not page.page.more:
         return found
-    return found + await _threads_from(number, page.page.cursor)
+    rest = await _thread_page(number, page.page.cursor)
+    return found + await _threads_from(number, rest.threads)
+
+
+def _remark(found: _Remark) -> Remark:
+    return Remark(
+        ref=found.url,
+        author=found.author.login if found.author else "",
+        body=found.body,
+        mine=found.mine,
+    )
 
 
 async def _thread(found: _Thread) -> Thread:
@@ -419,6 +460,10 @@ async def _thread(found: _Thread) -> Thread:
 
 
 class GithubForge(ForgeProtocol):
+    def __init__(self, project: Project) -> None:
+        self._title = project.review_title
+        self._settled = project.review_settled
+
     @override
     async def pulls(self) -> PullListing:
         listed = await asked(_LIST, "gh could not list your pull requests")
@@ -471,14 +516,30 @@ class GithubForge(ForgeProtocol):
             f"gh pr edit {number} {' '.join(flags)}", f"could not label #{number}"
         )
 
+    # The review threads, then the review items posted as plain comments.
     @override
     async def threads(self, number: int) -> list[Thread]:
-        return await _threads_from(number, None)
+        first = await _thread_page(number, None)
+        plain = remarked(
+            [_remark(one) for one in first.remarks.nodes],
+            title=self._title,
+            done=self._settled,
+        )
+        return await _threads_from(number, first.threads) + plain
 
     # The path without the number answers 404, and the reply goes under the
     # thread's first comment: that is the one the REST id names a thread by.
+    # A plain item has nothing to reply under, so the reply is a plain comment
+    # naming it.
     @override
     async def reply(self, number: int, thread: Thread, body: str) -> None:
+        if thread.plain:
+            said = settling(body, done=self._settled, ref=thread.id)
+            await asked(
+                f"gh pr comment {number} --body {quoted(said)}",
+                f"could not comment on #{number}",
+            )
+            return
         if not thread.comments:
             msg = f"thread {thread.id} has no comment to reply under"
             raise ForgeError(msg)
@@ -489,8 +550,11 @@ class GithubForge(ForgeProtocol):
             f"could not reply on thread {thread.id}",
         )
 
+    # The reply to a plain item already settled it.
     @override
     async def resolve(self, number: int, thread: Thread) -> None:
+        if thread.plain:
+            return
         await asked(
             _graphql(_RESOLVE, f"-f id={quoted(thread.id)}"),
             f"could not resolve thread {thread.id}",
