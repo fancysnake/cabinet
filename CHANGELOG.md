@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning].
   because the forge refused its line. The comment counts as an open thread
   until a reply of yours names it on a `review_settled` line.
 
+## [7.0.0] - 2026-11-19
+
+### Changed
+
+- `heal.mine` stays until every `heal.pr` it queued has ended and reports
+  their rows as its own, the way `heal.this` does. A `heal.pr` that failed
+  blocks its branch, and a blocked branch fails `heal.mine`. A `heal.pr` that
+  did not reach its branch leaves it in `not_reached`.
+- vekna 1.3.0 is the lowest supported.
+
+### Removed
+
+- `queued` from the `heal.mine` result.
+
 ## [6.0.0] - 2026-11-18
 
 ### Added
@@ -387,7 +401,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v6.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v7.0.0...HEAD
+[7.0.0]: https://github.com/fancysnake/cabinet/compare/v6.0.0...v7.0.0
 [6.0.0]: https://github.com/fancysnake/cabinet/compare/v5.1.0...v6.0.0
 [5.1.0]: https://github.com/fancysnake/cabinet/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/fancysnake/cabinet/compare/v4.0.0...v5.0.0

@@ -18,7 +18,8 @@ Grouped by school, the way a spellbook is.
   and printed on one line; then the merge, ci, answer, review and guide tasks
   are worked, and what was committed is pushed. `heal.mine` surveys every open
   pull request of yours not wearing the wait label, oldest-modified first, and
-  queues a `heal.pr --number N` on the vekna daemon for each one with work.
+  queues a `heal.pr --number N` on the vekna daemon for each one with work,
+  then waits for them and reports what became of each branch.
   The daemon runs those side by side, each in a pooled worktree, so your own
   checkout never moves. An unattended cast leaves review threads for you.
   `--plan-only true` stops after the survey and changes nothing.

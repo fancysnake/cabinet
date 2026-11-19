@@ -701,9 +701,9 @@ class TestWholeCast:
         result = trial.cast(heal_mine, Heal())
 
         assert result.checked == []
-        assert trial.steps == ["muster_mine", "summon", "summon", "tally"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "attend", "chart"]
         assert trial.deltas[-1] == (
-            "heal — 0 queued\n\n  (none)\n\n"
+            "heal — 0 worked\n\n  (none)\n\n"
             "waiting for you, cast without --unattended:\n"
             "  #7 feature: 1 thread\n"
         )
