@@ -19,7 +19,7 @@ from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
 from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Posted, Thread
+from cabinet.pacts.threads import Comment, Finding, Posted, Remark, Thread, remarked
 
 # `labels` rides along so the wait label can be read without a call per pull
 # request: the listing is the only place every open branch is in hand at once.
@@ -399,6 +399,32 @@ async def _threads_from(number: int, cursor: str | None) -> list[Thread]:
     return found + await _threads_from(number, page.page.cursor)
 
 
+async def _login() -> str:
+    login = await asked("gh api user --jq .login", "gh could not say who you are")
+    return login.strip()
+
+
+# Every plain comment on the pull request, which is an issue comment to
+# GitHub, paged by gh. jq writes one object a line, so the answer stays what
+# `Remark` reads whole however many pages there were.
+async def _remarks(number: int) -> list[Remark]:
+    mine = f".user.login == {json.dumps(await _login())}"
+    shaped = (
+        '.[] | {ref: .html_url, author: (.user.login // ""),'
+        f' body: (.body // ""), mine: ({mine})}}'
+    )
+    found = await asked(
+        f"gh api repos/{{owner}}/{{repo}}/issues/{number}/comments --paginate"
+        f" --jq {quoted(shaped)}",
+        f"could not read the comments on #{number}",
+    )
+    try:
+        return [Remark.model_validate_json(line) for line in found.splitlines()]
+    except ValidationError as error:
+        msg = f"gh returned comments this could not read: {error}"
+        raise ForgeError(msg) from error
+
+
 async def _thread(found: _Thread) -> Thread:
     nodes = await _comment_nodes(found.id, found.comments)
     return Thread(
@@ -471,9 +497,10 @@ class GithubForge(ForgeProtocol):
             f"gh pr edit {number} {' '.join(flags)}", f"could not label #{number}"
         )
 
+    # The review threads, then the review items posted as plain comments.
     @override
     async def threads(self, number: int) -> list[Thread]:
-        return await _threads_from(number, None)
+        return await _threads_from(number, None) + remarked(await _remarks(number))
 
     # The path without the number answers 404, and the reply goes under the
     # thread's first comment: that is the one the REST id names a thread by.
@@ -563,8 +590,7 @@ class GithubForge(ForgeProtocol):
     # the marker.
     @override
     async def note(self, number: int, body: str, *, marker: str) -> None:
-        login = await asked("gh api user --jq .login", "gh could not say who you are")
-        mine = f".user.login == {json.dumps(login.strip())}"
+        mine = f".user.login == {json.dumps(await _login())}"
         marked = (
             f".[] | select({mine} and (.body | contains({json.dumps(marker)}))) | .id"
         )

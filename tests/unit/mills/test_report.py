@@ -5,11 +5,17 @@ from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
-from cabinet.pacts.threads import Comment, Finding, Thread, TriageItem
+from cabinet.pacts.threads import ITEM, Comment, Finding, Thread, TriageItem
+from cabinet.specs import CARD_WIDTH
 from tests.conftest import watched
 
 _REPORT = Report()
 _PROJECT = Project()
+
+
+def _ruled(title: str) -> str:
+    return title.ljust(CARD_WIDTH, "─")
+
 
 _PULL = PullRequest(
     number=7,
@@ -118,29 +124,45 @@ class TestHealed:
         )
 
 
+_ITEM = TriageItem(
+    where="src/thing.py:12",
+    raised="stop on an empty list",
+    left="an empty list crashes the run",
+    what="the guard is missing",
+    grounds="tested",
+    proof="ran it with [] and got IndexError",
+    size="small",
+    files=1,
+    risk="low",
+    priority="p1",
+    action="fix",
+    thread="T1",
+)
+
+_THREAD = Thread(
+    id="T1",
+    resolved=False,
+    comments=[Comment(id="1", author="reviewer", body="guard this")],
+)
+
+
 class TestTriage:
     @staticmethod
     def test_every_item_is_a_card_with_its_place_in_the_round() -> None:
-        item = TriageItem(
-            where="src/thing.py:12",
-            raised="stop on an empty list",
-            left="an empty list crashes the run",
-            what="the guard is missing",
-            grounds="tested",
-            proof="ran it with [] and got IndexError",
-            size="small",
-            files=1,
-            risk="low",
-            priority="p1",
-            action="fix",
-            thread="T1",
+        item = _ITEM
+        thread = _THREAD
+        later = item.model_copy(
+            update={
+                "thread": "T2",
+                "files": 2,
+                "priority": "p3",
+                "action": "file",
+                "left": (
+                    "an empty list crashes the run, and the cast that called it"
+                    " reports the pull request as answered"
+                ),
+            }
         )
-        thread = Thread(
-            id="T1",
-            resolved=False,
-            comments=[Comment(id="1", author="reviewer", body="guard this")],
-        )
-        later = item.model_copy(update={"thread": "T2", "files": 2, "priority": "p3"})
         quiet = thread.model_copy(update={"id": "T2", "comments": []})
 
         cards = _REPORT.cards(_PULL, [later, item], [thread, quiet])
@@ -150,9 +172,13 @@ class TestTriage:
                 item,
                 (
                     "#7 Add the thing — thread 1 of 2\n"
+                    "\n"
+                    f"{_ruled('── The thread ')}\n"
                     "Thread:   src/thing.py:12, raised by reviewer\n"
                     "Raised:   stop on an empty list\n"
                     "If left:  an empty list crashes the run\n"
+                    "\n"
+                    f"{_ruled('── The reading would FIX it ')}\n"
                     "Action:   fix — the guard is missing\n"
                     "Grounds:  tested — ran it with [] and got IndexError\n"
                     "Estimate: small, 1 file, low risk"
@@ -162,28 +188,72 @@ class TestTriage:
                 later,
                 (
                     "#7 Add the thing — thread 2 of 2\n"
+                    "\n"
+                    f"{_ruled('── The thread ')}\n"
                     "Thread:   src/thing.py:12\n"
                     "Raised:   stop on an empty list\n"
-                    "If left:  an empty list crashes the run\n"
-                    "Action:   fix — the guard is missing\n"
+                    "If left:  an empty list crashes the run, and the cast that"
+                    " called it reports the\n"
+                    "          pull request as answered\n"
+                    "\n"
+                    f"{_ruled('── The reading would FILE it ')}\n"
+                    "Action:   file — the guard is missing\n"
                     "Grounds:  tested — ran it with [] and got IndexError\n"
                     "Estimate: small, 2 files, low risk"
                 ),
             ),
         ]
 
+    # A path broken across two lines cannot be copied.
+    @staticmethod
+    def test_a_word_longer_than_the_line_stays_whole() -> None:
+        path = "src/" + "deep/" * 20 + "thing.py:12"
+        item = _ITEM.model_copy(update={"where": path})
+
+        quiet = _THREAD.model_copy(update={"comments": []})
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [quiet])
+
+        assert f"Thread:   {path}\n" in card
+
+    # `fill` returns nothing for a blank value, which would drop the label.
+    @staticmethod
+    def test_a_blank_field_still_prints_its_label() -> None:
+        item = _ITEM.model_copy(update={"raised": "stop", "left": ""})
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        assert "Raised:   stop\nIf left:\n\n" in card
+
+    # Proof is often a command and its output; joining its lines into one
+    # paragraph would lose what it showed.
+    @staticmethod
+    def test_a_field_of_several_lines_keeps_its_lines() -> None:
+        item = _ITEM.model_copy(
+            update={"proof": "ran it with []\nTraceback:\n\nIndexError"}
+        )
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        assert (
+            "Grounds:  tested — ran it with []\n"
+            "          Traceback:\n"
+            "\n"
+            "          IndexError\n"
+        ) in card
+
     @staticmethod
     def test_the_question_names_the_answers_it_takes() -> None:
         asked = _REPORT.asked("the card")
 
-        assert asked.startswith("the card\nPress return")
+        assert asked.startswith("the card\n\nPress return")
         assert "answer fix, reject or file" in asked
         assert asked.endswith("\n->")
 
 
 class TestFindings:
     # The heading is for whoever opens the pull request and finds a comment on
-    # their line. Nothing reads it back, so what it owes is a person.
+    # their line; the hidden mark is what `answer` knows the item by.
     @staticmethod
     def test_every_item_is_headed_with_the_reviews_title() -> None:
         found = [
@@ -195,11 +265,14 @@ class TestFindings:
             Finding(
                 path="src/thing.py",
                 line=12,
-                body="## Thermo-nuclear code quality review\n\nguard this",
+                body=f"## Thermo-nuclear code quality review\n\nguard this\n\n{ITEM}",
             ),
             Finding(
                 path="",
-                body="## Thermo-nuclear code quality review\n\nsplit the change",
+                body=(
+                    "## Thermo-nuclear code quality review\n\n"
+                    f"split the change\n\n{ITEM}"
+                ),
             ),
         ]
 
@@ -209,7 +282,7 @@ class TestFindings:
 
         headed = _REPORT.findings(project, [Finding(path="", body="hm")])
 
-        assert headed[0].body == "## Night review\n\nhm"
+        assert headed[0].body == f"## Night review\n\nhm\n\n{ITEM}"
 
 
 _ISSUE = Issue(number=5, title="t", url="https://example.test/5")

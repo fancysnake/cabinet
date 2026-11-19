@@ -72,8 +72,9 @@ _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
-# The preflight's two, the listing, the board and the threads.
-_READS = 5
+# The preflight's two, the listing, the board, the threads, and the plain
+# comments with the login they are read by.
+_READS = 7
 # A conflicted branch with red checks and no threads, as `summon` reads it.
 _QUEUED = Surveyed(
     number=7,

@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning].
 - The `smoke-test` skill answers a change no user meets (dead code removed,
   a rename, docs, tests, CI config) with one line saying no manual check is
   needed, and never writes a step for what CI runs.
+- The triage card of `answer` has two titled halves, the thread and what the
+  reading would do, and wraps long values under their label at 80 columns.
+  The second title names the action a return key takes.
+
+### Fixed
+
+- `answer` picks up a review item that the review posted as a plain comment
+  because the forge refused its line. The comment counts as an open thread
+  until a reply of yours links to it.
 
 ## [7.0.0] - 2026-11-19
 

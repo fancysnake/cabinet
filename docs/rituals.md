@@ -198,16 +198,22 @@ Attended, the task goes round in batches of `--batch` open threads:
 
     ```text
     #58 Add the export page — thread 1 of 3
+
+    ── The thread ──────────────────────────────────────────────────────────────────
     Thread:   src/export.py:41, raised by alice
     Raised:   stop when the list of rows is empty
-    If left:  an export with no rows crashes instead of saying so
+    If left:  an export with no rows crashes instead of saying so, and the page that
+              asked for it shows an error with no reason
+
+    ── The reading would FIX it ────────────────────────────────────────────────────
     Action:   fix — the loop reads the first row before it checks for one
     Grounds:  tested — ran the export with no rows and got IndexError
     Estimate: small, 1 file, low risk
     ```
 
-    Grounds is `tested`, `read` or `not checked`: whether the reading ran
-    something, only read the code, or did neither.
+    The second title names what a return key does. Grounds is `tested`,
+    `read` or `not checked`: whether the reading ran something, only read the
+    code, or did neither. The card wraps its rows at 80 columns.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item. The ritual opens the issues you said to file, posts the
    replies and settles the threads.
@@ -216,6 +222,12 @@ Then the next batch is read, up to three rounds a cast; what is still open
 after that waits for the next one. What the answers changed goes through the
 gate, repaired as the merge's is, and is committed as one commit and pushed.
 A gate that will not go green stands the branch down, as a merge does.
+
+The review posts an item as a plain comment when the forge refuses its line,
+as it does for a file the pull request does not change. A forge cannot resolve
+a plain comment, so `answer` treats each such comment of yours as an open
+thread. The ritual replies in a new plain comment that links to the item.
+That reply settles the item: delete it to open the item again.
 
 A round that finds no thread open puts the answered label on, so the pull
 request tells you its review is answered. The next answer task takes it off
