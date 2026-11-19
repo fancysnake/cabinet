@@ -14,7 +14,7 @@ from cabinet.pacts.issues import (
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import ReportProtocol
-from cabinet.pacts.threads import Finding, Thread, TriageItem
+from cabinet.pacts.threads import ITEM, Finding, Thread, TriageItem
 
 _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
@@ -155,16 +155,16 @@ def _ending(run: Run, lines: list[str]) -> str:
 class Report(ReportProtocol):
     # The heading is for whoever opens the pull request and finds a comment on
     # their line: it says which review said it, so the ritual's items can be
-    # told from a colleague's by eye. Nothing reads it back — every unresolved
-    # thread is answered, whoever wrote it — so it is a courtesy to a reader
-    # and not a marker anything matches on.
+    # told from a colleague's by eye. The hidden mark after it is what `answer`
+    # knows a plain comment for one of the review's items by, where the forge
+    # would not anchor the item to its line.
     @override
     def findings(self, project: Project, found: list[Finding]) -> list[Finding]:
         return [
             Finding(
                 path=one.path,
                 line=one.line,
-                body=f"## {project.review_title}\n\n{one.body}",
+                body=f"## {project.review_title}\n\n{one.body}\n\n{ITEM}",
             )
             for one in found
         ]

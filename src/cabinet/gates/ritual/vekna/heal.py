@@ -193,6 +193,7 @@ from cabinet.pacts.threads import (
     TriageNotes,
     filed_as,
     filed_for,
+    settles,
     signed,
 )
 
@@ -822,12 +823,20 @@ async def _unsettled(project: Project, number: int) -> list[Thread]:
 
 
 # The ritual's reply under a thread, then the thread settled: in that order,
-# so a forge that fails between them leaves the mark `settle_left` reads.
+# so a forge that fails between them leaves the mark `settle_left` reads. A
+# plain item has no thread to reply under or resolve: a plain comment naming
+# it is both, and `comment` reports a failure instead of raising it.
 async def _settled(
     forge: ForgeProtocol, number: int, thread: Thread, reply: str
 ) -> None:
-    await forge.reply(number, thread, signed(reply))
-    await forge.resolve(number, thread)
+    if not thread.plain:
+        await forge.reply(number, thread, signed(reply))
+        await forge.resolve(number, thread)
+        return
+    naming = f"{reply}\n\nSettles {thread.id}\n\n{settles(thread.id)}"
+    posted = await forge.comment(number, [Finding(path="", body=signed(naming))])
+    if posted.stopped:
+        raise ForgeError(posted.stopped)
 
 
 def _filed(url: str) -> str:
