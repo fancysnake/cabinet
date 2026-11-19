@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- The `smoke-test` skill answers a change no user meets (dead code removed,
+  a rename, docs, tests, CI config) with one line saying no manual check is
+  needed, and never writes a step for what CI runs.
+
 ## [6.0.0] - 2026-11-18
 
 ### Added
