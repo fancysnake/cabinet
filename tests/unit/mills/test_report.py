@@ -124,28 +124,33 @@ class TestHealed:
         )
 
 
+_ITEM = TriageItem(
+    where="src/thing.py:12",
+    raised="stop on an empty list",
+    left="an empty list crashes the run",
+    what="the guard is missing",
+    grounds="tested",
+    proof="ran it with [] and got IndexError",
+    size="small",
+    files=1,
+    risk="low",
+    priority="p1",
+    action="fix",
+    thread="T1",
+)
+
+_THREAD = Thread(
+    id="T1",
+    resolved=False,
+    comments=[Comment(id="1", author="reviewer", body="guard this")],
+)
+
+
 class TestTriage:
     @staticmethod
     def test_every_item_is_a_card_with_its_place_in_the_round() -> None:
-        item = TriageItem(
-            where="src/thing.py:12",
-            raised="stop on an empty list",
-            left="an empty list crashes the run",
-            what="the guard is missing",
-            grounds="tested",
-            proof="ran it with [] and got IndexError",
-            size="small",
-            files=1,
-            risk="low",
-            priority="p1",
-            action="fix",
-            thread="T1",
-        )
-        thread = Thread(
-            id="T1",
-            resolved=False,
-            comments=[Comment(id="1", author="reviewer", body="guard this")],
-        )
+        item = _ITEM
+        thread = _THREAD
         later = item.model_copy(
             update={
                 "thread": "T2",
@@ -203,48 +208,39 @@ class TestTriage:
     @staticmethod
     def test_a_word_longer_than_the_line_stays_whole() -> None:
         path = "src/" + "deep/" * 20 + "thing.py:12"
-        item = TriageItem(
-            where=path,
-            raised="stop",
-            left="it crashes",
-            what="the guard is missing",
-            grounds="read",
-            proof="thing.py:12",
-            size="small",
-            files=1,
-            risk="low",
-            priority="p1",
-            action="fix",
-            thread="T1",
-        )
-        thread = Thread(id="T1", resolved=False, comments=[])
+        item = _ITEM.model_copy(update={"where": path})
 
-        [(_, card)] = _REPORT.cards(_PULL, [item], [thread])
+        quiet = _THREAD.model_copy(update={"comments": []})
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [quiet])
 
         assert f"Thread:   {path}\n" in card
 
     # `fill` returns nothing for a blank value, which would drop the label.
     @staticmethod
     def test_a_blank_field_still_prints_its_label() -> None:
-        item = TriageItem(
-            where="src/thing.py:12",
-            raised="stop",
-            left="",
-            what="the guard is missing",
-            grounds="read",
-            proof="thing.py:12",
-            size="small",
-            files=1,
-            risk="low",
-            priority="p1",
-            action="fix",
-            thread="T1",
-        )
-        thread = Thread(id="T1", resolved=False, comments=[])
+        item = _ITEM.model_copy(update={"raised": "stop", "left": ""})
 
-        [(_, card)] = _REPORT.cards(_PULL, [item], [thread])
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
 
         assert "Raised:   stop\nIf left:\n\n" in card
+
+    # Proof is often a command and its output; joining its lines into one
+    # paragraph would lose what it showed.
+    @staticmethod
+    def test_a_field_of_several_lines_keeps_its_lines() -> None:
+        item = _ITEM.model_copy(
+            update={"proof": "ran it with []\nTraceback:\n\nIndexError"}
+        )
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        assert (
+            "Grounds:  tested — ran it with []\n"
+            "          Traceback:\n"
+            "\n"
+            "          IndexError\n"
+        ) in card
 
     @staticmethod
     def test_the_question_names_the_answers_it_takes() -> None:

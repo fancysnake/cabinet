@@ -202,8 +202,8 @@ Attended, the task goes round in batches of `--batch` open threads:
     ── The thread ──────────────────────────────────────────────────────────────────
     Thread:   src/export.py:41, raised by alice
     Raised:   stop when the list of rows is empty
-    If left:  an export with no rows crashes instead of saying so, and the page
-              that asked for it shows an error with no reason
+    If left:  an export with no rows crashes instead of saying so, and the page that
+              asked for it shows an error with no reason
 
     ── The reading would FIX it ────────────────────────────────────────────────────
     Action:   fix — the loop reads the first row before it checks for one
@@ -213,7 +213,7 @@ Attended, the task goes round in batches of `--batch` open threads:
 
     The second title names what a return key does. Grounds is `tested`,
     `read` or `not checked`: whether the reading ran something, only read the
-    code, or did neither. The card wraps its lines at 80 columns.
+    code, or did neither. The card wraps its rows at 80 columns.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item. The ritual opens the issues you said to file, posts the
    replies and settles the threads.
