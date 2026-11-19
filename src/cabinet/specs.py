@@ -13,6 +13,10 @@ BUDGET = 4000
 # person: a dozen is the tail every tool in these chains puts its tally in.
 VERDICT_LINES = 12
 
+# Columns a triage card wraps its own lines at. A mill cannot ask the terminal
+# its width, and a terminal narrower than this wraps the card a second time.
+CARD_WIDTH = 80
+
 # A patch below this is a patch with a gap in it.
 WHOLE = 100.0
 

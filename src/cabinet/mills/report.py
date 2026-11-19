@@ -1,5 +1,7 @@
 """What the report says, on the terminal and on the pull request."""
 
+from textwrap import fill
+
 from typing_extensions import override
 
 from cabinet.pacts.healing import Checked, Run, Surveyed, Task, Unsurveyed
@@ -15,6 +17,7 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import ReportProtocol
 from cabinet.pacts.threads import ITEM, Finding, Thread, TriageItem
+from cabinet.specs import CARD_WIDTH
 
 _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
 
@@ -62,26 +65,65 @@ def _priority(item: TriageItem) -> str:
 
 
 _TAKES = (
-    "Press return to take the action above, or answer fix, reject or file,"
-    " or say in your own words what should happen.\n->"
+    "Press return to take the action above, or answer fix, reject or file,\n"
+    "or say in your own words what should happen.\n->"
 )
+
+# Estimate is the longest of the six labels, which spell TRIAGE.
+_LABEL = len("Estimate: ")
+
+
+# A label and its value, wrapped lines indented under the value so the label
+# column holds labels only. Each line of the value wraps on its own, so proof
+# that is code or command output keeps its lines. A path longer than the line
+# stays whole: one broken across lines cannot be copied. A command with spaces
+# in it can still break at them. A blank line keeps its label, which `fill`
+# alone would drop.
+def _row(label: str, value: str) -> str:
+    pad = " " * _LABEL
+    rows = []
+    for index, line in enumerate(value.splitlines() or [""]):
+        head = f"{label}:".ljust(_LABEL) if index == 0 else pad
+        rows.append(
+            fill(
+                line,
+                CARD_WIDTH,
+                initial_indent=head,
+                subsequent_indent=pad,
+                break_long_words=False,
+                break_on_hyphens=False,
+            )
+            or head.rstrip()
+        )
+    return "\n".join(rows)
+
+
+def _title(text: str) -> str:
+    return f"── {text} ".ljust(CARD_WIDTH, "─")
 
 
 # One thread, for somebody who has forgotten the code and decides from this
 # alone. Plain text, so it reads the same on a terminal, in the TUI and in a
-# chat channel. The six labels spell TRIAGE.
+# chat channel. The six labels spell TRIAGE. Two halves: what the thread said,
+# then what the reading would do, its title naming the action a return key
+# takes. The Action row repeats the verb: `what` holds the reason, and the
+# card also goes to the answer agent, which reads the row, not the title.
 def _card(head: str, item: TriageItem, author: str) -> str:
     by = f", raised by {author}" if author else ""
     files = "1 file" if item.files == 1 else f"{item.files} files"
     return "\n".join(
         [
             head,
-            f"Thread:   {item.where}{by}",
-            f"Raised:   {item.raised}",
-            f"If left:  {item.left}",
-            f"Action:   {item.action} — {item.what}",
-            f"Grounds:  {item.grounds} — {item.proof}",
-            f"Estimate: {item.size}, {files}, {item.risk} risk",
+            "",
+            _title("The thread"),
+            _row("Thread", f"{item.where}{by}"),
+            _row("Raised", item.raised),
+            _row("If left", item.left),
+            "",
+            _title(f"The reading would {item.action.upper()} it"),
+            _row("Action", f"{item.action} — {item.what}"),
+            _row("Grounds", f"{item.grounds} — {item.proof}"),
+            _row("Estimate", f"{item.size}, {files}, {item.risk} risk"),
         ]
     )
 
@@ -232,4 +274,4 @@ class Report(ReportProtocol):
 
     @override
     def asked(self, card: str) -> str:
-        return f"{card}\n{_TAKES}"
+        return f"{card}\n\n{_TAKES}"
