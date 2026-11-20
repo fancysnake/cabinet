@@ -12,10 +12,11 @@ from cabinet.pacts.threads import Finding, Findings
 
 
 # Post the review and label the branch: the one task with no budget and no
-# loop, because there is nothing here to retry against. An agent that found
-# nothing to post is indistinguishable from one that read badly, so the label
-# goes on either way, and a review that came out empty is yours to notice and
-# ask for again by taking it off. What the branch already said stays in the
+# loop, because there is nothing here to retry against. An answer in the wrong
+# shape sets the branch aside before anything is labelled. A well-formed answer
+# with no items is indistinguishable from a review that missed what was there,
+# so the label goes on, and an empty review is yours to notice and ask for
+# again by taking the label off. What the branch already said stays in the
 # note: a stash or a failed push is still news when the review fails too.
 @step
 async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
