@@ -94,9 +94,9 @@ steps at the default `--bound` and three CI jobs, so a much larger `--bound`
 still fits. A branch that does not fit ends the cast without failing it, and
 the report names it as not reached. Cast again with a smaller `--bound`.
 
-Every open pull request of yours is listed: GitLab's listing is read to the
-end, and GitHub's stops at the thousand its search returns. A listing that
-stops short says so in the report.
+Every open pull request of yours is listed, up to a thousand: GitHub's search
+returns no more, and GitLab's listing stops there to fit the step budget. A
+listing that stops short says so in the report.
 
 ## heal.main
 

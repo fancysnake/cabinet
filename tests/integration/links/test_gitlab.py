@@ -15,6 +15,9 @@ from tests.conftest import drive
 
 _FORGE = GitlabForge()
 
+# A thousand merge requests at a hundred a page.
+_PULL_PAGES = 10
+
 _LIST = (
     "glab api 'projects/:id/merge_requests"
     "?scope=created_by_me&state=opened&per_page=100&page=1'"
@@ -148,6 +151,25 @@ class TestPulls:
 
         assert [pull.number for pull in listed.pulls] == list(range(1, 151))
         assert not listed.truncated
+
+    # The heal step budget is sized for a thousand: past it the cast would run
+    # out of steps and lose its report, so the listing stops there as GitHub's does.
+    @staticmethod
+    def test_a_listing_stops_at_a_thousand_and_says_it_was_cut_short(
+        trial: Trial,
+    ) -> None:
+        for page in range(1, _PULL_PAGES + 2):
+            first = (page - 1) * 100 + 1
+            trial.shell.replies(
+                when=_LIST.replace("&page=1", f"&page={page}"),
+                stdout=json.dumps([_mr(iid) for iid in range(first, first + 100)]),
+            )
+
+        listed = drive(trial, _FORGE.pulls)
+
+        assert [pull.number for pull in listed.pulls] == list(range(1, 1001))
+        assert listed.truncated
+        assert len(trial.shell.commands) == _PULL_PAGES
 
     @staticmethod
     def test_a_glab_that_will_not_answer(trial: Trial) -> None:

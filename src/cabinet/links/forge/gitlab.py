@@ -24,6 +24,11 @@ _PAGE = 100
 
 _LIST = f"projects/:id/merge_requests?scope=created_by_me&state=opened&per_page={_PAGE}"
 
+# Where the merge request listing stops, as GitHub's does: the heal step budget
+# is sized for this many, and a listing that comes back this long is reported
+# as truncated.
+_PULL_LIMIT = 1000
+
 _PASSED = "success"
 # Still on its way, as opposed to finished badly.
 _PENDING = ("pending", "running", "created", "waiting_for_resource", "preparing")
@@ -165,17 +170,25 @@ async def _read(
         raise ForgeError(msg) from error
 
 
-# The listing at `path`, which carries `per_page` already, from `page` on. The
-# `x-next-page` and `Link` headers go unread so the answer stays a bare JSON
-# body: a short page is the last one, and a full last page costs one more ask
-# that comes back empty.
+# The listing at `path`, which carries `per_page` already, up to `limit` rows
+# when one is given. The `x-next-page` and `Link` headers go unread so the
+# answer stays a bare JSON body: a short page is the last one, and a full last
+# page costs one more ask that comes back empty.
 async def _pages(
-    adapter: TypeAdapter[list[_T]], path: str, complaint: str, what: str, page: int = 1
+    adapter: TypeAdapter[list[_T]],
+    path: str,
+    complaint: str,
+    what: str,
+    *,
+    limit: int | None = None,
 ) -> list[_T]:
-    rows = await _read(adapter, _api(f"{path}&page={page}"), complaint, what)
-    if len(rows) < _PAGE:
-        return rows
-    return rows + await _pages(adapter, path, complaint, what, page + 1)
+    async def from_page(page: int) -> list[_T]:
+        rows = await _read(adapter, _api(f"{path}&page={page}"), complaint, what)
+        if len(rows) < _PAGE or (limit is not None and page * _PAGE >= limit):
+            return rows
+        return rows + await from_page(page + 1)
+
+    return await from_page(1)
 
 
 # `has_conflicts` is stale while GitLab is still working the answer out.
@@ -379,8 +392,12 @@ class GitlabForge(ForgeProtocol):
             _LIST,
             "glab could not list your merge requests",
             "merge requests",
+            limit=_PULL_LIMIT,
         )
-        return PullListing(pulls=[_pull(found) for found in listed])
+        return PullListing(
+            pulls=[_pull(found) for found in listed],
+            truncated=len(listed) >= _PULL_LIMIT,
+        )
 
     @override
     async def open_pull(
