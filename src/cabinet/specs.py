@@ -1,5 +1,7 @@
 """Business invariants: numbers only a rule reads."""
 
+from cabinet.pacts.pulls import PULL_LIMIT
+
 # How much of a gate's output is worth paying for, counted in characters rather
 # than lines: what is being spent is tokens, and a line has no fixed price —
 # twenty lines of ruff is a couple of hundred bytes, and twenty carrying a
@@ -23,13 +25,13 @@ WHOLE = 100.0
 # The engine's step budget for one heal cast. Running out of it raises past
 # `chart` and loses the report, so `survey` takes a branch only where the worst
 # it can spend still fits. Sized for the cast that spends most: `heal.mine` on
-# the thousand pull requests GitHub's listing stops at, a `summon` for each,
+# the most pull requests a forge lists (`PULL_LIMIT`), a `summon` for each,
 # and the muster, the `summon` that finds the queue empty, `attend` and
 # `chart` around them. A cast that works a branch works one: eighty-two steps
 # at worst at the default bound of three and the three default CI jobs, three
 # rounds of `answer` among them, and four around it. The rest is room for a
 # bigger bound and more jobs.
-HEAL_STEPS = 1000 + 4
+HEAL_STEPS = PULL_LIMIT + 4
 
 # A problem this big goes to the escalated model on the first ask: files left
 # conflicted by a merge, red checks on the branch's board, review threads open

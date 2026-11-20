@@ -9,14 +9,14 @@ from vekna.trial import Trial
 from cabinet.links.forge.github import GithubForge
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.issues import Issue, Issues, Opened
-from cabinet.pacts.pulls import Board, Check, PullRequest
+from cabinet.pacts.pulls import PULL_LIMIT, Board, Check, PullRequest
 from cabinet.pacts.threads import ITEM, Comment, Finding, Posted, Thread, settles
 from tests.conftest import comment, drive, node, page, threads_page
 
 _FORGE = GithubForge()
 
 _LIST = (
-    "gh pr list --author @me --state open --limit 1000 "
+    f"gh pr list --author @me --state open --limit {PULL_LIMIT} "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 _BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100'"

@@ -13,14 +13,14 @@ from vekna.trial import Trial
 from cabinet.inits.services import Services
 from cabinet.pacts.healing import Run, Work
 from cabinet.pacts.project import Agent, Models, Project
-from cabinet.pacts.pulls import Board, Check, PullRequest, Watched
+from cabinet.pacts.pulls import PULL_LIMIT, Board, Check, PullRequest, Watched
 from cabinet.pacts.services import bind
 
 _ResultT = TypeVar("_ResultT")
 
 # The same rows the real forge would list, in gh's own spelling.
 LIST = (
-    "gh pr list --author @me --state open --limit 1000 "
+    f"gh pr list --author @me --state open --limit {PULL_LIMIT} "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 STATUS = "git status --porcelain"

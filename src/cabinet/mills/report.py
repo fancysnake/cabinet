@@ -184,14 +184,17 @@ def _ending(run: Run, lines: list[str]) -> str:
     # pull request is the normal one, and a line saying "none" on every
     # one of them trains the eye past it. A cast that failed left them
     # behind; one out of steps took none it could not finish, and a smaller
-    # bound is what fits them.
+    # bound or fewer CI jobs is what fits them.
     not_reached = ", ".join(pull.branch for pull in run.queue)
     if run.failed():
         why = run.stopped or f"branches blocked: {len(run.blocked())}"
         lines += ["", f"not reached: {not_reached}"] if not_reached else []
         lines += ["", f"the cast failed: {why}"]
     elif not_reached:
-        lines += ["", f"out of steps at this --bound, not reached: {not_reached}"]
+        lines += [
+            "",
+            f"out of steps at this --bound and CI jobs, not reached: {not_reached}",
+        ]
     return "\n".join(lines) + "\n"
 
 
