@@ -3,6 +3,7 @@
 from cabinet.mills.steps import Steps
 from cabinet.pacts.healing import Run
 from cabinet.pacts.project import Project
+from cabinet.pacts.pulls import PULL_LIMIT
 from cabinet.specs import HEAL_STEPS
 
 _STEPS = Steps()
@@ -35,9 +36,14 @@ class TestHealShare:
     def test_none_where_the_branch_does_not_fit(self) -> None:
         assert _STEPS.heal_share(_run(HEAL_STEPS - self._WORST + 1)) is None
 
+    # A cast that works a branch works one, with the steps around it spoken
+    # for first.
     @staticmethod
-    def test_the_most_the_forge_lists_fits_at_the_default_bound() -> None:
-        share = _STEPS.heal_share(_run())
-        assert share is not None
+    def test_one_branch_fits_at_the_default_bound() -> None:
+        assert _STEPS.heal_share(_run(_STEPS.opening(1))) is not None
 
-        assert _STEPS.opening(100) + 100 * share == HEAL_STEPS
+    # `heal.mine` on the most pull requests a forge lists: every step
+    # `opening` counts, and `attend`.
+    @staticmethod
+    def test_the_most_the_forge_lists_fits() -> None:
+        assert _STEPS.opening(PULL_LIMIT) + 1 == HEAL_STEPS

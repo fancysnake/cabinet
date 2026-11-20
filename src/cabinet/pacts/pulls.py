@@ -10,6 +10,11 @@ from cabinet.pacts.project import CiJob, Project
 # be tried at all; past five a repair loop has stopped being a repair loop.
 Bound = Annotated[int, Field(ge=1, le=5)]
 
+# Where a forge's listing of your open pull requests stops. Both forges cut the
+# listing here, and the heal step budget is sized for this many, so raising it
+# moves all of them together.
+PULL_LIMIT = 1000
+
 
 # One pull request as the forge lists it, in the rituals' own words: which
 # forge spelled the fields is the adapter's business.

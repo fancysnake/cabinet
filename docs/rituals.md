@@ -56,9 +56,8 @@ heal — 2 worked
 ```
 
 A `heal.pr` that failed blocks its branch in that report, and a blocked
-branch fails `heal.mine` the way it fails `heal.this`. A `heal.pr` that ran
-out of steps before its branch is named in the report as left for the next
-cast.
+branch fails `heal.mine` the way it fails `heal.this`. A `heal.pr` whose
+branch does not fit its step budget is named in the report as not reached.
 
 The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
 up, so the branches heal side by side and the checkout you cast from never
@@ -88,14 +87,16 @@ Whatever the cast committed is pushed before the next task and before
 the branch is left, so the review's comments anchor to code the forge has.
 Nothing waits for CI after a push.
 
-A cast takes the next branch only while the worst that branch can spend still
-fits its step budget. One that does not fit ends the cast without failing it,
-and the report names the branches left for the next cast. The budget fits a
-hundred branches at the default `--bound`.
+A cast takes a branch only where the worst that branch can spend fits its
+step budget of 1,004 steps. The budget is sized for `heal.mine` surveying and
+queuing the thousand pull requests GitHub lists. A branch spends at most 82
+steps at the default `--bound` and three CI jobs, so a much larger `--bound`
+still fits. A branch that does not fit ends the cast without failing it, and
+the report names it as not reached. Cast again with a smaller `--bound`.
 
-Every open pull request of yours is listed: GitLab's listing is read to the
-end, and GitHub's stops at the thousand its search returns. A listing that
-stops short says so in the report.
+Every open pull request of yours is listed, up to a thousand: GitHub's search
+returns no more, and GitLab's listing stops there to fit the step budget. A
+listing that stops short says so in the report.
 
 ## heal.main
 

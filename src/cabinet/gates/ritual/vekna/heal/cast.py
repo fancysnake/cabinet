@@ -211,7 +211,7 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
     if not run.queue:
         return run.to(Chart)
     # Asked before the survey rather than after: a branch the budget has no
-    # room for is left for the next cast, unread. Not a failure, and the
+    # room for is left unread. Not a failure, and the
     # report names it; running out of the engine's budget instead would raise
     # past `chart` with a branch half-merged.
     # A plan works no task, so it takes no branch and has no share to ask for.

@@ -18,7 +18,7 @@ from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
-from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
+from cabinet.pacts.pulls import PULL_LIMIT, Board, Check, PullListing, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Remark, Thread, remarked
 
 # `labels` rides along so the wait label can be read without a call per pull
@@ -27,10 +27,8 @@ from cabinet.pacts.threads import Comment, Finding, Posted, Remark, Thread, rema
 # off the end of the listing is one no ritual ever sees. gh pages behind it,
 # but `--author` sends it through search, which stops at a thousand: a listing
 # that comes back this long is reported as truncated.
-_PULL_PAGE = 1000
-
 _LIST = (
-    f"gh pr list --author @me --state open --limit {_PULL_PAGE} "
+    f"gh pr list --author @me --state open --limit {PULL_LIMIT} "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 
@@ -453,7 +451,7 @@ class GithubForge(ForgeProtocol):
         except ValidationError as error:
             msg = f"gh returned something unreadable: {error}"
             raise ForgeError(msg) from error
-        return PullListing(pulls=found, truncated=len(found) >= _PULL_PAGE)
+        return PullListing(pulls=found, truncated=len(found) >= PULL_LIMIT)
 
     @override
     async def open_pull(

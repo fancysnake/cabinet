@@ -6,6 +6,7 @@ here, only `glab auth login --hostname`.
 """
 
 import re
+import sys
 from collections.abc import Sequence
 from typing import TypeVar
 from urllib.parse import quote
@@ -17,12 +18,15 @@ from cabinet.links.forge.asking import asked, quoted, tried
 from cabinet.pacts.forge import ForgeError, ForgeLimitedError, ForgeProtocol
 from cabinet.pacts.issues import Issue, Issues, Opened
 from cabinet.pacts.project import LabelSpec
-from cabinet.pacts.pulls import Board, Check, PullListing, PullRequest
+from cabinet.pacts.pulls import PULL_LIMIT, Board, Check, PullListing, PullRequest
 from cabinet.pacts.threads import Comment, Finding, Posted, Remark, Thread, remarked
 
 _PAGE = 100
 
 _LIST = f"projects/:id/merge_requests?scope=created_by_me&state=opened&per_page={_PAGE}"
+
+# The pages that hold `PULL_LIMIT` merge requests.
+_PULL_PAGES = PULL_LIMIT // _PAGE
 
 _PASSED = "success"
 # Still on its way, as opposed to finished badly.
@@ -165,17 +169,24 @@ async def _read(
         raise ForgeError(msg) from error
 
 
-# The listing at `path`, which carries `per_page` already, from `page` on. The
-# `x-next-page` and `Link` headers go unread so the answer stays a bare JSON
+# The listing at `path`, which carries `per_page` already, through page `last`.
+# The `x-next-page` and `Link` headers go unread so the answer stays a bare JSON
 # body: a short page is the last one, and a full last page costs one more ask
 # that comes back empty.
 async def _pages(
-    adapter: TypeAdapter[list[_T]], path: str, complaint: str, what: str, page: int = 1
+    adapter: TypeAdapter[list[_T]],
+    path: str,
+    complaint: str,
+    what: str,
+    last: int = sys.maxsize,
 ) -> list[_T]:
-    rows = await _read(adapter, _api(f"{path}&page={page}"), complaint, what)
-    if len(rows) < _PAGE:
-        return rows
-    return rows + await _pages(adapter, path, complaint, what, page + 1)
+    listed: list[_T] = []
+    for page in range(1, last + 1):
+        rows = await _read(adapter, _api(f"{path}&page={page}"), complaint, what)
+        listed += rows
+        if len(rows) < _PAGE:
+            break
+    return listed
 
 
 # `has_conflicts` is stale while GitLab is still working the answer out.
@@ -379,8 +390,12 @@ class GitlabForge(ForgeProtocol):
             _LIST,
             "glab could not list your merge requests",
             "merge requests",
+            last=_PULL_PAGES,
         )
-        return PullListing(pulls=[_pull(found) for found in listed])
+        return PullListing(
+            pulls=[_pull(found) for found in listed],
+            truncated=len(listed) >= PULL_LIMIT,
+        )
 
     @override
     async def open_pull(

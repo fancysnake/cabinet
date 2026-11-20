@@ -66,25 +66,30 @@ class TestReadProject:
 
         assert read_project(HEAL_NEEDS).gate == "mise run check"
 
-    # Key by key: the user's table for the project, the project's own file,
-    # then what the user sets for every project.
+    # Key by key, the project's file and the user's table for the project both
+    # beat what the user sets for every project. Which of those two wins is
+    # vekna's to say and differs between its versions, so no key is set in both.
     @staticmethod
     def test_the_nearest_place_wins_each_key(here: Path, user_config: Path) -> None:
         (here / ".vekna.toml").write_text(
             '[cabinet]\ngate = "from the file"\nbase = "from the file"\n'
         )
         user_config.write_text(
-            '[cabinet]\nbase = "for every project"\nremote = "for every project"\n\n'
+            '[cabinet]\nbase = "for every project"\nremote = "for every project"\n'
+            'review_title = "for every project"\n\n'
             f'[projects.mine]\npath = "{here}"\n\n'
-            '[projects.mine.cabinet]\ngate = "for this project"\n',
+            '[projects.mine.cabinet]\nremote = "for this project"\n'
+            'fast_coverage = "for this project"\n',
             encoding="utf-8",
         )
 
         project = read_project(HEAL_NEEDS)
 
-        assert project.gate == "for this project"
+        assert project.gate == "from the file"
         assert project.base == "from the file"
-        assert project.remote == "for every project"
+        assert project.remote == "for this project"
+        assert project.fast_coverage == "for this project"
+        assert project.review_title == "for every project"
 
     @staticmethod
     def test_a_refused_value_names_where_it_was_set(here: Path) -> None:

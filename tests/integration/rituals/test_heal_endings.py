@@ -354,7 +354,10 @@ class TestChart:
         run = Run(attended=True, project=project, queue=[pull])
 
         assert trial.walk(chart, run.to(Chart)) == Done(Healed(not_reached=["feature"]))
-        assert "left for the next cast: feature" in trial.deltas[0]
+        assert (
+            "out of steps at this --bound and CI jobs, not reached: feature"
+            in trial.deltas[0]
+        )
 
     @staticmethod
     def test_a_stopped_cast_is_said_before_it_fails(
