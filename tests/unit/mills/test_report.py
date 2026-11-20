@@ -107,10 +107,10 @@ class TestHealed:
         assert "waiting" not in healed
 
     @staticmethod
-    def test_what_was_left_for_the_next_cast() -> None:
+    def test_what_a_cast_out_of_steps_did_not_reach() -> None:
         assert _REPORT.healed(_run(queue=[_PULL])) == (
             "heal — 0 worked\n\n  (none)\n\n"
-            "out of steps, left for the next cast: feature\n"
+            "out of steps at this --bound, not reached: feature\n"
         )
 
     # A pull request the listing never reached looks exactly like one nothing

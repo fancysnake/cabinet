@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- A heal cast's step budget is 1,004 steps, down from 8,303: sized for
+  `heal.mine` queuing the thousand pull requests GitHub lists, now that every
+  other cast works one branch. A branch whose `--bound` and CI jobs do not fit
+  is reported as `out of steps at this --bound, not reached`.
+
 ## [7.1.0] - 2026-11-19
 
 ### Changed
