@@ -1,7 +1,8 @@
 """The `[cabinet]` table, from every place vekna reads config.
 
-vekna merges it: the user's table for the project, the project's own
-`.vekna.toml`, then what the user sets for every project, key by key. Which
+vekna merges it key by key: the project's own `.vekna.toml` and the user's
+table for the project, in an order that differs between vekna versions, then
+what the user sets for every project. Which
 project the cwd belongs to is vekna's to say.
 """
 
