@@ -2,12 +2,8 @@
 
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import (
-    check_clean,
-    merge_base,
-    resolve_conflicts,
-    sync_branch,
-)
+from cabinet.gates.ritual.vekna.heal.branch import check_clean, sync_branch
+from cabinet.gates.ritual.vekna.heal.merge import merge_base, resolve_conflicts
 from cabinet.pacts.heal import (
     Chart,
     CheckClean,

@@ -4,7 +4,8 @@ import shlex
 
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import post_guide, tend
+from cabinet.gates.ritual.vekna.heal.branch import tend
+from cabinet.gates.ritual.vekna.heal.guide import post_guide
 from cabinet.pacts.guide import GUIDE_MARK, Guide
 from cabinet.pacts.heal import Chart, PostGuide, SetAside, Tend
 from cabinet.pacts.healing import Work

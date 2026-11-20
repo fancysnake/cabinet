@@ -13,7 +13,7 @@ module is the ritual itself and the surface vekna sweeps.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.heal import mustered
+from cabinet.gates.ritual.vekna.heal.cast import mustered
 from cabinet.pacts.heal import MusterPr
 from cabinet.pacts.healing import HealPr, Run
 from cabinet.specs import HEAL_STEPS

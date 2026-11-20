@@ -5,7 +5,7 @@ import shlex
 import pytest
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import (
+from cabinet.gates.ritual.vekna.heal.answer import (
     answer_gate,
     answer_threads,
     ask_triage,
@@ -13,8 +13,8 @@ from cabinet.gates.ritual.vekna.heal import (
     post_answers,
     read_threads,
     settle_left,
-    tend,
 )
+from cabinet.gates.ritual.vekna.heal.branch import tend
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.heal import (
     AnswerGate,

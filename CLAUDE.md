@@ -70,7 +70,7 @@ moving modules.
 | `specs.py` | numeric invariants (`BUDGET`, `VERDICT_LINES`, `WHOLE`, `HEAL_STEPS`) | pacts                 |
 | `mills/`   | pure logic: `Pulls`, `Backlog`, `Verdicts`, `Prompts`, `Repairs`, `Report`, `Steps` | pacts, specs  |
 | `links/`   | adapters: `forge/{github,gitlab}`, `scm/git`, `tasks/mise`, `agent/claude`, `config/vekna_toml` | pacts only; `links/*` subpackages independent of each other |
-| `gates/`   | `@step` bodies (`gates/ritual/vekna/{heal,identify,labels}.py`) | pacts only            |
+| `gates/`   | `@step` bodies (`gates/ritual/vekna/{identify,labels}.py`, `heal/` with a module per task) | pacts only            |
 | `inits/`   | `Services` binds concrete adapters, `wire()`                   | everything               |
 | `rituals/` | one facade per ritual: the `@ritual` entrypoint; `steps.py` imports every step module | layers; nothing imports it back |
 | `edges/`   | reserved, empty, excluded from coverage                        | nothing                  |
@@ -105,7 +105,7 @@ bound to that carrier's own steps — is the one way across. A new step gets a n
 
 ### Facades
 
-Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/` (`heal.mine`, `heal.pr`, `heal.this`, `heal.main`, `merge`, `ci`, `answer`, `review` and `guide` share `heal.py`).
+Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/` (`heal.mine`, `heal.pr`, `heal.this`, `heal.main`, `merge`, `ci`, `answer`, `review` and `guide` share the `heal/` package, whose `__init__` imports each task module; a new heal task is a module there).
 A step registers when its module is imported, and `rituals/__init__.py` imports
 `rituals/steps.py`, which imports all three step modules. So naming any facade
 registers the whole graph, and a new step touches no facade (`test_facade.py`
@@ -114,7 +114,7 @@ name is the `@ritual("...")` string, not the module, and holds no `:`: vekna
 reserves it for the tome prefix (`vekna cast cabinet:review` when another
 tome offers a `review`). A ritual is named for a D&D spell or a heal task, and its facade's docstring opens
 with that spell's school (`identify` is Divination). Step names are global across the package, so a new step must not
-reuse one already registered in `gates/ritual/vekna/*.py` (`tend` is
+reuse one already registered under `gates/ritual/vekna/` (`tend` is
 heal's).
 
 ### Who runs what
