@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [7.2.0] - 2026-11-20
+
+### Added
+
+- cabinet accepts vekna 2.x as well as 1.3.0 and later.
+
 ### Changed
 
 - A heal cast's step budget is 1,004 steps, down from 8,303: sized for
-  `heal.mine` queuing the thousand pull requests GitHub lists, now that every
-  other cast works one branch. A branch whose `--bound` and CI jobs do not fit
-  is reported as `out of steps at this --bound and CI jobs, not reached`. GitLab's merge
-  request listing now stops at a thousand, as GitHub's does, and says so in the
-  report when it is cut short.
+  `heal.mine` queuing the thousand pull requests GitHub lists. A branch whose
+  `--bound` and CI jobs do not fit is reported as
+  `out of steps at this --bound and CI jobs, not reached`. GitLab's merge
+  request listing stops at a thousand, as GitHub's does, and the report says
+  when it is cut short.
 
 ## [7.1.0] - 2026-11-19
 
@@ -416,7 +422,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v7.1.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v7.2.0...HEAD
+[7.2.0]: https://github.com/fancysnake/cabinet/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/fancysnake/cabinet/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/fancysnake/cabinet/compare/v6.0.0...v7.0.0
 [6.0.0]: https://github.com/fancysnake/cabinet/compare/v5.1.0...v6.0.0
