@@ -1,10 +1,24 @@
-"""The ci task: each red job rerun or fixed, one check at a time."""
+"""The ci task: each red job rerun or fixed, one check at a time.
+
+For the configured jobs: where a job has ``rerun`` and has not been rerun on
+this head, it runs again, and the task ends there for the next cast to read.
+Otherwise an agent reads the job's log and fixes it; a job with a ``gate``
+then goes round the repair loop against it, ``fast`` between rounds, and one
+without is committed as the agent left it. A ``covering`` job's gap is
+measured here and covered with tests. Each job's fix is a commit of its own,
+and a job gets one check fixed per cast however many of its matrix entries are
+red. A job that stands the branch down ends the task, and the checks behind it
+are named. A fix that changes nothing leaves its job red, and the row says it
+passes here. A branch whose merge was committed leaves ci for the next cast:
+the push starts a run of its own.
+"""
 
 from typing import TypeVar
 
 from vekna.lexicon import step
 
-from cabinet.gates.ritual.vekna.heal.repair import asked, repaired
+from cabinet.gates.ritual.vekna.heal.agents import asked
+from cabinet.gates.ritual.vekna.heal.repair import repaired
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import (
     Chart,

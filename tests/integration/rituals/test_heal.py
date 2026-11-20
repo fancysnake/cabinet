@@ -8,7 +8,7 @@ from typing_extensions import override
 from vekna.lexicon import CAST_QUEUE, CastEnded, CastQueueProtocol, NoDaemonError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import (
+from cabinet.gates.ritual.vekna.heal.cast import (
     attend,
     muster_mine,
     muster_pr,

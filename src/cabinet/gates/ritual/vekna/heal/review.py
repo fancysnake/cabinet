@@ -1,4 +1,8 @@
-"""The review task: the quality review posted as inline comments."""
+"""The review task: the quality review posted as inline comments.
+
+The reviewed label goes on after the comments. Whatever this cast committed is
+pushed first, so the comments anchor to code the forge has.
+"""
 
 from vekna.lexicon import step
 

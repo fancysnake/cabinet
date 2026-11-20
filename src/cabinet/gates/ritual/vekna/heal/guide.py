@@ -1,4 +1,10 @@
-"""The guide task: the smoke-test guide posted as a comment."""
+"""The guide task: the smoke-test guide posted as a comment.
+
+Only once nothing else is left: an agent follows the smoke-test skill and
+writes the manual check for the branch, which goes up as a plain comment, then
+the qa label. A comment an earlier guide left is edited in place: take the
+label off to ask for another.
+"""
 
 from vekna.lexicon import step
 

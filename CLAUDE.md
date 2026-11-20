@@ -105,7 +105,7 @@ bound to that carrier's own steps — is the one way across. A new step gets a n
 
 ### Facades
 
-Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/` (`heal.mine`, `heal.pr`, `heal.this`, `heal.main`, `merge`, `ci`, `answer`, `review` and `guide` share the `heal/` package, whose `__init__` imports each task module and re-exports its steps; a new heal task is a module there).
+Each `rituals/<name>.py` wraps a module in `gates/ritual/vekna/` (`heal.mine`, `heal.pr`, `heal.this`, `heal.main`, `merge`, `ci`, `answer`, `review` and `guide` share the `heal/` package, whose `__init__` imports each task module; a new heal task is a module there).
 A step registers when its module is imported, and `rituals/__init__.py` imports
 `rituals/steps.py`, which imports all three step modules. So naming any facade
 registers the whole graph, and a new step touches no facade (`test_facade.py`

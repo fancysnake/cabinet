@@ -1,8 +1,15 @@
-"""The merge task: the base merged in, and the gate made green over it."""
+"""The merge task: the base merged in, and the gate made green over it.
+
+Only where the branch conflicts: the base is merged in, an agent resolves the
+conflicts, and the gate is made green before the merge is committed. A branch
+the gate will not go green on stands down: the worktree is released and the
+rest of its tasks are worked anyway.
+"""
 
 from vekna.lexicon import step
 
-from cabinet.gates.ritual.vekna.heal.repair import asked, repaired
+from cabinet.gates.ritual.vekna.heal.agents import asked
+from cabinet.gates.ritual.vekna.heal.repair import repaired
 from cabinet.pacts.heal import (
     Chart,
     FinishMerge,

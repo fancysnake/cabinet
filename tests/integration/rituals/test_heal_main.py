@@ -5,7 +5,8 @@ import json
 import pytest
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import muster_main, open_pull, push_work, tend
+from cabinet.gates.ritual.vekna.heal.branch import open_pull, push_work, tend
+from cabinet.gates.ritual.vekna.heal.cast import muster_main
 from cabinet.pacts.heal import (
     Chart,
     FinishPr,

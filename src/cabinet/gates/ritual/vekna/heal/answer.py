@@ -1,4 +1,17 @@
-"""The answer task: open review threads triaged, answered and settled."""
+"""The answer task: open review threads triaged, answered and settled.
+
+Attended only: an unattended cast leaves the threads for you and says how many
+wait. First whatever an earlier cast's forge failure left half-settled is
+finished. Then the open threads go in batches of ``--batch``: an agent reads
+them against the code into a triage, you answer each item in your own words
+(saying nothing takes the reading's proposal), and another agent fixes what
+you said to fix and drafts every reply. The ritual opens the issues you said
+to file, posts the replies and settles the threads, and reads what is still
+open for the next round, up to three. What the answers changed goes through
+the gate and is committed. A round that finds nothing open puts the answered
+label on; the next answer task takes it off before it starts. Attended, the
+review threads are put to you, the one question a cast asks.
+"""
 
 from vekna.folio.flow import decide
 from vekna.lexicon import emit_delta, step

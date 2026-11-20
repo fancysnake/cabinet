@@ -1,4 +1,20 @@
-"""Taking a branch, handing it each task, and leaving it."""
+"""Taking a branch, handing it each task, and leaving it.
+
+A branch with a task this cast works is taken: the worktree must be
+clean, the remote is fetched, and the branch is checked out and fast-forwarded
+to it. The base is only ever read as the remote has it: a pooled worktree
+cannot stand on a base the tree it was made from is standing on. Then
+``tend`` hands the branch each task in turn, and every task ends back at
+``tend``.
+
+A branch is left alone rather than reported broken when the checkout will not
+go through, which is what another worktree standing on it looks like. A fetch
+that fails is not the same thing, so that one ends the cast.
+
+What a cast committed and has not pushed goes up before the branch is left.
+Nothing waits for CI after a push, and nothing merges a branch that is merely
+behind.
+"""
 
 from typing import TypeAlias
 

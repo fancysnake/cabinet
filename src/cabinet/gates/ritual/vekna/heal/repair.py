@@ -1,9 +1,20 @@
-"""The repair loop every heal task with a gate goes round."""
+"""The repair loop every heal task with a gate goes round.
+
+Neither the gate nor the coverage is re-run whole while a repair is underway.
+Where the runner names the task that broke, the next round runs that task
+alone, and the gate itself runs once more when it comes back green.
+
+Budgets are per step and per branch: a step may be retried ``--bound`` times,
+going green clears its count, and moving to the next pull request clears them
+all. A verdict a step already gave up on once is not paid for twice: the next
+branch of the same cast whose gate says the same thing stands down without
+spending its budget. Each ``heal.pr`` is a cast of its own, and pays once. The
+budgets decide every repair, attended or not.
+"""
 
 from typing import TypeVar
 
-from cabinet.gates.ritual.vekna.heal.agents import agent_for, session
-from cabinet.pacts.agent import Fallen
+from cabinet.gates.ritual.vekna.heal.agents import asked
 from cabinet.pacts.heal import Chart, StandDown
 from cabinet.pacts.healing import Work
 from cabinet.pacts.project import CiJob
@@ -58,11 +69,3 @@ async def repaired(
     if fallen := await asked(work, ruling.asking, key=name, escalated=escalated):
         return work.abandoned(fallen.reason).to(Chart)
     return work.but(gate=ruling.next_gate).charged(name)
-
-
-# A repair, in the session `key` names on this branch: every round of a loop
-# continues the one before it, on the stronger model where `escalated`.
-async def asked(work: Work, prompt: str, *, key: str, escalated: bool) -> Fallen | None:
-    return await agent_for(work).ask(
-        prompt, job="fix", key=session(work, key), escalated=escalated
-    )

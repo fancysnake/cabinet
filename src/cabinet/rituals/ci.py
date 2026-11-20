@@ -11,7 +11,7 @@ surface vekna sweeps.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.heal import mustered
+from cabinet.gates.ritual.vekna.heal.cast import mustered
 from cabinet.pacts.heal import MusterThis
 from cabinet.pacts.healing import Heal
 from cabinet.specs import HEAL_STEPS

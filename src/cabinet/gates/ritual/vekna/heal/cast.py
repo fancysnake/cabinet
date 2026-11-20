@@ -1,4 +1,37 @@
-"""The cast: mustering the pull requests, surveying each, and the report."""
+"""The cast: mustering the pull requests, surveying each, and the report.
+
+``heal.mine`` surveys every open pull request of yours not wearing the wait
+label, oldest-modified first, and works none of them itself: each one with
+work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in
+a pooled worktree beside the others, and the cast stays until they end and
+reports their rows. With no daemon listening it says so and
+fails. ``heal.pr`` takes the pull request it is given the number of;
+``heal.this`` and the task rituals take the pull request of the branch at the
+cwd. A task ritual is ``heal.this`` that may work one task and no other.
+
+``heal.main`` takes no pull request: it reads the configured CI jobs on the
+base. Where one is red and no fix of yours is open, it cuts
+``main_fix_branch`` from the base as the remote has it, fixes each red job
+the way the ci task does, without the rerun, pushes, and opens a pull
+request. A branch its gate will not go green on is opened all the same, and
+the pull request says what stopped it. Where nothing was committed, nothing
+is opened.
+
+Each pull request is surveyed first: whether it conflicts with its base, which
+of the configured CI jobs are red, how many review threads are open, and which
+labels it wears. That becomes its todo list, in the order a cast works it:
+merge, ci, answer, review, guide. Facts make a todo; the reviewed and qa labels
+only take one away. The list is printed a line per pull request as it is read.
+With ``--plan-only true`` that is all: no checkout, no commit, no label.
+
+A branch is taken only where the worst it can spend still fits the engine's
+step budget; one that does not ends the cast without failing it, and the report
+names what was not reached.
+
+Two things end the whole cast rather than one branch: a worktree that is not
+clean, and an agent that dies mid-flight. Both still print the report first,
+then fail the cast. A cast is attended unless vekna was told ``--unattended``.
+"""
 
 from typing import TypeVar
 

@@ -7,14 +7,14 @@ import pytest
 from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import (
-    chart,
+from cabinet.gates.ritual.vekna.heal.branch import (
     finish_pr,
-    quality_review,
     set_aside,
     skip_pr,
     stand_down,
 )
+from cabinet.gates.ritual.vekna.heal.cast import chart
+from cabinet.gates.ritual.vekna.heal.review import quality_review
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.guide import Guide
 from cabinet.pacts.heal import (

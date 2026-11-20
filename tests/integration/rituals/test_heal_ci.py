@@ -4,14 +4,14 @@ import json
 
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import (
+from cabinet.gates.ritual.vekna.heal.branch import tend
+from cabinet.gates.ritual.vekna.heal.ci import (
     close_gap,
     job_gate,
     land_job,
     mend_job,
     pick_job,
     rerun_jobs,
-    tend,
 )
 from cabinet.pacts.heal import (
     Chart,

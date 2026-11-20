@@ -16,7 +16,7 @@ only this facade can still run what it queues.
 
 from vekna.lexicon import ritual
 
-from cabinet.gates.ritual.vekna.heal import mustered
+from cabinet.gates.ritual.vekna.heal.cast import mustered
 from cabinet.pacts.heal import MusterMine
 from cabinet.pacts.healing import Heal
 from cabinet.rituals.heal_pr import heal_pr

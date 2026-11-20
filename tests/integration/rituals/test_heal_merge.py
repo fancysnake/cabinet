@@ -3,7 +3,8 @@
 import pytest
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal import finish_merge, gate_check, push_work, tend
+from cabinet.gates.ritual.vekna.heal.branch import push_work, tend
+from cabinet.gates.ritual.vekna.heal.merge import finish_merge, gate_check
 from cabinet.pacts.heal import (
     Chart,
     FinishMerge,
