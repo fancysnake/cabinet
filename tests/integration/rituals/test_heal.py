@@ -744,7 +744,7 @@ def _relisted(trial: Trial, *labels: str) -> None:
 # A branch an attended cast handed the review and nothing else.
 def _reviewed(work: Work) -> Work:
     run = work.run.model_copy(update={"attended": True})
-    return work.but(run=run, todos=["review"]).but(todos=[])
+    return work.but(run=run).model_copy(update={"taken": ["review"]})
 
 
 class TestResurvey:
@@ -757,8 +757,8 @@ class TestResurvey:
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         reviewed = _reviewed(work)
 
-        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.but(
-            todos=["answer"]
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.handed(
+            ["answer"], []
         ).to(Tend)
         assert trial.deltas == ["#7 feature: answer (1 thread)"]
 
@@ -769,9 +769,24 @@ class TestResurvey:
         trial.shell.replies(when=THREADS, stdout=_NONE)
         reviewed = _reviewed(work)
 
-        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.but(
-            todos=["ci"]
-        ).found_red([_CHECKS]).to(Tend)
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.handed(
+            ["ci"], [_CHECKS]
+        ).to(Tend)
+
+    # `ci` stood the branch down on this check: it is not `ci`'s again, and a
+    # later repair must not count it among the reds that escalate the model.
+    @staticmethod
+    def test_a_check_still_red_after_ci_is_not_carried_forward(
+        trial: Trial, work: Work
+    ) -> None:
+        _relisted(trial, "pr::thermo")
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        reviewed = _reviewed(work).model_copy(update={"taken": ["review", "ci"]})
+
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.handed(
+            ["answer"], []
+        ).to(Tend)
 
     # The check `ci` could not make green is still red, and the cast ends
     # there rather than work it for ever.

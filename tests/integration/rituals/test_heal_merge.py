@@ -222,7 +222,7 @@ class TestFinishMerge:
 
         assert trial.walk(finish_merge, red.to(FinishMerge)) == red.but(
             todos=["review"], note="ci is left for the run this merge starts"
-        ).found_red([]).model_copy(update={"changed": True}).to(Tend)
+        ).model_copy(update={"red": [], "changed": True}).to(Tend)
 
     @staticmethod
     def test_an_open_merge_is_continued_first(trial: Trial, work: Work) -> None:

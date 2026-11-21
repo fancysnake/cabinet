@@ -300,7 +300,7 @@ async def resurvey(work: Resurvey) -> Tend | FinishPr:
     if not todos:
         return work.to(FinishPr)
     emit_delta(services().report.surveyed(row))
-    return work.but(todos=todos).found_red(row.red).to(Tend)
+    return work.handed(todos, row.red).to(Tend)
 
 
 # Nothing to await: this routes and renders. The summary is said before the

@@ -473,8 +473,13 @@ def _worst_jobs(trial: Trial, bound: int) -> None:
 def _worst_answers(trial: Trial) -> None:
     trial.decide.answers(answer="", when="#7 *", always=True)
     opened = threads_page(page([node("PRRT_1", page([comment(101)]))]))
-    # The survey, the review, `settle_left`, and a read and a post every round.
-    for _ in range(3 + 2 * ROUNDS):
+    # The first survey, the review and two more surveys find none; the one
+    # after them finds the thread, and every round reads it again, the last
+    # round once more. The surveys after the rounds find none, as the fallback
+    # in `_taken` says.
+    for _ in range(4):
+        trial.shell.replies(when=THREADS, stdout=_NO_THREADS)
+    for _ in range(2 + ROUNDS):
         trial.shell.replies(when=THREADS, stdout=opened)
     trial.shell.replies(when="gh issue list *", stdout="[]", always=True)
     trial.shell.replies(when=STATUS)
@@ -503,6 +508,25 @@ def _worst_answers(trial: Trial) -> None:
     )
     trial.shell.replies(when="gh api repos/*", always=True)
     trial.shell.replies(when="slug=*-f id=PRRT_1", always=True)
+
+
+# What the forge says at each survey of the longest path, one new task each:
+# the review, a conflict once it is reviewed, red jobs, a thread, and the
+# guide once nothing else is left.
+def _worst_surveys(trial: Trial) -> None:
+    reviewed = [{"name": "pr::thermo"}]
+    surveys = [
+        ("MERGEABLE", [], _GREEN_BOARD),
+        ("CONFLICTING", reviewed, _GREEN_BOARD),
+        ("MERGEABLE", reviewed, _RED_JOBS),
+        ("MERGEABLE", reviewed, _GREEN_BOARD),
+        ("MERGEABLE", reviewed, _GREEN_BOARD),
+    ]
+    for mergeable, labels, checks in surveys:
+        trial.shell.replies(
+            when=LIST, stdout=listing(row(7, mergeable=mergeable, labels=labels))
+        )
+        trial.shell.replies(when=board(), stdout=checks)
 
 
 # The merge's gate again, red with something it has not said before: a verdict
@@ -594,10 +618,10 @@ class TestWholeCast:
         assert trial.deltas[0] == "#7 feature: nothing to do"
 
     # Every attempt the bound allows on every loop, each with its free extra
-    # run: the merge stood down, every configured job red and green only on
-    # its last run, the review, and every round of answers and their gate
-    # stood down. The longest a branch can run, and what its share spoke
-    # for.
+    # run, and every survey handing out one task the last did not: the review,
+    # the merge stood down, every configured job red and green only on its last
+    # run, every round of answers and their gate stood down, and the guide.
+    # The longest a branch can run, and what its share spoke for.
     @staticmethod
     @pytest.mark.parametrize("bound", [1, 2])
     def test_the_worst_a_branch_can_spend_is_what_was_reserved(
@@ -609,7 +633,8 @@ class TestWholeCast:
             )
         )
         _worst_answers(trial)
-        _taken(trial, mergeable="CONFLICTING", checks=_RED_JOBS)
+        _worst_surveys(trial)
+        _taken(trial, mergeable="MERGEABLE", labels=("pr::thermo", "v:guide:done"))
         trial.shell.replies(when="git merge-base*", exit_code=1)
         trial.shell.replies(when="git merge --no-edit origin/main", exit_code=1)
         for _ in range(bound):
@@ -624,6 +649,11 @@ class TestWholeCast:
         _worst_jobs(trial, bound)
         _worst_answer_gate(trial, bound)
         _reviewed(trial)
+        trial.coding.replies(Guide(body="click it"), when="Write the manual smoke*")
+        trial.shell.replies(when="gh api user*", stdout="me\n")
+        trial.shell.replies(when="gh api repos/{owner}/{repo}/issues/7/comments*")
+        trial.shell.replies(when="gh pr comment 7*")
+        trial.shell.replies(when="gh pr edit 7 --add-label v:guide:done")
 
         with pytest.raises(RitualError, match="branches blocked: 1"):
             trial.cast(heal_pr, HealPr(number=7, bound=bound))
@@ -636,6 +666,10 @@ class TestWholeCast:
             "check_clean",
             "sync_branch",
             "tend",
+            "quality_review",
+            "tend",
+            "resurvey",
+            "tend",
             "merge_base",
             *["resolve_conflicts"] * (bound + 1),
             *["gate_check"] * (2 * bound + 1),
@@ -643,13 +677,15 @@ class TestWholeCast:
             "tend",
             "push_work",
             "tend",
+            "resurvey",
+            "tend",
             "rerun_jobs",
             *job * len(_JOBS),
             "pick_job",
             "tend",
             "push_work",
             "tend",
-            "quality_review",
+            "resurvey",
             "tend",
             "settle_left",
             *round_ * ROUNDS,
@@ -658,6 +694,10 @@ class TestWholeCast:
             "stand_down",
             "tend",
             "push_work",
+            "tend",
+            "resurvey",
+            "tend",
+            "post_guide",
             "tend",
             "resurvey",
             "finish_pr",
@@ -671,9 +711,7 @@ class TestWholeCast:
             Run(attended=True, project=project, bound=bound)
         )
         assert share is not None
-        # The share also speaks for the surveys that hand out more tasks, and
-        # this branch got every task but the guide at once.
-        assert len(trial.steps) <= services().steps.opening(1) + share
+        assert len(trial.steps) == services().steps.opening(1) + share
 
     @staticmethod
     def test_a_gitlab_project_speaks_glab(trial: Trial, here: Path) -> None:

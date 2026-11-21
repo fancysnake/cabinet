@@ -9,7 +9,7 @@ import re
 
 from typing_extensions import override
 
-from cabinet.pacts.healing import Facts, Surveyed, Task
+from cabinet.pacts.healing import TASKS, Facts, Surveyed, Task
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Board, Watched
 from cabinet.pacts.services import TodosProtocol
@@ -42,19 +42,20 @@ class Todos(TodosProtocol):
         # Whoever opened them: agents post with the owner's token, so the
         # author says nothing about whether a thread wants an answer.
         threads = sum(not thread.resolved for thread in facts.threads)
-        found: list[Task] = []
+        due: set[Task] = set()
         # Only a conflict: a branch behind its base merges fine.
         if facts.conflicted:
-            found.append("merge")
+            due.add("merge")
         if red:
-            found.append("ci")
+            due.add("ci")
         if not pull.wears(project.labels.reviewed):
-            found.append("review")
+            due.add("review")
         if threads:
-            found.append("answer")
+            due.add("answer")
         # The endgame: asked for only once nothing else is left to do.
-        if not found and not pull.wears(project.labels.qa):
-            found.append("guide")
+        if not due and not pull.wears(project.labels.qa):
+            due.add("guide")
+        found = [task for task in TASKS if task in due]
         return Surveyed(
             number=pull.number,
             branch=pull.branch,

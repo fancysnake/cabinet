@@ -3,7 +3,7 @@
 from typing_extensions import override
 
 from cabinet.pacts.budgets import ROUNDS
-from cabinet.pacts.healing import Run
+from cabinet.pacts.healing import TASKS, Run
 from cabinet.pacts.services import StepsProtocol
 from cabinet.specs import HEAL_STEPS
 
@@ -14,11 +14,12 @@ from cabinet.specs import HEAL_STEPS
 _ONCE = 15
 
 # The branch surveyed again each time its tasks run out. A survey that hands
-# it nothing new ends it, and no task is handed twice, so with five tasks at
-# most four surveys find one and a fifth finds none. Each of the four is
-# followed by one more `tend` that finds the tasks run out. `post_guide` and
-# the `tend` before it are here too: a guide can follow the other tasks.
-_AGAIN = 5 + 4 + 2
+# it nothing new ends it, and no task is handed twice, so with `n` tasks at
+# most `n - 1` surveys find one and one more finds none: `n` surveys. Each of
+# the `n - 1` is followed by one more `tend` that finds the tasks run out.
+# `post_guide` and the `tend` before it are here too: a guide can follow the
+# other tasks.
+_AGAIN = len(TASKS) + (len(TASKS) - 1) + 2
 
 
 # A gate's loop: a whole run and a narrowed one for every repair the bound

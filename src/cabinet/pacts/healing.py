@@ -277,23 +277,35 @@ class Red(BaseModel):
     def in_hand(self) -> Watched:
         return self.red[0]
 
-    # The checks a later survey read as red, in place of the first survey's.
-    def found_red(self, red: list[Watched]) -> Self:
-        update: dict[str, list[Watched]] = {"red": red}
-        return self.model_copy(update=update)
 
-
-# `budgets` dies with this payload, which is what "a branch change clears all
-# budgets" means — a fresh Work is built per pull request and inherits nothing.
-class Work(Budgeted, Red, Hop):
-    run: Run
-    pr: PullRequest
+# What a branch is handed: the tasks, and the red checks `ci` works through them.
+class Handing(Red):
     # The tasks still to work on this branch, the next one first.
     todos: list[Task] = Field(default_factory=list)
     # Every task this cast has handed the branch. The branch is surveyed
     # again when its todos run out, and a task named here is not handed to it
     # a second time: a check still red after `ci` would be worked for ever.
     taken: list[Task] = Field(default_factory=list)
+
+    # The survey after the tasks ran out handed the branch these, none of them
+    # given before. The checks that survey read are `ci`'s only when `ci` is
+    # among the tasks; otherwise they are what `ci` left, and must not count
+    # towards a later repair escalating its model.
+    def handed(self, todos: list[Task], red: list[Watched]) -> Self:
+        update: dict[str, list[Task] | list[Watched]] = {
+            "todos": todos,
+            "taken": [*self.taken, *todos],
+        }
+        if "ci" in todos:
+            update["red"] = red
+        return self.model_copy(update=update)
+
+
+# `budgets` dies with this payload, which is what "a branch change clears all
+# budgets" means — a fresh Work is built per pull request and inherits nothing.
+class Work(Budgeted, Handing, Hop):
+    run: Run
+    pr: PullRequest
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by
@@ -345,8 +357,6 @@ class Work(Budgeted, Red, Hop):
             update["budgets"] = budgets
         if todos is not None:
             update["todos"] = todos
-            new = [task for task in todos if task not in self.taken]
-            update["taken"] = [*self.taken, *new]
         if gate is not None:
             update["gate"] = gate
         if note is not None:
