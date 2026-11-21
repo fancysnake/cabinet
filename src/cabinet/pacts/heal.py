@@ -58,6 +58,10 @@ class Tend(Work):
     pass
 
 
+class Resurvey(Work):
+    pass
+
+
 class MergeBase(Work):
     pass
 

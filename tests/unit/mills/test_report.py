@@ -390,13 +390,13 @@ class TestSurveyed:
             number=7,
             branch="feature",
             url=_PULL.url,
-            todos=["merge", "ci", "answer", "review"],
+            todos=["merge", "ci", "review", "answer"],
             red=watched(Check(name="checks", id=1), Check(name="test", id=1)),
             threads=3,
         )
 
         assert _REPORT.surveyed(row) == (
-            "#7 feature: merge, ci (checks, test), answer (3 threads), review"
+            "#7 feature: merge, ci (checks, test), review, answer (3 threads)"
         )
 
     @staticmethod

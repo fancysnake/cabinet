@@ -28,7 +28,7 @@ class TestPostGuide:
     def test_the_guide_is_a_task(trial: Trial, work: Work) -> None:
         guiding = work.but(todos=["guide"])
 
-        assert trial.walk(tend, guiding.to(Tend)) == work.to(PostGuide)
+        assert trial.walk(tend, guiding.to(Tend)) == guiding.but(todos=[]).to(PostGuide)
 
     @staticmethod
     def test_the_first_guide_is_posted_and_the_label_goes_on(

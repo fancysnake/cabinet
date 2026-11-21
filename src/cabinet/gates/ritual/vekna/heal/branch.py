@@ -31,6 +31,7 @@ from cabinet.pacts.heal import (
     PushWork,
     QualityReview,
     RerunJobs,
+    Resurvey,
     SetAside,
     SettleLeft,
     SkipPr,
@@ -102,11 +103,12 @@ _FIRST: dict[Task, type[_First]] = {
 }
 
 
-# Hand the branch its next task, or let it go. Whatever this cast committed is
-# pushed first: every task after the merge works on code the forge has, and a
-# branch is not left with commits only this worktree holds.
+# Hand the branch its next task, or have it surveyed again once none is left.
+# Whatever this cast committed is pushed first: every task after the merge
+# works on code the forge has, and a branch is not left with commits only this
+# worktree holds.
 @step
-def tend(work: Tend) -> PushWork | OpenPull | FinishPr | _First:
+def tend(work: Tend) -> PushWork | OpenPull | Resurvey | _First:
     opened = work.pr.is_opened
     # `heal.main`'s branch has no pull request until `open_pull` makes one, and
     # pushes it then: a branch that stood down must not land on the remote as a
@@ -114,7 +116,7 @@ def tend(work: Tend) -> PushWork | OpenPull | FinishPr | _First:
     if work.changed and opened:
         return work.to(PushWork)
     if not work.todos:
-        return work.to(FinishPr) if opened else work.to(OpenPull)
+        return work.to(Resurvey) if opened else work.to(OpenPull)
     task, *rest = work.todos
     taken = work.but(todos=rest)
     return taken.to(_FIRST[task])

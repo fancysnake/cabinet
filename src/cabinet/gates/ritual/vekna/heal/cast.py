@@ -20,9 +20,14 @@ is opened.
 Each pull request is surveyed first: whether it conflicts with its base, which
 of the configured CI jobs are red, how many review threads are open, and which
 labels it wears. That becomes its todo list, in the order a cast works it:
-merge, ci, answer, review, guide. Facts make a todo; the reviewed and qa labels
+merge, ci, review, answer, guide. Facts make a todo; the reviewed and qa labels
 only take one away. The list is printed a line per pull request as it is read.
 With ``--plan-only true`` that is all: no checkout, no commit, no label.
+
+A branch whose tasks have run out is surveyed again, and what that finds is
+worked in the same cast: the review's comments are threads to answer, and a
+branch with nothing else left gets its guide. No task is handed to a branch
+twice in one cast, so a survey that finds nothing new ends the branch.
 
 A branch is taken only where the worst it can spend still fits the engine's
 step budget; one that does not ends the cast without failing it, and the report
@@ -56,13 +61,16 @@ from cabinet.pacts.heal import (
     Attend,
     Chart,
     CheckClean,
+    FinishPr,
     MusterMain,
     MusterMine,
     MusterPr,
     MusterThis,
     PickJob,
+    Resurvey,
     Summon,
     Survey,
+    Tend,
 )
 from cabinet.pacts.healing import (
     Checked,
@@ -270,6 +278,29 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
         )
     facts = Facts(pull=pull, board=board, threads=threads, conflicted=conflicted)
     return services().todos.surveyed(facts, project)
+
+
+# The branch read again once its tasks run out: what they made is work too,
+# as the review's comments are threads to answer. The pull request is listed
+# again for the labels the tasks put on. A task the branch was already handed
+# is not handed to it twice, so a survey that finds nothing new ends it.
+@step
+async def resurvey(work: Resurvey) -> Tend | FinishPr:
+    project = work.run.project
+    try:
+        listing = await services().forge(project).pulls()
+    except ForgeError as error:
+        return work.noting(str(error)).to(FinishPr)
+    if not (found := services().pulls.numbered(listing.pulls, work.pr.number)):
+        return work.to(FinishPr)
+    row = await _surveyed(project, found[0])
+    if isinstance(row, Unsurveyed):
+        return work.noting(row.note).to(FinishPr)
+    todos = [task for task in work.run.worked(row.todos) if task not in work.taken]
+    if not todos:
+        return work.to(FinishPr)
+    emit_delta(services().report.surveyed(row))
+    return work.handed(todos, row.red).to(Tend)
 
 
 # Nothing to await: this routes and renders. The summary is said before the

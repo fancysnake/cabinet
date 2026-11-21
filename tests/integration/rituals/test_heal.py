@@ -13,6 +13,7 @@ from cabinet.gates.ritual.vekna.heal.cast import (
     muster_mine,
     muster_pr,
     muster_this,
+    resurvey,
     summon,
     survey,
 )
@@ -21,11 +22,14 @@ from cabinet.pacts.heal import (
     Attend,
     Chart,
     CheckClean,
+    FinishPr,
     MusterMine,
     MusterPr,
     MusterThis,
+    Resurvey,
     Summon,
     Survey,
+    Tend,
 )
 from cabinet.pacts.healing import (
     Checked,
@@ -36,6 +40,7 @@ from cabinet.pacts.healing import (
     Run,
     Surveyed,
     Unsurveyed,
+    Work,
 )
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
@@ -352,13 +357,13 @@ class TestSurvey:
                 number=7,
                 branch="feature",
                 url=_URL,
-                todos=["merge", "ci", "answer", "review"],
+                todos=["merge", "ci", "review", "answer"],
                 red=[_CHECKS],
                 threads=1,
             )
         ]
         assert trial.deltas == [
-            "#7 feature: merge, ci (checks), answer (1 thread), review"
+            "#7 feature: merge, ci (checks), review, answer (1 thread)"
         ]
 
     @staticmethod
@@ -449,7 +454,7 @@ class TestSurvey:
         transition = trial.walk(survey, run)
 
         assert isinstance(transition, CheckClean)
-        assert transition.todos == ["answer", "review"]
+        assert transition.todos == ["review", "answer"]
 
     @staticmethod
     def test_a_task_ritual_takes_only_its_task(
@@ -726,3 +731,104 @@ class TestWholeCast:
         assert [one.number for one in result.surveyed] == [7]
         assert trial.steps == ["muster_this", "survey", "survey", "chart"]
         assert trial.deltas == ["#7 feature: review"]
+
+
+# The pull request as the forge lists it once the review has labelled it.
+def _relisted(trial: Trial, *labels: str) -> None:
+    worn = [{"name": label} for label in labels]
+    trial.shell.replies(
+        when=LIST, stdout=listing(row(7, mergeable="MERGEABLE", labels=worn))
+    )
+
+
+# A branch an attended cast handed the review and nothing else.
+def _reviewed(work: Work) -> Work:
+    run = work.run.model_copy(update={"attended": True})
+    return work.but(run=run).model_copy(update={"taken": ["review"]})
+
+
+class TestResurvey:
+    @staticmethod
+    def test_the_threads_a_review_left_are_answered_in_the_same_cast(
+        trial: Trial, work: Work
+    ) -> None:
+        _relisted(trial, "pr::thermo")
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        reviewed = _reviewed(work)
+
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.handed(
+            ["answer"], []
+        ).to(Tend)
+        assert trial.deltas == ["#7 feature: answer (1 thread)"]
+
+    @staticmethod
+    def test_a_check_gone_red_comes_with_its_job(trial: Trial, work: Work) -> None:
+        _relisted(trial, "pr::thermo")
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        reviewed = _reviewed(work)
+
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.handed(
+            ["ci"], [_CHECKS]
+        ).to(Tend)
+
+    # `ci` stood the branch down on this check: it is not `ci`'s again, and a
+    # later repair must not count it among the reds that escalate the model.
+    @staticmethod
+    def test_a_check_still_red_after_ci_is_not_carried_forward(
+        trial: Trial, work: Work
+    ) -> None:
+        _relisted(trial, "pr::thermo")
+        trial.shell.replies(when=board(), stdout=_RED)
+        trial.shell.replies(when=THREADS, stdout=_OPEN)
+        reviewed = _reviewed(work).model_copy(update={"taken": ["review", "ci"]})
+
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.handed(
+            ["answer"], []
+        ).to(Tend)
+
+    # The check `ci` could not make green is still red, and the cast ends
+    # there rather than work it for ever.
+    @staticmethod
+    def test_a_task_already_handed_is_not_handed_again(
+        trial: Trial, work: Work
+    ) -> None:
+        _relisted(trial)
+        trial.shell.replies(when=board(), stdout=_GREEN)
+        trial.shell.replies(when=THREADS, stdout=_NONE)
+        reviewed = _reviewed(work)
+
+        assert trial.walk(resurvey, reviewed.to(Resurvey)) == reviewed.to(FinishPr)
+        assert trial.deltas == []
+
+    @staticmethod
+    def test_a_pull_request_no_longer_open_is_finished(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=LIST, stdout=listing())
+
+        assert trial.walk(resurvey, work.to(Resurvey)) == work.to(FinishPr)
+
+    @staticmethod
+    def test_a_listing_the_forge_refuses_finishes_the_branch(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when=LIST, exit_code=1, stderr="502")
+
+        transition = trial.walk(resurvey, work.to(Resurvey))
+
+        assert isinstance(transition, FinishPr)
+        assert "502" in transition.note
+
+    @staticmethod
+    def test_facts_the_forge_refuses_finish_the_branch(
+        trial: Trial, work: Work
+    ) -> None:
+        _relisted(trial)
+        trial.shell.replies(when=board(), exit_code=1, stderr="502")
+
+        transition = trial.walk(resurvey, work.to(Resurvey))
+
+        assert isinstance(transition, FinishPr)
+        assert "502" in transition.note
