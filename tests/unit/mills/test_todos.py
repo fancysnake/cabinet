@@ -73,7 +73,7 @@ class TestTodos:
     def test_guide_waits_for_everything_else() -> None:
         facts = _facts(labels=[], threads=[Thread(id="1", resolved=False)])
 
-        assert _todos(facts) == ["answer", "review"]
+        assert _todos(facts) == ["review", "answer"]
 
     @staticmethod
     def test_the_qa_label_takes_the_guide_away() -> None:
@@ -88,7 +88,7 @@ class TestTodos:
             conflicted=True,
         )
 
-        assert _todos(facts) == ["merge", "ci", "answer", "review"]
+        assert _todos(facts) == ["merge", "ci", "review", "answer"]
 
     # Labels only stop a repeat: the same facts under any label are the same
     # todos or fewer.

@@ -8,11 +8,11 @@ from cabinet.gates.ritual.vekna.heal.merge import finish_merge, gate_check
 from cabinet.pacts.heal import (
     Chart,
     FinishMerge,
-    FinishPr,
     GateCheck,
     MergeBase,
     PushWork,
     QualityReview,
+    Resurvey,
     SetAside,
     StandDown,
     Tend,
@@ -34,7 +34,7 @@ class TestTend:
     def test_the_next_task_goes_first(trial: Trial, work: Work) -> None:
         both = work.but(todos=["merge", "review"])
 
-        assert trial.walk(tend, both.to(Tend)) == work.but(todos=["review"]).to(
+        assert trial.walk(tend, both.to(Tend)) == both.but(todos=["review"]).to(
             MergeBase
         )
 
@@ -42,7 +42,9 @@ class TestTend:
     def test_the_review_is_a_task(trial: Trial, work: Work) -> None:
         reviewing = work.but(todos=["review"])
 
-        assert trial.walk(tend, reviewing.to(Tend)) == work.to(QualityReview)
+        assert trial.walk(tend, reviewing.to(Tend)) == reviewing.but(todos=[]).to(
+            QualityReview
+        )
 
     @staticmethod
     @pytest.mark.parametrize("task", TASKS)
@@ -53,8 +55,10 @@ class TestTend:
         assert transition.todos == []
 
     @staticmethod
-    def test_a_branch_with_nothing_left_is_finished(trial: Trial, work: Work) -> None:
-        assert trial.walk(tend, work.to(Tend)) == work.to(FinishPr)
+    def test_a_branch_with_nothing_left_is_surveyed_again(
+        trial: Trial, work: Work
+    ) -> None:
+        assert trial.walk(tend, work.to(Tend)) == work.to(Resurvey)
 
     # The review's comments anchor to code, and the forge only has what was
     # pushed.
@@ -216,9 +220,9 @@ class TestFinishMerge:
         trial.shell.replies(when="git add -A*")
         red = work.but(todos=["ci", "review"]).model_copy(update={"red": [_RED]})
 
-        assert trial.walk(finish_merge, red.to(FinishMerge)) == work.but(
+        assert trial.walk(finish_merge, red.to(FinishMerge)) == red.but(
             todos=["review"], note="ci is left for the run this merge starts"
-        ).model_copy(update={"changed": True}).to(Tend)
+        ).found_red([]).model_copy(update={"changed": True}).to(Tend)
 
     @staticmethod
     def test_an_open_merge_is_continued_first(trial: Trial, work: Work) -> None:

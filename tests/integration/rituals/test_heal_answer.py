@@ -136,10 +136,10 @@ class TestTend:
     def test_answer_starts_with_what_an_earlier_cast_left(
         trial: Trial, work: Work
     ) -> None:
-        answering = _attended(work).but(todos=["answer", "review"])
+        answering = _attended(work).but(todos=["answer", "guide"])
 
         assert trial.walk(tend, answering.to(Tend)) == answering.but(
-            todos=["review"]
+            todos=["guide"]
         ).to(SettleLeft)
 
 
@@ -732,9 +732,11 @@ def _listed(trial: Trial) -> None:
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
     labels = [{"name": "pr::thermo"}, {"name": "v:guide:done"}]
     trial.shell.replies(
-        when=LIST, stdout=listing(row(7, mergeable="MERGEABLE", labels=labels))
+        when=LIST,
+        stdout=listing(row(7, mergeable="MERGEABLE", labels=labels)),
+        always=True,
     )
-    trial.shell.replies(when=board(), stdout=_GREEN_BOARD)
+    trial.shell.replies(when=board(), stdout=_GREEN_BOARD, always=True)
 
 
 class TestWholeCast:
@@ -766,7 +768,7 @@ class TestWholeCast:
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
         trial.shell.replies(
-            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True))
+            when=THREADS, stdout=_threads(_node("PRRT_1", resolved=True)), always=True
         )
         trial.shell.replies(when=_ISSUES, stdout="[]", always=True)
         trial.shell.replies(when=STATUS)
@@ -807,6 +809,7 @@ class TestWholeCast:
             "tend",
             "push_work",
             "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",

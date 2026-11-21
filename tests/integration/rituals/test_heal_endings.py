@@ -399,9 +399,9 @@ def _taken(
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
     worn = [{"name": label} for label in labels]
     trial.shell.replies(
-        when=LIST, stdout=listing(row(7, mergeable=mergeable, labels=worn))
+        when=LIST, stdout=listing(row(7, mergeable=mergeable, labels=worn)), always=True
     )
-    trial.shell.replies(when=board(), stdout=checks)
+    trial.shell.replies(when=board(), stdout=checks, always=True)
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
     trial.shell.replies(when="git fetch*")
@@ -473,8 +473,8 @@ def _worst_jobs(trial: Trial, bound: int) -> None:
 def _worst_answers(trial: Trial) -> None:
     trial.decide.answers(answer="", when="#7 *", always=True)
     opened = threads_page(page([node("PRRT_1", page([comment(101)]))]))
-    # The survey, `settle_left`, and a read and a post every round.
-    for _ in range(2 + 2 * ROUNDS):
+    # The survey, the review, `settle_left`, and a read and a post every round.
+    for _ in range(3 + 2 * ROUNDS):
         trial.shell.replies(when=THREADS, stdout=opened)
     trial.shell.replies(when="gh issue list *", stdout="[]", always=True)
     trial.shell.replies(when=STATUS)
@@ -557,6 +557,7 @@ class TestWholeCast:
             "tend",
             "quality_review",
             "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",
@@ -594,8 +595,8 @@ class TestWholeCast:
 
     # Every attempt the bound allows on every loop, each with its free extra
     # run: the merge stood down, every configured job red and green only on
-    # its last run, every round of answers and their gate stood down, and the
-    # review after it. The longest a branch can run, and what its share spoke
+    # its last run, the review, and every round of answers and their gate
+    # stood down. The longest a branch can run, and what its share spoke
     # for.
     @staticmethod
     @pytest.mark.parametrize("bound", [1, 2])
@@ -648,6 +649,8 @@ class TestWholeCast:
             "tend",
             "push_work",
             "tend",
+            "quality_review",
+            "tend",
             "settle_left",
             *round_ * ROUNDS,
             "read_threads",
@@ -656,8 +659,7 @@ class TestWholeCast:
             "tend",
             "push_work",
             "tend",
-            "quality_review",
-            "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",
@@ -669,7 +671,9 @@ class TestWholeCast:
             Run(attended=True, project=project, bound=bound)
         )
         assert share is not None
-        assert len(trial.steps) == services().steps.opening(1) + share
+        # The share also speaks for the surveys that hand out more tasks, and
+        # this branch got every task but the guide at once.
+        assert len(trial.steps) <= services().steps.opening(1) + share
 
     @staticmethod
     def test_a_gitlab_project_speaks_glab(trial: Trial, here: Path) -> None:
@@ -717,6 +721,7 @@ class TestTaskRituals:
             "tend",
             "push_work",
             "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",
@@ -740,6 +745,7 @@ class TestTaskRituals:
             "tend",
             "quality_review",
             "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",
@@ -768,6 +774,7 @@ class TestTaskRituals:
             "tend",
             "post_guide",
             "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",
@@ -823,6 +830,7 @@ class TestTaskRituals:
             "tend",
             "push_work",
             "tend",
+            "resurvey",
             "finish_pr",
             "survey",
             "chart",

@@ -19,8 +19,8 @@ the order a cast works it:
 | -------------------------------------------- | --------------------- | -------- |
 | conflicts with its base                      | none                  | `merge`  |
 | a red check whose job is in `ci.jobs`        | none                  | `ci`     |
-| unresolved review threads, whoever wrote them | none                 | `answer` |
 | an open pull request                         | `labels.reviewed`     | `review` |
+| unresolved review threads, whoever wrote them | none                 | `answer` |
 | nothing else to do                           | `labels.qa`           | `guide`  |
 
 Facts make todos; labels only remove them. A branch behind its base but
@@ -34,7 +34,7 @@ at the cwd, and reports that there is none when there is none. Each prints one
 line per pull request as it reads it:
 
 ```text
-#7 feature: merge, ci (checks), answer (3 threads), review
+#7 feature: merge, ci (checks), review, answer (3 threads)
 #9 docs: guide
 ```
 
@@ -77,9 +77,10 @@ the branch back for the next:
 - **merge**: the base merged in, conflicts resolved, the gate made green. See
   [merge](#merge).
 - **ci**: the red CI jobs rerun, fixed or covered. See [ci](#ci).
-- **answer**: the review threads triaged with you, fixed, replied to and
-  settled. Attended casts only. See [answer](#answer).
 - **review**: the quality review posted. See [review](#review).
+- **answer**: the review threads triaged with you, fixed, replied to and
+  settled. Attended casts only.
+  See [answer](#answer).
 - **guide**: the smoke test posted, once nothing else is left. See
   [guide](#guide).
 
@@ -87,9 +88,15 @@ Whatever the cast committed is pushed before the next task and before
 the branch is left, so the review's comments anchor to code the forge has.
 Nothing waits for CI after a push.
 
+When a branch has no task left, the cast surveys it again and works what the
+survey now finds: the comments the review posted are threads to answer, and a
+branch with nothing else left gets its guide. A task the branch already had in
+this cast is not worked a second time, so a check that is still red waits for
+the next cast. The cast leaves the branch when a survey finds nothing new.
+
 A cast takes a branch only where the worst that branch can spend fits its
 step budget of 1,004 steps. The budget is sized for `heal.mine` surveying and
-queuing the thousand pull requests GitHub lists. A branch spends at most 82
+queuing the thousand pull requests GitHub lists. A branch spends at most 93
 steps at the default `--bound` and three CI jobs, so a much larger `--bound`
 still fits. A branch that does not fit ends the cast without failing it, and
 the report names it as not reached. Cast again with a smaller `--bound`.
@@ -243,6 +250,8 @@ about, then puts the reviewed label on. A pull request already wearing the
 label has had its review: take the label off after changing the branch
 meaningfully, and the next cast reviews it again. A branch whose gate stood
 down is reviewed all the same, and the agent is told why it is not green.
+An attended `heal.*` cast then answers the comments it posted; `review` alone
+posts them and stops.
 
 ## guide
 

@@ -48,10 +48,10 @@ class Todos(TodosProtocol):
             found.append("merge")
         if red:
             found.append("ci")
-        if threads:
-            found.append("answer")
         if not pull.wears(project.labels.reviewed):
             found.append("review")
+        if threads:
+            found.append("answer")
         # The endgame: asked for only once nothing else is left to do.
         if not found and not pull.wears(project.labels.qa):
             found.append("guide")

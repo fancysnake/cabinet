@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- A `heal.*` cast surveys a branch again when its tasks run out and works
+  what it finds, until a survey finds nothing new. An attended cast answers
+  the review it posted, and a branch with nothing else left gets its guide. A
+  task already worked on the branch in this cast is not worked again.
+- The review task runs before the answer task, so one triage takes the
+  review's comments with the threads already open.
+
 ## [7.2.0] - 2026-11-20
 
 ### Added

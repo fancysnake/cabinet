@@ -15,9 +15,10 @@ _RunT = TypeVar("_RunT", bound="Run")
 _WorkT = TypeVar("_WorkT", bound="Work")
 
 # What a branch may need next, in the order a cast does it: the base merged
-# in, CI made green, the threads answered, a review posted, the guide posted:
-# the smoke-test instructions, as a comment.
-Task = Literal["merge", "ci", "answer", "review", "guide"]
+# in, CI made green, a review posted, the threads answered, the guide posted:
+# the smoke-test instructions, as a comment. The review comes before the
+# answers, so one triage takes its findings with the threads already open.
+Task = Literal["merge", "ci", "review", "answer", "guide"]
 TASKS: tuple[Task, ...] = get_args(Task)
 
 
@@ -244,7 +245,9 @@ class Run(Reserving, Hop):
     # request, so no budget survives the branch change.
     def take(self, row: Surveyed, pull: PullRequest, steps: int) -> "Work":
         todos = self.worked(row.todos)
-        return Work(run=self.spoke_for(steps), pr=pull, todos=todos, red=row.red)
+        return Work(
+            run=self.spoke_for(steps), pr=pull, todos=todos, taken=todos, red=row.red
+        )
 
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])
@@ -274,6 +277,11 @@ class Red(BaseModel):
     def in_hand(self) -> Watched:
         return self.red[0]
 
+    # The checks a later survey read as red, in place of the first survey's.
+    def found_red(self, red: list[Watched]) -> Self:
+        update: dict[str, list[Watched]] = {"red": red}
+        return self.model_copy(update=update)
+
 
 # `budgets` dies with this payload, which is what "a branch change clears all
 # budgets" means — a fresh Work is built per pull request and inherits nothing.
@@ -282,6 +290,10 @@ class Work(Budgeted, Red, Hop):
     pr: PullRequest
     # The tasks still to work on this branch, the next one first.
     todos: list[Task] = Field(default_factory=list)
+    # Every task this cast has handed the branch. The branch is surveyed
+    # again when its todos run out, and a task named here is not handed to it
+    # a second time: a check still red after `ci` would be worked for ever.
+    taken: list[Task] = Field(default_factory=list)
     merging: bool = False
     # What the repair loop should run next, empty for the step's own gate: the
     # narrow task named when the gate broke, so an agent's attempt is judged by
@@ -333,6 +345,8 @@ class Work(Budgeted, Red, Hop):
             update["budgets"] = budgets
         if todos is not None:
             update["todos"] = todos
+            new = [task for task in todos if task not in self.taken]
+            update["taken"] = [*self.taken, *new]
         if gate is not None:
             update["gate"] = gate
         if note is not None:

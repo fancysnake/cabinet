@@ -10,7 +10,7 @@
     vekna cast review [--plan-only true]
     vekna cast guide [--plan-only true]
 
-Each pull request is surveyed into a todo list (merge, ci, answer, review,
+Each pull request is surveyed into a todo list (merge, ci, review, answer,
 guide), taken onto its branch, and handed each task in turn. Each module
 holds one part and the rules it follows:
 

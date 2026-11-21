@@ -10,9 +10,15 @@ from cabinet.specs import HEAL_STEPS
 # The steps every branch walks at most once: `check_clean`, `sync_branch`,
 # `merge_base`, `finish_merge` or `stand_down`, `rerun_jobs`, `quality_review`
 # and `finish_pr`, two pushes (one after the merge, one after `ci`), and
-# `tend` once before each of the six that follow it. `post_guide` is not
-# among them: the survey asks for a guide only where nothing else is left.
+# `tend` once before each of the six that follow it.
 _ONCE = 15
+
+# The branch surveyed again each time its tasks run out. A survey that hands
+# it nothing new ends it, and no task is handed twice, so with five tasks at
+# most four surveys find one and a fifth finds none. Each of the four is
+# followed by one more `tend` that finds the tasks run out. `post_guide` and
+# the `tend` before it are here too: a guide can follow the other tasks.
+_AGAIN = 5 + 4 + 2
 
 
 # A gate's loop: a whole run and a narrowed one for every repair the bound
@@ -48,13 +54,15 @@ class Steps(StepsProtocol):
         return queue + 3
 
     # The worst one branch can spend, or `None` where the budget has no room
-    # for it: the steps walked once, `resolve_conflicts`, the loop of
-    # `gate_check`, every configured job red, and every round of `answer`.
+    # for it: the steps walked once, the surveys again, `resolve_conflicts`,
+    # the loop of `gate_check`, every configured job red, and every round of
+    # `answer`.
     @override
     def heal_share(self, run: Run) -> int | None:
         jobs = len(run.project.ci.jobs)
         steps = (
             _ONCE
+            + _AGAIN
             + _attempts(run.bound)
             + _gates(run.bound)
             + _jobs(run.bound, jobs)

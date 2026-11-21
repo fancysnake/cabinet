@@ -14,9 +14,10 @@ Grouped by school, the way a spellbook is.
 
 - **`heal.mine`**, **`heal.pr`** and **`heal.this`**: take each pull request as
   far as it goes. `heal.this` takes the one for the branch at the cwd. Each
-  pull request is surveyed into its todos (merge, ci, answer, review, guide)
-  and printed on one line; then the merge, ci, answer, review and guide tasks
-  are worked, and what was committed is pushed. `heal.mine` surveys every open
+  pull request is surveyed into its todos (merge, ci, review, answer, guide)
+  and printed on one line; then the merge, ci, review, answer and guide tasks
+  are worked, what was committed is pushed, and the branch is surveyed again
+  until nothing new is found. `heal.mine` surveys every open
   pull request of yours not wearing the wait label, oldest-modified first, and
   queues a `heal.pr --number N` on the vekna daemon for each one with work,
   then waits for them and reports what became of each branch.
