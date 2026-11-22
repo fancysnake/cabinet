@@ -158,8 +158,8 @@ class TestClosable:
         assert Thread(id="PRRT_1", resolved=False, comments=[app]).closable([])
 
     @staticmethod
-    def test_a_thread_without_comments_has_nobody_to_leave_it_to() -> None:
-        assert _thread().closable([])
+    def test_a_thread_without_comments_is_not_resolved_for_anyone() -> None:
+        assert not _thread().closable([])
 
 
 class TestWaits:

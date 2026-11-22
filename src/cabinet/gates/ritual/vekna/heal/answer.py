@@ -96,11 +96,12 @@ async def _finished(
         for thread in unanswered
         if (issue := filed_as(listing.issues, thread.id)) is not None
     ]
-    for thread in answered:
+    closing = [thread for thread in answered if thread.closable(project.bots)]
+    for thread in closing:
         await forge.resolve(number, thread)
     for thread, issue in filed:
         await _settled(project, number, thread, _filed(issue.url))
-    return len(answered) + len(filed)
+    return len(closing) + len(filed)
 
 
 # Finish a round an earlier cast's forge failure cut short, before anything is
@@ -303,11 +304,11 @@ async def approve_replies(
     threads = {thread.id: thread for thread in drafted.threads}
     last = work.exhausted(approve_replies.name)
     taken = list(drafted.items)
+    taken += [draft for draft in drafted.drafts if draft.thread not in threads]
     again: list[Answer] = []
-    for draft in drafted.drafts:
-        thread = threads.get(draft.thread)
-        asked = thread and report.drafted(work.pr, thread, draft, last=last)
-        if not (said := asked and await decide(asked, free=True)):
+    for draft in (draft for draft in drafted.drafts if draft.thread in threads):
+        card = report.drafted(work.pr, threads[draft.thread], draft, last=last)
+        if not (said := await decide(card, free=True)):
             taken.append(draft)
         elif last:
             emit_delta(

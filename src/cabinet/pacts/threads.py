@@ -76,7 +76,7 @@ class Thread(BaseModel):
     # read the reply.
     def closable(self, bots: Sequence[str]) -> bool:
         if not self.comments:
-            return True
+            return False
         first = self.comments[0]
         return first.mine or first.bot or first.author in bots
 
