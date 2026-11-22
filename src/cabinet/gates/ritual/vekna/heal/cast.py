@@ -3,11 +3,11 @@
 ``heal.mine`` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first, and works none of them itself: each one with
 work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in
-a pooled worktree beside the others, and the cast stays until they end and
-reports their rows. With no daemon listening it says so and
-fails. ``heal.pr`` takes the pull request it is given the number of;
-``heal.this`` and the task rituals take the pull request of the branch at the
-cwd. A task ritual is ``heal.this`` that may work one task and no other.
+a pooled worktree, and the cast stays until they end and reports their rows.
+With no daemon listening it says so and fails. ``heal.pr`` takes the pull
+request it is given the number of; ``heal.this`` and the task rituals take the
+pull request of the branch at the cwd. A task ritual is ``heal.this`` that may
+work one task and no other.
 
 ``heal.main`` takes no pull request: it reads the configured CI jobs on the
 base. Where one is red and no fix of yours is open, it cuts
@@ -323,11 +323,12 @@ def chart(run: Chart) -> Done[Healed]:
 
 
 # `heal.mine` stays until every cast it queued has ended, and takes their rows
-# for its own report. One wait at a time, in the order queued: the casts run
-# side by side whichever is waited on, and a resumed cast replays the waits in
-# the order it made them. A cast that failed took its rows with it, so the
-# branch is blocked on what vekna said of the ending. With the daemon gone
-# the wait cannot be made, and the branch is blocked with its outcome unknown.
+# for its own report. One wait at a time, in the order queued: the daemon
+# decides whether the casts overlap, not the order of the waits, and a resumed
+# cast replays the waits in the order it made them. A cast that failed took
+# its rows with it, so the branch is blocked on what vekna said of the ending.
+# With the daemon gone the wait cannot be made, and the branch is blocked with
+# its outcome unknown.
 @step
 async def attend(run: Attend) -> Chart:
     after = run
