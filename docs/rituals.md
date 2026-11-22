@@ -223,8 +223,9 @@ Attended, the task goes round in batches of `--batch` open threads:
     `read` or `not checked`: whether the reading ran something, only read the
     code, or did neither. The card wraps its rows at 80 columns.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
-   every item. The ritual opens the issues you said to file, posts the
-   replies and settles the threads.
+   every item, written for the comment's author: it leaves out what you said
+   at the triage and what the agent could not run or verify. The ritual opens the
+   issues you said to file, posts the replies and settles the threads.
 
 Then the next batch is read, up to three rounds a cast; what is still open
 after that waits for the next one. What the answers changed goes through the
