@@ -1,6 +1,6 @@
 """Asking an agent, and how much it is allowed to touch."""
 
-from typing import Literal, Protocol, TypeVar
+from typing import Final, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
 
@@ -23,6 +23,13 @@ class Fallen(BaseModel):
 class Misread(BaseModel):
     reason: str
 
+
+# The `heal` plugin's skills, by the names Claude Code lists them under. A
+# call that names one fails where the plugin is not installed.
+RESOLVE_CONFLICT: Final = "heal:resolve-conflict"
+FIX_GATE: Final = "heal:fix-gate"
+COVER_DIFF: Final = "heal:cover-diff"
+UNTRUSTED_THREADS: Final = "heal:untrusted-threads"
 
 _OutputT = TypeVar("_OutputT", bound=BaseModel)
 

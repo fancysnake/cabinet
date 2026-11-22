@@ -98,6 +98,7 @@ class TestSpending:
         assert isinstance(ruling, Repair)
         assert ruling.next_gate == "mise run lint:ruff"
         assert "E501 too long" in ruling.asking
+        assert ruling.skills == ("heal:fix-gate",)
 
     # Lines are re-measured without the slow suites: what an agent writes for
     # a gap is a test, and the fast suite is the one that runs it.
@@ -108,6 +109,7 @@ class TestSpending:
         assert isinstance(ruling, Repair)
         assert ruling.next_gate == _PROJECT.fast_coverage
         assert _MISSING in ruling.asking
+        assert ruling.skills == ("heal:cover-diff",)
         assert "leaves the slow suites out" not in ruling.asking
 
     @staticmethod

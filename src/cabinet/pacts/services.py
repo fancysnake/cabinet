@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Protocol
 from vekna.lexicon import RitualError
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from cabinet.pacts.agent import AgentProtocol
     from cabinet.pacts.forge import ForgeProtocol
     from cabinet.pacts.healing import Facts, Run, Surveyed, Unsurveyed
@@ -205,8 +207,12 @@ class ServicesProtocol(Protocol):
 
     def tasks(self, project: Project) -> TasksProtocol: ...
 
-    # `attended` says somebody is at the terminal to be asked.
-    def agent(self, project: Project, *, attended: bool) -> AgentProtocol: ...
+    # `attended` says somebody is at the terminal to be asked. Every call the
+    # agent makes fails unless it has each skill in `skills`, and it is told
+    # to load them before it starts.
+    def agent(
+        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
+    ) -> AgentProtocol: ...
 
 
 class ServicesUnboundError(RitualError):

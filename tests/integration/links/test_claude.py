@@ -44,6 +44,22 @@ class TestAsk:
         assert trial.coding.calls[0].resume is None
 
     @staticmethod
+    def test_the_skills_a_call_names_reach_the_agent(trial: Trial) -> None:
+        trial.coding.replies("did it")
+
+        skilled = ClaudeAgent(_PROJECT, attended=False, skills=["heal:fix-gate"])
+
+        drive(trial, lambda: skilled.ask("do it", job="fix"))
+
+        assert trial.coding.calls[0].focus_options == ClaudeOptions(
+            permission_mode="dontAsk",
+            allowed_tools=_WRITER,
+            effort="high",
+            max_turns=30,
+            skills=["heal:fix-gate"],
+        )
+
+    @staticmethod
     def test_the_job_picks_the_model(trial: Trial) -> None:
         trial.coding.replies("did it")
         agent = ClaudeAgent(

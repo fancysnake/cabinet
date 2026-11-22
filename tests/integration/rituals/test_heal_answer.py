@@ -341,6 +341,9 @@ class TestReadThreads:
         assert "PRRT_2" not in prompt
         assert "UNTRUSTED" in prompt
         assert "Edit" not in str(trial.coding.calls[0].focus_options)
+        assert "skills=['heal:untrusted-threads']" in str(
+            trial.coding.calls[0].focus_options
+        )
         assert trial.coding.calls[0].model == "plan-model"
         assert not any("threads open" in delta for delta in trial.deltas)
 
@@ -599,6 +602,9 @@ class TestAnswerThreads:
         assert trial.coding.prompts == ["the triage"]
         assert trial.coding.calls[0].model == "fix-model"
         assert "Edit" in str(trial.coding.calls[0].focus_options)
+        assert "skills=['heal:untrusted-threads']" in str(
+            trial.coding.calls[0].focus_options
+        )
 
     @staticmethod
     def test_many_open_threads_go_to_the_escalated_model(

@@ -5,6 +5,7 @@ it is imported, from `cabinet.rituals.wiring` — the one moment vekna gives a
 tome before any step runs.
 """
 
+from collections.abc import Sequence
 from functools import cached_property
 
 from typing_extensions import override
@@ -99,8 +100,10 @@ class Services(ServicesProtocol):
         return MiseTasks()
 
     @override
-    def agent(self, project: Project, *, attended: bool) -> AgentProtocol:
-        return ClaudeAgent(project, attended=attended)
+    def agent(
+        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
+    ) -> AgentProtocol:
+        return ClaudeAgent(project, attended=attended, skills=skills)
 
 
 def wire() -> None:

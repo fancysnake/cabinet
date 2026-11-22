@@ -7,7 +7,7 @@ pushed first, so the comments anchor to code the forge has.
 from vekna.lexicon import step
 
 from cabinet.gates.ritual.vekna.heal.agents import agent_for, session
-from cabinet.pacts.agent import Fallen, Misread
+from cabinet.pacts.agent import UNTRUSTED_THREADS, Fallen, Misread
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import Chart, QualityReview, SetAside, Tend
 from cabinet.pacts.project import Project
@@ -33,7 +33,7 @@ async def quality_review(work: QualityReview) -> Tend | SetAside | Chart:
     prompt = services().prompts.review(
         project, base=work.base_ref, threads=threads, reason=work.reason
     )
-    read = await agent_for(work).ask_for(
+    read = await agent_for(work, UNTRUSTED_THREADS).ask_for(
         prompt, output=Findings, job="review", key=session(work, "review")
     )
     if isinstance(read, Fallen):

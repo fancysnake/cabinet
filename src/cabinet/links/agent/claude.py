@@ -8,7 +8,7 @@ be asked.
 """
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TypeVar, assert_never
 
 from claude_agent_sdk import ClaudeSDKError
@@ -69,9 +69,12 @@ async def _guarded(
 
 
 class ClaudeAgent(AgentProtocol):
-    def __init__(self, project: Project, *, attended: bool) -> None:
+    def __init__(
+        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
+    ) -> None:
         self._project = project
         self._attended = attended
+        self._skills = [*skills]
 
     def _opts(self, job: Job, *, escalated: bool) -> CodingOpts:
         agent = self._project.agent
@@ -82,6 +85,7 @@ class ClaudeAgent(AgentProtocol):
                 allowed_tools=allowed_tools(job),
                 effort=agent.effort,
                 max_turns=agent.max_turns or None,
+                skills=self._skills,
             ),
         )
 

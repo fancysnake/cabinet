@@ -5,6 +5,7 @@ scripted, which is the test's mistake and not the agent's death — so a dead
 agent is a service double at the protocol boundary instead.
 """
 
+from collections.abc import Sequence
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -40,7 +41,9 @@ class FallingAgent(AgentProtocol):
 
 class _Falling(Services):
     @override
-    def agent(self, project: Project, *, attended: bool) -> AgentProtocol:
+    def agent(
+        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
+    ) -> AgentProtocol:
         return FallingAgent()
 
 

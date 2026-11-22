@@ -51,6 +51,8 @@ class Stalled(BaseModel):
 # One more attempt, with the asking already written.
 class Repair(BaseModel):
     asking: str
+    # The skills the asking names.
+    skills: tuple[str, ...]
     next_gate: str
 
 

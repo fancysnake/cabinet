@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the `heal.*` rituals and `identify` need the `heal` plugin
+  installed for the agent: `claude plugin install heal@cabinet`. Their prompts
+  name its skills (`heal:resolve-conflict`, `heal:fix-gate`,
+  `heal:cover-diff`, `heal:untrusted-threads`) and no longer carry the rules
+  inline. A cast without the plugin stops at the first agent call and names
+  the missing skill.
+- **Breaking:** cabinet needs vekna 3.0.0 or later.
+
 ## [7.3.0] - 2026-11-22
 
 ### Added

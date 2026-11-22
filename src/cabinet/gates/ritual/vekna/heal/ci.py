@@ -19,6 +19,7 @@ from vekna.lexicon import step
 
 from cabinet.gates.ritual.vekna.heal.agents import asked
 from cabinet.gates.ritual.vekna.heal.repair import repaired
+from cabinet.pacts.agent import FIX_GATE, UNTRUSTED_THREADS
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import (
     Chart,
@@ -105,7 +106,11 @@ async def mend_job(work: MendJob) -> PickJob | JobGate | LandJob | Chart:
     )
     escalated = services().sizes.escalates(red=len(work.red))
     if fallen := await asked(
-        work, prompt, key=_loop(work, job_gate.name), escalated=escalated
+        work,
+        prompt,
+        key=_loop(work, job_gate.name),
+        escalated=escalated,
+        skills=[FIX_GATE, UNTRUSTED_THREADS],
     ):
         return work.abandoned(fallen.reason).to(Chart)
     return work.to(JobGate) if gate else work.to(LandJob)

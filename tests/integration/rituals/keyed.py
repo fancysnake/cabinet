@@ -4,6 +4,7 @@ A session continues only within one cast, and a test walks one step at a time,
 so which calls share a session is read off the keys instead.
 """
 
+from collections.abc import Sequence
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -48,7 +49,9 @@ class _Keyed(Services):
         self._keys = keys
 
     @override
-    def agent(self, project: Project, *, attended: bool) -> AgentProtocol:
+    def agent(
+        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
+    ) -> AgentProtocol:
         return KeyedAgent(self._keys)
 
 

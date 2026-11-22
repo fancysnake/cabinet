@@ -8,6 +8,7 @@ three does not, so it is written once here and the steps only route on it.
 
 from typing_extensions import override
 
+from cabinet.pacts.agent import COVER_DIFF, FIX_GATE
 from cabinet.pacts.repairs import Attempt, Fixed, Repair, Ruling, Stalled
 from cabinet.pacts.services import PromptsProtocol, RepairsProtocol, VerdictsProtocol
 
@@ -46,6 +47,7 @@ class Repairs(RepairsProtocol):
             return Stalled(reason=f"`{attempt.gate}` {left}:\n{said}", seen=seen)
         return Repair(
             asking=self._asking(attempt, report=report, missing=missing),
+            skills=(COVER_DIFF if missing else FIX_GATE,),
             next_gate=self._next_gate(attempt, missing=missing),
         )
 

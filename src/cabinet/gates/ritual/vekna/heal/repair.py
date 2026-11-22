@@ -66,6 +66,8 @@ async def repaired(
     if isinstance(ruling, Stalled):
         return _gave_up(work, ruling.reason, ruling.seen).to(StandDown)
     escalated = services().sizes.escalates(red=len(work.red), spent=work.spent(name))
-    if fallen := await asked(work, ruling.asking, key=name, escalated=escalated):
+    if fallen := await asked(
+        work, ruling.asking, key=name, escalated=escalated, skills=ruling.skills
+    ):
         return work.abandoned(fallen.reason).to(Chart)
     return work.but(gate=ruling.next_gate).charged(name)

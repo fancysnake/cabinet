@@ -67,7 +67,8 @@ class TestFixGates:
         prompt = _PROMPTS.fix_gates(_PLAIN, "E501 {x}", gate="mise run lint:ruff")
 
         assert prompt.startswith("`mise run lint:ruff` is this project's gate")
-        assert "do not disable a lint rule" in prompt
+        assert "`heal:fix-gate` skill" in prompt
+        assert "do not disable a lint rule" not in prompt
         assert prompt.endswith("What it said:\n\nE501 {x}")
 
 
@@ -109,6 +110,8 @@ class TestResolve:
         prompt = _PROMPTS.resolve(_PLAIN, base="main", branch="feature", files="a.py")
 
         assert prompt.startswith("Merging main into feature stopped on conflicts.")
+        assert "`heal:resolve-conflict` skill" in prompt
+        assert "Read both sides" not in prompt
         assert prompt.endswith("Conflicted files:\n\na.py")
 
 

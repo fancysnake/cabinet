@@ -61,7 +61,11 @@ Then a `.vekna.toml` names the rituals and tells them what the repository is:
 --8<-- "README.md:vekna-toml"
 
 Every `[cabinet]` key has a default; [Configuration](configuration.md) lists
-them all. With that in place:
+them all.
+
+--8<-- "README.md:heal-skills"
+
+With that in place:
 
 ```bash
 vekna cast labels
