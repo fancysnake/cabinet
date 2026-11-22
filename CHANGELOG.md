@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning].
   task already worked on the branch in this cast is not worked again.
 - A reply to a review thread is written for the comment's author. It no
   longer mentions what the operator said at the triage or what the agent
-  could not run.
+  could not run or verify.
 - The review task runs before the answer task, so one triage takes the
   review's comments with the threads already open.
 

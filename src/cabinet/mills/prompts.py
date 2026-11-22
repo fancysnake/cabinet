@@ -139,9 +139,10 @@ forge yourself.
   that it has been filed; the ritual appends the link.
 
 A `reply` is read by whoever wrote the comment, not by me, and they saw none of
-this: not the triage, not my line, not your shell. Write it to them. Leave out
-what I asked for, so nothing in it reads as their suggestion when it was mine,
-and leave out what you could or could not run: the gates are the ritual's.
+this: not the triage, not my line, not your shell. Write it to them. Say what
+changed or why it will not, but not that I asked for it, so nothing in it reads
+as their suggestion when it was mine. Leave out what you could or could not run
+or verify: the gates are the ritual's.
 
 Do not commit or push — the ritual owns both, and runs the gates itself
 the moment you stop. Ask me rather than guessing when the call is mine to make.
