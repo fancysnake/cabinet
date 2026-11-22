@@ -96,7 +96,7 @@ the next cast. The cast leaves the branch when a survey finds nothing new.
 
 A cast takes a branch only where the worst that branch can spend fits its
 step budget of 1,004 steps. The budget is sized for `heal.mine` surveying and
-queuing the thousand pull requests GitHub lists. A branch spends at most 93
+queuing the thousand pull requests GitHub lists. A branch spends at most 105
 steps at the default `--bound` and three CI jobs, so a much larger `--bound`
 still fits. A branch that does not fit ends the cast without failing it, and
 the report names it as not reached. Cast again with a smaller `--bound`.
@@ -183,7 +183,11 @@ survey read belong to the old head.
 
 *Enchantment.* `heal.this` with the answer task alone, the way *Command* puts
 one word to each listener. Every unresolved review thread makes an answer
-todo, whoever wrote it. Every item is yours to decide, so only an attended
+todo, whoever wrote it, until the ritual has replied to it. The ritual
+resolves a thread that you opened, that an app opened on GitHub, or that a
+login in `bots` opened. A thread another person opened gets the reply and
+stays open for them to resolve; it makes an answer todo again when they
+write under the reply. Every item is yours to decide, so only an attended
 cast works it. A cast run with `vekna cast --unattended` leaves the threads
 alone and ends its report with what waits for you:
 
@@ -194,8 +198,8 @@ waiting for you, cast without --unattended:
 
 Attended, the task goes round in batches of `--batch` open threads:
 
-1. **Finish what was left.** A thread whose last word is the ritual's own
-   reply is settled. A thread with an issue already filed for it gets the
+1. **Finish what was left.** A thread of yours whose last word is the ritual's
+   own reply is resolved. A thread with an issue already filed for it gets the
    reply naming the issue. Both happen when the forge failed partway through
    an earlier cast.
 2. **Read.** An agent reads the open threads against the code and returns a
@@ -224,8 +228,14 @@ Attended, the task goes round in batches of `--batch` open threads:
     code, or did neither. The card wraps its rows at 80 columns.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item, written for the comment's author: it leaves out what you said
-   at the triage and what the agent could not run or verify. The ritual opens the
-   issues you said to file, posts the replies and settles the threads.
+   at the triage and what the agent could not run or verify.
+5. **Approve.** Only with `approve_replies = true`. Each drafted reply is put
+   to you as it would be posted. Press return to post it, or say what to
+   change: the agent redrafts it and you are asked again, up to `--bound`
+   times. The last asking says that no redraft is left. A reply you still do
+   not take then is not posted, and its thread stays open.
+6. **Post.** The ritual opens the issues you said to file, posts the replies
+   and resolves the threads that are its to resolve.
 
 Then the next batch is read, up to three rounds a cast; what is still open
 after that waits for the next one. What the answers changed goes through the

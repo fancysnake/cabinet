@@ -16,6 +16,8 @@ class Comment(BaseModel):
     body: str
     # Written by whoever the forge's client is logged in as.
     mine: bool = False
+    # Written by an app, where the forge says so: GitHub does, GitLab does not.
+    bot: bool = False
 
 
 # Hidden in what `answer` posts, so the forge records how far a round got:
@@ -68,6 +70,20 @@ class Thread(BaseModel):
     @property
     def raised_by(self) -> str:
         return self.comments[0].author if self.comments else ""
+
+    # Whether the ritual resolves it after replying: one you opened, or one
+    # an app or one of `bots` did. A person resolves their own thread, having
+    # read the reply.
+    def closable(self, bots: Sequence[str]) -> bool:
+        if not self.comments:
+            return True
+        first = self.comments[0]
+        return first.mine or first.bot or first.author in bots
+
+    # Whether `answer` still owes it anything. A thread the ritual leaves
+    # open stops waiting once the ritual's reply is its last word.
+    def waits(self, bots: Sequence[str]) -> bool:
+        return not self.resolved and (self.closable(bots) or not self.answered)
 
 
 # One plain comment on the pull request, outside every review thread.

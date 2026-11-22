@@ -27,10 +27,10 @@ WHOLE = 100.0
 # it can spend still fits. Sized for the cast that spends most: `heal.mine` on
 # the most pull requests a forge lists (`PULL_LIMIT`), a `summon` for each,
 # and the muster, the `summon` that finds the queue empty, `attend` and
-# `chart` around them. A cast that works a branch works one: ninety-three steps
-# at worst at the default bound of three and the three default CI jobs, three
-# rounds of `answer` among them, and four around it. The rest is room for a
-# bigger bound and more jobs.
+# `chart` around them. A cast that works a branch works one: a hundred and
+# five steps at worst at the default bound of three and the three default CI
+# jobs, three rounds of `answer` among them, and four around it. The rest is
+# room for a bigger bound and more jobs.
 HEAL_STEPS = PULL_LIMIT + 4
 
 # A problem this big goes to the escalated model on the first ask: files left

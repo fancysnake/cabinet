@@ -8,6 +8,7 @@ from vekna.trial import Trial
 from cabinet.gates.ritual.vekna.heal.answer import (
     answer_gate,
     answer_threads,
+    approve_replies,
     ask_triage,
     land_answers,
     post_answers,
@@ -19,6 +20,7 @@ from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.heal import (
     AnswerGate,
     AnswerThreads,
+    ApproveReplies,
     AskTriage,
     Chart,
     LandAnswers,
@@ -88,12 +90,19 @@ _GREEN_BOARD = '{"total_count": 0, "check_runs": []}'
 _AHEAD = f'test feature = "$({HERE})" && git rev-list --count origin/feature..HEAD'
 
 
+# The thread opener as the operator wrote it: the ritual resolves its own.
+_MINE = comment(101, author="me", body="guard", mine=True)
+# One somebody else opened, and the ritual's reply under it.
+_THEIRS = comment(101, author="alice", body="guard")
+_REPLIED = comment(102, author="me", body=ANSWERED, mine=True)
+
+
 def _threads(*nodes: dict[str, object]) -> str:
     return threads_page(page(list(nodes)))
 
 
 def _node(node_id: str, *, resolved: bool = False) -> dict[str, object]:
-    guard = page([comment(101, author="bot", body="guard")])
+    guard = page([_MINE])
     return node(node_id, guard, resolved=resolved, path="src/thing.py", line=12)
 
 
@@ -104,7 +113,7 @@ _THREAD = Thread(
     resolved=False,
     path="src/thing.py",
     line=12,
-    comments=[Comment(id="101", author="bot", body="guard")],
+    comments=[Comment(id="101", author="me", body="guard", mine=True)],
 )
 
 _ITEM_URL = "https://github.com/o/r/pull/7#issuecomment-12"
@@ -115,6 +124,16 @@ _PLAIN = Thread(
     plain=True,
     comments=[Comment(id=_ITEM_URL, author="me", body="guard", mine=True)],
 )
+
+
+_ALICES = _THREAD.model_copy(
+    update={"comments": [Comment(id="101", author="alice", body="guard")]}
+)
+
+
+def _configured(work: Work, **keys: bool | list[str]) -> Work:
+    project = work.run.project.model_copy(update=keys)
+    return work.but(run=work.run.model_copy(update={"project": project}))
 
 
 def _attended(work: Work) -> Work:
@@ -172,9 +191,7 @@ class TestSettleLeft:
     # An earlier cast replied and then the forge failed to settle the thread.
     @staticmethod
     def test_a_thread_already_answered_is_settled(trial: Trial, work: Work) -> None:
-        replied = page(
-            [comment(101, body="guard"), comment(102, body=ANSWERED, mine=True)]
-        )
+        replied = page([_MINE, comment(102, body=ANSWERED, mine=True)])
         trial.shell.replies(when=THREADS, stdout=_threads(node("PRRT_1", replied)))
         trial.shell.replies(when=_RESOLVE)
 
@@ -186,9 +203,7 @@ class TestSettleLeft:
     def test_a_settle_the_forge_refuses_leaves_the_task(
         trial: Trial, work: Work
     ) -> None:
-        replied = page(
-            [comment(101, body="guard"), comment(102, body=ANSWERED, mine=True)]
-        )
+        replied = page([_MINE, comment(102, body=ANSWERED, mine=True)])
         trial.shell.replies(when=THREADS, stdout=_threads(node("PRRT_1", replied)))
         trial.shell.replies(when=_RESOLVE, exit_code=1, stderr="502")
 
@@ -196,6 +211,17 @@ class TestSettleLeft:
 
         assert isinstance(transition, Tend)
         assert "could not resolve thread PRRT_1" in transition.note
+
+    @staticmethod
+    def test_a_thread_somebody_else_opened_is_left_open(
+        trial: Trial, work: Work
+    ) -> None:
+        theirs = node("PRRT_1", page([_THEIRS, _REPLIED]))
+        trial.shell.replies(when=THREADS, stdout=_threads(theirs))
+
+        assert trial.walk(settle_left, work.to(SettleLeft)) == work.to(ReadThreads)
+        assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+        assert not trial.deltas
 
     # A reviewer answering the reply reopens the conversation.
     @staticmethod
@@ -328,6 +354,20 @@ class TestReadThreads:
         trial.walk(read_threads, work.to(ReadThreads))
 
         assert _DONE in trial.shell.commands
+
+    # Theirs to resolve: the reply under it is all the task owed.
+    @staticmethod
+    def test_a_thread_somebody_else_opened_is_done_once_replied_to(
+        trial: Trial, work: Work
+    ) -> None:
+        theirs = node("PRRT_1", page([_THEIRS, _REPLIED]))
+        trial.shell.replies(when=THREADS, stdout=_threads(theirs))
+        trial.shell.replies(when=_DONE)
+
+        trial.walk(read_threads, work.to(ReadThreads))
+
+        assert _DONE in trial.shell.commands
+        assert not trial.coding.prompts
 
     # The threads are settled whether or not the label went on.
     @staticmethod
@@ -504,7 +544,7 @@ class TestAskTriage:
             in transition.prompt
         )
         assert transition.threads == [_THREAD, other]
-        assert "Thread:   src/thing.py, raised by bot" in transition.prompt
+        assert "Thread:   src/thing.py, raised by me" in transition.prompt
         assert trial.deltas == []
 
 
@@ -566,6 +606,124 @@ class TestAnswerThreads:
         ).abandoned("the agent stopped mid-flight: boom").to(Chart)
 
 
+def _drafted(work: Work, *drafts: Answer) -> ApproveReplies:
+    return ApproveReplies(work=work, drafts=list(drafts), threads=[_THREAD])
+
+
+class TestApproveReplies:
+    @staticmethod
+    def test_a_project_that_asks_for_it_gets_the_replies_first(
+        trial: Trial, work: Work
+    ) -> None:
+        draft = Answer(thread="PRRT_1", reply="guarded")
+        trial.coding.replies(Answered(items=[draft]))
+        asking = _configured(work, approve_replies=True)
+        told = AnswerThreads(work=asking, prompt="x", threads=[_THREAD], unsettled=1)
+
+        assert trial.walk(answer_threads, told) == _drafted(
+            asking.charged(answer_threads.name), draft
+        )
+
+    @staticmethod
+    def test_a_return_posts_the_reply_as_drafted(trial: Trial, work: Work) -> None:
+        trial.decide.answers(answer="", when="#7 pr 7 — reply to me — src/thing.py:12*")
+        draft = Answer(thread="PRRT_1", reply="guarded")
+
+        assert trial.walk(approve_replies, _drafted(work, draft)) == _answering(
+            work, draft
+        )
+        assert "\n\nguarded\n\nPress return to post it" in trial.decide.prompts[0]
+        assert not trial.coding.prompts
+
+    # The redraft names another thread, and the reply stays under its own. The
+    # reply taken beside it is not asked about again.
+    @staticmethod
+    def test_what_you_changed_is_redrafted_and_asked_again(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.decide.answers(answer="shorter", when="*\n\nguarded, at length\n\n*")
+        trial.decide.answers(answer="", when="*\n\nfine\n\n*")
+        trial.coding.replies(Answer(thread="PRRT_9", reply="guarded"))
+        long = Answer(thread="PRRT_1", reply="guarded, at length")
+        fine = Answer(thread="PRRT_2", reply="fine")
+        other = _THREAD.model_copy(update={"id": "PRRT_2"})
+        drafted = ApproveReplies(
+            work=work, drafts=[long, fine], threads=[_THREAD, other]
+        )
+
+        assert trial.walk(approve_replies, drafted) == ApproveReplies(
+            work=work.charged(approve_replies.name),
+            drafts=[Answer(thread="PRRT_1", reply="guarded")],
+            items=[fine],
+            threads=[_THREAD, other],
+        )
+        assert "guarded, at length" in trial.coding.prompts[0]
+        assert "what I want changed: shorter" in trial.coding.prompts[0]
+
+    # Taking the last one hands the budget back for the next round.
+    @staticmethod
+    def test_a_redraft_taken_is_posted_with_the_rest(trial: Trial, work: Work) -> None:
+        trial.decide.answers(answer="")
+        fine = Answer(thread="PRRT_2", reply="fine")
+        redraft = Answer(thread="PRRT_1", reply="guarded")
+        again = _drafted(work.charged(approve_replies.name), redraft).model_copy(
+            update={"items": [fine]}
+        )
+
+        assert trial.walk(approve_replies, again) == _answering(work, fine, redraft)
+
+    @staticmethod
+    def test_a_redraft_in_the_wrong_shape_leaves_the_draft_to_ask_again(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.decide.answers(answer="shorter")
+        trial.coding.replies("no idea, sorry")
+        draft = Answer(thread="PRRT_1", reply="guarded")
+
+        assert trial.walk(approve_replies, _drafted(work, draft)) == _drafted(
+            work.charged(approve_replies.name), draft
+        )
+        assert "did not answer in the shape" in trial.deltas[-1]
+
+    # The bound is spent: nothing is redrafted, and nothing you did not take
+    # is posted.
+    @staticmethod
+    def test_a_reply_still_not_taken_at_the_bound_is_not_posted(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.decide.answers(answer="shorter")
+        spent = work
+        for _ in range(work.run.bound):
+            spent = spent.charged(approve_replies.name)
+        draft = Answer(thread="PRRT_1", reply="guarded")
+
+        assert trial.walk(approve_replies, _drafted(spent, draft)) == _answering(work)
+        assert "No redrafts are left" in trial.decide.prompts[0]
+        assert not trial.coding.prompts
+        assert "thread PRRT_1 gets no reply and stays open" in trial.deltas[0]
+
+    @staticmethod
+    def test_an_answer_to_a_thread_nobody_triaged_is_not_asked_about(
+        trial: Trial, work: Work
+    ) -> None:
+        made_up = Answer(thread="PRRT_9", reply="made up")
+
+        assert trial.walk(approve_replies, _drafted(work, made_up)) == _answering(
+            work, made_up
+        )
+        assert not trial.decide.prompts
+
+    @staticmethod
+    def test_an_agent_that_dies_ends_the_cast(trial: Trial, work: Work) -> None:
+        falling()
+        trial.decide.answers(answer="shorter")
+        draft = Answer(thread="PRRT_1", reply="guarded")
+
+        assert trial.walk(approve_replies, _drafted(work, draft)) == work.abandoned(
+            "the agent stopped mid-flight: boom"
+        ).to(Chart)
+
+
 class TestPostAnswers:
     @staticmethod
     def test_replies_settle_each_thread_and_read_again(
@@ -579,6 +737,36 @@ class TestPostAnswers:
             post_answers, _answering(written, Answer(thread="PRRT_1", reply="guarded"))
         ) == written.to(ReadThreads)
         assert trial.shell.commands[0] == f"{_REPLY} -f body='{signed('guarded')}'"
+        assert trial.shell.commands[1].endswith("-f id=PRRT_1")
+
+    # No reply for the resolve is scripted, so issuing one would fail the walk.
+    @staticmethod
+    def test_a_thread_somebody_else_opened_gets_the_reply_and_stays_open(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(when="gh api repos/*")
+        written = _written(work)
+        answering = PostAnswers(
+            work=written,
+            items=[Answer(thread="PRRT_1", reply="guarded")],
+            threads=[_ALICES],
+        )
+
+        assert trial.walk(post_answers, answering) == written.to(ReadThreads)
+        assert trial.shell.commands == [f"{_REPLY} -f body='{signed('guarded')}'"]
+
+    @staticmethod
+    def test_a_thread_a_named_bot_opened_is_resolved(trial: Trial, work: Work) -> None:
+        trial.shell.replies(when="gh api repos/*")
+        trial.shell.replies(when=_RESOLVE)
+        written = _configured(_written(work), bots=["alice"])
+        answering = PostAnswers(
+            work=written,
+            items=[Answer(thread="PRRT_1", reply="guarded")],
+            threads=[_ALICES],
+        )
+
+        assert trial.walk(post_answers, answering) == written.to(ReadThreads)
         assert trial.shell.commands[1].endswith("-f id=PRRT_1")
 
     @staticmethod

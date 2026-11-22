@@ -5,9 +5,11 @@ wait. First whatever an earlier cast's forge failure left half-settled is
 finished. Then the open threads go in batches of ``--batch``: an agent reads
 them against the code into a triage, you answer each item in your own words
 (saying nothing takes the reading's proposal), and another agent fixes what
-you said to fix and drafts every reply. The ritual opens the issues you said
-to file, posts the replies and settles the threads, and reads what is still
-open for the next round, up to three. What the answers changed goes through
+you said to fix and drafts every reply, each put to you first where the
+project sets ``approve_replies``. The ritual opens the issues you said to
+file, posts the replies and settles the threads, and reads what is still
+open for the next round, up to three. A thread somebody else opened is
+settled by the reply and left for them to resolve. What the answers changed goes through
 the gate and is committed. A round that finds nothing open puts the answered
 label on; the next answer task takes it off before it starts. Attended, the
 review threads are put to you, the one question a cast asks.
@@ -20,10 +22,11 @@ from cabinet.gates.ritual.vekna.heal.agents import agent_for, session
 from cabinet.gates.ritual.vekna.heal.repair import repaired
 from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
-from cabinet.pacts.forge import ForgeError, ForgeProtocol
+from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import (
     AnswerGate,
     AnswerThreads,
+    ApproveReplies,
     AskTriage,
     Chart,
     LandAnswers,
@@ -40,6 +43,7 @@ from cabinet.pacts.project import CiJob, Project
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import (
+    Answer,
     Answered,
     Finding,
     Thread,
@@ -54,19 +58,20 @@ from cabinet.pacts.threads import (
 
 async def _unsettled(project: Project, number: int) -> list[Thread]:
     threads = await services().forge(project).threads(number)
-    return [thread for thread in threads if not thread.resolved]
+    return [thread for thread in threads if thread.waits(project.bots)]
 
 
 # The ritual's reply under a thread, then the thread settled: in that order,
 # so a forge that fails between them leaves the mark `settle_left` reads. A
-# plain item has no thread to reply under or resolve: a plain comment naming
-# it is both, and `comment` reports a failure instead of raising it.
-async def _settled(
-    forge: ForgeProtocol, number: int, thread: Thread, reply: str
-) -> None:
+# thread somebody else opened is theirs to resolve, and the reply is all it
+# gets. A plain item has no thread to reply under or resolve: a plain comment
+# naming it is both, and `comment` reports a failure instead of raising it.
+async def _settled(project: Project, number: int, thread: Thread, reply: str) -> None:
+    forge = services().forge(project)
     if not thread.plain:
         await forge.reply(number, thread, signed(reply))
-        await forge.resolve(number, thread)
+        if thread.closable(project.bots):
+            await forge.resolve(number, thread)
         return
     naming = f"{reply}\n\nSettles {thread.id}\n\n{settles(thread.id)}"
     posted = await forge.comment(number, [Finding(path="", body=signed(naming))])
@@ -81,8 +86,9 @@ def _filed(url: str) -> str:
 # Settle what an earlier round left half done, and say how many threads that
 # was.
 async def _finished(
-    forge: ForgeProtocol, number: int, threads: list[Thread], listing: Listing
+    project: Project, number: int, threads: list[Thread], listing: Listing
 ) -> int:
+    forge = services().forge(project)
     answered = [thread for thread in threads if thread.answered]
     unanswered = [thread for thread in threads if not thread.answered]
     filed = [
@@ -93,7 +99,7 @@ async def _finished(
     for thread in answered:
         await forge.resolve(number, thread)
     for thread, issue in filed:
-        await _settled(forge, number, thread, _filed(issue.url))
+        await _settled(project, number, thread, _filed(issue.url))
     return len(answered) + len(filed)
 
 
@@ -127,7 +133,7 @@ async def settle_left(work: SettleLeft) -> ReadThreads | Tend:
         )
         return work.noting(note).to(Tend)
     try:
-        done = await _finished(forge, work.pr.number, threads, listing)
+        done = await _finished(project, work.pr.number, threads, listing)
     except ForgeError as error:
         return work.noting(str(error)).to(Tend)
     if done:
@@ -244,7 +250,7 @@ async def ask_triage(triage: AskTriage) -> AnswerThreads:
 @step
 async def answer_threads(
     instructed: AnswerThreads,
-) -> PostAnswers | Tend | AnswerGate | SetAside | Chart:
+) -> PostAnswers | ApproveReplies | Tend | AnswerGate | SetAside | Chart:
     work = instructed.work.charged(answer_threads.name)
     came = await agent_for(work).ask_for(
         instructed.prompt,
@@ -257,7 +263,72 @@ async def answer_threads(
         return work.abandoned(came.reason).to(Chart)
     if isinstance(came, Misread):
         return await _landing(work, came.reason)
+    if work.run.project.approve_replies:
+        return ApproveReplies(work=work, drafts=came.items, threads=instructed.threads)
     return PostAnswers(work=work, items=came.items, threads=instructed.threads)
+
+
+# One draft sent back to the session that wrote it, with what you want changed.
+# A redraft in the wrong shape leaves the draft as it was, to be asked about
+# again. The thread is the ritual's to know: a redraft cannot move the reply
+# under another one.
+async def _redrafted(work: Work, draft: Answer, said: str) -> Answer | Fallen:
+    came = await agent_for(work).ask_for(
+        services().prompts.redraft(draft, said),
+        output=Answer,
+        job="fix",
+        key=session(work, answer_gate.name),
+    )
+    if isinstance(came, Fallen):
+        return came
+    if isinstance(came, Misread):
+        emit_delta(came.reason)
+        return draft
+    return Answer(thread=draft.thread, reply=came.reply, issue=came.issue)
+
+
+# Every drafted reply put to you before any is posted, where the project asks
+# for it: return takes it, and anything else is what to change. What you
+# changed is redrafted and comes back here, up to `--bound` times, because the
+# worst a branch can spend has to be a number. Past that, a reply you still
+# would not take is not posted: its thread stays open for the next round. An
+# answer to a thread nobody triaged is passed on unasked, for `post_answers`
+# to say and skip.
+@step
+async def approve_replies(
+    drafted: ApproveReplies,
+) -> PostAnswers | ApproveReplies | Chart:
+    work = drafted.work
+    report = services().report
+    threads = {thread.id: thread for thread in drafted.threads}
+    last = work.exhausted(approve_replies.name)
+    taken = list(drafted.items)
+    again: list[Answer] = []
+    for draft in drafted.drafts:
+        thread = threads.get(draft.thread)
+        asked = thread and report.drafted(work.pr, thread, draft, last=last)
+        if not (said := asked and await decide(asked, free=True)):
+            taken.append(draft)
+        elif last:
+            emit_delta(
+                f"no redrafts left at this --bound: thread {draft.thread} gets no"
+                " reply and stays open"
+            )
+        else:
+            redraft = await _redrafted(work, draft, said)
+            if isinstance(redraft, Fallen):
+                return work.abandoned(redraft.reason).to(Chart)
+            again.append(redraft)
+    if again:
+        return ApproveReplies(
+            work=work.charged(approve_replies.name),
+            drafts=again,
+            items=taken,
+            threads=drafted.threads,
+        )
+    return PostAnswers(
+        work=work.cleared(approve_replies.name), items=taken, threads=drafted.threads
+    )
 
 
 # An issue is opened before the reply that names it, and a thread is settled
@@ -268,7 +339,8 @@ async def answer_threads(
 async def _posted(answering: PostAnswers) -> int:
     work = answering.work
     number = work.pr.number
-    forge = services().forge(work.run.project)
+    project = work.run.project
+    forge = services().forge(project)
     threads = {thread.id: thread for thread in answering.threads}
     settled = 0
     for item in answering.items:
@@ -280,7 +352,7 @@ async def _posted(answering: PostAnswers) -> int:
             body = f"{item.issue.body}\n\n{filed_for(item.thread)}"
             opened = await forge.issue(item.issue.title, body)
             reply = f"{reply}\n\n{_filed(opened.url)}"
-        await _settled(forge, number, threads[item.thread], reply)
+        await _settled(project, number, threads[item.thread], reply)
         settled += 1
     return settled
 

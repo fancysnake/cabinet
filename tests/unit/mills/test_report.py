@@ -5,7 +5,15 @@ from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
-from cabinet.pacts.threads import ITEM, Comment, Finding, Thread, TriageItem
+from cabinet.pacts.threads import (
+    ITEM,
+    Answer,
+    Comment,
+    Finding,
+    IssueDraft,
+    Thread,
+    TriageItem,
+)
 from cabinet.specs import CARD_WIDTH
 from tests.conftest import watched
 
@@ -249,6 +257,48 @@ class TestTriage:
         assert asked.startswith("the card\n\nPress return")
         assert "answer fix, reject or file" in asked
         assert asked.endswith("\n->")
+
+
+class TestDrafted:
+    @staticmethod
+    def test_the_reply_is_shown_as_it_would_be_posted() -> None:
+        thread = _THREAD.model_copy(update={"path": "src/thing.py", "line": 12})
+        answer = Answer(thread="T1", reply="Guarded.\n\nThe loop stops first.")
+
+        assert _REPORT.drafted(_PULL, thread, answer, last=False) == (
+            f"#{_PULL.number} {_PULL.title} — reply to reviewer — src/thing.py:12\n\n"
+            "Guarded.\n\nThe loop stops first.\n\n"
+            "Press return to post it, or say what to change.\n->"
+        )
+
+    @staticmethod
+    def test_an_issue_to_file_is_named_above_the_reply() -> None:
+        filing = Answer(
+            thread="T1", reply="Filed.", issue=IssueDraft(title="Guard it", body="x")
+        )
+
+        drafted = _REPORT.drafted(_PULL, _THREAD, filing, last=False)
+
+        assert "reply to reviewer\n\nFiles:    Guard it\n\nFiled.\n" in drafted
+
+    @staticmethod
+    def test_the_last_asking_says_what_anything_but_a_return_costs() -> None:
+        done = Answer(thread="T1", reply="Done.")
+
+        drafted = _REPORT.drafted(_PULL, _THREAD, done, last=True)
+
+        assert "No redrafts are left at this --bound" in drafted
+        assert "say what to change" not in drafted
+        assert drafted.endswith("\n->")
+
+    @staticmethod
+    def test_a_thread_nobody_wrote_on_is_the_reviews() -> None:
+        bare = Thread(id="T1", resolved=False)
+        done = Answer(thread="T1", reply="Done.")
+
+        drafted = _REPORT.drafted(_PULL, bare, done, last=False)
+
+        assert drafted.splitlines()[0].endswith("— reply to the review")
 
 
 class TestFindings:
