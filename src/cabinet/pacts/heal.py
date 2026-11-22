@@ -144,6 +144,15 @@ class PostAnswers(BaseModel):
     threads: list[Thread]
 
 
+# The answers before they are posted: `drafts` wait for your word, and `items`
+# are the ones you took.
+class ApproveReplies(BaseModel):
+    work: Work
+    drafts: list[Answer]
+    items: list[Answer] = []
+    threads: list[Thread]
+
+
 class AnswerGate(Work):
     pass
 

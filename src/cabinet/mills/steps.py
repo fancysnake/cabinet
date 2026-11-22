@@ -39,12 +39,13 @@ def _jobs(bound: int, jobs: int) -> int:
     return jobs * (3 + _gates(bound)) + 1
 
 
-# `answer`: `settle_left` and the `tend` before it, then four steps a round for
+# `answer`: `settle_left` and the `tend` before it, then four steps a round and
+# `approve_replies` once and again for every redraft the bound allows, for
 # every round it may take, the `read_threads` that finds nothing more to do, a
 # gate's loop, `land_answers` or `stand_down`, and the push with the `tend`
 # before it.
 def _answer(bound: int) -> int:
-    return 2 + 4 * ROUNDS + 1 + _gates(bound) + 1 + 2
+    return 2 + (5 + bound) * ROUNDS + 1 + _gates(bound) + 1 + 2
 
 
 class Steps(StepsProtocol):

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from cabinet.pacts.repairs import Attempt, Ruling
     from cabinet.pacts.scm import ScmProtocol
     from cabinet.pacts.tasks import Ran, TasksProtocol
-    from cabinet.pacts.threads import Finding, Thread, Told, TriageItem
+    from cabinet.pacts.threads import Answer, Finding, Thread, Told, TriageItem
 
 
 class PullsProtocol(Protocol):
@@ -100,6 +100,9 @@ class PromptsProtocol(Protocol):
 
     def triage_work(self, number: int, told: list[Told]) -> str: ...
 
+    # One drafted answer sent back to its writer, with what you want changed.
+    def redraft(self, answer: Answer, said: str) -> str: ...
+
     def review(
         self, project: Project, *, base: str, threads: list[Thread], reason: str
     ) -> str: ...
@@ -157,6 +160,12 @@ class ReportProtocol(Protocol):
 
     # A card with the question under it, naming the answers it takes.
     def asked(self, card: str) -> str: ...
+
+    # One drafted reply as it would be posted, with the question under it:
+    # `last` where saying anything but yes leaves the reply unposted.
+    def drafted(
+        self, pull: PullRequest, thread: Thread, answer: Answer, *, last: bool
+    ) -> str: ...
 
 
 class ServicesProtocol(Protocol):

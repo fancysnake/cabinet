@@ -470,8 +470,16 @@ def _worst_jobs(trial: Trial, bound: int) -> None:
 # open through every round the share allows, each read, answered as the
 # reading says, replied to and settled; the forge keeps saying it is open,
 # and the worktree has changed when the rounds are spent.
-def _worst_answers(trial: Trial) -> None:
-    trial.decide.answers(answer="", when="#7 *", always=True)
+def _worst_answers(trial: Trial, bound: int) -> None:
+    trial.decide.answers(answer="", when="#7 * — thread *", always=True)
+    # Every reply sent back as often as the bound allows, and then taken.
+    for _ in range(ROUNDS):
+        for _ in range(bound):
+            trial.decide.answers(answer="shorter", when="#7 * — reply to *")
+        trial.decide.answers(answer="", when="#7 * — reply to *")
+    trial.coding.replies(
+        Answer(thread="PRRT_1", reply="done"), when="Redraft your reply*", always=True
+    )
     opened = threads_page(page([node("PRRT_1", page([comment(101)]))]))
     # The first survey, the review and two more surveys find none; the one
     # after them finds the thread, and every round reads it again, the last
@@ -620,7 +628,8 @@ class TestWholeCast:
     # Every attempt the bound allows on every loop, each with its free extra
     # run, and every survey handing out one task the last did not: the review,
     # the merge stood down, every configured job red and green only on its last
-    # run, every round of answers and their gate stood down, and the guide.
+    # run, every round of answers approved and their gate stood down, and the
+    # guide.
     # The longest a branch can run, and what its share spoke for.
     @staticmethod
     @pytest.mark.parametrize("bound", [1, 2])
@@ -628,11 +637,12 @@ class TestWholeCast:
         trial: Trial, here: Path, bound: int
     ) -> None:
         (here / ".vekna.toml").write_text(
-            "".join(
+            "[cabinet]\napprove_replies = true\n"
+            + "".join(
                 f'[cabinet.ci.jobs.{job}]\ngate = "mise run {job}"\n' for job in _JOBS
             )
         )
-        _worst_answers(trial)
+        _worst_answers(trial, bound)
         _worst_surveys(trial)
         _taken(trial, mergeable="MERGEABLE", labels=("pr::thermo", "v:guide:done"))
         trial.shell.replies(when="git merge-base*", exit_code=1)
@@ -659,7 +669,13 @@ class TestWholeCast:
             trial.cast(heal_pr, HealPr(number=7, bound=bound))
 
         job = ["pick_job", "mend_job", *["job_gate"] * (2 * bound + 1), "land_job"]
-        round_ = ["read_threads", "ask_triage", "answer_threads", "post_answers"]
+        round_ = [
+            "read_threads",
+            "ask_triage",
+            "answer_threads",
+            *["approve_replies"] * (bound + 1),
+            "post_answers",
+        ]
         assert trial.steps == [
             "muster_pr",
             "survey",
@@ -705,7 +721,10 @@ class TestWholeCast:
             "chart",
         ]
         project = Project.model_validate(
-            {"ci": {"jobs": {job: {"gate": f"mise run {job}"} for job in _JOBS}}}
+            {
+                "approve_replies": True,
+                "ci": {"jobs": {job: {"gate": f"mise run {job}"} for job in _JOBS}},
+            }
         )
         share = services().steps.heal_share(
             Run(attended=True, project=project, bound=bound)

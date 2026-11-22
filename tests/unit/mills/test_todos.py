@@ -4,7 +4,7 @@ from cabinet.mills.todos import Todos
 from cabinet.pacts.healing import Facts, Surveyed, Task
 from cabinet.pacts.project import CiJob, Project
 from cabinet.pacts.pulls import Board, Check, PullRequest, Watched
-from cabinet.pacts.threads import Thread
+from cabinet.pacts.threads import ANSWERED, Comment, Thread
 
 _TODOS = Todos()
 _PROJECT = Project()
@@ -107,6 +107,20 @@ class TestTodos:
         facts = _facts(labels=_DONE, threads=[Thread(id="1", resolved=True)])
 
         assert not _todos(facts)
+
+    # Left open for whoever opened it, with nothing more to say to it.
+    @staticmethod
+    def test_a_thread_of_theirs_replied_to_is_not_an_answer() -> None:
+        replied = Thread(
+            id="1",
+            resolved=False,
+            comments=[
+                Comment(id="1", author="alice", body="guard"),
+                Comment(id="2", author="me", body=ANSWERED, mine=True),
+            ],
+        )
+
+        assert not _todos(_facts(labels=_DONE, threads=[replied]))
 
 
 class TestRed:

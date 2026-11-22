@@ -230,6 +230,19 @@ class TestThreads:
         assert thread.comments[0].mine
 
     @staticmethod
+    def test_a_comment_an_app_wrote_is_a_bots(trial: Trial) -> None:
+        app = {"login": "coderabbitai", "__typename": "Bot"}
+        written = page([comment(101) | {"author": app}, comment(102)])
+        trial.shell.replies(
+            when=_GRAPHQL, stdout=threads_page(page([node("PRRT_1", written)]))
+        )
+        _remarks(trial)
+
+        [thread] = drive(trial, lambda: _FORGE.threads(7))
+
+        assert [one.bot for one in thread.comments] == [True, False]
+
+    @staticmethod
     def test_threads_past_the_first_page_are_asked_for(trial: Trial) -> None:
         first = page([node("PRRT_1", page([comment(101)]))], cursor="c1")
         second = page([node("PRRT_2", page([comment(102)]))])

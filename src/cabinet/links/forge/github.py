@@ -62,20 +62,24 @@ query($owner: String!, $repo: String!, $number: Int!, $after: String) {
           id isResolved path line
           comments(first: 100) {
             pageInfo { hasNextPage endCursor }
-            nodes { databaseId author { login } body viewerDidAuthor } } } } } } }"""
+            nodes {
+              databaseId author { login __typename } body viewerDidAuthor
+            } } } } } } }"""
 
 _COMMENTS = """\
 query($id: ID!, $after: String) {
   node(id: $id) { ... on PullRequestReviewThread {
     comments(first: 100, after: $after) {
       pageInfo { hasNextPage endCursor }
-      nodes { databaseId author { login } body viewerDidAuthor } } } } }"""
+      nodes { databaseId author { login __typename } body viewerDidAuthor } } } } }"""
 
 _RESOLVE = """\
 mutation($id: ID!) {
   resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }"""
 
 _PASSED = "success"
+
+_BOT = "Bot"
 
 _CONFLICTED = {"CONFLICTING": True, "MERGEABLE": False}
 
@@ -145,8 +149,10 @@ class _Board(BaseModel):
     check_runs: list[_Check] = []
 
 
+# `__typename` says what kind of account wrote it: an app is a `Bot`.
 class _Author(BaseModel):
     login: str = ""
+    kind: str = Field(default="", alias="__typename")
 
 
 class _Comment(BaseModel):
@@ -436,6 +442,7 @@ async def _thread(found: _Thread) -> Thread:
                 author=comment.author.login if comment.author else "",
                 body=comment.body,
                 mine=comment.mine,
+                bot=comment.author is not None and comment.author.kind == _BOT,
             )
             for comment in nodes
         ],

@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `bots` in `[cabinet]` names more logins whose review threads `answer`
+  resolves after it replies, beside yours and the ones a GitHub app opened.
+- `approve_replies = true` in `[cabinet]` puts each drafted reply to you
+  before `answer` posts it. Press return to post it, or say what to change
+  and the agent redrafts it.
+
 ### Changed
+
+- `answer` no longer resolves a review thread another person opened. It
+  replies and leaves the thread open for them, and the thread makes an answer
+  todo again only when they write under the reply.
 
 - A `heal.*` cast surveys a branch again when its tasks run out and works
   what it finds, until a survey finds nothing new. An attended cast answers

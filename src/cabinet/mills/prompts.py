@@ -11,7 +11,7 @@ from typing_extensions import override
 from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import PromptsProtocol
-from cabinet.pacts.threads import Thread, Told
+from cabinet.pacts.threads import Answer, Thread, Told
 
 _RESOLVE = """\
 Resolve them. Read both sides before choosing one: the conflict is between work
@@ -146,6 +146,15 @@ or verify: the gates are the ritual's.
 
 Do not commit or push — the ritual owns both, and runs the gates itself
 the moment you stop. Ask me rather than guessing when the call is mine to make.
+"""
+
+_REDRAFT = """\
+Return the item whole: the `reply` as it should now be posted, and `issue`
+where one is still to be filed. What a reply is has not changed: it is read by
+whoever wrote the comment, and says nothing of me or of what you could run.
+Change code only where what I want needs it.
+
+Do not commit or push, and do not reach the forge yourself.
 """
 
 _REVIEW = """\
@@ -343,6 +352,18 @@ class Prompts(PromptsProtocol):
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"
             f"{_FENCE}\n{_TRIAGE_WORK}\nThe triage:\n\n{shown}"
+        )
+
+    # The draft is fenced, because it may quote the comment it answers; the
+    # line under it is yours and stays outside.
+    @override
+    def redraft(self, answer: Answer, said: str) -> str:
+        filing = f"\nissue to file: {answer.issue.title}" if answer.issue else ""
+        drafted = _fence(f"{answer.reply}\n{filing}" if filing else answer.reply)
+        return (
+            f"Redraft your reply to thread {answer.thread} before it is posted.\n\n"
+            f"{_FENCE}\nThe reply you drafted:\n\n{drafted}\n\n"
+            f"what I want changed: {said}\n\n{_REDRAFT}"
         )
 
     # `reason`, not `blocked`: what this takes is the sentence saying what

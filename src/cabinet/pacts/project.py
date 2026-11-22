@@ -190,6 +190,13 @@ class Project(BaseModel):
     # The skill file the guide task has its agent follow: the manual check a
     # person runs before the branch merges.
     smoke_skill: str = "~/.claude/skills/smoke-test/SKILL.md"
+    # Logins whose review threads `answer` resolves after replying, beside
+    # yours and the ones the forge says an app opened. GitLab never says so:
+    # there every bot is named here.
+    bots: list[str] = []
+    # Each drafted reply is put to you before `answer` posts it, and
+    # redrafted until you take it.
+    approve_replies: bool = False
     labels: Labels = Labels()
     ci: Ci = Ci()
     agent: Agent = Agent()

@@ -130,3 +130,56 @@ class TestRemarked:
         [thread] = remarked([_mine(_ITEM), reply])
 
         assert not thread.resolved
+
+
+def _theirs(*bodies: str) -> Thread:
+    opener = Comment(id="opener", author="alice", body="guard")
+    replies = _thread(*bodies).comments
+    return Thread(id="PRRT_1", resolved=False, comments=[opener, *replies])
+
+
+class TestClosable:
+    @staticmethod
+    def test_a_thread_you_opened_is_yours_to_resolve() -> None:
+        assert _thread("guard").closable([])
+
+    @staticmethod
+    def test_a_thread_somebody_else_opened_is_theirs() -> None:
+        assert not _theirs().closable(["coderabbitai"])
+
+    @staticmethod
+    def test_a_thread_a_named_bot_opened_is_resolved_for_it() -> None:
+        assert _theirs().closable(["alice"])
+
+    @staticmethod
+    def test_a_thread_an_app_opened_is_resolved_for_it() -> None:
+        app = Comment(id="1", author="coderabbitai", body="guard", bot=True)
+
+        assert Thread(id="PRRT_1", resolved=False, comments=[app]).closable([])
+
+    @staticmethod
+    def test_a_thread_without_comments_is_not_resolved_for_anyone() -> None:
+        assert not _thread().closable([])
+
+
+class TestWaits:
+    @staticmethod
+    def test_a_resolved_thread_waits_for_nothing() -> None:
+        assert not _thread("guard").model_copy(update={"resolved": True}).waits([])
+
+    @staticmethod
+    def test_a_thread_of_theirs_waits_for_its_reply() -> None:
+        assert _theirs().waits([])
+
+    @staticmethod
+    def test_a_thread_of_theirs_replied_to_no_longer_waits() -> None:
+        assert not _theirs(ANSWERED).waits([])
+
+    @staticmethod
+    def test_a_word_after_the_reply_makes_it_wait_again() -> None:
+        assert _theirs(ANSWERED, "no").waits([])
+
+    # Replied to and still open: the forge failed before the resolve.
+    @staticmethod
+    def test_a_thread_of_yours_waits_until_it_is_resolved() -> None:
+        assert _thread("guard", ANSWERED).waits([])

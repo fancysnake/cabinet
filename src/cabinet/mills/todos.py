@@ -39,9 +39,9 @@ class Todos(TodosProtocol):
     def surveyed(self, facts: Facts, project: Project) -> Surveyed:
         pull = facts.pull
         red = _red(facts.board, project)
-        # Whoever opened them: agents post with the owner's token, so the
-        # author says nothing about whether a thread wants an answer.
-        threads = sum(not thread.resolved for thread in facts.threads)
+        # Threads that want an answer: a thread opened by someone else is
+        # theirs to resolve, so it stops counting once the ritual has replied.
+        threads = sum(thread.waits(project.bots) for thread in facts.threads)
         due: set[Task] = set()
         # Only a conflict: a branch behind its base merges fine.
         if facts.conflicted:

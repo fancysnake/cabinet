@@ -16,7 +16,7 @@ from cabinet.pacts.issues import (
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import ReportProtocol
-from cabinet.pacts.threads import ITEM, Finding, Thread, TriageItem
+from cabinet.pacts.threads import ITEM, Answer, Finding, Thread, TriageItem
 from cabinet.specs import CARD_WIDTH
 
 _OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
@@ -67,6 +67,12 @@ def _priority(item: TriageItem) -> str:
 _TAKES = (
     "Press return to take the action above, or answer fix, reject or file,\n"
     "or say in your own words what should happen.\n->"
+)
+
+_POSTS = "Press return to post it, or say what to change.\n->"
+_LAST = (
+    "Press return to post it. No redrafts are left at this --bound: anything\n"
+    "else leaves the thread open without a reply.\n->"
 )
 
 # Estimate is the longest of the six labels, which spell TRIAGE.
@@ -279,3 +285,15 @@ class Report(ReportProtocol):
     @override
     def asked(self, card: str) -> str:
         return f"{card}\n\n{_TAKES}"
+
+    # The reply unwrapped: it is posted as it reads here.
+    @override
+    def drafted(
+        self, pull: PullRequest, thread: Thread, answer: Answer, *, last: bool
+    ) -> str:
+        at = f"{thread.path}:{thread.line}" if thread.line else thread.path
+        to = " — ".join(part for part in (thread.raised_by, at) if part)
+        lines = [f"#{pull.number} {pull.title} — reply to {to or 'the review'}", ""]
+        if answer.issue is not None:
+            lines += [_row("Files", answer.issue.title), ""]
+        return "\n".join([*lines, answer.reply, "", _LAST if last else _POSTS])
