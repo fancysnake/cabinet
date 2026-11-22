@@ -21,8 +21,9 @@ Grouped by school, the way a spellbook is.
   pull request of yours not wearing the wait label, oldest-modified first, and
   queues a `heal.pr --number N` on the vekna daemon for each one with work,
   then waits for them and reports what became of each branch.
-  The daemon runs those side by side, each in a pooled worktree, so your own
-  checkout never moves. An unattended cast leaves review threads for you.
+  The daemon runs each in a pooled worktree, so your own checkout never
+  moves: one at a time for a cast typed at a terminal, side by side for
+  `vekna cast --queue heal.mine`. An unattended cast leaves review threads for you.
   `--plan-only true` stops after the survey and changes nothing.
 - **`heal.main`**: fixes a red base. Where a configured CI job is red on the
   base and no fix of yours is open, it cuts a branch from the base, has an

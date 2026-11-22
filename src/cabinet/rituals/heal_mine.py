@@ -4,9 +4,11 @@
 
 Every open pull request of yours not wearing the wait label, oldest-modified
 first, is surveyed, and this cast works none of them itself: each one with
-work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in a pooled
-worktree beside the others. The cast stays until every one of them has ended,
-then reports their rows as its own and fails where any branch was blocked.
+work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in
+a pooled worktree: beside the others under ``vekna cast --queue``, one at a
+time when vekna 3 follows a cast typed at a terminal. The cast stays until
+every one of them has ended, then reports their rows as its own and fails
+where any branch was blocked.
 With no daemon listening it says so and fails.
 The steps live in ``cabinet.gates.ritual.vekna.heal``, shared with
 ``heal.this`` and the task rituals; this module is the ritual itself and the

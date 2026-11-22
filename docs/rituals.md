@@ -60,8 +60,11 @@ branch fails `heal.mine` the way it fails `heal.this`. A `heal.pr` whose
 branch does not fit its step budget is named in the report as not reached.
 
 The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
-up, so the branches heal side by side and the checkout you cast from never
-moves. While it waits, `vekna cast heal.mine` prints each one's rows and
+up, so the checkout you cast from never moves. Under vekna 3 the casts of a
+`heal.mine` typed at a terminal run one at a time, and
+`vekna cast --queue heal.mine` hands the cast to the daemon, which heals the
+branches side by side; earlier versions always run them side by side. While
+it waits, `vekna cast heal.mine` prints each one's rows and
 prompts as they come. With no daemon running, `heal.mine` prints its survey
 and fails: start one with `vekna`. If the daemon goes away after some
 casts were queued, those keep running, and the report blocks each one as

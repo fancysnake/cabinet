@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [7.3.0] - 2026-11-22
+
 ### Added
 
+- cabinet accepts vekna 3.x as well as 1.3.0 and later. Under vekna 3 a
+  `vekna cast heal.mine` typed at a terminal heals its pull requests one at a
+  time; `vekna cast --queue heal.mine` heals them side by side.
 - `bots` in `[cabinet]` names more logins whose review threads `answer`
   resolves after it replies, beside yours and the ones a GitHub app opened.
 - `approve_replies = true` in `[cabinet]` puts each drafted reply to you
@@ -20,7 +25,6 @@ and this project adheres to [Semantic Versioning].
 - `answer` no longer resolves a review thread another person opened. It
   replies and leaves the thread open for them, and the thread makes an answer
   todo again only when they write under the reply.
-
 - A `heal.*` cast surveys a branch again when its tasks run out and works
   what it finds, until a survey finds nothing new. An attended cast answers
   the review it posted, and a branch with nothing else left gets its guide. A
@@ -446,7 +450,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v7.2.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v7.3.0...HEAD
+[7.3.0]: https://github.com/fancysnake/cabinet/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/fancysnake/cabinet/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/fancysnake/cabinet/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/fancysnake/cabinet/compare/v6.0.0...v7.0.0

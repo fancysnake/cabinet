@@ -23,8 +23,8 @@ act on. They run inside the agent session you already have open.
 Each is filed under a school of magic, the way a spellbook is.
 
 - **`heal.mine`**, **`heal.pr`**, **`heal.this`** (Evocation): to take your
-  pull requests as far as they go, `heal.mine` side by side in worktrees of
-  their own, or with `--plan-only true` to see what each needs next.
+  pull requests as far as they go, `heal.mine` each in a worktree of
+  its own, or with `--plan-only true` to see what each needs next.
 - **`heal.main`** (Evocation): to fix a red base on a branch and open a pull
   request for it.
 - **`merge`** (Transmutation): to merge the base into a conflicting branch.

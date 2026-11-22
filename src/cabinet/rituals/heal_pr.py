@@ -5,10 +5,10 @@
 
 The open pull request of yours numbered ``--number``, whatever the cwd stands
 on. ``heal.mine`` queues one for each branch it surveys work on, and the daemon
-runs each in a pooled worktree, so the branches heal side by side and your own
-checkout never moves. Typed by hand it runs where it was typed, as
-``heal.this`` does. The steps live in ``cabinet.gates.ritual.vekna.heal``; this
-module is the ritual itself and the surface vekna sweeps.
+runs each in a pooled worktree, so your own checkout never moves. Typed by
+hand it runs where it was typed, as ``heal.this`` does. The steps live in
+``cabinet.gates.ritual.vekna.heal``; this module is the ritual itself and
+the surface vekna sweeps.
 """
 
 from vekna.lexicon import ritual
