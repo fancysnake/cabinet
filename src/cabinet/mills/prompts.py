@@ -138,6 +138,11 @@ forge yourself.
 - file — put a title and a body for the issue in `issue`, and say in `reply`
   that it has been filed; the ritual appends the link.
 
+A `reply` is read by whoever wrote the comment, not by me, and they saw none of
+this: not the triage, not my line, not your shell. Write it to them. Leave out
+what I asked for, so nothing in it reads as their suggestion when it was mine,
+and leave out what you could or could not run: the gates are the ritual's.
+
 Do not commit or push — the ritual owns both, and runs the gates itself
 the moment you stop. Ask me rather than guessing when the call is mine to make.
 """

@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning].
   what it finds, until a survey finds nothing new. An attended cast answers
   the review it posted, and a branch with nothing else left gets its guide. A
   task already worked on the branch in this cast is not worked again.
+- A reply to a review thread is written for the comment's author. It no
+  longer mentions what the operator said at the triage or what the agent
+  could not run.
 - The review task runs before the answer task, so one triage takes the
   review's comments with the threads already open.
 
