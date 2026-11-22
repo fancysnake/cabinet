@@ -256,6 +256,36 @@ class TestSettleLeft:
         assert f"{_REPLY} -f body='{body}'" in trial.shell.commands
         assert trial.shell.commands[-1].endswith("-f id=PRRT_1")
 
+    # The reply naming the issue is up and somebody wrote under it since: that
+    # is a follow-up to read, not a reply to post again.
+    @staticmethod
+    def test_a_thread_already_naming_its_issue_is_not_told_twice(
+        trial: Trial, work: Work
+    ) -> None:
+        url = "https://github.com/o/r/issues/9"
+        followed = page(
+            [
+                _MINE,
+                comment(102, body=signed(f"Filed as {url}"), mine=True),
+                comment(103, body="why a new issue?"),
+            ]
+        )
+        trial.shell.replies(when=THREADS, stdout=_threads(node("PRRT_1", followed)))
+        filed = {
+            "number": 9,
+            "title": "guard",
+            "url": url,
+            "body": f"later\n\n{filed_for('PRRT_1')}",
+            "labels": [],
+        }
+        trial.shell.replies(when=_ISSUES, stdout=listing(filed))
+        trial.shell.replies(when=_ISSUES, stdout="[]")
+
+        assert trial.walk(settle_left, work.to(SettleLeft)) == work.to(ReadThreads)
+        assert not any("replies" in command for command in trial.shell.commands)
+        assert not any("id=PRRT_1" in command for command in trial.shell.commands)
+        assert not trial.deltas
+
     # Past the cap, the issue filed for a thread may be the one not listed,
     # and reading that thread again would file it twice.
     @staticmethod

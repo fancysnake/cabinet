@@ -83,8 +83,17 @@ def _filed(url: str) -> str:
     return f"Filed as {url}"
 
 
+# Whether the ritual already named the issue under the thread. Its own line,
+# so `issues/9` is not found inside `issues/91`.
+def _named(thread: Thread, url: str) -> bool:
+    return any(
+        _filed(url) in one.body.splitlines() for one in thread.comments if one.mine
+    )
+
+
 # Settle what an earlier round left half done, and say how many threads that
-# was.
+# was. A thread the reply naming its issue already sits under has been
+# answered once: what came after is read again, not answered twice.
 async def _finished(
     project: Project, number: int, threads: list[Thread], listing: Listing
 ) -> int:
@@ -95,6 +104,7 @@ async def _finished(
         (thread, issue)
         for thread in unanswered
         if (issue := filed_as(listing.issues, thread.id)) is not None
+        and not _named(thread, issue.url)
     ]
     closing = [thread for thread in answered if thread.closable(project.bots)]
     for thread in closing:

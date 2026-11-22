@@ -354,13 +354,15 @@ class Prompts(PromptsProtocol):
             f"{_FENCE}\n{_TRIAGE_WORK}\nThe triage:\n\n{shown}"
         )
 
-    # No fence: the draft is the agent's own and the line under it is yours.
+    # The draft is fenced, because it may quote the comment it answers; the
+    # line under it is yours and stays outside.
     @override
     def redraft(self, answer: Answer, said: str) -> str:
         filing = f"\nissue to file: {answer.issue.title}" if answer.issue else ""
+        drafted = _fence(f"{answer.reply}\n{filing}" if filing else answer.reply)
         return (
             f"Redraft your reply to thread {answer.thread} before it is posted.\n\n"
-            f"The reply you drafted:\n\n{answer.reply}\n{filing}\n"
+            f"{_FENCE}\nThe reply you drafted:\n\n{drafted}\n\n"
             f"what I want changed: {said}\n\n{_REDRAFT}"
         )
 
