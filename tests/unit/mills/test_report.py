@@ -70,17 +70,9 @@ class TestHealed:
         )
 
         assert _REPORT.healed(_run(checked=[row])) == (
-            "heal — 1 worked\n\n"
+            "heal — 0 worked\n\n"
             "  #7 feature: blocked, unknown — red:\n      1 failed\n\n"
             "the cast failed: branches blocked: 1\n"
-        )
-
-    @staticmethod
-    def test_a_skipped_row() -> None:
-        row = _WORKED.model_copy(update={"outcome": "skipped", "unpushed": None})
-
-        assert "  #7 feature: left alone, unknown\n" in _REPORT.healed(
-            _run(checked=[row])
         )
 
     @staticmethod

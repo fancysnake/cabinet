@@ -11,7 +11,6 @@ from cabinet.pacts.heal import (
     MergeBase,
     ResolveConflicts,
     SetAside,
-    SkipPr,
     StandDown,
     SyncBranch,
     Tend,
@@ -81,7 +80,7 @@ class TestSyncBranch:
         ).to(Chart)
 
     @staticmethod
-    def test_a_checkout_that_will_not_go_through_skips_the_branch(
+    def test_a_checkout_that_will_not_go_through_sets_the_branch_aside(
         trial: Trial, work: Work
     ) -> None:
         trial.shell.replies(when="git fetch*")
@@ -89,7 +88,7 @@ class TestSyncBranch:
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.but(
             note="could not take feature: busy"
-        ).to(SkipPr)
+        ).to(SetAside)
 
     @staticmethod
     def test_a_diverged_branch_is_set_aside(trial: Trial, work: Work) -> None:

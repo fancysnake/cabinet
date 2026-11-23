@@ -19,8 +19,6 @@ from cabinet.pacts.services import ReportProtocol
 from cabinet.pacts.threads import ITEM, Answer, Finding, Thread, TriageItem
 from cabinet.specs import CARD_WIDTH
 
-_OUTCOME = {"worked": "worked", "blocked": "blocked", "skipped": "left alone"}
-
 _WAITING = "waiting for you, cast without --unattended:"
 
 
@@ -162,7 +160,7 @@ def _line(row: Checked) -> str:
     wrapped = row.note.replace("\n", "\n      ")
     note = f" — {wrapped}" if row.note else ""
     head = _head(row.number, row.branch)
-    return f"  {head}: {_OUTCOME[row.outcome]}, {ahead}{note}"
+    return f"  {head}: {row.outcome}, {ahead}{note}"
 
 
 # Said wherever the forge stopped listing `what` at its cap: one the listing
@@ -223,7 +221,8 @@ class Report(ReportProtocol):
 
     @override
     def healed(self, run: Run) -> str:
-        lines = [f"heal — {len(run.checked)} worked", ""]
+        worked = len(run.checked) - len(run.blocked())
+        lines = [f"heal — {worked} worked", ""]
         lines += [_line(row) for row in run.checked] or ["  (none)"]
         return _ending(run, lines)
 

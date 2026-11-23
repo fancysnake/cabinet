@@ -83,7 +83,7 @@ class Unsurveyed(BaseModel):
     note: str
 
 
-Outcome = Literal["worked", "blocked", "skipped"]
+Outcome = Literal["worked", "blocked"]
 
 
 class Checked(BaseModel):
@@ -92,7 +92,6 @@ class Checked(BaseModel):
     url: str
     # Whether the branch's tasks were worked through, or it was given up on.
     # `worked` says nothing of the gate, which only merge, ci and answer run.
-    # `skipped` is neither: the branch was never taken.
     outcome: Outcome
     # None when git could not say. Nothing to push and "we could not tell" are
     # different answers, and the report prints them differently.

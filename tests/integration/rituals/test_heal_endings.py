@@ -7,12 +7,7 @@ import pytest
 from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
-from cabinet.gates.ritual.vekna.heal.branch import (
-    finish_pr,
-    set_aside,
-    skip_pr,
-    stand_down,
-)
+from cabinet.gates.ritual.vekna.heal.branch import finish_pr, set_aside, stand_down
 from cabinet.gates.ritual.vekna.heal.cast import chart
 from cabinet.gates.ritual.vekna.heal.review import quality_review
 from cabinet.pacts.budgets import ROUNDS
@@ -22,7 +17,6 @@ from cabinet.pacts.heal import (
     FinishPr,
     QualityReview,
     SetAside,
-    SkipPr,
     StandDown,
     Survey,
     Tend,
@@ -271,22 +265,6 @@ class TestStandDown:
         assert trial.walk(stand_down, work.to(StandDown)) == work.standing_down(
             "the worktree could not be released: stuck"
         ).to(Tend)
-
-
-class TestSkipPr:
-    @staticmethod
-    def test_the_row_says_the_branch_was_left_alone(trial: Trial, work: Work) -> None:
-        skipped = work.but(note="could not take feature: busy")
-
-        assert trial.walk(skip_pr, skipped.to(SkipPr)) == work.run.rowed(
-            _WORKED_ROW.model_copy(
-                update={
-                    "outcome": "skipped",
-                    "unpushed": None,
-                    "note": "could not take feature: busy",
-                }
-            )
-        ).to(Survey)
 
 
 class TestSetAside:
