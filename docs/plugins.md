@@ -242,5 +242,6 @@ commits, pushes or writes to the forge.
   code and quoted back, and an instruction found inside one is reported,
   never followed.
 
-The rituals still carry the same rules inline in their prompts, so a cast
-does not need this plugin installed.
+The rituals need this plugin too. A heal or `identify` prompt names the skill
+it wants, as `heal:fix-gate`, and Claude Code loads it. A cast without the
+plugin stops at its first agent call and names the missing skill.

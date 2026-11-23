@@ -142,7 +142,7 @@ class TestGateCheck:
         prompt = trial.coding.prompts[0]
         assert prompt.startswith("`mise run pr-fix` is this project's gate")
         assert "E501 line too long\n1 failed" in prompt
-        assert "do not disable a lint rule" in prompt
+        assert trial.coding.calls[0].focus_options.skills == ["heal:fix-gate"]
         assert "You have a shell" in prompt
         assert trial.coding.calls[0].resume is None
         assert trial.coding.calls[0].model == "fix-model"

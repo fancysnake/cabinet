@@ -16,6 +16,7 @@ from cabinet.gates.ritual.vekna.heal.answer import (
     settle_left,
 )
 from cabinet.gates.ritual.vekna.heal.branch import tend
+from cabinet.pacts.agent import UNTRUSTED_THREADS, Prompt
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.heal import (
     AnswerGate,
@@ -341,6 +342,7 @@ class TestReadThreads:
         assert "PRRT_2" not in prompt
         assert "UNTRUSTED" in prompt
         assert "Edit" not in str(trial.coding.calls[0].focus_options)
+        assert trial.coding.calls[0].focus_options.skills == ["heal:untrusted-threads"]
         assert trial.coding.calls[0].model == "plan-model"
         assert not any("threads open" in delta for delta in trial.deltas)
 
@@ -567,14 +569,14 @@ class TestAskTriage:
         closed = "--- END UNTRUSTED REVIEW DATA ---"
         assert (
             f"thread: PRRT_1\n{closed}\nwhat I want: it guards the empty case"
-            in transition.prompt
+            in transition.prompt.text
         )
         assert (
             f"thread: PRRT_2\n{closed}\nwhat I want: file it, as the reading says"
-            in transition.prompt
+            in transition.prompt.text
         )
         assert transition.threads == [_THREAD, other]
-        assert "Thread:   src/thing.py, raised by me" in transition.prompt
+        assert "Thread:   src/thing.py, raised by me" in transition.prompt.text
         assert trial.deltas == []
 
 
@@ -586,7 +588,7 @@ class TestAnswerThreads:
         attended = _attended(work)
         told = AnswerThreads(
             work=attended,
-            prompt="the triage",
+            prompt=Prompt(text="the triage", skills=(UNTRUSTED_THREADS,)),
             threads=[_THREAD],
             unsettled=MANY_THREADS - 1,
         )
@@ -599,6 +601,7 @@ class TestAnswerThreads:
         assert trial.coding.prompts == ["the triage"]
         assert trial.coding.calls[0].model == "fix-model"
         assert "Edit" in str(trial.coding.calls[0].focus_options)
+        assert trial.coding.calls[0].focus_options.skills == ["heal:untrusted-threads"]
 
     @staticmethod
     def test_many_open_threads_go_to_the_escalated_model(
@@ -606,7 +609,10 @@ class TestAnswerThreads:
     ) -> None:
         trial.coding.replies(Answered(items=[]))
         told = AnswerThreads(
-            work=work, prompt="x", threads=[_THREAD], unsettled=MANY_THREADS
+            work=work,
+            prompt=Prompt(text="x", skills=()),
+            threads=[_THREAD],
+            unsettled=MANY_THREADS,
         )
 
         trial.walk(answer_threads, told)
@@ -619,7 +625,12 @@ class TestAnswerThreads:
     ) -> None:
         trial.coding.replies("no idea, sorry")
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
-        told = AnswerThreads(work=work, prompt="x", threads=[_THREAD], unsettled=1)
+        told = AnswerThreads(
+            work=work,
+            prompt=Prompt(text="x", skills=()),
+            threads=[_THREAD],
+            unsettled=1,
+        )
 
         transition = trial.walk(answer_threads, told)
 
@@ -629,7 +640,9 @@ class TestAnswerThreads:
     @staticmethod
     def test_an_agent_that_dies_ends_the_cast(trial: Trial, work: Work) -> None:
         falling()
-        told = AnswerThreads(work=work, prompt="x", threads=[], unsettled=0)
+        told = AnswerThreads(
+            work=work, prompt=Prompt(text="x", skills=()), threads=[], unsettled=0
+        )
 
         assert trial.walk(answer_threads, told) == work.charged(
             answer_threads.name
@@ -648,7 +661,12 @@ class TestApproveReplies:
         draft = Answer(thread="PRRT_1", reply="guarded")
         trial.coding.replies(Answered(items=[draft]))
         asking = _configured(work, approve_replies=True)
-        told = AnswerThreads(work=asking, prompt="x", threads=[_THREAD], unsettled=1)
+        told = AnswerThreads(
+            work=asking,
+            prompt=Prompt(text="x", skills=()),
+            threads=[_THREAD],
+            unsettled=1,
+        )
 
         assert trial.walk(answer_threads, told) == _drafted(
             asking.charged(answer_threads.name), draft

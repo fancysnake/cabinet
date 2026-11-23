@@ -149,6 +149,16 @@ Every `[cabinet]` key has a default; the
 lists them all, with the review skill to fetch and the remote to set up before
 the first cast.
 
+<!-- --8<-- [start:heal-skills] -->
+The agents work by the skills of the `heal` plugin, so install it for the
+user who casts:
+
+```bash
+claude plugin marketplace add fancysnake/cabinet
+claude plugin install heal@cabinet
+```
+<!-- --8<-- [end:heal-skills] -->
+
 Run every cast in a sandbox, attended or not. Every agent has a shell and can
 read any file you can; nothing in cabinet keeps it to the repository. The
 [Agents](https://cabinet.fancysnake.dev/agents/#the-sandbox-is-the-only-boundary)
