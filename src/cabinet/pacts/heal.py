@@ -38,6 +38,10 @@ class Summon(Run):
     pass
 
 
+class Handoff(Run):
+    pass
+
+
 class Chart(Run):
     pass
 

@@ -47,6 +47,28 @@ def _run(**update: object) -> Run:
     return Run(project=_PROJECT, attended=False).model_copy(update=update)
 
 
+class TestHanded:
+    @staticmethod
+    def test_it_names_the_cast_each_branch_went_to() -> None:
+        queued = Queued(pr=_PULL, cast="c1")
+
+        assert _REPORT.handed(_run(queued=[queued])) == (
+            "heal — 1 queued\n\n  #7 feature: cast c1\n"
+        )
+
+    @staticmethod
+    def test_it_says_so_when_it_queued_nothing() -> None:
+        assert _REPORT.handed(_run()) == "heal — 0 queued\n\n  (none)\n"
+
+    @staticmethod
+    def test_a_cast_the_daemon_left_names_what_it_queued() -> None:
+        queued = Queued(pr=_PULL, cast="c1")
+
+        assert _REPORT.handed(_run(queued=[queued], stopped="no daemon")) == (
+            "heal — 1 queued\n\n  #7 feature: cast c1\n\nthe cast failed: no daemon\n"
+        )
+
+
 class TestHealed:
     @staticmethod
     def test_a_green_row() -> None:
@@ -86,22 +108,6 @@ class TestHealed:
     @staticmethod
     def test_nothing_worked() -> None:
         assert _REPORT.healed(_run()) == "heal — 0 worked\n\n  (none)\n"
-
-    @staticmethod
-    def test_a_queueing_cast_names_the_cast_each_branch_went_to() -> None:
-        queued = Queued(pr=_PULL, cast="c1")
-
-        assert _REPORT.healed(_run(queued=[queued])) == (
-            "heal — 1 queued\n\n  #7 feature: cast c1\n"
-        )
-
-    @staticmethod
-    def test_a_queueing_cast_the_daemon_left_names_what_it_queued() -> None:
-        queued = Queued(pr=_PULL, cast="c1")
-
-        assert _REPORT.healed(_run(queued=[queued], stopped="no daemon")) == (
-            "heal — 1 queued\n\n  #7 feature: cast c1\n\nthe cast failed: no daemon\n"
-        )
 
     @staticmethod
     def test_what_was_not_reached_and_why() -> None:

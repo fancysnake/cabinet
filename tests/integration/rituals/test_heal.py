@@ -21,6 +21,7 @@ from cabinet.pacts.heal import (
     Chart,
     CheckClean,
     FinishPr,
+    Handoff,
     MusterMine,
     MusterPr,
     MusterThis,
@@ -30,8 +31,8 @@ from cabinet.pacts.heal import (
     Tend,
 )
 from cabinet.pacts.healing import (
+    Handed,
     Heal,
-    Healed,
     HealPr,
     Queued,
     Run,
@@ -310,7 +311,7 @@ class TestMuster:
             project=project,
             stopped="gh could not list your pull requests: not logged in",
         ).to(
-            Chart
+            Handoff
         )
 
     @staticmethod
@@ -498,7 +499,7 @@ class TestSummon:
     def test_an_empty_queue_goes_to_the_report(trial: Trial, project: Project) -> None:
         run = Summon(attended=True, project=project)
 
-        assert trial.walk(summon, run) == run.to(Chart)
+        assert trial.walk(summon, run) == run.to(Handoff)
 
     # Nothing is spoken for: the branch's steps are its own cast's to spend.
     @staticmethod
@@ -544,7 +545,7 @@ class TestSummon:
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
 
-        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Chart)
+        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Handoff)
 
     # What was queued before the daemon went still runs, so the report names it.
     @staticmethod
@@ -561,7 +562,7 @@ class TestSummon:
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
 
-        assert transition == (run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Chart))
+        assert transition == (run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Handoff))
 
 
 class TestWholeCast:
@@ -593,7 +594,7 @@ class TestWholeCast:
         assert [one.components for one in trial.queue.enqueued] == [
             HealPr(number=7, bound=2)
         ]
-        assert trial.steps == ["muster_mine", "summon", "summon", "summon", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "summon", "handoff"]
         assert trial.deltas[-1] == (
             f"heal — 1 queued\n\n  #7 feature: cast {queued.cast}\n"
         )
@@ -610,7 +611,7 @@ class TestWholeCast:
 
         result = trial.cast(heal_mine, Heal(plan_only=True))
 
-        assert result == Healed(
+        assert result == Handed(
             surveyed=[
                 Surveyed(
                     number=7,
@@ -622,7 +623,7 @@ class TestWholeCast:
                 )
             ]
         )
-        assert trial.steps == ["muster_mine", "summon", "summon", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "handoff"]
         # Every other command, a write among them, would have found nothing
         # scripted to answer it.
         assert len(trial.shell.commands) == _READS

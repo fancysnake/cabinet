@@ -144,6 +144,9 @@ class ReportProtocol(Protocol):
 
     def healed(self, run: Run) -> str: ...
 
+    # `heal.mine`'s ending: the cast each branch went to.
+    def handed(self, run: Run) -> str: ...
+
     # The page `identify` hands its agent, before it is identified.
     def page(self, issues: list[Issue]) -> str: ...
 

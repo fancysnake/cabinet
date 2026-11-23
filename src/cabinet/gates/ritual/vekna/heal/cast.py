@@ -49,6 +49,7 @@ from cabinet.pacts.heal import (
     Chart,
     CheckClean,
     FinishPr,
+    Handoff,
     MusterMain,
     MusterMine,
     MusterPr,
@@ -61,6 +62,7 @@ from cabinet.pacts.heal import (
 )
 from cabinet.pacts.healing import (
     Facts,
+    Handed,
     Heal,
     Healed,
     HealPr,
@@ -111,11 +113,11 @@ def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
 
 # Every open pull request of yours the forge lists, bar the parked ones.
 @step
-async def muster_mine(run: MusterMine) -> Chart | Summon:
+async def muster_mine(run: MusterMine) -> Handoff | Summon:
     try:
         run, pulls = await _listed(run)
     except (ScmError, ForgeError) as error:
-        return run.but(stopped=str(error)).to(Chart)
+        return run.but(stopped=str(error)).to(Handoff)
     queue = services().pulls.wanted(pulls, run.project)
     return _queued(run, queue, Summon)
 
@@ -229,9 +231,9 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
 # Every component is passed on as this cast took it, so the children work the
 # way the parent was asked to; `--unattended` reaches them through vekna.
 @step
-async def summon(run: Summon) -> Chart | Summon:
+async def summon(run: Summon) -> Handoff | Summon:
     if not run.queue:
-        return run.to(Chart)
+        return run.to(Handoff)
     pull = run.queue[0]
     row = await _surveyed(run.project, pull)
     emit_delta(services().report.surveyed(row))
@@ -246,7 +248,7 @@ async def summon(run: Summon) -> Chart | Summon:
             f"heal.mine queues a cast per pull request and needs the daemon: {error}"
         )
         # Casts already handed off keep running: the report names each.
-        return after.but(stopped=stopped).to(Chart)
+        return after.but(stopped=stopped).to(Handoff)
     return after.summoned(Queued(pr=pull, cast=cast)).to(Summon)
 
 
@@ -305,6 +307,22 @@ def chart(run: Chart) -> Done[Healed]:
             surveyed=run.surveyed,
             checked=run.checked,
             not_reached=[pull.branch for pull in run.queue],
+        )
+    )
+
+
+# `heal.mine`'s ending: it says which cast took each branch and does not wait
+# for them. Said before the failure is raised, as `chart` does.
+@step
+def handoff(run: Handoff) -> Done[Handed]:
+    if run.has_news():
+        emit_delta(services().report.handed(run))
+    if run.stopped:
+        raise RitualError(run.stopped)
+    return Done(
+        Handed(
+            surveyed=run.surveyed,
             queued=run.queued,
+            not_reached=[pull.branch for pull in run.queue],
         )
     )

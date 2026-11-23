@@ -26,7 +26,7 @@ WHOLE = 100.0
 # `chart` and loses the report, so `survey` takes a branch only where the worst
 # it can spend still fits. Sized for the cast that spends most: `heal.mine` on
 # the most pull requests a forge lists (`PULL_LIMIT`), a `summon` for each,
-# and the muster, the `summon` that finds the queue empty and `chart`
+# and the muster, the `summon` that finds the queue empty and `handoff`
 # around them. A cast that works a branch works one: a hundred and
 # five steps at worst at the default bound of three and the three default CI
 # jobs, three rounds of `answer` among them, and four around it. The rest is
