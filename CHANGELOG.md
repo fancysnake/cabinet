@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the `heal.*` rituals and `identify` need the `heal` plugin
+  installed for the agent: `claude plugin install heal@cabinet`. Their prompts
+  name its skills (`heal:resolve-conflict`, `heal:fix-gate`,
+  `heal:cover-diff`, `heal:untrusted-threads`) and no longer carry the rules
+  inline. A cast without the plugin stops at the first agent call and names
+  the missing skill.
+- **Breaking:** cabinet needs vekna 3.0.0 or later. vekna 3 reads
+  the repository's `.vekna.toml` ahead of your `[projects.<name>.cabinet]`
+  table, where earlier vekna versions could read it the other way round. A key set in both
+  now takes the repository's value: remove the duplicate from the one you
+  want to lose.
+
 ### Fixed
 
 - A `heal.*` cast fails when it cannot check out a branch, for example one

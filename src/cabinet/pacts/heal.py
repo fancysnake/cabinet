@@ -8,6 +8,7 @@ beside the `Work`, and hand the `Work` back on when the round is done.
 
 from pydantic import BaseModel
 
+from cabinet.pacts.agent import Prompt
 from cabinet.pacts.healing import Run, Work
 from cabinet.pacts.threads import Answer, Thread, TriageItem
 
@@ -129,7 +130,7 @@ class AnswerThreads(BaseModel):
     unsettled: int
     # The whole thing the agent is sent, assembled where the triage and your
     # answers to it are both in hand.
-    prompt: str
+    prompt: Prompt
     # The open threads the triage named: what the answers are owed under, so
     # the step that posts them can tell one the agent made up from one that
     # was triaged, and has what the forge needs to settle it.

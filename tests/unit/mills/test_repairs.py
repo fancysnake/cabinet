@@ -97,7 +97,8 @@ class TestSpending:
 
         assert isinstance(ruling, Repair)
         assert ruling.next_gate == "mise run lint:ruff"
-        assert "E501 too long" in ruling.asking
+        assert "E501 too long" in ruling.asking.text
+        assert ruling.asking.skills == ("heal:fix-gate",)
 
     # Lines are re-measured without the slow suites: what an agent writes for
     # a gap is a test, and the fast suite is the one that runs it.
@@ -107,8 +108,9 @@ class TestSpending:
 
         assert isinstance(ruling, Repair)
         assert ruling.next_gate == _PROJECT.fast_coverage
-        assert _MISSING in ruling.asking
-        assert "leaves the slow suites out" not in ruling.asking
+        assert _MISSING in ruling.asking.text
+        assert ruling.asking.skills == ("heal:cover-diff",)
+        assert "leaves the slow suites out" not in ruling.asking.text
 
     @staticmethod
     def test_a_partial_measurement_says_what_it_cannot_see() -> None:
@@ -117,7 +119,7 @@ class TestSpending:
         )
 
         assert isinstance(ruling, Repair)
-        assert "leaves the slow suites out" in ruling.asking
+        assert "leaves the slow suites out" in ruling.asking.text
 
     # A suite that will not run at all is repaired like any other red gate,
     # and falls back to the fast measurement where the runner named nothing.
@@ -127,7 +129,9 @@ class TestSpending:
 
         assert isinstance(ruling, Repair)
         assert ruling.next_gate == _PROJECT.fast_coverage
-        assert ruling.asking.startswith("`mise run diff-cover` is this project's gate")
+        assert ruling.asking.text.startswith(
+            "`mise run diff-cover` is this project's gate"
+        )
 
 
 class TestStalling:

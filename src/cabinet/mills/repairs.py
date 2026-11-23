@@ -8,6 +8,7 @@ three does not, so it is written once here and the steps only route on it.
 
 from typing_extensions import override
 
+from cabinet.pacts.agent import Prompt
 from cabinet.pacts.repairs import Attempt, Fixed, Repair, Ruling, Stalled
 from cabinet.pacts.services import PromptsProtocol, RepairsProtocol, VerdictsProtocol
 
@@ -60,7 +61,7 @@ class Repairs(RepairsProtocol):
     # Two different jobs down one budget, because they are the same loop going
     # round: lines left uncovered are written up as tests, and a task that
     # will not pass at all is repaired like any other red gate.
-    def _asking(self, attempt: Attempt, *, report: str, missing: bool) -> str:
+    def _asking(self, attempt: Attempt, *, report: str, missing: bool) -> Prompt:
         if missing:
             return self._prompts.cover_gap(
                 attempt.project, report, partial=attempt.gate != attempt.whole

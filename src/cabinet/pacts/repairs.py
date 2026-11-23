@@ -8,6 +8,7 @@ one of the three rulings below.
 
 from pydantic import BaseModel
 
+from cabinet.pacts.agent import Prompt
 from cabinet.pacts.project import Project
 from cabinet.pacts.tasks import Ran
 
@@ -50,7 +51,7 @@ class Stalled(BaseModel):
 
 # One more attempt, with the asking already written.
 class Repair(BaseModel):
-    asking: str
+    asking: Prompt
     next_gate: str
 
 
