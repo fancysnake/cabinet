@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- `heal.mine` no longer waits for the `heal.pr` casts it queued, so it holds
+  no place on the daemon while they run. It reports which cast took which
+  branch and ends. Each `heal.pr` reports its own branch, and
+  `vekna cast heal.mine` typed at a terminal still follows them and exits `1`
+  where one failed. The `heal.mine` result names the casts in `queued`; its
+  `checked` is empty.
+- A heal cast's step budget is 1,003 steps, down from 1,004.
+
 ## [7.3.0] - 2026-11-22
 
 ### Added

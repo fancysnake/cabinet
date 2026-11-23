@@ -9,7 +9,6 @@ from vekna.lexicon import CAST_QUEUE, CastEnded, CastQueueProtocol, NoDaemonErro
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.heal.cast import (
-    attend,
     muster_mine,
     muster_pr,
     muster_this,
@@ -19,7 +18,6 @@ from cabinet.gates.ritual.vekna.heal.cast import (
 )
 from cabinet.pacts.forge import ForgeLimitedError
 from cabinet.pacts.heal import (
-    Attend,
     Chart,
     CheckClean,
     FinishPr,
@@ -32,7 +30,6 @@ from cabinet.pacts.heal import (
     Tend,
 )
 from cabinet.pacts.healing import (
-    Checked,
     Heal,
     Healed,
     HealPr,
@@ -90,9 +87,7 @@ _QUEUED = Surveyed(
     threads=0,
 )
 
-_WORKED = Checked(number=7, branch="feature", url=_URL, outcome="worked", unpushed=0)
 _NO_DAEMON = "heal.mine queues a cast per pull request and needs the daemon: heal.pr"
-_GONE_NOTE = "outcome unknown, the daemon is gone: c1"
 
 
 # The cast `summon` queued for `pull`, which it read as conflicted.
@@ -498,24 +493,12 @@ class TestSurvey:
         assert not trial.shell.commands
 
 
-# `summon` walked over one branch with work, so the queue double holds the
-# cast `attend` waits on.
-def _summoned(trial: Trial, pull: PullRequest, project: Project) -> Attend:
-    trial.shell.replies(when=board(), stdout=_RED)
-    trial.shell.replies(when=THREADS, stdout=_NONE)
-    conflicted = pull.model_copy(update={"conflicted": True})
-    run = Summon(attended=True, project=project, queue=[conflicted])
-    after = trial.walk(summon, run)
-    assert isinstance(after, Summon)
-    return after.to(Attend)
-
-
 class TestSummon:
     @staticmethod
-    def test_an_empty_queue_goes_to_the_wait(trial: Trial, project: Project) -> None:
+    def test_an_empty_queue_goes_to_the_report(trial: Trial, project: Project) -> None:
         run = Summon(attended=True, project=project)
 
-        assert trial.walk(summon, run) == run.to(Attend)
+        assert trial.walk(summon, run) == run.to(Chart)
 
     # Nothing is spoken for: the branch's steps are its own cast's to spend.
     @staticmethod
@@ -561,11 +544,11 @@ class TestSummon:
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
 
-        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Attend)
+        assert transition == run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Chart)
 
-    # What was queued before the daemon went still runs, so it is waited on.
+    # What was queued before the daemon went still runs, so the report names it.
     @staticmethod
-    def test_with_no_daemon_after_a_queued_cast_the_wait_still_comes(
+    def test_with_no_daemon_after_a_queued_cast_the_cast_is_kept(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
         trial.shell.replies(when=board(), stdout=_RED)
@@ -578,68 +561,7 @@ class TestSummon:
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
 
-        assert transition == (run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Attend))
-
-
-class TestAttend:
-    @staticmethod
-    def test_the_rows_of_every_cast_it_queued_are_its_own(
-        trial: Trial, pull: PullRequest, project: Project
-    ) -> None:
-        trial.queue.returns(Healed(checked=[_WORKED]), when="heal.pr")
-        run = _summoned(trial, pull, project)
-
-        assert trial.walk(attend, run) == run.rowed(_WORKED).to(Chart)
-
-    # A child that ends without failing and without reaching its branch says
-    # so in its result: the parent's report names the branch as well.
-    @staticmethod
-    def test_a_branch_a_cast_did_not_reach_is_not_reached_here_either(
-        trial: Trial, pull: PullRequest, project: Project
-    ) -> None:
-        trial.queue.returns(Healed(not_reached=["feature"]), when="heal.pr")
-        run = _summoned(trial, pull, project)
-
-        assert trial.walk(attend, run) == run.but(queue=[_cast(pull).pr]).to(Chart)
-
-    # The rest are still waited on: one failed cast is one blocked branch.
-    @staticmethod
-    def test_a_cast_that_failed_blocks_its_branch(
-        trial: Trial, pull: PullRequest, project: Project
-    ) -> None:
-        trial.queue.fails("branches blocked: 1", when="heal.pr")
-        run = _summoned(trial, pull, project)
-
-        blocked = _WORKED.model_copy(
-            update={
-                "outcome": "blocked",
-                "unpushed": None,
-                "note": "cast c1 ended error: branches blocked: 1",
-            }
-        )
-        assert trial.walk(attend, run) == run.rowed(blocked).to(Chart)
-
-    @staticmethod
-    def test_a_daemon_that_is_gone_leaves_the_outcome_unknown(
-        trial: Trial, pull: PullRequest, project: Project
-    ) -> None:
-        run = _summoned(trial, pull, project)
-
-        with CAST_QUEUE.scope(_Daemonless()):
-            transition = trial.walk(attend, run)
-
-        unknown = _WORKED.model_copy(
-            update={"outcome": "blocked", "unpushed": None, "note": _GONE_NOTE}
-        )
-        assert transition == run.rowed(unknown).to(Chart)
-
-    @staticmethod
-    def test_a_cast_that_queued_nothing_waits_on_nothing(
-        trial: Trial, project: Project
-    ) -> None:
-        run = Attend(attended=True, project=project)
-
-        assert trial.walk(attend, run) == run.to(Chart)
+        assert transition == (run.took(_QUEUED).but(stopped=_NO_DAEMON).to(Chart))
 
 
 class TestWholeCast:
@@ -647,7 +569,7 @@ class TestWholeCast:
     # to do is said and left.
     @staticmethod
     @pytest.mark.usefixtures("here")
-    def test_mine_waits_on_a_cast_per_branch_with_work(trial: Trial) -> None:
+    def test_mine_queues_a_cast_per_branch_with_work(trial: Trial) -> None:
         _preflight(trial)
         trial.shell.replies(
             when=LIST,
@@ -665,24 +587,15 @@ class TestWholeCast:
         trial.shell.replies(when=THREADS, stdout=_NONE)
         trial.shell.replies(when="slug=*gh api graphql*-F number=8", stdout=_NONE)
 
-        trial.queue.returns(Healed(checked=[_WORKED]), when="heal.pr")
-
         result = trial.cast(heal_mine, Heal(bound=2))
 
-        assert result.checked == [_WORKED]
+        [queued] = result.queued
         assert [one.components for one in trial.queue.enqueued] == [
             HealPr(number=7, bound=2)
         ]
-        assert trial.steps == [
-            "muster_mine",
-            "summon",
-            "summon",
-            "summon",
-            "attend",
-            "chart",
-        ]
+        assert trial.steps == ["muster_mine", "summon", "summon", "summon", "chart"]
         assert trial.deltas[-1] == (
-            "heal — 1 worked\n\n  #7 feature: worked, 0 unpushed\n"
+            f"heal — 1 queued\n\n  #7 feature: cast {queued.cast}\n"
         )
 
     @staticmethod
@@ -709,7 +622,7 @@ class TestWholeCast:
                 )
             ]
         )
-        assert trial.steps == ["muster_mine", "summon", "summon", "attend", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "chart"]
         # Every other command, a write among them, would have found nothing
         # scripted to answer it.
         assert len(trial.shell.commands) == _READS

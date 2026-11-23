@@ -223,6 +223,15 @@ class Report(ReportProtocol):
 
     @override
     def healed(self, run: Run) -> str:
+        # A cast that queued its branches says which cast took each: their
+        # rows are theirs to say, as each one ends.
+        if run.queued:
+            lines = [f"heal — {len(run.queued)} queued", ""]
+            lines += [
+                f"  {_head(one.pr.number, one.pr.branch)}: cast {one.cast}"
+                for one in run.queued
+            ]
+            return _ending(run, lines)
         lines = [f"heal — {len(run.checked)} worked", ""]
         lines += [_line(row) for row in run.checked] or ["  (none)"]
         return _ending(run, lines)

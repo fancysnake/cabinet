@@ -622,7 +622,7 @@ class TestWholeCast:
         result = trial.cast(heal_mine, Heal())
 
         assert result.checked == []
-        assert trial.steps == ["muster_mine", "summon", "summon", "attend", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "summon", "chart"]
         assert trial.deltas[0] == "#7 feature: nothing to do"
 
     # Every attempt the bound allows on every loop, each with its free extra
@@ -745,7 +745,7 @@ class TestWholeCast:
 
         assert result == Healed()
         assert trial.shell.commands[-1].startswith("glab api")
-        assert trial.steps == ["muster_mine", "summon", "attend", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "chart"]
 
 
 class TestTaskRituals:

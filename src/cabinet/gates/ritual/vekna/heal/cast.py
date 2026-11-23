@@ -3,7 +3,7 @@
 ``heal.mine`` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first, and works none of them itself: each one with
 work goes to a ``heal.pr`` of its own, queued on the daemon, which runs it in
-a pooled worktree, and the cast stays until they end and reports their rows.
+a pooled worktree, and the cast reports which cast took which branch and ends.
 With no daemon listening it says so and fails. ``heal.pr`` takes the pull
 request it is given the number of; ``heal.this`` and the task rituals take the
 pull request of the branch at the cwd. A task ritual is ``heal.this`` that may
@@ -41,24 +41,11 @@ then fail the cast. A cast is attended unless vekna was told ``--unattended``.
 from typing import TypeVar
 
 from vekna.folio.flow import enqueue
-
-# The wait `await_cast` makes after its own enqueue, taken alone: `summon`
-# has queued the casts by then, and vekna exports no other way to wait on one.
-from vekna.folio.flow._mills import awaited
-from vekna.lexicon import (
-    CastFailedError,
-    Done,
-    NoDaemonError,
-    RitualError,
-    attended,
-    emit_delta,
-    step,
-)
+from vekna.lexicon import Done, NoDaemonError, RitualError, attended, emit_delta, step
 
 from cabinet.gates.ritual.vekna.heal.branch import uncommitted
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import (
-    Attend,
     Chart,
     CheckClean,
     FinishPr,
@@ -73,7 +60,6 @@ from cabinet.pacts.heal import (
     Tend,
 )
 from cabinet.pacts.healing import (
-    Checked,
     Facts,
     Heal,
     Healed,
@@ -237,14 +223,15 @@ async def survey(run: Survey) -> Chart | Survey | CheckClean:
 # `heal.mine`'s survey: read the next pull request's facts, say what it
 # needs, and hand it to a `heal.pr` of its own where any of that is work.
 # The daemon runs each in a pooled worktree as it has a slot and a tree, so
-# this cast takes no branch and asks for no share. Queued here and awaited
-# in `attend`: awaiting each as it is queued would run them one at a time.
+# this cast takes no branch and asks for no share. Queued and not awaited: a
+# cast that waits holds a place on the daemon its own `heal.pr` casts could
+# run in, and each branch's rows are its own cast's to say.
 # Every component is passed on as this cast took it, so the children work the
 # way the parent was asked to; `--unattended` reaches them through vekna.
 @step
-async def summon(run: Summon) -> Attend | Summon:
+async def summon(run: Summon) -> Chart | Summon:
     if not run.queue:
-        return run.to(Attend)
+        return run.to(Chart)
     pull = run.queue[0]
     row = await _surveyed(run.project, pull)
     emit_delta(services().report.surveyed(row))
@@ -258,8 +245,8 @@ async def summon(run: Summon) -> Attend | Summon:
         stopped = (
             f"heal.mine queues a cast per pull request and needs the daemon: {error}"
         )
-        # Casts already handed off keep running: `attend` gives each a row.
-        return after.but(stopped=stopped).to(Attend)
+        # Casts already handed off keep running: the report names each.
+        return after.but(stopped=stopped).to(Chart)
     return after.summoned(Queued(pr=pull, cast=cast)).to(Summon)
 
 
@@ -318,31 +305,6 @@ def chart(run: Chart) -> Done[Healed]:
             surveyed=run.surveyed,
             checked=run.checked,
             not_reached=[pull.branch for pull in run.queue],
+            queued=run.queued,
         )
     )
-
-
-# `heal.mine` stays until every cast it queued has ended, and takes their rows
-# for its own report. One wait at a time, in the order queued: the daemon
-# decides whether the casts overlap, not the order of the waits, and a resumed
-# cast replays the waits in the order it made them. A cast that failed took
-# its rows with it, so the branch is blocked on what vekna said of the ending.
-# With the daemon gone the wait cannot be made, and the branch is blocked with
-# its outcome unknown.
-@step
-async def attend(run: Attend) -> Chart:
-    after = run
-    for one in run.queued:
-        try:
-            healed = Healed.model_validate(await awaited(one.cast))
-        except CastFailedError as error:
-            healed = _blocked(one, str(error))
-        except NoDaemonError as error:
-            healed = _blocked(one, f"outcome unknown, the daemon is gone: {error}")
-        after = after.merged(one, healed)
-    return after.to(Chart)
-
-
-def _blocked(one: Queued, note: str) -> Healed:
-    row = Checked.of(one.pr, "blocked", unpushed=None, note=note)
-    return Healed(checked=[row])

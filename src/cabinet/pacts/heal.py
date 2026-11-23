@@ -42,10 +42,6 @@ class Chart(Run):
     pass
 
 
-class Attend(Run):
-    pass
-
-
 class CheckClean(Work):
     pass
 

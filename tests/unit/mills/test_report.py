@@ -1,7 +1,7 @@
 """What the report says, on the terminal and on the pull request."""
 
 from cabinet.mills.report import Report
-from cabinet.pacts.healing import Checked, Run, Surveyed, Unsurveyed
+from cabinet.pacts.healing import Checked, Queued, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
@@ -86,6 +86,22 @@ class TestHealed:
     @staticmethod
     def test_nothing_worked() -> None:
         assert _REPORT.healed(_run()) == "heal — 0 worked\n\n  (none)\n"
+
+    @staticmethod
+    def test_a_queueing_cast_names_the_cast_each_branch_went_to() -> None:
+        queued = Queued(pr=_PULL, cast="c1")
+
+        assert _REPORT.healed(_run(queued=[queued])) == (
+            "heal — 1 queued\n\n  #7 feature: cast c1\n"
+        )
+
+    @staticmethod
+    def test_a_queueing_cast_the_daemon_left_names_what_it_queued() -> None:
+        queued = Queued(pr=_PULL, cast="c1")
+
+        assert _REPORT.healed(_run(queued=[queued], stopped="no daemon")) == (
+            "heal — 1 queued\n\n  #7 feature: cast c1\n\nthe cast failed: no daemon\n"
+        )
 
     @staticmethod
     def test_what_was_not_reached_and_why() -> None:
