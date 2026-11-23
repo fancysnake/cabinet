@@ -166,6 +166,7 @@ class TestIdentifyPage:
         focus = trial.coding.calls[0].focus_options
         options = str(focus)
         assert "Edit" not in focus.allowed_tools
+        assert focus.skills == ["heal:untrusted-threads"]
         assert "permission_mode='dontAsk'" in options
         assert not trial.shell.commands
 

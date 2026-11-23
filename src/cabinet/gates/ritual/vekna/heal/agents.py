@@ -1,6 +1,6 @@
 """The agent a heal step asks, and the session it asks in."""
 
-from cabinet.pacts.agent import AgentProtocol, Fallen
+from cabinet.pacts.agent import AgentProtocol, Fallen, Prompt
 from cabinet.pacts.healing import Work
 from cabinet.pacts.services import services
 
@@ -18,7 +18,9 @@ def agent_for(work: Work) -> AgentProtocol:
 
 # A repair, in the session `key` names on this branch: every round of a loop
 # continues the one before it, on the stronger model where `escalated`.
-async def asked(work: Work, prompt: str, *, key: str, escalated: bool) -> Fallen | None:
+async def asked(
+    work: Work, prompt: Prompt, *, key: str, escalated: bool
+) -> Fallen | None:
     return await agent_for(work).ask(
         prompt, job="fix", key=session(work, key), escalated=escalated
     )

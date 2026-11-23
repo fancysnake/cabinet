@@ -109,6 +109,7 @@ class TestQualityReview:
         assert trial.coding.calls[0].model == "review-model"
         assert trial.coding.calls[0].focus_options is not None
         assert "Edit" not in str(trial.coding.calls[0].focus_options)
+        assert trial.coding.calls[0].focus_options.skills == ["heal:untrusted-threads"]
 
     @staticmethod
     def test_a_review_that_found_nothing_is_still_labelled(

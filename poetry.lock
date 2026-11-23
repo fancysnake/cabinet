@@ -3536,14 +3536,14 @@ standard = ["httptools (>=0.8.0)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "
 
 [[package]]
 name = "vekna"
-version = "2.0.0"
+version = "3.0.0"
 description = "Run coding agents as rituals: ordinary Python programs whose steps you control"
 optional = false
 python-versions = "<3.16,>=3.11"
 groups = ["main"]
 files = [
-    {file = "vekna-2.0.0-py3-none-any.whl", hash = "sha256:873bd07d7d8dc389167dd8922069263f1a22bd4c5b3fd1e2906b347dd75d38a7"},
-    {file = "vekna-2.0.0.tar.gz", hash = "sha256:553031abcb3938c204bf52593e778a05d6ec2d8576ca731d8d69942bb9715b69"},
+    {file = "vekna-3.0.0-py3-none-any.whl", hash = "sha256:506e6f74184d9cac137e75727af0eb77711ae03fc2f5261ca2ca60da4cf824a2"},
+    {file = "vekna-3.0.0.tar.gz", hash = "sha256:43094402d459c573e83c594847293004f0934916f9fffcfa6a42b31e00c74cf6"},
 ]
 
 [package.dependencies]
@@ -3648,4 +3648,4 @@ dev = ["doc8", "flake8", "flake8-import-order", "rstcheck[sphinx]", "ruff", "sph
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.16"
-content-hash = "c37beb7278182184b46f0985a8b7cf3c520616568bee7b93e2fcf2faf690c1e3"
+content-hash = "e228d0f8a2dc5a136971b825124e20f1cd43676433f0cdb27abfcf07f1163242"

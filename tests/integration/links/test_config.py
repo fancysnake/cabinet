@@ -66,9 +66,8 @@ class TestReadProject:
 
         assert read_project(HEAL_NEEDS).gate == "mise run check"
 
-    # Key by key, the project's file and the user's table for the project both
-    # beat what the user sets for every project. Which of those two wins is
-    # vekna's to say and differs between its versions, so no key is set in both.
+    # Key by key, the project's file beats the user's table for the project,
+    # which beats what the user sets for every project.
     @staticmethod
     def test_the_nearest_place_wins_each_key(here: Path, user_config: Path) -> None:
         (here / ".vekna.toml").write_text(
@@ -78,7 +77,8 @@ class TestReadProject:
             '[cabinet]\nbase = "for every project"\nremote = "for every project"\n'
             'review_title = "for every project"\n\n'
             f'[projects.mine]\npath = "{here}"\n\n'
-            '[projects.mine.cabinet]\nremote = "for this project"\n'
+            '[projects.mine.cabinet]\ngate = "for this project"\n'
+            'remote = "for this project"\n'
             'fast_coverage = "for this project"\n',
             encoding="utf-8",
         )

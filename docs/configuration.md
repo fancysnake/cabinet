@@ -1,10 +1,9 @@
 # Configuration
 
 The rituals read the `[cabinet]` table from every place vekna reads config.
-Per key the nearest wins. The places are `[projects.<name>.cabinet]` in your
-vekna user config, the repository's own `.vekna.toml`, and `[cabinet]` at the
-top level of the user config, which is the farthest. Which of the first two
-is nearer depends on your vekna version; set a key in only one of them. A
+Per key the nearest wins. The places, nearest first, are the
+repository's own `.vekna.toml`, `[projects.<name>.cabinet]` in your vekna user
+config, and `[cabinet]` at the top level of the user config. A
 repository with no `.vekna.toml` is configured from the user config alone;
 vekna's [scopes](https://vekna.fancysnake.dev/scopes/) page describes the
 three places.

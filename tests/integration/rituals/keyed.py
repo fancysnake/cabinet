@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing_extensions import override
 
 from cabinet.inits.services import Services
-from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread
+from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread, Prompt
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import bind
 
@@ -23,7 +23,12 @@ class KeyedAgent(AgentProtocol):
 
     @override
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
+        self,
+        prompt: Prompt,
+        *,
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> Fallen | None:
         self._keys.append(key)
         return None
@@ -31,7 +36,7 @@ class KeyedAgent(AgentProtocol):
     @override
     async def ask_for(
         self,
-        prompt: str,
+        prompt: Prompt,
         *,
         output: type[_OutputT],
         job: Job,
