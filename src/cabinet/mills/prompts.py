@@ -12,7 +12,9 @@ from cabinet.pacts.agent import (
     COVER_DIFF,
     FIX_GATE,
     RESOLVE_CONFLICT,
+    SKILLS,
     UNTRUSTED_THREADS,
+    Prompt,
 )
 from cabinet.pacts.issues import EPIC, ISSUE_LABELS, KINDS, SIZES, Issue
 from cabinet.pacts.project import Project
@@ -287,95 +289,111 @@ def _thread(thread: Thread) -> str:
     return f"thread {thread.id} ({state}) at {where}\n{comments}"
 
 
+# A prompt is its rules followed by its data. The rules are ours, and each
+# skill they name is a skill the agent is given: a prompt cannot send an agent
+# to a skill it did not load. The data is somebody else's words, and is never
+# searched, so a comment cannot name a skill into the call.
+def _prompt(rules: str, data: str = "") -> Prompt:
+    named = tuple(skill for skill in SKILLS if f"`{skill}`" in rules)
+    return Prompt(text=rules + data, skills=named)
+
+
 class Prompts(PromptsProtocol):
     @override
-    def resolve(self, project: Project, *, base: str, branch: str, files: str) -> str:
-        return (
+    def resolve(
+        self, project: Project, *, base: str, branch: str, files: str
+    ) -> Prompt:
+        return _prompt(
             f"Merging {base} into {branch} stopped on conflicts.\n\n{_RESOLVE}\n"
-            f"{_may_not_run(project)}\nConflicted files:\n\n{files}"
+            f"{_may_not_run(project)}\nConflicted files:\n\n",
+            files,
         )
 
     # Concatenated, not formatted: the gate's own output is full of braces the
     # moment an assertion diff over a dict lands in it.
     @override
-    def fix_gates(self, project: Project, output: str, *, gate: str) -> str:
-        return (
+    def fix_gates(self, project: Project, output: str, *, gate: str) -> Prompt:
+        return _prompt(
             f"`{gate}` is this project's gate, and it is red.\n\n{_FIX_GATES}\n"
-            f"{_may_not_run(project)}\nWhat it said:\n\n{output}"
+            f"{_may_not_run(project)}\nWhat it said:\n\n",
+            output,
         )
 
     @override
-    def cover_gap(self, project: Project, report: str, *, partial: bool) -> str:
-        return (
+    def cover_gap(self, project: Project, report: str, *, partial: bool) -> Prompt:
+        return _prompt(
             f"{_COVER}\n{_may_not_run(project)}\n{_NO_SLOW if partial else ''}"
-            f"The report:\n\n{report}"
+            "The report:\n\n",
+            report,
         )
 
     # Concatenated for the reason `fix_gates` is: a log is full of braces.
     # Fenced, because a CI log prints whatever the code under test does, and
     # the job's name is whatever the workflow file says.
     @override
-    def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> str:
+    def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> Prompt:
         judged = (
             f"The ritual runs `{gate}` after you, which reproduces the job here."
             if gate
             else "Nothing reproduces the job here: the next CI run is the check."
         )
-        named = _fence("job: " + job + "\n\n" + log)
-        return (
+        return _prompt(
             f"A CI job is red on this branch.\n\n{_FIX_GATES}\n"
             f"{judged}\n\n{_may_not_run(project)}\n{_FENCE}\n"
-            f"The job and the end of its log:\n\n{named}"
+            "The job and the end of its log:\n\n",
+            _fence("job: " + job + "\n\n" + log),
         )
 
     @override
-    def triage_read(self, number: int, threads: list[Thread]) -> str:
-        return (
+    def triage_read(self, number: int, threads: list[Thread]) -> Prompt:
+        return _prompt(
             f"Triage the open review threads on pull request #{number} against the"
-            " code as it stands on this branch right now.\n\n"
-            f"{_FENCE}\n{_fenced(threads)}\n\n{_TRIAGE_READ}"
+            f" code as it stands on this branch right now.\n\n{_FENCE}\n",
+            f"{_fenced(threads)}\n\n{_TRIAGE_READ}",
         )
 
     @override
-    def triage_work(self, number: int, told: list[Told]) -> str:
+    def triage_work(self, number: int, told: list[Told]) -> Prompt:
         # The terminal's own cards, with your answer under each: the agent is
         # told what you were looking at when you said it.
         shown = "\n\n".join(_item(one) for one in told)
-        return (
+        return _prompt(
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"
-            f"{_FENCE}\n{_TRIAGE_WORK}\nThe triage:\n\n{shown}"
+            f"{_FENCE}\n{_TRIAGE_WORK}\nThe triage:\n\n",
+            shown,
         )
 
     # The draft is fenced, because it may quote the comment it answers; the
     # line under it is yours and stays outside.
     @override
-    def redraft(self, answer: Answer, said: str) -> str:
+    def redraft(self, answer: Answer, said: str) -> Prompt:
         filing = f"\nissue to file: {answer.issue.title}" if answer.issue else ""
         drafted = _fence(f"{answer.reply}\n{filing}" if filing else answer.reply)
-        return (
+        return _prompt(
             f"Redraft your reply to thread {answer.thread} before it is posted.\n\n"
-            f"{_FENCE}\nThe reply you drafted:\n\n{drafted}\n\n"
-            f"what I want changed: {said}\n\n{_REDRAFT}"
+            f"{_FENCE}\nThe reply you drafted:\n\n",
+            f"{drafted}\n\nwhat I want changed: {said}\n\n{_REDRAFT}",
         )
 
     # `reason`, not `blocked`: what this takes is the sentence saying what
-    # stopped the branch.
+    # stopped the branch. It follows the threads, outside the rules, because
+    # it quotes a gate's output.
     @override
     def review(
         self, project: Project, *, base: str, threads: list[Thread], reason: str
-    ) -> str:
-        return (
+    ) -> Prompt:
+        return _prompt(
             f"Review the changes this pull request adds ({base}...HEAD) with the"
             f" {project.review_title}: read {project.review_skill} and follow it.\n"
-            f"{_already_known(reason)}\n{_REVIEW}\n"
-            f"The review threads already on the pull request:\n\n{_FENCE}\n"
-            f"{_fenced(threads)}"
+            f"\n{_REVIEW}\n"
+            f"The review threads already on the pull request:\n\n{_FENCE}\n",
+            f"{_fenced(threads)}\n{_already_known(reason)}",
         )
 
     @override
-    def guide(self, project: Project, *, base: str) -> str:
-        return (
+    def guide(self, project: Project, *, base: str) -> Prompt:
+        return _prompt(
             "Write the manual smoke test for the changes this pull request adds"
             f" ({base}...HEAD): read {project.smoke_skill} and follow it.\n\n{_GUIDE}"
         )
@@ -383,7 +401,9 @@ class Prompts(PromptsProtocol):
     # The skill is named on the first page only: every page after it continues
     # the session that read it, and reading it again is turns spent on nothing.
     @override
-    def identify(self, project: Project, issues: list[Issue], *, briefed: bool) -> str:
+    def identify(
+        self, project: Project, issues: list[Issue], *, briefed: bool
+    ) -> Prompt:
         opening = (
             "The next page of open issues, by the same skill and the same rules."
             if briefed
@@ -392,4 +412,4 @@ class Prompts(PromptsProtocol):
             " size means, when an issue is an epic, and how issues are linked."
         )
         shown = _fence("\n\n".join(_issue(issue) for issue in issues))
-        return f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\nThe issues:\n\n{shown}"
+        return _prompt(f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\nThe issues:\n\n", shown)

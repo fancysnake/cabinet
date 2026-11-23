@@ -158,9 +158,10 @@ class TestMendJob:
 
         assert len(red.red) == MANY_RED
         assert trial.coding.calls[0].model == "escalated-model"
-        assert "skills=['heal:fix-gate', 'heal:untrusted-threads']" in str(
-            trial.coding.calls[0].focus_options
-        )
+        assert trial.coding.calls[0].focus_options.skills == [
+            "heal:fix-gate",
+            "heal:untrusted-threads",
+        ]
 
     @staticmethod
     def test_a_gated_job_goes_round_its_gate(trial: Trial, work: Work) -> None:

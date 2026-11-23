@@ -8,7 +8,7 @@ be asked.
 """
 
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from typing import TypeVar, assert_never
 
 from claude_agent_sdk import ClaudeSDKError
@@ -18,7 +18,7 @@ from vekna.folio.coding import CodingOpts, CodingOutputError, Session, coding
 from vekna.folio.coding_claude import ClaudeOptions
 from vekna.lexicon import RitualError
 
-from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread
+from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread, Prompt
 from cabinet.pacts.project import Project
 
 _LOG = logging.getLogger(__name__)
@@ -69,14 +69,11 @@ async def _guarded(
 
 
 class ClaudeAgent(AgentProtocol):
-    def __init__(
-        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
-    ) -> None:
+    def __init__(self, project: Project, *, attended: bool) -> None:
         self._project = project
         self._attended = attended
-        self._skills = [*skills]
 
-    def _opts(self, job: Job, *, escalated: bool) -> CodingOpts:
+    def _opts(self, prompt: Prompt, job: Job, *, escalated: bool) -> CodingOpts:
         agent = self._project.agent
         return CodingOpts(
             model=agent.models.of(job, escalated=escalated),
@@ -85,18 +82,23 @@ class ClaudeAgent(AgentProtocol):
                 allowed_tools=allowed_tools(job),
                 effort=agent.effort,
                 max_turns=agent.max_turns or None,
-                skills=self._skills,
+                skills=[*prompt.skills],
             ),
         )
 
     @override
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
+        self,
+        prompt: Prompt,
+        *,
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> Fallen | None:
         answered = await _guarded(
             lambda: coding(
-                prompt,
-                opts=self._opts(job, escalated=escalated),
+                prompt.text,
+                opts=self._opts(prompt, job, escalated=escalated),
                 session=_session(key),
                 key=key,
             )
@@ -108,7 +110,7 @@ class ClaudeAgent(AgentProtocol):
     @override
     async def ask_for(
         self,
-        prompt: str,
+        prompt: Prompt,
         *,
         output: type[_OutputT],
         job: Job,
@@ -117,9 +119,9 @@ class ClaudeAgent(AgentProtocol):
     ) -> _OutputT | Fallen | Misread:
         return await _guarded(
             lambda: coding(
-                prompt,
+                prompt.text,
                 output=output,
-                opts=self._opts(job, escalated=escalated),
+                opts=self._opts(prompt, job, escalated=escalated),
                 session=_session(key),
                 key=key,
             )

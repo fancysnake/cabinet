@@ -65,6 +65,13 @@ them all.
 
 --8<-- "README.md:heal-skills"
 
+The heal rituals run in a pooled worktree, which vekna makes once per
+repository:
+
+```bash
+vekna altar init
+```
+
 With that in place:
 
 ```bash

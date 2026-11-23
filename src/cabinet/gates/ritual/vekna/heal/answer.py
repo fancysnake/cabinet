@@ -20,7 +20,7 @@ from vekna.lexicon import emit_delta, step
 
 from cabinet.gates.ritual.vekna.heal.agents import agent_for, session
 from cabinet.gates.ritual.vekna.heal.repair import repaired
-from cabinet.pacts.agent import UNTRUSTED_THREADS, Fallen, Misread
+from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.forge import ForgeError
 from cabinet.pacts.heal import (
@@ -200,7 +200,7 @@ async def read_threads(
         return await _landing(work, str(error))
     if not batch:
         return await _landing(work)
-    read = await agent_for(work, UNTRUSTED_THREADS).ask_for(
+    read = await agent_for(work).ask_for(
         services().prompts.triage_read(work.pr.number, batch),
         output=TriageNotes,
         job="plan",
@@ -263,7 +263,7 @@ async def answer_threads(
     instructed: AnswerThreads,
 ) -> PostAnswers | ApproveReplies | Tend | AnswerGate | SetAside | Chart:
     work = instructed.work.charged(answer_threads.name)
-    came = await agent_for(work, UNTRUSTED_THREADS).ask_for(
+    came = await agent_for(work).ask_for(
         instructed.prompt,
         output=Answered,
         job="fix",
@@ -284,7 +284,7 @@ async def answer_threads(
 # again. The thread is the ritual's to know: a redraft cannot move the reply
 # under another one.
 async def _redrafted(work: Work, draft: Answer, said: str) -> Answer | Fallen:
-    came = await agent_for(work, UNTRUSTED_THREADS).ask_for(
+    came = await agent_for(work).ask_for(
         services().prompts.redraft(draft, said),
         output=Answer,
         job="fix",

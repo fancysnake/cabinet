@@ -10,7 +10,6 @@ from vekna.lexicon import step
 
 from cabinet.gates.ritual.vekna.heal.agents import asked
 from cabinet.gates.ritual.vekna.heal.repair import repaired
-from cabinet.pacts.agent import RESOLVE_CONFLICT
 from cabinet.pacts.heal import (
     Chart,
     FinishMerge,
@@ -70,9 +69,7 @@ async def resolve_conflicts(
     escalated = services().sizes.escalates(
         conflicts=len(unmerged), spent=work.spent(resolve_conflicts.name)
     )
-    if fallen := await asked(
-        work, prompt, key="merge", escalated=escalated, skills=[RESOLVE_CONFLICT]
-    ):
+    if fallen := await asked(work, prompt, key="merge", escalated=escalated):
         return work.abandoned(fallen.reason).to(Chart)
     # Back through this same step, which re-reads git rather than believing
     # the agent. The note goes now: past here the merge failing is just what a

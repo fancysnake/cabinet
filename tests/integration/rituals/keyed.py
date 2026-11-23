@@ -4,14 +4,13 @@ A session continues only within one cast, and a test walks one step at a time,
 so which calls share a session is read off the keys instead.
 """
 
-from collections.abc import Sequence
 from typing import TypeVar
 
 from pydantic import BaseModel
 from typing_extensions import override
 
 from cabinet.inits.services import Services
-from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread
+from cabinet.pacts.agent import AgentProtocol, Fallen, Job, Misread, Prompt
 from cabinet.pacts.project import Project
 from cabinet.pacts.services import bind
 
@@ -24,7 +23,12 @@ class KeyedAgent(AgentProtocol):
 
     @override
     async def ask(
-        self, prompt: str, *, job: Job, key: str | None = None, escalated: bool = False
+        self,
+        prompt: Prompt,
+        *,
+        job: Job,
+        key: str | None = None,
+        escalated: bool = False,
     ) -> Fallen | None:
         self._keys.append(key)
         return None
@@ -32,7 +36,7 @@ class KeyedAgent(AgentProtocol):
     @override
     async def ask_for(
         self,
-        prompt: str,
+        prompt: Prompt,
         *,
         output: type[_OutputT],
         job: Job,
@@ -49,9 +53,7 @@ class _Keyed(Services):
         self._keys = keys
 
     @override
-    def agent(
-        self, project: Project, *, attended: bool, skills: Sequence[str] = ()
-    ) -> AgentProtocol:
+    def agent(self, project: Project, *, attended: bool) -> AgentProtocol:
         return KeyedAgent(self._keys)
 
 

@@ -164,9 +164,7 @@ class TestResolveConflicts:
         trial.walk(resolve_conflicts, work.merging_on("x").to(ResolveConflicts))
 
         assert trial.coding.calls[0].model == "escalated-model"
-        assert "skills=['heal:resolve-conflict']" in str(
-            trial.coding.calls[0].focus_options
-        )
+        assert trial.coding.calls[0].focus_options.skills == ["heal:resolve-conflict"]
 
     @staticmethod
     def test_an_attended_cast_resolves_without_asking(trial: Trial, work: Work) -> None:

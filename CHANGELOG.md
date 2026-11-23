@@ -15,7 +15,11 @@ and this project adheres to [Semantic Versioning].
   `heal:cover-diff`, `heal:untrusted-threads`) and no longer carry the rules
   inline. A cast without the plugin stops at the first agent call and names
   the missing skill.
-- **Breaking:** cabinet needs vekna 3.0.0 or later.
+- **Breaking:** cabinet needs vekna 3.0.0 or later. vekna 3 reads
+  the repository's `.vekna.toml` ahead of your `[projects.<name>.cabinet]`
+  table, where earlier vekna versions could read it the other way round. A key set in both
+  now takes the repository's value: remove the duplicate from the one you
+  want to lose.
 
 ## [7.3.0] - 2026-11-22
 

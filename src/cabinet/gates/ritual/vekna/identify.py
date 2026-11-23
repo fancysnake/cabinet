@@ -25,7 +25,7 @@ from typing import TypeVar
 
 from vekna.lexicon import Done, RitualError, emit_delta, step
 
-from cabinet.pacts.agent import UNTRUSTED_THREADS, Fallen, Misread
+from cabinet.pacts.agent import Fallen, Misread
 from cabinet.pacts.forge import ForgeError, ForgeProtocol
 from cabinet.pacts.identify import Gather, Leaf, Tally
 from cabinet.pacts.issues import (
@@ -83,7 +83,7 @@ async def identify_page(page: Page) -> Tally | Pinning:
     )
     said = (
         await services()
-        .agent(project, attended=False, skills=[UNTRUSTED_THREADS])
+        .agent(project, attended=False)
         .ask_for(prompt, output=Identified, job="plan", key=_THREAD)
     )
     if isinstance(said, Fallen | Misread):

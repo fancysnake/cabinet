@@ -5,7 +5,7 @@ from vekna.folio.coding_claude import ClaudeOptions
 from vekna.trial import Trial
 
 from cabinet.links.agent.claude import ClaudeAgent, allowed_tools
-from cabinet.pacts.agent import Fallen, Job, Misread
+from cabinet.pacts.agent import Fallen, Job, Misread, Prompt
 from cabinet.pacts.project import Project
 from cabinet.pacts.threads import TriageNotes
 from tests.conftest import drive
@@ -14,6 +14,8 @@ _PROJECT = Project.model_validate({"agent": {"max_turns": 30}})
 _READER = ["Read", "Grep", "Glob", "Bash"]
 _WRITER = [*_READER, "Edit", "Write", "MultiEdit"]
 _AGENT = ClaudeAgent(_PROJECT, attended=False)
+_ASK = Prompt(text="do it", skills=())
+_READ = Prompt(text="read it", skills=())
 
 
 class TestAllowedTools:
@@ -33,7 +35,7 @@ class TestAsk:
     def test_every_call_is_bound_by_its_job(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        assert drive(trial, lambda: _AGENT.ask("do it", job="fix")) is None
+        assert drive(trial, lambda: _AGENT.ask(_ASK, job="fix")) is None
         assert trial.coding.calls[0].model == "sonnet"
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
@@ -47,9 +49,9 @@ class TestAsk:
     def test_the_skills_a_call_names_reach_the_agent(trial: Trial) -> None:
         trial.coding.replies("did it")
 
-        skilled = ClaudeAgent(_PROJECT, attended=False, skills=["heal:fix-gate"])
+        skilled = Prompt(text="do it", skills=("heal:fix-gate",))
 
-        drive(trial, lambda: skilled.ask("do it", job="fix"))
+        drive(trial, lambda: _AGENT.ask(skilled, job="fix"))
 
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="dontAsk",
@@ -67,7 +69,7 @@ class TestAsk:
             attended=False,
         )
 
-        drive(trial, lambda: agent.ask("do it", job="fix"))
+        drive(trial, lambda: agent.ask(_ASK, job="fix"))
 
         assert trial.coding.calls[0].model == "claude-opus-5-5"
 
@@ -79,8 +81,8 @@ class TestAsk:
         trial.coding.replies("did it again")
 
         async def twice() -> None:
-            await _AGENT.ask("do it", job="fix", key="repair")
-            await _AGENT.ask("do it again", job="fix", key="repair", escalated=True)
+            await _AGENT.ask(_ASK, job="fix", key="repair")
+            await _AGENT.ask(_ASK, job="fix", key="repair", escalated=True)
 
         drive(trial, twice)
 
@@ -93,7 +95,7 @@ class TestAsk:
 
         attended = ClaudeAgent(_PROJECT, attended=True)
 
-        drive(trial, lambda: attended.ask("do it", job="fix"))
+        drive(trial, lambda: attended.ask(_ASK, job="fix"))
 
         assert trial.coding.calls[0].focus_options == ClaudeOptions(
             permission_mode="auto", allowed_tools=_WRITER, effort="high", max_turns=30
@@ -105,8 +107,8 @@ class TestAsk:
         trial.coding.replies("second")
 
         async def twice() -> None:
-            await _AGENT.ask("do it", job="fix", key="repair")
-            await _AGENT.ask("do it again", job="fix", key="repair")
+            await _AGENT.ask(_ASK, job="fix", key="repair")
+            await _AGENT.ask(_ASK, job="fix", key="repair")
 
         drive(trial, twice)
 
@@ -117,7 +119,7 @@ class TestAsk:
     # this test can make happen from the outside.
     @staticmethod
     def test_a_medium_that_raises_comes_back_as_fallen(trial: Trial) -> None:
-        came = drive(trial, lambda: _AGENT.ask("do it", job="fix", key=""))
+        came = drive(trial, lambda: _AGENT.ask(_ASK, job="fix", key=""))
 
         assert isinstance(came, Fallen)
         assert "stopped mid-flight" in came.reason
@@ -130,7 +132,7 @@ class TestAskFor:
         trial.coding.replies(TriageNotes(items=[]))
 
         came = drive(
-            trial, lambda: _AGENT.ask_for("read it", output=TriageNotes, job="plan")
+            trial, lambda: _AGENT.ask_for(_READ, output=TriageNotes, job="plan")
         )
 
         assert came == TriageNotes(items=[])
@@ -147,7 +149,7 @@ class TestAskFor:
         trial.coding.replies("no idea, sorry")
 
         came = drive(
-            trial, lambda: _AGENT.ask_for("read it", output=TriageNotes, job="plan")
+            trial, lambda: _AGENT.ask_for(_READ, output=TriageNotes, job="plan")
         )
 
         assert isinstance(came, Misread)
@@ -156,8 +158,7 @@ class TestAskFor:
     @staticmethod
     def test_a_medium_that_raises_comes_back_as_fallen(trial: Trial) -> None:
         came = drive(
-            trial,
-            lambda: _AGENT.ask_for("read it", output=TriageNotes, job="plan", key=""),
+            trial, lambda: _AGENT.ask_for(_READ, output=TriageNotes, job="plan", key="")
         )
 
         assert isinstance(came, Fallen)
