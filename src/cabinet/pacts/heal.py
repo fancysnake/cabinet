@@ -182,9 +182,5 @@ class FinishPr(Work):
     pass
 
 
-class SkipPr(Work):
-    pass
-
-
 class SetAside(Work):
     pass

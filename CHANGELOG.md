@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning].
   now takes the repository's value: remove the duplicate from the one you
   want to lose.
 
+### Fixed
+
+- A `heal.*` cast fails when it cannot check out a branch, for example one
+  that another worktree stands on. It reported the branch as left alone and
+  ended green. The report heading counts only the branches the cast worked,
+  no longer the blocked ones.
+
 ## [7.3.0] - 2026-11-22
 
 ### Added

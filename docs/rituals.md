@@ -74,7 +74,10 @@ sizes the pool. Typed by hand, `heal.pr` runs where it was typed.
 Otherwise each branch with a task the cast works is taken: the worktree must
 be clean, the remote is fetched, and the branch is checked out and
 fast-forwarded to it. The base is read as the remote has it and never checked
-out, because a worktree cannot check out a branch another worktree stands on. The tasks then run in order, and each one hands
+out, because a worktree cannot check out a branch another worktree stands on.
+For the same reason a pull request branch that another worktree stands on is
+blocked, and fails the cast: move that worktree off the branch and cast again.
+The tasks then run in order, and each one hands
 the branch back for the next:
 
 - **merge**: the base merged in, conflicts resolved, the gate made green. See

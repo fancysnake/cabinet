@@ -83,7 +83,7 @@ class Unsurveyed(BaseModel):
     note: str
 
 
-Outcome = Literal["worked", "blocked", "skipped"]
+Outcome = Literal["worked", "blocked"]
 
 
 class Checked(BaseModel):
@@ -92,7 +92,6 @@ class Checked(BaseModel):
     url: str
     # Whether the branch's tasks were worked through, or it was given up on.
     # `worked` says nothing of the gate, which only merge, ci and answer run.
-    # `skipped` is neither: the branch was never taken.
     outcome: Outcome
     # None when git could not say. Nothing to push and "we could not tell" are
     # different answers, and the report prints them differently.
@@ -204,6 +203,10 @@ class Run(Reserving, Hop):
     # The branches this cast gave up on, whose tasks are then still owed.
     def blocked(self) -> list[Checked]:
         return [row for row in self.checked if row.outcome == "blocked"]
+
+    # The branches this cast worked.
+    def succeeded(self) -> list[Checked]:
+        return [row for row in self.checked if row.outcome == "worked"]
 
     # Whether the cast fails: it stopped, or it gave up on a branch.
     def failed(self) -> bool:

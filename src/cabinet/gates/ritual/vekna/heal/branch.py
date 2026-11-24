@@ -7,9 +7,9 @@ cannot stand on a base the tree it was made from is standing on. Then
 ``tend`` hands the branch each task in turn, and every task ends back at
 ``tend``.
 
-A branch is left alone rather than reported broken when the checkout will not
-go through, which is what another worktree standing on it looks like. A fetch
-that fails is not the same thing, so that one ends the cast.
+A branch whose checkout will not go through is blocked, and so fails the cast:
+that is what another worktree standing on it looks like. A fetch that fails
+ends the cast, with every branch after it.
 
 What a cast committed and has not pushed goes up before the branch is left.
 Nothing waits for CI after a push, and nothing merges a branch that is merely
@@ -34,7 +34,6 @@ from cabinet.pacts.heal import (
     Resurvey,
     SetAside,
     SettleLeft,
-    SkipPr,
     StandDown,
     Survey,
     SyncBranch,
@@ -68,21 +67,15 @@ async def check_clean(work: CheckClean) -> Chart | SyncBranch:
 
 # Fetch, then stand on the branch as the remote has it.
 @step
-async def sync_branch(work: SyncBranch) -> Chart | SkipPr | SetAside | Tend:
+async def sync_branch(work: SyncBranch) -> Chart | SetAside | Tend:
     scm = services().scm(work.run.project)
     pull = work.pr
     try:
         await scm.fetch()
     except ScmError as error:
         return work.abandoned(str(error)).to(Chart)
-    # On its own rather than chained to the rest, because the failures are
-    # different answers: a checkout that will not go through is another
-    # worktree standing on the branch, and that is nobody's fault.
     try:
         await scm.checkout(pull.branch)
-    except ScmError as error:
-        return work.but(note=str(error)).to(SkipPr)
-    try:
         await scm.catch_up(pull.branch)
     except ScmError as error:
         return work.but(note=str(error)).to(SetAside)
@@ -190,16 +183,6 @@ async def finish_pr(work: FinishPr) -> Survey:
         unpushed=await services().scm(work.run.project).ahead(work.pr.branch),
         note=work.telling(),
     )
-    return work.run.rowed(row).to(Survey)
-
-
-# Leave the branch where it is, and say so in the report. Nothing to release
-# and nothing to count: this is only reached where the checkout itself would
-# not go through, so the worktree never moved and the branch is exactly as its
-# owner left it.
-@step
-def skip_pr(work: SkipPr) -> Survey:
-    row = work.checked("skipped", unpushed=None, note=work.telling())
     return work.run.rowed(row).to(Survey)
 
 
