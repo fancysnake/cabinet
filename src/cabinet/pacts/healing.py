@@ -255,14 +255,6 @@ class Run(Reserving, Hop):
     def rowed(self, row: Checked) -> Self:
         return self.but(checked=[*self.checked, row])
 
-    # What the cast `one` queued came to, taken as this cast's own: its rows,
-    # and its branch among the ones not reached where the cast left it so.
-    def merged(self, one: Queued, healed: "Healed") -> Self:
-        unreached = [one.pr] if one.pr.branch in healed.not_reached else []
-        return self.but(
-            queue=[*self.queue, *unreached], checked=[*self.checked, *healed.checked]
-        )
-
 
 # Every field a step may route forward, in one annotation, so the copy that
 # carries them can be one method.
@@ -471,9 +463,17 @@ class Work(Budgeted, Handing, Hop):
         return self.run.rowed(row).but(stopped=reason)
 
 
-# What the cast came to: every pull request's survey, what became of each
-# branch it worked or queued a cast for, and what it never reached.
+# What a cast that worked branches came to: every pull request's survey, what
+# became of each branch, and what it never reached.
 class Healed(BaseModel):
     surveyed: list[Surveyed | Unsurveyed] = []
     checked: list[Checked] = []
+    not_reached: list[str] = []
+
+
+# What `heal.mine` came to: every pull request's survey, the cast each branch
+# with work went to, and what it never reached.
+class Handed(BaseModel):
+    surveyed: list[Surveyed | Unsurveyed] = []
+    queued: list[Queued] = []
     not_reached: list[str] = []

@@ -8,20 +8,31 @@ from vekna.lexicon import Done, RitualError
 from vekna.trial import Trial
 
 from cabinet.gates.ritual.vekna.heal.branch import finish_pr, set_aside, stand_down
-from cabinet.gates.ritual.vekna.heal.cast import chart
+from cabinet.gates.ritual.vekna.heal.cast import chart, handoff
 from cabinet.gates.ritual.vekna.heal.review import quality_review
 from cabinet.pacts.budgets import ROUNDS
 from cabinet.pacts.guide import Guide
 from cabinet.pacts.heal import (
     Chart,
     FinishPr,
+    Handoff,
     QualityReview,
     SetAside,
     StandDown,
     Survey,
     Tend,
 )
-from cabinet.pacts.healing import Checked, Heal, Healed, HealPr, Run, Surveyed, Work
+from cabinet.pacts.healing import (
+    Checked,
+    Handed,
+    Heal,
+    Healed,
+    HealPr,
+    Queued,
+    Run,
+    Surveyed,
+    Work,
+)
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import services
@@ -363,6 +374,57 @@ class TestChart:
         assert "the cast failed: branches blocked: 1" in trial.deltas[0]
 
 
+class TestHandoff:
+    @staticmethod
+    def test_the_casts_are_said_and_the_result_returned(
+        trial: Trial, project: Project, pull: PullRequest
+    ) -> None:
+        queued = Queued(pr=pull, cast="c1")
+        run = Run(attended=True, project=project).summoned(queued)
+
+        assert trial.walk(handoff, run.to(Handoff)) == Done(Handed(queued=[queued]))
+        assert trial.deltas == ["heal — 1 queued\n\n  #7 feature: cast c1\n"]
+
+    @staticmethod
+    def test_a_cast_that_queued_nothing_says_so(trial: Trial, project: Project) -> None:
+        run = Run(attended=True, project=project)
+
+        assert trial.walk(handoff, run.to(Handoff)) == Done(Handed())
+        assert trial.deltas == ["heal — 0 queued\n\n  (none)\n"]
+
+    @staticmethod
+    def test_a_plan_says_nothing_past_its_survey(
+        trial: Trial, project: Project
+    ) -> None:
+        run = Run(attended=True, project=project, tasks=[])
+
+        assert trial.walk(handoff, run.to(Handoff)) == Done(Handed())
+        assert trial.deltas == []
+
+    @staticmethod
+    def test_a_cast_out_of_steps_ends_without_failing(
+        trial: Trial, project: Project, pull: PullRequest
+    ) -> None:
+        run = Run(attended=True, project=project, queue=[pull])
+
+        assert trial.walk(handoff, run.to(Handoff)) == Done(
+            Handed(not_reached=["feature"])
+        )
+
+    @staticmethod
+    def test_a_stopped_cast_is_said_before_it_fails(
+        trial: Trial, project: Project, pull: PullRequest
+    ) -> None:
+        queued = Queued(pr=pull, cast="c1")
+        run = Run(attended=True, project=project, stopped="no daemon").summoned(queued)
+
+        with pytest.raises(RitualError, match="no daemon"):
+            trial.walk(handoff, run.to(Handoff))
+
+        assert "heal — 1 queued" in trial.deltas[0]
+        assert "the cast failed: no daemon" in trial.deltas[0]
+
+
 # The forge's listing and git's preflight, the branch taken, and the count at
 # the end: what every acting cast here walks through.
 def _taken(
@@ -600,8 +662,8 @@ class TestWholeCast:
 
         result = trial.cast(heal_mine, Heal())
 
-        assert result.checked == []
-        assert trial.steps == ["muster_mine", "summon", "summon", "attend", "chart"]
+        assert result.queued == []
+        assert trial.steps == ["muster_mine", "summon", "summon", "handoff"]
         assert trial.deltas[0] == "#7 feature: nothing to do"
 
     # Every attempt the bound allows on every loop, each with its free extra
@@ -722,9 +784,9 @@ class TestWholeCast:
 
         result = trial.cast(heal_mine, Heal())
 
-        assert result == Healed()
+        assert result == Handed()
         assert trial.shell.commands[-1].startswith("glab api")
-        assert trial.steps == ["muster_mine", "summon", "attend", "chart"]
+        assert trial.steps == ["muster_mine", "summon", "handoff"]
 
 
 class TestTaskRituals:

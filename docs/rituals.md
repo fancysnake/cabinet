@@ -45,29 +45,30 @@ line saying why, and the cast goes on. With `--plan-only true` that is all:
 nothing is checked out, committed or labelled.
 
 `heal.mine` works no branch itself. For each one with work it queues a
-`heal.pr` on the vekna daemon and goes on to the next. Then it waits until
-every cast it queued has ended, and reports their rows as its own:
+`heal.pr` on the vekna daemon and goes on to the next. Then it reports which
+cast took which branch, and ends:
 
 ```text
-heal — 1 worked
+heal — 2 queued
 
-  #7 feature: worked, 0 unpushed
-  #9 docs: blocked, unknown — cast c42 ended error: branches blocked: 1
+  #7 feature: cast c41
+  #9 docs: cast c42
 ```
 
-A `heal.pr` that failed blocks its branch in that report, and a blocked
-branch fails `heal.mine` the way it fails `heal.this`. A `heal.pr` whose
-branch does not fit its step budget is named in the report as not reached.
+`heal.mine` does not wait for the casts it queued, so it holds no place on
+the daemon while they run. Each `heal.pr` reports its own branch when it
+ends, and fails where its branch was blocked.
 
 The daemon runs each `heal.pr` in a pooled worktree as slots and trees free
 up, so the checkout you cast from never moves. The daemon decides whether the
 queued casts run one at a time or together; `vekna cast --queue heal.mine`
 hands the whole cast to the daemon, which heals the branches side by side.
-While it waits, `vekna cast heal.mine` prints each one's rows and
-prompts as they come. With no daemon running, `heal.mine` prints its survey
-and fails: start one with `vekna`. If the daemon goes away after some
-casts were queued, those keep running, and the report blocks each one as
-outcome unknown. [Configuration](configuration.md#worktrees)
+Typed at a terminal, `vekna cast heal.mine` stays for the casts it queued:
+vekna prints each one's rows and prompts as they come, and the command exits
+`1` where one of them failed. With no daemon running, `heal.mine` prints its
+survey and fails: start one with `vekna`. If the daemon goes away after some
+casts were queued, the report names those and `heal.mine` fails.
+[Configuration](configuration.md#worktrees)
 sizes the pool. Typed by hand, `heal.pr` runs where it was typed.
 
 Otherwise each branch with a task the cast works is taken: the worktree must
@@ -100,7 +101,7 @@ this cast is not worked a second time, so a check that is still red waits for
 the next cast. The cast leaves the branch when a survey finds nothing new.
 
 A cast takes a branch only where the worst that branch can spend fits its
-step budget of 1,004 steps. The budget is sized for `heal.mine` surveying and
+step budget of 1,003 steps. The budget is sized for `heal.mine` surveying and
 queuing the thousand pull requests GitHub lists. A branch spends at most 105
 steps at the default `--bound` and three CI jobs, so a much larger `--bound`
 still fits. A branch that does not fit ends the cast without failing it, and
