@@ -221,8 +221,7 @@ class Report(ReportProtocol):
 
     @override
     def healed(self, run: Run) -> str:
-        worked = len(run.checked) - len(run.blocked())
-        lines = [f"heal — {worked} worked", ""]
+        lines = [f"heal — {len(run.succeeded())} worked", ""]
         lines += [_line(row) for row in run.checked] or ["  (none)"]
         return _ending(run, lines)
 

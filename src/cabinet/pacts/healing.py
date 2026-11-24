@@ -204,6 +204,10 @@ class Run(Reserving, Hop):
     def blocked(self) -> list[Checked]:
         return [row for row in self.checked if row.outcome == "blocked"]
 
+    # The branches this cast worked.
+    def succeeded(self) -> list[Checked]:
+        return [row for row in self.checked if row.outcome == "worked"]
+
     # Whether the cast fails: it stopped, or it gave up on a branch.
     def failed(self) -> bool:
         return bool(self.stopped or self.blocked())

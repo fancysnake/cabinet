@@ -8,8 +8,8 @@ cannot stand on a base the tree it was made from is standing on. Then
 ``tend``.
 
 A branch whose checkout will not go through is blocked, and so fails the cast:
-that is what another worktree standing on it looks like, and its owner is told
-to move off it. A fetch that fails ends the cast, with every branch after it.
+that is what another worktree standing on it looks like. A fetch that fails
+ends the cast, with every branch after it.
 
 What a cast committed and has not pushed goes up before the branch is left.
 Nothing waits for CI after a push, and nothing merges a branch that is merely
