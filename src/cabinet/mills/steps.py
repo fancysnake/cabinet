@@ -50,7 +50,8 @@ def _answer(bound: int) -> int:
 
 class Steps(StepsProtocol):
     # Every step that works no branch: the muster, a `survey` per branch and
-    # the one that finds the queue empty, and `chart`.
+    # the one that finds the queue empty, and the ending (`chart`, or `handoff`
+    # for `heal.mine`).
     @override
     def opening(self, queue: int) -> int:
         return queue + 3

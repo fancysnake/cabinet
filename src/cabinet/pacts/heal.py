@@ -39,11 +39,11 @@ class Summon(Run):
     pass
 
 
-class Chart(Run):
+class Handoff(Run):
     pass
 
 
-class Attend(Run):
+class Chart(Run):
     pass
 
 

@@ -44,7 +44,7 @@ class TestHealShare:
         assert _STEPS.heal_share(_run(_STEPS.opening(1))) is not None
 
     # `heal.mine` on the most pull requests a forge lists: every step
-    # `opening` counts, and `attend`.
+    # `opening` counts.
     @staticmethod
     def test_the_most_the_forge_lists_fits() -> None:
-        assert _STEPS.opening(PULL_LIMIT) + 1 == HEAL_STEPS
+        assert _STEPS.opening(PULL_LIMIT) == HEAL_STEPS
