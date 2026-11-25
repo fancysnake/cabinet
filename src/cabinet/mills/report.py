@@ -63,14 +63,14 @@ def _priority(item: TriageItem) -> str:
 
 
 _TAKES = (
-    "Press return to take the action above, or answer fix, reject or file,\n"
-    "or say in your own words what should happen.\n->"
+    "Press return or answer ok to take the action above, or answer fix, reject\n"
+    "or file, or say in your own words what should happen.\n->"
 )
 
-_POSTS = "Press return to post it, or say what to change.\n->"
+_POSTS = "Press return or answer ok to post it, or say what to change.\n->"
 _LAST = (
-    "Press return to post it. No redrafts are left at this --bound: anything\n"
-    "else leaves the thread open without a reply.\n->"
+    "Press return or answer ok to post it. No redrafts are left at this --bound:\n"
+    "anything else leaves the thread open without a reply.\n->"
 )
 
 # Estimate is the longest of the six labels, which spell TRIAGE.

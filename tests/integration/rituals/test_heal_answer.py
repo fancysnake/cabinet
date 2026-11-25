@@ -579,6 +579,19 @@ class TestAskTriage:
         assert "Thread:   src/thing.py, raised by me" in transition.prompt.text
         assert trial.deltas == []
 
+    @staticmethod
+    def test_ok_takes_the_readings_proposal(trial: Trial, work: Work) -> None:
+        trial.decide.answers(answer="ok")
+        triage = AskTriage(work=work, items=[_ITEM], threads=[_THREAD], unsettled=1)
+
+        transition = trial.walk(ask_triage, triage)
+
+        assert isinstance(transition, AnswerThreads)
+        assert (
+            f"what I want: {_ITEM.action} it, as the reading says"
+            in transition.prompt.text
+        )
+
 
 class TestAnswerThreads:
     @staticmethod
@@ -680,7 +693,21 @@ class TestApproveReplies:
         assert trial.walk(approve_replies, _drafted(work, draft)) == _answering(
             work, draft
         )
-        assert "\n\nguarded\n\nPress return to post it" in trial.decide.prompts[0]
+        assert (
+            "\n\nguarded\n\nPress return or answer ok to post it"
+            in trial.decide.prompts[0]
+        )
+        assert not trial.coding.prompts
+
+    # Discord sends no empty reply, so a word takes the draft too.
+    @staticmethod
+    def test_ok_posts_the_reply_as_drafted(trial: Trial, work: Work) -> None:
+        trial.decide.answers(answer=" OK ")
+        draft = Answer(thread="PRRT_1", reply="guarded")
+
+        assert trial.walk(approve_replies, _drafted(work, draft)) == _answering(
+            work, draft
+        )
         assert not trial.coding.prompts
 
     # The redraft names another thread, and the reply stays under its own. The

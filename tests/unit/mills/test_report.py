@@ -269,7 +269,7 @@ class TestTriage:
         asked = _REPORT.asked("the card")
 
         assert asked.startswith("the card\n\nPress return")
-        assert "answer fix, reject or file" in asked
+        assert "answer fix, reject\nor file" in asked
         assert asked.endswith("\n->")
 
 
@@ -282,7 +282,7 @@ class TestDrafted:
         assert _REPORT.drafted(_PULL, thread, answer, last=False) == (
             f"#{_PULL.number} {_PULL.title} — reply to reviewer — src/thing.py:12\n\n"
             "Guarded.\n\nThe loop stops first.\n\n"
-            "Press return to post it, or say what to change.\n->"
+            "Press return or answer ok to post it, or say what to change.\n->"
         )
 
     @staticmethod

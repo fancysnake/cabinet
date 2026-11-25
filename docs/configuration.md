@@ -83,7 +83,7 @@ escalated = "opus"                    # where a big or retried fix goes
 | `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
 | `smoke_skill`   | the skill file the guide task writes its smoke test with; see [the smoke-test skill](#the-smoke-test-skill) |
 | `bots`          | more logins whose review threads `answer` resolves after it replies; see [answer](rituals.md#answer). `answer` already resolves your threads and, on GitHub, the threads an app such as CodeRabbit opened. GitLab does not say which accounts are bots, so name each one here |
-| `approve_replies` | `true` puts each drafted reply to you before `answer` posts it: press return to post, or say what to change and the agent redrafts it, up to `--bound` times |
+| `approve_replies` | `true` puts each drafted reply to you before `answer` posts it: press return or answer `ok` to post, or say what to change and the agent redrafts it, up to `--bound` times |
 
 ### `[cabinet.labels]`
 

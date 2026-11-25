@@ -114,7 +114,7 @@ change is to break something else.
 All of it is read as one card per thread, by someone who has not seen the thread
 and is deciding what to do with it.
 
-Fix nothing. This is a reading.
+Fix nothing, and do not commit or push. This is a reading.
 """
 
 _TRIAGE_WORK = """\
@@ -139,8 +139,8 @@ changed or why it will not, but not that I asked for it, so nothing in it reads
 as their suggestion when it was mine. Leave out what you could or could not run
 or verify: the gates are the ritual's.
 
-Do not commit or push — the ritual owns both, and runs the gates itself
-the moment you stop. Ask me rather than guessing when the call is mine to make.
+Do not commit or push — the ritual owns both. Ask me rather than guessing
+when the call is mine to make.
 """
 
 _REDRAFT = """\
@@ -162,7 +162,7 @@ that can be answered and resolved by itself.
 Do not repeat a point that is still open in the threads below. A point someone
 has resolved is worth raising again only if the code still has the problem.
 
-Change no code: this is a review, not a fix.
+Change no code, and do not commit or push: this is a review, not a fix.
 """
 
 _GUIDE = """\
@@ -204,10 +204,11 @@ Read every issue between the markers, and only those. Read the code an issue is
 about before judging it: the size is what the change costs in this repository as
 it stands.
 
-You reach the forge for nothing and you edit no files. The ritual puts your
-reading on the forge as soon as you stop: it labels each issue, opens the
-sub-issues you asked for and labels those too, attaches them under their epic,
-and records what blocks what. So answer carefully — the answer is the action.
+You reach the forge for nothing, you edit no files and you commit nothing. The
+ritual puts your reading on the forge as soon as you stop: it labels each
+issue, opens the sub-issues you asked for and labels those too, attaches them
+under their epic, and records what blocks what. So answer carefully — the
+answer is the action.
 
 One item per issue in `items`, carrying its number:
 
@@ -231,9 +232,21 @@ One item per issue in `items`, carrying its number:
 """
 
 
+# What follows the list where the gate comes straight after the agent.
+_GATE_NEXT = """\
+The ritual runs the gate itself as soon as you stop, so a sweep you run is
+minutes spent on an answer you are about to be given.
+"""
+
+# What follows it where no gate does: a reading, a review, a redraft.
+_NOT_YOURS = """\
+The check on the whole repository is the ritual's to run, not yours.
+"""
+
+
 # The long tasks, named so the agent reaches for a narrow check instead. Asked,
 # not enforced: nothing stops a shell running them.
-def _may_not_run(project: Project) -> str:
+def _may_not_run(project: Project, after: str = _GATE_NEXT) -> str:
     long = "\n".join(f"    {prefix} ..." for prefix in project.long_tasks())
     return f"""\
 You have a shell. Check yourself with the narrowest command that answers the
@@ -241,9 +254,7 @@ question: one test file, one linter over one file. Do not run these:
 
 {long}
 
-The ritual runs the gate itself as soon as you stop, so a sweep you run is
-minutes spent on an answer you are about to be given.
-"""
+{after}"""
 
 
 _OPEN = "--- BEGIN UNTRUSTED REVIEW DATA ---"
@@ -345,35 +356,39 @@ class Prompts(PromptsProtocol):
         )
 
     @override
-    def triage_read(self, number: int, threads: list[Thread]) -> Prompt:
+    def triage_read(
+        self, project: Project, number: int, threads: list[Thread]
+    ) -> Prompt:
         return _prompt(
             f"Triage the open review threads on pull request #{number} against the"
             f" code as it stands on this branch right now.\n\n{_FENCE}\n",
-            f"{_fenced(threads)}\n\n{_TRIAGE_READ}",
+            f"{_fenced(threads)}\n\n{_TRIAGE_READ}\n"
+            f"{_may_not_run(project, _NOT_YOURS)}",
         )
 
     @override
-    def triage_work(self, number: int, told: list[Told]) -> Prompt:
+    def triage_work(self, project: Project, number: int, told: list[Told]) -> Prompt:
         # The terminal's own cards, with your answer under each: the agent is
         # told what you were looking at when you said it.
         shown = "\n\n".join(_item(one) for one in told)
         return _prompt(
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"
-            f"{_FENCE}\n{_TRIAGE_WORK}\nThe triage:\n\n",
+            f"{_FENCE}\n{_TRIAGE_WORK}\n{_may_not_run(project)}\nThe triage:\n\n",
             shown,
         )
 
     # The draft is fenced, because it may quote the comment it answers; the
     # line under it is yours and stays outside.
     @override
-    def redraft(self, answer: Answer, said: str) -> Prompt:
+    def redraft(self, project: Project, answer: Answer, said: str) -> Prompt:
         filing = f"\nissue to file: {answer.issue.title}" if answer.issue else ""
         drafted = _fence(f"{answer.reply}\n{filing}" if filing else answer.reply)
         return _prompt(
             f"Redraft your reply to thread {answer.thread} before it is posted.\n\n"
             f"{_FENCE}\nThe reply you drafted:\n\n",
-            f"{drafted}\n\nwhat I want changed: {said}\n\n{_REDRAFT}",
+            f"{drafted}\n\nwhat I want changed: {said}\n\n{_REDRAFT}\n"
+            f"{_may_not_run(project, _NOT_YOURS)}",
         )
 
     # `reason`, not `blocked`: what this takes is the sentence saying what
@@ -386,7 +401,7 @@ class Prompts(PromptsProtocol):
         return _prompt(
             f"Review the changes this pull request adds ({base}...HEAD) with the"
             f" {project.review_title}: read {project.review_skill} and follow it.\n"
-            f"\n{_REVIEW}\n"
+            f"\n{_REVIEW}\n{_may_not_run(project, _NOT_YOURS)}\n"
             f"The review threads already on the pull request:\n\n{_FENCE}\n",
             f"{_fenced(threads)}\n{_already_known(reason)}",
         )
@@ -395,7 +410,8 @@ class Prompts(PromptsProtocol):
     def guide(self, project: Project, *, base: str) -> Prompt:
         return _prompt(
             "Write the manual smoke test for the changes this pull request adds"
-            f" ({base}...HEAD): read {project.smoke_skill} and follow it.\n\n{_GUIDE}"
+            f" ({base}...HEAD): read {project.smoke_skill} and follow it.\n\n{_GUIDE}\n"
+            f"{_may_not_run(project, _NOT_YOURS)}"
         )
 
     # The skill is named on the first page only: every page after it continues
@@ -412,4 +428,8 @@ class Prompts(PromptsProtocol):
             " size means, when an issue is an epic, and how issues are linked."
         )
         shown = _fence("\n\n".join(_issue(issue) for issue in issues))
-        return _prompt(f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\nThe issues:\n\n", shown)
+        return _prompt(
+            f"{opening}\n\n{_FENCE}\n{_IDENTIFY}\n"
+            f"{_may_not_run(project, _NOT_YOURS)}\nThe issues:\n\n",
+            shown,
+        )
