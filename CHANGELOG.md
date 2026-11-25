@@ -7,33 +7,40 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [8.0.0] - 2026-11-25
+
+### Added
+
+- `answer` takes `ok` as it takes the return key: at a triage card for the
+  reading's proposal, at a drafted reply to post it. Discord, where vekna
+  3.1.0 can ask, sends no empty reply.
+
 ### Changed
 
-- `heal.mine` no longer waits for the `heal.pr` casts it queued, so it holds
-  no place on the daemon while they run. It reports which cast took which
-  branch and ends. Each `heal.pr` reports its own branch, and
-  `vekna cast heal.mine` typed at a terminal still follows them and exits `1`
-  where one failed. The `heal.mine` result lists the casts in `queued` and no
-  `checked` rows. It always says how many it queued, none included.
-- A heal cast's step budget is 1,003 steps, down from 1,004.
 - **Breaking:** the `heal.*` rituals and `identify` need the `heal` plugin
   installed for the agent: `claude plugin install heal@cabinet`. Their prompts
   name its skills (`heal:resolve-conflict`, `heal:fix-gate`,
-  `heal:cover-diff`, `heal:untrusted-threads`) and no longer carry the rules
-  inline. A cast without the plugin stops at the first agent call and names
-  the missing skill.
-- **Breaking:** cabinet needs vekna 3.0.0 or later. vekna 3 reads
-  the repository's `.vekna.toml` ahead of your `[projects.<name>.cabinet]`
-  table, where earlier vekna versions could read it the other way round. A key set in both
-  now takes the repository's value: remove the duplicate from the one you
-  want to lose.
+  `heal:cover-diff`, `heal:untrusted-threads`). A cast without the plugin
+  stops at the first agent call and names the missing skill.
+- **Breaking:** cabinet needs vekna 3.0.0 or later. vekna 3 reads the
+  repository's `.vekna.toml` ahead of your `[projects.<name>.cabinet]` table.
+  A key set in both takes the repository's value: remove the duplicate from
+  the one you want to lose.
+- `heal.mine` ends without waiting for the `heal.pr` casts it queued, so it
+  holds no place on the daemon while they run. It reports which cast took
+  which branch; each `heal.pr` reports its own branch. `vekna cast heal.mine`
+  typed at a terminal still follows them and exits `1` where one failed. The
+  `heal.mine` result lists the casts in `queued` and no `checked` rows.
+- Every prompt names the long tasks the agent leaves to the ritual. The
+  triage, redraft, review, guide and `identify` prompts did not.
+- The `heal:untrusted-threads` skill covers what the agent fetches itself.
+- A heal cast's step budget is 1,003 steps, down from 1,004.
 
 ### Fixed
 
 - A `heal.*` cast fails when it cannot check out a branch, for example one
   that another worktree stands on. It reported the branch as left alone and
-  ended green. The report heading counts only the branches the cast worked,
-  no longer the blocked ones.
+  ended green. The report heading counts only the branches the cast worked.
 
 ## [7.3.0] - 2026-11-22
 
@@ -478,7 +485,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v7.3.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v8.0.0...HEAD
+[8.0.0]: https://github.com/fancysnake/cabinet/compare/v7.3.0...v8.0.0
 [7.3.0]: https://github.com/fancysnake/cabinet/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/fancysnake/cabinet/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/fancysnake/cabinet/compare/v7.0.0...v7.1.0
