@@ -96,12 +96,16 @@ class PromptsProtocol(Protocol):
     # `gate` is the command that reproduces the job here, empty where none does.
     def fix_job(self, project: Project, log: str, *, job: str, gate: str) -> Prompt: ...
 
-    def triage_read(self, number: int, threads: list[Thread]) -> Prompt: ...
+    def triage_read(
+        self, project: Project, number: int, threads: list[Thread]
+    ) -> Prompt: ...
 
-    def triage_work(self, number: int, told: list[Told]) -> Prompt: ...
+    def triage_work(
+        self, project: Project, number: int, told: list[Told]
+    ) -> Prompt: ...
 
     # One drafted answer sent back to its writer, with what you want changed.
-    def redraft(self, answer: Answer, said: str) -> Prompt: ...
+    def redraft(self, project: Project, answer: Answer, said: str) -> Prompt: ...
 
     def review(
         self, project: Project, *, base: str, threads: list[Thread], reason: str
@@ -163,6 +167,10 @@ class ReportProtocol(Protocol):
 
     # A card with the question under it, naming the answers it takes.
     def asked(self, card: str) -> str: ...
+
+    # Whether an answer takes what was proposed, by the words the questions
+    # above and below announce.
+    def agreed(self, said: str) -> bool: ...
 
     # One drafted reply as it would be posted, with the question under it:
     # `last` where saying anything but yes leaves the reply unposted.

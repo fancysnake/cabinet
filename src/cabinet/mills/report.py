@@ -62,15 +62,19 @@ def _priority(item: TriageItem) -> str:
     return item.priority
 
 
+# The answers the three questions below announce as agreeing: a return, or `ok`
+# where no empty answer can be sent, as from Discord.
+_AGREEING = frozenset({"", "ok"})
+
 _TAKES = (
-    "Press return to take the action above, or answer fix, reject or file,\n"
-    "or say in your own words what should happen.\n->"
+    "Press return or answer ok to take the action above, or answer fix, reject\n"
+    "or file, or say in your own words what should happen.\n->"
 )
 
-_POSTS = "Press return to post it, or say what to change.\n->"
+_POSTS = "Press return or answer ok to post it, or say what to change.\n->"
 _LAST = (
-    "Press return to post it. No redrafts are left at this --bound: anything\n"
-    "else leaves the thread open without a reply.\n->"
+    "Press return or answer ok to post it. No redrafts are left at this --bound:\n"
+    "anything else leaves the thread open without a reply.\n->"
 )
 
 # Estimate is the longest of the six labels, which spell TRIAGE.
@@ -294,6 +298,10 @@ class Report(ReportProtocol):
     @override
     def asked(self, card: str) -> str:
         return f"{card}\n\n{_TAKES}"
+
+    @override
+    def agreed(self, said: str) -> bool:
+        return said.strip().lower() in _AGREEING
 
     # The reply unwrapped: it is posted as it reads here.
     @override

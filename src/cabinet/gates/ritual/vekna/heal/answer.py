@@ -201,7 +201,7 @@ async def read_threads(
     if not batch:
         return await _landing(work)
     read = await agent_for(work).ask_for(
-        services().prompts.triage_read(work.pr.number, batch),
+        services().prompts.triage_read(work.run.project, work.pr.number, batch),
         output=TriageNotes,
         job="plan",
     )
@@ -235,17 +235,21 @@ async def ask_triage(triage: AskTriage) -> AnswerThreads:
     told: list[Told] = []
     for item, card in report.cards(work.pr, triage.items, triage.threads):
         # Free text and not a choice: an item is answered by saying how the
-        # thing is supposed to work, which no four options carry. An empty
-        # answer agrees with the reading's own proposal.
+        # thing is supposed to work, which no four options carry. A return or
+        # `ok` agrees with the reading's own proposal.
         said = await decide(report.asked(card), free=True)
         told.append(
             Told(
                 thread=item.thread,
                 card=card,
-                said=said or f"{item.action} it, as the reading says",
+                said=(
+                    f"{item.action} it, as the reading says"
+                    if report.agreed(said)
+                    else said
+                ),
             )
         )
-    prompt = services().prompts.triage_work(work.pr.number, told)
+    prompt = services().prompts.triage_work(work.run.project, work.pr.number, told)
     triaged = {one.thread for one in told}
     threads = [thread for thread in triage.threads if thread.id in triaged]
     return AnswerThreads(
@@ -285,7 +289,7 @@ async def answer_threads(
 # under another one.
 async def _redrafted(work: Work, draft: Answer, said: str) -> Answer | Fallen:
     came = await agent_for(work).ask_for(
-        services().prompts.redraft(draft, said),
+        services().prompts.redraft(work.run.project, draft, said),
         output=Answer,
         job="fix",
         key=session(work, answer_gate.name),
@@ -299,7 +303,7 @@ async def _redrafted(work: Work, draft: Answer, said: str) -> Answer | Fallen:
 
 
 # Every drafted reply put to you before any is posted, where the project asks
-# for it: return takes it, and anything else is what to change. What you
+# for it: return or `ok` takes it, and anything else is what to change. What you
 # changed is redrafted and comes back here, up to `--bound` times, because the
 # worst a branch can spend has to be a number. Past that, a reply you still
 # would not take is not posted: its thread stays open for the next round. An
@@ -318,7 +322,7 @@ async def approve_replies(
     again: list[Answer] = []
     for draft in (draft for draft in drafted.drafts if draft.thread in threads):
         card = report.drafted(work.pr, threads[draft.thread], draft, last=last)
-        if not (said := await decide(card, free=True)):
+        if report.agreed(said := await decide(card, free=True)):
             taken.append(draft)
         elif last:
             emit_delta(

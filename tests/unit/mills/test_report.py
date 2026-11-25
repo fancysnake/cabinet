@@ -1,5 +1,7 @@
 """What the report says, on the terminal and on the pull request."""
 
+import pytest
+
 from cabinet.mills.report import Report
 from cabinet.pacts.healing import Checked, Queued, Run, Surveyed, Unsurveyed
 from cabinet.pacts.issues import IdentifiedItem, Identifying, Issue, Left, Pinned
@@ -269,8 +271,20 @@ class TestTriage:
         asked = _REPORT.asked("the card")
 
         assert asked.startswith("the card\n\nPress return")
-        assert "answer fix, reject or file" in asked
+        assert "answer fix, reject\nor file" in asked
         assert asked.endswith("\n->")
+
+
+class TestAgreed:
+    @staticmethod
+    @pytest.mark.parametrize("said", ["", "  ", "ok", " OK\n", "Ok"])
+    def test_a_return_or_ok_agrees(said: str) -> None:
+        assert _REPORT.agreed(said)
+
+    @staticmethod
+    @pytest.mark.parametrize("said", ["yes", "okay", "fix", "no ok"])
+    def test_anything_else_is_an_answer_of_its_own(said: str) -> None:
+        assert not _REPORT.agreed(said)
 
 
 class TestDrafted:
@@ -282,7 +296,7 @@ class TestDrafted:
         assert _REPORT.drafted(_PULL, thread, answer, last=False) == (
             f"#{_PULL.number} {_PULL.title} — reply to reviewer — src/thing.py:12\n\n"
             "Guarded.\n\nThe loop stops first.\n\n"
-            "Press return to post it, or say what to change.\n->"
+            "Press return or answer ok to post it, or say what to change.\n->"
         )
 
     @staticmethod

@@ -65,7 +65,10 @@ queued casts run one at a time or together; `vekna cast --queue heal.mine`
 hands the whole cast to the daemon, which heals the branches side by side.
 Typed at a terminal, `vekna cast heal.mine` stays for the casts it queued:
 vekna prints each one's rows and prompts as they come, and the command exits
-`1` where one of them failed. With no daemon running, `heal.mine` prints its
+`1` where one of them failed. A queued cast with no terminal following it
+asks in the `vekna` window, and on Discord where vekna 3.1.0 or later has a
+`[discord]` table. Discord sends no empty reply, so answer `ok` there where a
+terminal takes the return key. With no daemon running, `heal.mine` prints its
 survey and fails: start one with `vekna`. If the daemon goes away after some
 casts were queued, the report names those and `heal.mine` fails.
 [Configuration](configuration.md#worktrees)
@@ -212,7 +215,8 @@ Attended, the task goes round in batches of `--batch` open threads:
    triage: one item per thread, with a priority (p1 to p4) and what it would
    do (fix, reject or file).
 3. **Decide.** Each item is put to you as one card, the most urgent first.
-   Press return to take the reading's proposal, or answer in your own words.
+   Press return or answer `ok` to take the reading's proposal, or answer in
+   your own words.
 
     ```text
     #58 Add the export page — thread 1 of 3
@@ -236,9 +240,9 @@ Attended, the task goes round in batches of `--batch` open threads:
    every item, written for the comment's author: it leaves out what you said
    at the triage and what the agent could not run or verify.
 5. **Approve.** Only with `approve_replies = true`. Each drafted reply is put
-   to you as it would be posted. Press return to post it, or say what to
-   change: the agent redrafts it and you are asked again, up to `--bound`
-   times. The last asking says that no redraft is left. A reply you still do
+   to you as it would be posted. Press return or answer `ok` to post it, or
+   say what to change: the agent redrafts it and you are asked again, up to
+   `--bound` times. The last asking says that no redraft is left. A reply you still do
    not take then is not posted, and its thread stays open.
 6. **Post.** The ritual opens the issues you said to file, posts the replies
    and resolves the threads that are its to resolve.
