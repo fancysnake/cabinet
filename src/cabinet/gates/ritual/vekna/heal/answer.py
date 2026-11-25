@@ -226,12 +226,6 @@ async def read_threads(
     )
 
 
-# Whether an answer takes what was proposed: a return, or `ok` where no empty
-# answer can be sent, as from Discord.
-def _agreed(said: str) -> bool:
-    return said.strip().lower() in {"", "ok"}
-
-
 # Put the triage on your terminal, a card at a time, and take your answer to
 # each.
 @step
@@ -249,7 +243,9 @@ async def ask_triage(triage: AskTriage) -> AnswerThreads:
                 thread=item.thread,
                 card=card,
                 said=(
-                    f"{item.action} it, as the reading says" if _agreed(said) else said
+                    f"{item.action} it, as the reading says"
+                    if report.agreed(said)
+                    else said
                 ),
             )
         )
@@ -326,7 +322,7 @@ async def approve_replies(
     again: list[Answer] = []
     for draft in (draft for draft in drafted.drafts if draft.thread in threads):
         card = report.drafted(work.pr, threads[draft.thread], draft, last=last)
-        if _agreed(said := await decide(card, free=True)):
+        if report.agreed(said := await decide(card, free=True)):
             taken.append(draft)
         elif last:
             emit_delta(

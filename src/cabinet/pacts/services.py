@@ -168,6 +168,10 @@ class ReportProtocol(Protocol):
     # A card with the question under it, naming the answers it takes.
     def asked(self, card: str) -> str: ...
 
+    # Whether an answer takes what was proposed, by the words the questions
+    # above and below announce.
+    def agreed(self, said: str) -> bool: ...
+
     # One drafted reply as it would be posted, with the question under it:
     # `last` where saying anything but yes leaves the reply unposted.
     def drafted(

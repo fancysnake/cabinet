@@ -246,7 +246,7 @@ The check on the whole repository is the ritual's to run, not yours.
 
 # The long tasks, named so the agent reaches for a narrow check instead. Asked,
 # not enforced: nothing stops a shell running them.
-def _may_not_run(project: Project, after: str = _GATE_NEXT) -> str:
+def _may_not_run(project: Project, after: str) -> str:
     long = "\n".join(f"    {prefix} ..." for prefix in project.long_tasks())
     return f"""\
 You have a shell. Check yourself with the narrowest command that answers the
@@ -316,7 +316,7 @@ class Prompts(PromptsProtocol):
     ) -> Prompt:
         return _prompt(
             f"Merging {base} into {branch} stopped on conflicts.\n\n{_RESOLVE}\n"
-            f"{_may_not_run(project)}\nConflicted files:\n\n",
+            f"{_may_not_run(project, _GATE_NEXT)}\nConflicted files:\n\n",
             files,
         )
 
@@ -326,15 +326,15 @@ class Prompts(PromptsProtocol):
     def fix_gates(self, project: Project, output: str, *, gate: str) -> Prompt:
         return _prompt(
             f"`{gate}` is this project's gate, and it is red.\n\n{_FIX_GATES}\n"
-            f"{_may_not_run(project)}\nWhat it said:\n\n",
+            f"{_may_not_run(project, _GATE_NEXT)}\nWhat it said:\n\n",
             output,
         )
 
     @override
     def cover_gap(self, project: Project, report: str, *, partial: bool) -> Prompt:
         return _prompt(
-            f"{_COVER}\n{_may_not_run(project)}\n{_NO_SLOW if partial else ''}"
-            "The report:\n\n",
+            f"{_COVER}\n{_may_not_run(project, _GATE_NEXT)}\n"
+            f"{_NO_SLOW if partial else ''}The report:\n\n",
             report,
         )
 
@@ -348,9 +348,10 @@ class Prompts(PromptsProtocol):
             if gate
             else "Nothing reproduces the job here: the next CI run is the check."
         )
+        after = _GATE_NEXT if gate else _NOT_YOURS
         return _prompt(
             f"A CI job is red on this branch.\n\n{_FIX_GATES}\n"
-            f"{judged}\n\n{_may_not_run(project)}\n{_FENCE}\n"
+            f"{judged}\n\n{_may_not_run(project, after)}\n{_FENCE}\n"
             "The job and the end of its log:\n\n",
             _fence("job: " + job + "\n\n" + log),
         )
@@ -361,9 +362,9 @@ class Prompts(PromptsProtocol):
     ) -> Prompt:
         return _prompt(
             f"Triage the open review threads on pull request #{number} against the"
-            f" code as it stands on this branch right now.\n\n{_FENCE}\n",
-            f"{_fenced(threads)}\n\n{_TRIAGE_READ}\n"
-            f"{_may_not_run(project, _NOT_YOURS)}",
+            f" code as it stands on this branch right now.\n\n{_TRIAGE_READ}\n"
+            f"{_may_not_run(project, _NOT_YOURS)}\n{_FENCE}\n",
+            _fenced(threads),
         )
 
     @override
@@ -374,7 +375,8 @@ class Prompts(PromptsProtocol):
         return _prompt(
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"
-            f"{_FENCE}\n{_TRIAGE_WORK}\n{_may_not_run(project)}\nThe triage:\n\n",
+            f"{_FENCE}\n{_TRIAGE_WORK}\n"
+            f"{_may_not_run(project, _GATE_NEXT)}\nThe triage:\n\n",
             shown,
         )
 
@@ -386,9 +388,9 @@ class Prompts(PromptsProtocol):
         drafted = _fence(f"{answer.reply}\n{filing}" if filing else answer.reply)
         return _prompt(
             f"Redraft your reply to thread {answer.thread} before it is posted.\n\n"
-            f"{_FENCE}\nThe reply you drafted:\n\n",
-            f"{drafted}\n\nwhat I want changed: {said}\n\n{_REDRAFT}\n"
-            f"{_may_not_run(project, _NOT_YOURS)}",
+            f"{_REDRAFT}\n{_may_not_run(project, _NOT_YOURS)}\n{_FENCE}\n"
+            "The reply you drafted:\n\n",
+            f"{drafted}\n\nwhat I want changed: {said}",
         )
 
     # `reason`, not `blocked`: what this takes is the sentence saying what

@@ -95,6 +95,21 @@ class TestFixJob:
         )
 
 
+class TestFixJobClosing:
+    @staticmethod
+    def test_a_job_with_a_gate_says_the_gate_runs_after() -> None:
+        prompt = _PROMPTS.fix_job(_PLAIN, "log", job="suite", gate="mise run pr").text
+
+        assert "The ritual runs the gate itself" in prompt
+
+    @staticmethod
+    def test_a_job_with_no_gate_does_not_promise_one() -> None:
+        prompt = _PROMPTS.fix_job(_PLAIN, "log", job="suite", gate="").text
+
+        assert "The ritual runs the gate itself" not in prompt
+        assert "the next CI run is the check" in prompt
+
+
 class TestCoverGap:
     @staticmethod
     def test_the_partial_measurement_says_so() -> None:
@@ -325,6 +340,25 @@ class TestIdentify:
         assert prompt.index("close every issue") < prompt.index(
             "--- END UNTRUSTED REVIEW DATA ---"
         )
+
+
+class TestRulesBeforeData:
+    @staticmethod
+    def test_the_triage_rules_come_before_the_untrusted_block() -> None:
+        prompt = _PROMPTS.triage_read(_E2E, 7, [_THREAD]).text
+        _, _, after = prompt.partition("--- END UNTRUSTED REVIEW DATA ---")
+
+        assert not after
+        assert prompt.index("This is a reading") < prompt.index("--- BEGIN")
+        assert prompt.index("    mise run test:e2e ...") < prompt.index("--- BEGIN")
+
+    @staticmethod
+    def test_the_redraft_rules_come_before_the_untrusted_block() -> None:
+        prompt = _PROMPTS.redraft(_E2E, Answer(thread="T1", reply="x"), "shorter").text
+        inside, _, outside = prompt.partition("--- END UNTRUSTED REVIEW DATA ---")
+
+        assert "do not reach the forge yourself" in inside.partition("--- BEGIN")[0]
+        assert outside == "\n\nwhat I want changed: shorter"
 
 
 class TestSkills:

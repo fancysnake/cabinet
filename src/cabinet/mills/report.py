@@ -62,6 +62,10 @@ def _priority(item: TriageItem) -> str:
     return item.priority
 
 
+# The answers the three questions below announce as agreeing: a return, or `ok`
+# where no empty answer can be sent, as from Discord.
+_AGREEING = frozenset({"", "ok"})
+
 _TAKES = (
     "Press return or answer ok to take the action above, or answer fix, reject\n"
     "or file, or say in your own words what should happen.\n->"
@@ -294,6 +298,10 @@ class Report(ReportProtocol):
     @override
     def asked(self, card: str) -> str:
         return f"{card}\n\n{_TAKES}"
+
+    @override
+    def agreed(self, said: str) -> bool:
+        return said.strip().lower() in _AGREEING
 
     # The reply unwrapped: it is posted as it reads here.
     @override
