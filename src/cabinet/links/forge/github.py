@@ -29,7 +29,7 @@ from cabinet.pacts.threads import Comment, Finding, Posted, Remark, Thread, rema
 # that comes back this long is reported as truncated.
 _LIST = (
     f"gh pr list --author @me --state open --limit {PULL_LIMIT} "
-    "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
+    "--json number,title,headRefName,baseRefName,url,updatedAt,labels"
 )
 
 # Every page is read; the page size only sets how many calls a board costs.
@@ -80,8 +80,6 @@ _PASSED = "success"
 
 _BOT = "Bot"
 
-_CONFLICTED = {"CONFLICTING": True, "MERGEABLE": False}
-
 # Where a listing of issues stops. Twice what the GitLab adapter pages at,
 # because gh takes a limit rather than a page size and the endpoint behind it
 # allows more — but a cap is a cap, so a listing that comes back this long is
@@ -125,8 +123,6 @@ class _Pull(BaseModel):
     base: str = Field(alias="baseRefName")
     updated_at: str = Field(alias="updatedAt")
     labels: list[_Label] = []
-    # `UNKNOWN` until GitHub has tried the merge, which it does lazily.
-    mergeable: str = "UNKNOWN"
 
 
 class _Check(BaseModel):
@@ -257,7 +253,6 @@ def _pull(found: _Pull) -> PullRequest:
         base=found.base,
         updated_at=found.updated_at,
         labels=[label.name for label in found.labels],
-        conflicted=_CONFLICTED.get(found.mergeable),
     )
 
 

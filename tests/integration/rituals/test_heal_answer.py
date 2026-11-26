@@ -994,11 +994,7 @@ def _listed(trial: Trial) -> None:
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
     labels = [{"name": "pr::thermo"}, {"name": "v:guide:done"}]
-    trial.shell.replies(
-        when=LIST,
-        stdout=listing(row(7, mergeable="MERGEABLE", labels=labels)),
-        always=True,
-    )
+    trial.shell.replies(when=LIST, stdout=listing(row(7, labels=labels)), always=True)
     trial.shell.replies(when=board(), stdout=_GREEN_BOARD, always=True)
 
 
@@ -1006,7 +1002,7 @@ class TestWholeCast:
     # The cast that answers nothing still says what it left, and how to get
     # it answered.
     @staticmethod
-    @pytest.mark.usefixtures("here")
+    @pytest.mark.usefixtures("here", "fresh")
     def test_an_unattended_cast_leaves_the_threads_waiting(trial: Trial) -> None:
         _listed(trial)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
@@ -1023,7 +1019,7 @@ class TestWholeCast:
         )
 
     @staticmethod
-    @pytest.mark.usefixtures("here")
+    @pytest.mark.usefixtures("here", "fresh")
     def test_an_attended_answer_triages_fixes_replies_and_pushes(trial: Trial) -> None:
         _listed(trial)
         trial.shell.replies(when=HERE, stdout="feature\n")

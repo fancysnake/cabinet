@@ -28,9 +28,6 @@ class PullRequest(BaseModel):
     # As they stood at the listing. Read by the survey, once: a label a cast
     # puts on later is that cast's own business.
     labels: list[str] = []
-    # Whether the branch conflicts with its base, as the forge last worked
-    # out. None while the forge has not worked it out: git can, locally.
-    conflicted: bool | None = None
 
     # A branch `heal.main` works on before the forge has a pull request for it:
     # no number, URL or listing time yet.

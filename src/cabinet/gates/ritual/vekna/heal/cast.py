@@ -17,7 +17,7 @@ request. A branch its gate will not go green on is opened all the same, and
 the pull request says what stopped it. Where nothing was committed, nothing
 is opened.
 
-Each pull request is surveyed first: whether it conflicts with its base, which
+Each pull request is surveyed first: whether it is behind its base, which
 of the configured CI jobs are red, how many review threads are open, and which
 labels it wears. That becomes its todo list, in the order a cast works it:
 merge, ci, review, answer, guide. Facts make a todo; the reviewed and qa labels
@@ -259,13 +259,12 @@ async def _surveyed(project: Project, pull: PullRequest) -> Surveyed | Unsurveye
     try:
         board = await forge.board(pull.branch)
         threads = await forge.threads(pull.number)
-        if (conflicted := pull.conflicted) is None:
-            conflicted = await services().scm(project).conflicts(pull.base, pull.branch)
+        behind = await services().scm(project).behind(pull.base, pull.branch)
     except (ForgeError, ScmError) as error:
         return Unsurveyed(
             number=pull.number, branch=pull.branch, url=pull.url, note=str(error)
         )
-    facts = Facts(pull=pull, board=board, threads=threads, conflicted=conflicted)
+    facts = Facts(pull=pull, board=board, threads=threads, behind=behind)
     return services().todos.surveyed(facts, project)
 
 

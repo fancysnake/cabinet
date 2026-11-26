@@ -76,11 +76,12 @@ _GREEN = json.dumps([{"total_count": 0, "check_runs": []}])
 _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
-_MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
-# The preflight's two, the listing, the board, the threads, and the plain
-# comments with the login they are read by.
-_READS = 7
-# A conflicted branch with red checks and no threads, as `summon` reads it.
+_BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
+# The preflight's two, the listing, the board, the threads, the plain
+# comments with the login they are read by, and the fetch with what git is
+# asked after it.
+_READS = 9
+# A branch behind its base with red checks and no threads, as `summon` reads it.
 _QUEUED = Surveyed(
     number=7,
     branch="feature",
@@ -93,9 +94,9 @@ _QUEUED = Surveyed(
 _NO_DAEMON = "heal.mine queues a cast per pull request and needs the daemon: heal.pr"
 
 
-# The cast `summon` queued for `pull`, which it read as conflicted.
+# The cast `summon` queued for `pull`.
 def _cast(pull: PullRequest) -> Queued:
-    return Queued(pr=pull.model_copy(update={"conflicted": True}), cast="c1")
+    return Queued(pr=pull, cast="c1")
 
 
 # What a cast meets with no daemon listening, as vekna's own CLI binds it.
@@ -344,9 +345,9 @@ class TestSurvey:
     ) -> None:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
-        conflicted = pull.model_copy(update={"conflicted": True})
+        trial.shell.replies(when=_BEHIND, exit_code=1)
 
-        transition = trial.walk(survey, _planning(conflicted, project))
+        transition = trial.walk(survey, _planning(pull, project))
 
         assert isinstance(transition, Survey)
         assert transition.queue == []
@@ -365,13 +366,12 @@ class TestSurvey:
         ]
 
     @staticmethod
-    def test_git_settles_what_the_forge_has_not_worked_out(
+    def test_a_branch_behind_its_base_is_merged(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        trial.shell.replies(when="git fetch origin main feature")
-        trial.shell.replies(when=_MERGE_TREE, exit_code=1)
+        trial.shell.replies(when=_BEHIND, exit_code=1)
         reviewed = pull.model_copy(update={"labels": ["pr::thermo", "v:guide:done"]})
 
         transition = trial.walk(survey, _planning(reviewed, project))
@@ -380,12 +380,13 @@ class TestSurvey:
         assert transition.surveyed[0].todos == ["merge"]
 
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_a_branch_with_nothing_left_is_guided(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        clean = pull.model_copy(update={"conflicted": False, "labels": ["pr::thermo"]})
+        clean = pull.model_copy(update={"labels": ["pr::thermo"]})
 
         transition = trial.walk(survey, _planning(clean, project))
 
@@ -425,8 +426,8 @@ class TestSurvey:
     ) -> None:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
-        conflicted = pull.model_copy(update={"conflicted": True})
-        run = _surveying(conflicted, project)
+        trial.shell.replies(when=_BEHIND, exit_code=1)
+        run = _surveying(pull, project)
         share = services().steps.heal_share(run)
         assert share is not None
 
@@ -441,13 +442,13 @@ class TestSurvey:
     # Every item of a triage is the operator's to decide, so only a cast with
     # somebody at the terminal answers threads.
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_an_attended_cast_takes_the_threads_too(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_OPEN)
-        clean = pull.model_copy(update={"conflicted": False})
-        run = Survey(project=project, attended=True, queue=[clean])
+        run = Survey(project=project, attended=True, queue=[pull])
 
         transition = trial.walk(survey, run)
 
@@ -460,10 +461,8 @@ class TestSurvey:
     ) -> None:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        conflicted = pull.model_copy(update={"conflicted": True})
-        run = Survey(
-            attended=True, project=project, tasks=["review"], queue=[conflicted]
-        )
+        trial.shell.replies(when=_BEHIND, exit_code=1)
+        run = Survey(attended=True, project=project, tasks=["review"], queue=[pull])
 
         transition = trial.walk(survey, run)
 
@@ -471,13 +470,13 @@ class TestSurvey:
         assert transition.todos == ["review"]
 
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_a_branch_with_nothing_this_cast_works_is_not_taken(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        clean = pull.model_copy(update={"conflicted": False})
-        run = Survey(attended=True, project=project, tasks=["merge"], queue=[clean])
+        run = Survey(attended=True, project=project, tasks=["merge"], queue=[pull])
 
         transition = trial.walk(survey, run)
 
@@ -510,10 +509,8 @@ class TestSummon:
     ) -> None:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        conflicted = pull.model_copy(update={"conflicted": True})
-        run = Summon(
-            attended=True, project=project, bound=2, batch=4, queue=[conflicted]
-        )
+        trial.shell.replies(when=_BEHIND, exit_code=1)
+        run = Summon(attended=True, project=project, bound=2, batch=4, queue=[pull])
 
         assert trial.walk(summon, run) == run.took(_QUEUED).summoned(_cast(pull))
         [queued] = trial.queue.enqueued
@@ -521,13 +518,13 @@ class TestSummon:
         assert queued.components == HealPr(number=7, bound=2, batch=4)
 
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_a_branch_with_nothing_this_cast_works_is_not_queued(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        clean = pull.model_copy(update={"conflicted": False})
-        run = Summon(attended=True, project=project, tasks=["merge"], queue=[clean])
+        run = Summon(attended=True, project=project, tasks=["merge"], queue=[pull])
 
         transition = trial.walk(summon, run)
 
@@ -541,8 +538,8 @@ class TestSummon:
     ) -> None:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        conflicted = pull.model_copy(update={"conflicted": True})
-        run = Summon(attended=True, project=project, queue=[conflicted])
+        trial.shell.replies(when=_BEHIND, exit_code=1)
+        run = Summon(attended=True, project=project, queue=[pull])
 
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
@@ -556,10 +553,8 @@ class TestSummon:
     ) -> None:
         trial.shell.replies(when=board(), stdout=_RED)
         trial.shell.replies(when=THREADS, stdout=_NONE)
-        conflicted = pull.model_copy(update={"conflicted": True})
-        run = Summon(attended=True, project=project, queue=[conflicted]).summoned(
-            _cast(pull)
-        )
+        trial.shell.replies(when=_BEHIND, exit_code=1)
+        run = Summon(attended=True, project=project, queue=[pull]).summoned(_cast(pull))
 
         with CAST_QUEUE.scope(_Daemonless()):
             transition = trial.walk(summon, run)
@@ -574,15 +569,12 @@ class TestWholeCast:
     @pytest.mark.usefixtures("here")
     def test_mine_queues_a_cast_per_branch_with_work(trial: Trial) -> None:
         _preflight(trial)
+        trial.shell.replies(when=_BEHIND, exit_code=1)
+        trial.shell.replies(when=f"{_BEHIND}-8")
         trial.shell.replies(
             when=LIST,
             stdout=listing(
-                row(mergeable="CONFLICTING"),
-                row(
-                    8,
-                    mergeable="MERGEABLE",
-                    labels=_labelled("pr::thermo", "v:guide:done"),
-                ),
+                row(), row(8, labels=_labelled("pr::thermo", "v:guide:done"))
             ),
         )
         for name in ("feature", "feature-8"):
@@ -605,9 +597,8 @@ class TestWholeCast:
     @pytest.mark.usefixtures("here")
     def test_a_plan_surveys_and_writes_nothing(trial: Trial) -> None:
         _preflight(trial)
-        trial.shell.replies(
-            when=LIST, stdout=listing(row(mergeable="CONFLICTING", labels=[]))
-        )
+        trial.shell.replies(when=LIST, stdout=listing(row(labels=[])))
+        trial.shell.replies(when=_BEHIND, exit_code=1)
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
 
@@ -632,12 +623,10 @@ class TestWholeCast:
         assert trial.queue.enqueued == []
 
     @staticmethod
-    @pytest.mark.usefixtures("here")
+    @pytest.mark.usefixtures("here", "fresh")
     def test_this_plans_the_branch_at_the_cwd(trial: Trial) -> None:
         _preflight(trial)
-        trial.shell.replies(
-            when=LIST, stdout=listing(row(8), row(mergeable="MERGEABLE"))
-        )
+        trial.shell.replies(when=LIST, stdout=listing(row(8), row()))
         trial.shell.replies(when=HERE, stdout="feature\n")
         trial.shell.replies(when=board(), stdout=_GREEN)
         trial.shell.replies(when=THREADS, stdout=_NONE)
@@ -652,9 +641,7 @@ class TestWholeCast:
 # The pull request as the forge lists it once the review has labelled it.
 def _relisted(trial: Trial, *labels: str) -> None:
     worn = [{"name": label} for label in labels]
-    trial.shell.replies(
-        when=LIST, stdout=listing(row(7, mergeable="MERGEABLE", labels=worn))
-    )
+    trial.shell.replies(when=LIST, stdout=listing(row(7, labels=worn)))
 
 
 # A branch an attended cast handed the review and nothing else.
@@ -665,6 +652,7 @@ def _reviewed(work: Work) -> Work:
 
 class TestResurvey:
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_the_threads_a_review_left_are_answered_in_the_same_cast(
         trial: Trial, work: Work
     ) -> None:
@@ -679,6 +667,7 @@ class TestResurvey:
         assert trial.deltas == ["#7 feature: answer (1 thread)"]
 
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_a_check_gone_red_comes_with_its_job(trial: Trial, work: Work) -> None:
         _relisted(trial, "pr::thermo")
         trial.shell.replies(when=board(), stdout=_RED)
@@ -692,6 +681,7 @@ class TestResurvey:
     # `ci` stood the branch down on this check: it is not `ci`'s again, and a
     # later repair must not count it among the reds that escalate the model.
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_a_check_still_red_after_ci_is_not_carried_forward(
         trial: Trial, work: Work
     ) -> None:
@@ -707,6 +697,7 @@ class TestResurvey:
     # The check `ci` could not make green is still red, and the cast ends
     # there rather than work it for ever.
     @staticmethod
+    @pytest.mark.usefixtures("fresh")
     def test_a_task_already_handed_is_not_handed_again(
         trial: Trial, work: Work
     ) -> None:

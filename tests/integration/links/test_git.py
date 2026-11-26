@@ -34,8 +34,8 @@ _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
 _VERIFY = "git rev-parse --verify --quiet refs/heads/fix/main-abc1234"
-_FETCH = "git fetch origin main feature"
-_MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
+_FETCH = "stamp=*git fetch origin*"
+_BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 _COMMIT = (
     "git add -A && (git diff --cached --quiet || ("
@@ -256,32 +256,34 @@ class TestMoving:
             drive(trial, lambda: _SCM.push("feature"))
 
 
-class TestConflicts:
+class TestBehind:
     @staticmethod
-    @pytest.mark.parametrize(("exit_code", "conflicts"), [(0, False), (1, True)])
-    def test_merged_in_memory_against_the_remote(
-        trial: Trial, exit_code: int, *, conflicts: bool
+    @pytest.mark.parametrize(("exit_code", "behind"), [(0, False), (1, True)])
+    def test_asked_of_the_remote_refs(
+        trial: Trial, exit_code: int, *, behind: bool
     ) -> None:
         trial.shell.replies(when=_FETCH)
-        trial.shell.replies(when=_MERGE_TREE, exit_code=exit_code)
+        trial.shell.replies(when=_BEHIND, exit_code=exit_code)
 
-        assert drive(trial, lambda: _SCM.conflicts("main", "feature")) is conflicts
-        assert trial.shell.commands == [_FETCH, _MERGE_TREE]
+        assert drive(trial, lambda: _SCM.behind("main", "feature")) is behind
+        assert trial.shell.commands[1:] == [_BEHIND]
 
     @staticmethod
     def test_a_fetch_that_fails(trial: Trial) -> None:
         trial.shell.replies(when=_FETCH, exit_code=128, stderr="gone")
 
-        with pytest.raises(ScmError, match="could not fetch main and feature: gone"):
-            drive(trial, lambda: _SCM.conflicts("main", "feature"))
+        with pytest.raises(ScmError, match="could not fetch origin: gone"):
+            drive(trial, lambda: _SCM.behind("main", "feature"))
 
     @staticmethod
-    def test_a_merge_git_could_not_try(trial: Trial) -> None:
+    def test_refs_git_could_not_compare(trial: Trial) -> None:
         trial.shell.replies(when=_FETCH)
-        trial.shell.replies(when=_MERGE_TREE, exit_code=128, stderr="bad ref")
+        trial.shell.replies(when=_BEHIND, exit_code=128, stderr="bad ref")
 
-        with pytest.raises(ScmError, match="could not try the merge: bad ref"):
-            drive(trial, lambda: _SCM.conflicts("main", "feature"))
+        with pytest.raises(
+            ScmError, match="could not compare main and feature: bad ref"
+        ):
+            drive(trial, lambda: _SCM.behind("main", "feature"))
 
 
 class TestCommit:
@@ -318,21 +320,21 @@ class TestCommit:
             drive(trial, lambda: _SCM.commit("fix"))
 
 
+@pytest.fixture(name="repo")
+def _repo(tmp_path: Path) -> Path:
+    for argv in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.name", "cabinet"],
+        ["git", "config", "user.email", "cabinet@example.com"],
+        ["git", "commit", "-q", "--allow-empty", "-m", "root"],
+    ):
+        subprocess.run(argv, cwd=tmp_path, env=_ISOLATED, check=True)
+    return tmp_path
+
+
 # The scripted shell answers whatever it is told, so what bash makes of the
 # operators in the commit command only shows when bash runs it.
 class TestCommitInBash:
-    @staticmethod
-    @pytest.fixture
-    def repo(tmp_path: Path) -> Path:
-        for argv in (
-            ["git", "init", "-q"],
-            ["git", "config", "user.name", "cabinet"],
-            ["git", "config", "user.email", "cabinet@example.com"],
-            ["git", "commit", "-q", "--allow-empty", "-m", "root"],
-        ):
-            subprocess.run(argv, cwd=tmp_path, env=_ISOLATED, check=True)
-        return tmp_path
-
     @staticmethod
     def test_a_change_is_committed_and_said(trial: Trial, repo: Path) -> None:
         (repo / "fixed.py").write_text("x = 1\n")
@@ -425,3 +427,61 @@ class TestMise:
         )
         assert trial.shell.calls[0].command == "CI=1 mise run pr-fix"
         assert trial.deltas == ["1 failed", "x"]
+
+
+# What `find` and the braces make of the stamp only shows when bash runs it.
+class TestFetchInBash:
+    @staticmethod
+    def test_a_second_ask_within_the_minute_does_not_fetch(
+        trial: Trial, repo: Path
+    ) -> None:
+        _git(repo, "remote", "add", "origin", ".")
+        command = _fetching(trial)
+
+        _bash(repo, command)
+        first = _remote(repo)
+        _git(repo, "commit", "-q", "--allow-empty", "-m", "next")
+        _bash(repo, command)
+
+        assert _remote(repo) == first
+
+    @staticmethod
+    def test_a_stamp_older_than_a_minute_fetches_again(
+        trial: Trial, repo: Path
+    ) -> None:
+        _git(repo, "remote", "add", "origin", ".")
+        command = _fetching(trial)
+
+        _bash(repo, command)
+        _git(repo, "commit", "-q", "--allow-empty", "-m", "next")
+        os.utime(repo / ".git" / "cabinet-fetched", (0, 0))
+        _bash(repo, command)
+
+        assert _remote(repo) == _git(repo, "rev-parse", "HEAD")
+
+
+def _remote(repo: Path) -> str:
+    return _git(repo, "for-each-ref", "--format=%(objectname)", "refs/remotes/origin")
+
+
+def _fetching(trial: Trial) -> str:
+    trial.shell.replies(when=_FETCH)
+    trial.shell.replies(when=_BEHIND)
+    drive(trial, lambda: _SCM.behind("main", "feature"))
+    return trial.shell.commands[0]
+
+
+def _bash(repo: Path, command: str) -> None:
+    subprocess.run(["bash", "-c", command], cwd=repo, env=_ISOLATED, check=True)
+
+
+def _git(repo: Path, *argv: str) -> str:
+    ran = subprocess.run(
+        ["git", *argv],
+        cwd=repo,
+        env=_ISOLATED,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return ran.stdout.strip()
