@@ -461,7 +461,7 @@ class TestFetchInBash:
 
 
 def _remote(repo: Path) -> str:
-    return _git(repo, "for-each-ref", "--format=%(objectname)", "refs/remotes/origin")
+    return _git(repo, "rev-parse", f"origin/{_git(repo, 'branch', '--show-current')}")
 
 
 def _fetching(trial: Trial) -> str:
