@@ -50,7 +50,7 @@ _LAST = {"hasNextPage": False}
 
 
 def board(name: str = "feature") -> str:
-    path = f"repos/{{owner}}/{{repo}}/commits/{name}/check-runs?per_page=100"
+    path = f"repos/{{owner}}/{{repo}}/commits/{name}/check-runs?per_page=100&page=1"
     return f"gh api '{path}'"
 
 

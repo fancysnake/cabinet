@@ -37,7 +37,11 @@ _LIST = (
 # answer turns on. The branch as the ref rather than a sha, so this asks about
 # the head the branch has now. `filter=latest` is the endpoint's own default,
 # so a re-run's earlier attempt is never the answer.
-_BOARD = "repos/{{owner}}/{{repo}}/commits/{branch}/check-runs?per_page=100"
+_BOARD_PAGE = 100
+_BOARD = (
+    "repos/{{owner}}/{{repo}}/commits/{branch}/check-runs"
+    f"?per_page={_BOARD_PAGE}&page={{page}}"
+)
 
 # Every run of one check on the head, earlier attempts included: the count is
 # the answer, so a page of one carries it.
@@ -274,6 +278,18 @@ def _issue(found: _Issue) -> Issue:
 def _check(found: _Check) -> Check:
     passed = None if found.conclusion is None else found.conclusion == _PASSED
     return Check(name=found.name, passed=passed, title=found.title or "", id=found.id)
+
+
+async def _board_page(branch: str, page: int) -> _Board:
+    path = _BOARD.format(branch=branch, page=page)
+    answered = await asked(
+        f"gh api {quoted(path)}", "gh could not read the check board"
+    )
+    try:
+        return _Board.model_validate_json(answered)
+    except ValidationError as error:
+        msg = f"gh returned a board this could not read: {error}"
+        raise ForgeError(msg) from error
 
 
 # Asked once for a whole review rather than once per item: every anchored
@@ -528,20 +544,15 @@ class GithubForge(ForgeProtocol):
             f"could not resolve thread {thread.id}",
         )
 
+    # The first page carries the board's own count, which says how many pages
+    # there are to ask for.
     @override
     async def board(self, branch: str) -> Board:
-        path = _BOARD.format(branch=branch)
-        answered = await asked(
-            f"gh api {quoted(path)}", "gh could not read the check board"
-        )
-        try:
-            found = _Board.model_validate_json(answered)
-        except ValidationError as error:
-            msg = f"gh returned a board this could not read: {error}"
-            raise ForgeError(msg) from error
+        pages = [await _board_page(branch, 1)]
+        last = -(-pages[0].total_count // _BOARD_PAGE)
+        pages += [await _board_page(branch, page) for page in range(2, last + 1)]
         return Board(
-            checks=[_check(check) for check in found.check_runs],
-            truncated=len(found.check_runs) < found.total_count,
+            checks=[_check(run) for found in pages for run in found.check_runs]
         )
 
     @override

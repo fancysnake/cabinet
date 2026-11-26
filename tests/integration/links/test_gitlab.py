@@ -27,7 +27,12 @@ _DISCUSSIONS = (
 )
 _SECOND = "glab api 'projects/:id/merge_requests/7/discussions?per_page=100&page=2'"
 _USER = "glab api user"
-_STATUSES = "glab api 'projects/:id/repository/commits/feature/statuses?per_page=100'"
+_STATUSES = (
+    "glab api 'projects/:id/repository/commits/feature/statuses?per_page=100&page=1'"
+)
+_STATUSES_SECOND = (
+    "glab api 'projects/:id/repository/commits/feature/statuses?per_page=100&page=2'"
+)
 _MR = "glab api projects/:id/merge_requests/7"
 _THREAD = Thread(
     id="d1",
@@ -413,18 +418,25 @@ class TestBoard:
         )
 
     @staticmethod
-    def test_a_full_page_may_be_short(trial: Trial) -> None:
+    def test_a_full_page_asks_for_the_next(trial: Trial) -> None:
         full = [
             {"id": index, "name": f"job{index}", "status": "success"}
             for index in range(100)
         ]
         trial.shell.replies(when=_STATUSES, stdout=json.dumps(full))
+        trial.shell.replies(
+            when=_STATUSES_SECOND,
+            stdout='[{"id": 100, "name": "lint", "status": "failed"}]',
+        )
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[
-                Check(name=f"job{index}", passed=True, id=index) for index in range(100)
-            ],
-            truncated=True,
+                *(
+                    Check(name=f"job{index}", passed=True, id=index)
+                    for index in range(100)
+                ),
+                Check(name="lint", passed=False, id=100),
+            ]
         )
 
     @staticmethod

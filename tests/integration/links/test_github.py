@@ -19,7 +19,10 @@ _LIST = (
     f"gh pr list --author @me --state open --limit {PULL_LIMIT} "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
-_BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100'"
+_BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100&page=1'"
+_BOARD_SECOND = (
+    "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100&page=2'"
+)
 _THREAD = Thread(
     id="PRRT_1",
     resolved=False,
@@ -422,14 +425,22 @@ class TestBoard:
         )
 
     @staticmethod
-    def test_a_short_page_says_so(trial: Trial) -> None:
+    def test_a_count_past_the_page_asks_for_the_next(trial: Trial) -> None:
+        full = [{"id": index, "name": f"job{index}"} for index in range(100)]
+        last = [{"id": 100, "name": "lint", "conclusion": "failure"}]
         trial.shell.replies(
-            when=_BOARD,
-            stdout='{"total_count": 2, "check_runs": [{"id": 5, "name": "test"}]}',
+            when=_BOARD, stdout=json.dumps({"total_count": 101, "check_runs": full})
+        )
+        trial.shell.replies(
+            when=_BOARD_SECOND,
+            stdout=json.dumps({"total_count": 101, "check_runs": last}),
         )
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
-            checks=[Check(name="test", id=5)], truncated=True
+            checks=[
+                *(Check(name=f"job{index}", id=index) for index in range(100)),
+                Check(name="lint", passed=False, id=100),
+            ]
         )
 
     @staticmethod
