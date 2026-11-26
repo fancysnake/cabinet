@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- The `heal.*` rituals fast-forward your local base branch after each fetch,
+  with no checkout. A base that a worktree stands on, or that has commits of
+  its own, is left as it is.
+
 ### Fixed
 
 - The `heal.*` rituals read every page of a branch's checks. A red check past

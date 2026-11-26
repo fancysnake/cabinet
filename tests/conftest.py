@@ -25,6 +25,12 @@ LIST = (
 )
 STATUS = "git status --porcelain"
 HERE = "git rev-parse --abbrev-ref HEAD"
+FETCH = (
+    "git fetch --prune origin && "
+    "{ ! git show-ref --verify --quiet refs/heads/main || "
+    "git worktree list --porcelain | grep -qxF 'branch refs/heads/main' || "
+    "git fetch . refs/remotes/origin/main:refs/heads/main || true; }"
+)
 GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 LABELS = "gh pr view 7 --json labels"
 # The graphql call's jq holds brackets a glob would read as a character class,

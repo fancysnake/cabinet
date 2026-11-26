@@ -17,6 +17,18 @@ _STATUS = "git status --porcelain"
 # on.
 _HERE = "git rev-parse --abbrev-ref HEAD"
 
+# Fetch, then fast-forward the local base with no checkout: `fetch .` moves a
+# ref only forward. A base some worktree stands on is skipped, because the
+# ref would move and that worktree's files would not. A local base with
+# commits of its own is refused by git and stays; no step reads the local
+# base, so only the remote fetch decides the exit code.
+_FETCH = (
+    "git fetch --prune {remote} && "
+    "{{ ! git show-ref --verify --quiet {local} || "
+    "git worktree list --porcelain | grep -qxF {standing} || "
+    "git fetch . {forward} || true; }}"
+)
+
 _STASHED = "stashed"
 _COMMITTED = "committed"
 
@@ -74,6 +86,7 @@ def stash_name(branch: str) -> str:
 class GitScm(ScmProtocol):
     def __init__(self, project: Project) -> None:
         self._remote = project.remote
+        self._base = project.base
         self._sign = project.sign_commits
         self._helper = _HELPER[project.forge]
 
@@ -151,10 +164,15 @@ class GitScm(ScmProtocol):
 
     @override
     async def fetch(self) -> None:
-        await _asked(
-            f"git fetch --prune {_quoted(self._remote)}",
-            f"could not fetch {self._remote}",
+        local = f"refs/heads/{self._base}"
+        theirs = f"refs/remotes/{self._remote}/{self._base}"
+        command = _FETCH.format(
+            remote=_quoted(self._remote),
+            local=_quoted(local),
+            standing=_quoted(f"branch {local}"),
+            forward=_quoted(f"{theirs}:{local}"),
         )
+        await _asked(command, f"could not fetch {self._remote}")
 
     # `merge --ff-only`, never `reset --hard`: a branch this ritual worked on
     # last night carries commits the remote has not seen, and they are the

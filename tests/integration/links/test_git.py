@@ -12,7 +12,7 @@ from cabinet.links.tasks.mise import MiseTasks
 from cabinet.pacts.project import Project
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.tasks import Ran
-from tests.conftest import drive
+from tests.conftest import FETCH, drive
 
 _SCM = GitScm(Project())
 _UNSIGNED = GitScm(Project(sign_commits=False))
@@ -212,12 +212,12 @@ class TestMoving:
         assert trial.shell.commands == ["git rev-list --count origin/main..HEAD"]
 
     @staticmethod
-    def test_fetch_touches_no_branch(trial: Trial) -> None:
+    def test_fetch_checks_nothing_out(trial: Trial) -> None:
         trial.shell.replies(when="git fetch*")
 
         drive(trial, _SCM.fetch)
 
-        assert trial.shell.commands == ["git fetch --prune origin"]
+        assert trial.shell.commands == [FETCH]
 
     @staticmethod
     def test_catch_up_is_a_fast_forward_only(trial: Trial) -> None:
@@ -360,9 +360,9 @@ def _in_bash(trial: Trial, repo: Path) -> list[str]:
     return ran.stdout.splitlines()
 
 
-def _log(repo: Path) -> list[str]:
+def _log(repo: Path, ref: str = "HEAD") -> list[str]:
     ran = subprocess.run(
-        ["git", "log", "--format=%s"],
+        ["git", "log", "--format=%s", ref],
         cwd=repo,
         env=_ISOLATED,
         capture_output=True,
@@ -370,6 +370,82 @@ def _log(repo: Path) -> list[str]:
         check=True,
     )
     return ran.stdout.splitlines()
+
+
+# What git makes of the fetch command only shows when git runs it: `work` is
+# a clone standing on `feature`, one commit behind the remote's `main`.
+class TestFetchInBash:
+    @staticmethod
+    @pytest.fixture
+    def work(tmp_path: Path) -> Path:
+        _git(tmp_path, "init", "-q", "-b", "main", "up")
+        _git(tmp_path / "up", "commit", "-q", "--allow-empty", "-m", "root")
+        _git(tmp_path, "clone", "-q", "up", "work")
+        _git(tmp_path / "work", "switch", "-q", "-c", "feature")
+        _git(tmp_path / "up", "commit", "-q", "--allow-empty", "-m", "newer")
+        return tmp_path / "work"
+
+    @staticmethod
+    def test_the_local_base_is_fast_forwarded(trial: Trial, work: Path) -> None:
+        assert _fetched(trial, work).returncode == 0
+        assert _log(work, "main") == ["newer", "root"]
+        assert _git(work, "branch", "--show-current") == "feature"
+
+    @staticmethod
+    def test_a_base_some_worktree_stands_on_is_left(trial: Trial, work: Path) -> None:
+        _git(work, "worktree", "add", "-q", "../standing", "main")
+
+        assert _fetched(trial, work).returncode == 0
+        assert _log(work, "main") == ["root"]
+        assert _log(work, "origin/main") == ["newer", "root"]
+
+    @staticmethod
+    def test_a_base_with_commits_of_its_own_is_left(trial: Trial, work: Path) -> None:
+        _git(work, "commit", "-q", "--allow-empty", "-m", "mine")
+        _git(work, "branch", "-f", "main", "feature")
+
+        assert _fetched(trial, work).returncode == 0
+        assert _log(work, "main") == ["mine", "root"]
+
+    @staticmethod
+    def test_no_local_base_is_made(trial: Trial, work: Path) -> None:
+        _git(work, "branch", "-D", "main")
+
+        assert _fetched(trial, work).returncode == 0
+        assert not _git(work, "branch", "--list", "main")
+
+    @staticmethod
+    def test_a_remote_that_is_gone_fails(trial: Trial, work: Path) -> None:
+        _git(work, "remote", "set-url", "origin", str(work / "nowhere"))
+
+        assert _fetched(trial, work).returncode
+        assert _log(work, "main") == ["root"]
+
+
+def _git(repo: Path, *argv: str) -> str:
+    identity = ("-c", "user.name=cabinet", "-c", "user.email=cabinet@example.com")
+    ran = subprocess.run(
+        ["git", *identity, *argv],
+        cwd=repo,
+        env=_ISOLATED,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return ran.stdout.strip()
+
+
+def _fetched(trial: Trial, repo: Path) -> subprocess.CompletedProcess[str]:
+    trial.shell.replies(when="git fetch*")
+    drive(trial, _SCM.fetch)
+    return subprocess.run(
+        ["bash", "-c", trial.shell.commands[0]],
+        cwd=repo,
+        env=_ISOLATED,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 class TestRelease:

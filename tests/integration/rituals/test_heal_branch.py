@@ -17,7 +17,7 @@ from cabinet.pacts.heal import (
 )
 from cabinet.pacts.healing import Work
 from cabinet.specs import MANY_CONFLICTS
-from tests.conftest import STATUS
+from tests.conftest import FETCH, STATUS
 from tests.integration.rituals.falling import falling
 
 _UNMERGED = "git diff --name-only --diff-filter=U"
@@ -64,7 +64,7 @@ class TestSyncBranch:
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.to(Tend)
         assert trial.shell.commands == [
-            "git fetch --prune origin",
+            FETCH,
             "git checkout feature",
             "git merge --ff-only origin/feature",
         ]

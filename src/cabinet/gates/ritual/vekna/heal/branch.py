@@ -3,7 +3,8 @@
 A branch with a task this cast works is taken: the worktree must be
 clean, the remote is fetched, and the branch is checked out and fast-forwarded
 to it. The base is only ever read as the remote has it: a pooled worktree
-cannot stand on a base the tree it was made from is standing on. Then
+cannot stand on a base the tree it was made from is standing on. The fetch
+fast-forwards the local base where no worktree stands on it. Then
 ``tend`` hands the branch each task in turn, and every task ends back at
 ``tend``.
 
