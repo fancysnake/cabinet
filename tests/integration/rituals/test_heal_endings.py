@@ -59,6 +59,7 @@ from tests.conftest import (
     board,
     comment,
     commit,
+    fetches,
     listing,
     node,
     page,
@@ -445,7 +446,7 @@ def _taken(
     trial.shell.replies(when=board(), stdout=checks, always=True)
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
-    trial.shell.replies(when="git fetch*")
+    fetches(trial)
     trial.shell.replies(when="git checkout feature")
     trial.shell.replies(when="git merge --ff-only*")
     trial.shell.replies(when=_AHEAD, stdout="0\n")

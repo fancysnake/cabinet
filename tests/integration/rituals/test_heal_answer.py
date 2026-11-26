@@ -57,6 +57,7 @@ from tests.conftest import (
     board,
     comment,
     commit,
+    fetches,
     listing,
     node,
     page,
@@ -1036,7 +1037,7 @@ class TestWholeCast:
         trial.shell.replies(when=_ISSUES, stdout="[]", always=True)
         trial.shell.replies(when=STATUS)
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
-        trial.shell.replies(when="git fetch*")
+        fetches(trial)
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when="git merge --ff-only*")
         trial.coding.replies(TriageNotes(items=[_ITEM]), when=_READER)

@@ -17,7 +17,7 @@ from cabinet.pacts.heal import (
 )
 from cabinet.pacts.healing import Work
 from cabinet.specs import MANY_CONFLICTS
-from tests.conftest import FETCH, STATUS
+from tests.conftest import FETCH, STATUS, fetches
 from tests.integration.rituals.falling import falling
 
 _UNMERGED = "git diff --name-only --diff-filter=U"
@@ -58,13 +58,13 @@ class TestSyncBranch:
     def test_fetches_then_stands_on_the_branch_never_on_the_base(
         trial: Trial, work: Work
     ) -> None:
-        trial.shell.replies(when="git fetch*")
+        fetches(trial)
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when="git merge --ff-only*")
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.to(Tend)
         assert trial.shell.commands == [
-            FETCH,
+            *FETCH,
             "git checkout feature",
             "git merge --ff-only origin/feature",
         ]
@@ -83,7 +83,7 @@ class TestSyncBranch:
     def test_a_checkout_that_will_not_go_through_sets_the_branch_aside(
         trial: Trial, work: Work
     ) -> None:
-        trial.shell.replies(when="git fetch*")
+        fetches(trial)
         trial.shell.replies(when="git checkout feature", exit_code=1, stderr="busy")
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.but(
@@ -92,7 +92,7 @@ class TestSyncBranch:
 
     @staticmethod
     def test_a_diverged_branch_is_set_aside(trial: Trial, work: Work) -> None:
-        trial.shell.replies(when="git fetch*")
+        fetches(trial)
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when="git merge --ff-only*", exit_code=1, stderr="diverged")
 

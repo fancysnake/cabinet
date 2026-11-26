@@ -25,11 +25,11 @@ LIST = (
 )
 STATUS = "git status --porcelain"
 HERE = "git rev-parse --abbrev-ref HEAD"
+# The remote fetch, the look for a local base, and its fast-forward.
 FETCH = (
-    "git fetch --prune origin && "
-    "{ ! git show-ref --verify --quiet refs/heads/main || "
-    "git worktree list --porcelain | grep -qxF 'branch refs/heads/main' || "
-    "git fetch . refs/remotes/origin/main:refs/heads/main || true; }"
+    "git fetch --prune origin",
+    "git rev-parse --verify --quiet refs/heads/main",
+    "git fetch . refs/remotes/origin/main:refs/heads/main",
 )
 GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 LABELS = "gh pr view 7 --json labels"
@@ -84,6 +84,11 @@ def row(number: int = _NUMBER, **extra: object) -> dict[str, object]:
 # job: the project's own, or the defaults.
 def watched(*checks: Check, of: Project | None = None) -> list[Watched]:
     return Board(checks=list(checks)).watched(of or Project())
+
+
+def fetches(trial: Trial) -> None:
+    for command in FETCH:
+        trial.shell.replies(when=command)
 
 
 def listing(*rows: dict[str, object]) -> str:

@@ -17,18 +17,6 @@ _STATUS = "git status --porcelain"
 # on.
 _HERE = "git rev-parse --abbrev-ref HEAD"
 
-# Fetch, then fast-forward the local base with no checkout: `fetch .` moves a
-# ref only forward. A base some worktree stands on is skipped, because the
-# ref would move and that worktree's files would not. A local base with
-# commits of its own is refused by git and stays; no step reads the local
-# base, so only the remote fetch decides the exit code.
-_FETCH = (
-    "git fetch --prune {remote} && "
-    "{{ ! git show-ref --verify --quiet {local} || "
-    "git worktree list --porcelain | grep -qxF {standing} || "
-    "git fetch . {forward} || true; }}"
-)
-
 _STASHED = "stashed"
 _COMMITTED = "committed"
 
@@ -164,15 +152,20 @@ class GitScm(ScmProtocol):
 
     @override
     async def fetch(self) -> None:
-        local = f"refs/heads/{self._base}"
-        theirs = f"refs/remotes/{self._remote}/{self._base}"
-        command = _FETCH.format(
-            remote=_quoted(self._remote),
-            local=_quoted(local),
-            standing=_quoted(f"branch {local}"),
-            forward=_quoted(f"{theirs}:{local}"),
+        await _asked(
+            f"git fetch --prune {_quoted(self._remote)}",
+            f"could not fetch {self._remote}",
         )
-        await _asked(command, f"could not fetch {self._remote}")
+        local = f"refs/heads/{self._base}"
+        exists = await shell(
+            f"git rev-parse --verify --quiet {_quoted(local)}", stream=False
+        )
+        # `fetch .` would create a missing base. Its result is ignored: no step
+        # reads the local base, and git refuses to move one that has commits of
+        # its own or that a worktree stands on.
+        if exists.exit_code == 0:
+            theirs = f"refs/remotes/{self._remote}/{self._base}"
+            await shell(f"git fetch . {_quoted(f'{theirs}:{local}')}", stream=False)
 
     # `merge --ff-only`, never `reset --hard`: a branch this ritual worked on
     # last night carries commits the remote has not seen, and they are the

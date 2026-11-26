@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from cabinet.links.tasks.mise import MiseTasks
 from cabinet.pacts.project import Project
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.tasks import Ran
-from tests.conftest import FETCH, drive
+from tests.conftest import FETCH, drive, fetches
 
 _SCM = GitScm(Project())
 _UNSIGNED = GitScm(Project(sign_commits=False))
@@ -28,13 +29,17 @@ _ELSEWHERE = set(
 _ISOLATED = {k: v for k, v in os.environ.items() if k not in _ELSEWHERE} | {
     "GIT_CONFIG_GLOBAL": "/dev/null",
     "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_AUTHOR_NAME": "cabinet",
+    "GIT_AUTHOR_EMAIL": "cabinet@example.com",
+    "GIT_COMMITTER_NAME": "cabinet",
+    "GIT_COMMITTER_EMAIL": "cabinet@example.com",
 }
 
 _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
 _VERIFY = "git rev-parse --verify --quiet refs/heads/fix/main-abc1234"
-_FETCH = "git fetch origin main feature"
+_CONFLICT_FETCH = "git fetch origin main feature"
 _MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 _COMMIT = (
@@ -213,11 +218,21 @@ class TestMoving:
 
     @staticmethod
     def test_fetch_checks_nothing_out(trial: Trial) -> None:
-        trial.shell.replies(when="git fetch*")
+        fetches(trial)
 
         drive(trial, _SCM.fetch)
 
-        assert trial.shell.commands == [FETCH]
+        assert trial.shell.commands == list(FETCH)
+
+    @staticmethod
+    def test_a_fast_forward_git_refuses_is_no_failure(trial: Trial) -> None:
+        trial.shell.replies(when="git fetch --prune*")
+        trial.shell.replies(when="git rev-parse*")
+        trial.shell.replies(when="git fetch .*", exit_code=128, stderr="refusing")
+
+        drive(trial, _SCM.fetch)
+
+        assert trial.shell.commands == list(FETCH)
 
     @staticmethod
     def test_catch_up_is_a_fast_forward_only(trial: Trial) -> None:
@@ -262,22 +277,22 @@ class TestConflicts:
     def test_merged_in_memory_against_the_remote(
         trial: Trial, exit_code: int, *, conflicts: bool
     ) -> None:
-        trial.shell.replies(when=_FETCH)
+        trial.shell.replies(when=_CONFLICT_FETCH)
         trial.shell.replies(when=_MERGE_TREE, exit_code=exit_code)
 
         assert drive(trial, lambda: _SCM.conflicts("main", "feature")) is conflicts
-        assert trial.shell.commands == [_FETCH, _MERGE_TREE]
+        assert trial.shell.commands == [_CONFLICT_FETCH, _MERGE_TREE]
 
     @staticmethod
     def test_a_fetch_that_fails(trial: Trial) -> None:
-        trial.shell.replies(when=_FETCH, exit_code=128, stderr="gone")
+        trial.shell.replies(when=_CONFLICT_FETCH, exit_code=128, stderr="gone")
 
         with pytest.raises(ScmError, match="could not fetch main and feature: gone"):
             drive(trial, lambda: _SCM.conflicts("main", "feature"))
 
     @staticmethod
     def test_a_merge_git_could_not_try(trial: Trial) -> None:
-        trial.shell.replies(when=_FETCH)
+        trial.shell.replies(when=_CONFLICT_FETCH)
         trial.shell.replies(when=_MERGE_TREE, exit_code=128, stderr="bad ref")
 
         with pytest.raises(ScmError, match="could not try the merge: bad ref"):
@@ -324,52 +339,50 @@ class TestCommitInBash:
     @staticmethod
     @pytest.fixture
     def repo(tmp_path: Path) -> Path:
-        for argv in (
-            ["git", "init", "-q"],
-            ["git", "config", "user.name", "cabinet"],
-            ["git", "config", "user.email", "cabinet@example.com"],
-            ["git", "commit", "-q", "--allow-empty", "-m", "root"],
-        ):
-            subprocess.run(argv, cwd=tmp_path, env=_ISOLATED, check=True)
+        _git(tmp_path, "init", "-q")
+        _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "root")
         return tmp_path
 
     @staticmethod
     def test_a_change_is_committed_and_said(trial: Trial, repo: Path) -> None:
         (repo / "fixed.py").write_text("x = 1\n")
 
-        assert _in_bash(trial, repo)[-1:] == ["committed"]
+        [ran] = _in_bash(trial, repo, lambda: _UNSIGNED.commit("fix"))
+
+        assert ran.stdout.splitlines()[-1:] == ["committed"]
         assert _log(repo) == ["fix", "root"]
 
     @staticmethod
     def test_nothing_staged_says_nothing(trial: Trial, repo: Path) -> None:
-        assert "committed" not in _in_bash(trial, repo)
+        [ran] = _in_bash(trial, repo, lambda: _UNSIGNED.commit("fix"))
+
+        assert not ran.returncode
+        assert "committed" not in ran.stdout
         assert _log(repo) == ["root"]
 
 
-def _in_bash(trial: Trial, repo: Path) -> list[str]:
-    trial.shell.replies(when="git add -A*")
-    drive(trial, lambda: _UNSIGNED.commit("fix"))
-    ran = subprocess.run(
-        ["bash", "-c", trial.shell.commands[0]],
-        cwd=repo,
-        env=_ISOLATED,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return ran.stdout.splitlines()
+# Every command succeeds in the scripted shell unless the test has scripted it
+# otherwise; each one the adapter issued is then run for real.
+def _in_bash(
+    trial: Trial, repo: Path, call: Callable[[], Awaitable[object]]
+) -> list[subprocess.CompletedProcess[str]]:
+    trial.shell.replies(when="git *", always=True)
+    drive(trial, call)
+    return [
+        subprocess.run(
+            ["bash", "-c", command],
+            cwd=repo,
+            env=_ISOLATED,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        for command in trial.shell.commands
+    ]
 
 
 def _log(repo: Path, ref: str = "HEAD") -> list[str]:
-    ran = subprocess.run(
-        ["git", "log", "--format=%s", ref],
-        cwd=repo,
-        env=_ISOLATED,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return ran.stdout.splitlines()
+    return _git(repo, "log", "--format=%s", ref).splitlines()
 
 
 # What git makes of the fetch command only shows when git runs it: `work` is
@@ -387,7 +400,10 @@ class TestFetchInBash:
 
     @staticmethod
     def test_the_local_base_is_fast_forwarded(trial: Trial, work: Path) -> None:
-        assert _fetched(trial, work).returncode == 0
+        remote, _, forward = _in_bash(trial, work, _SCM.fetch)
+
+        assert not remote.returncode
+        assert not forward.returncode
         assert _log(work, "main") == ["newer", "root"]
         assert _git(work, "branch", "--show-current") == "feature"
 
@@ -395,7 +411,10 @@ class TestFetchInBash:
     def test_a_base_some_worktree_stands_on_is_left(trial: Trial, work: Path) -> None:
         _git(work, "worktree", "add", "-q", "../standing", "main")
 
-        assert _fetched(trial, work).returncode == 0
+        remote, _, forward = _in_bash(trial, work, _SCM.fetch)
+
+        assert not remote.returncode
+        assert forward.returncode
         assert _log(work, "main") == ["root"]
         assert _log(work, "origin/main") == ["newer", "root"]
 
@@ -404,28 +423,33 @@ class TestFetchInBash:
         _git(work, "commit", "-q", "--allow-empty", "-m", "mine")
         _git(work, "branch", "-f", "main", "feature")
 
-        assert _fetched(trial, work).returncode == 0
+        remote, _, forward = _in_bash(trial, work, _SCM.fetch)
+
+        assert not remote.returncode
+        assert forward.returncode
         assert _log(work, "main") == ["mine", "root"]
 
     @staticmethod
     def test_no_local_base_is_made(trial: Trial, work: Path) -> None:
         _git(work, "branch", "-D", "main")
+        trial.shell.replies(when="git rev-parse*", exit_code=1)
 
-        assert _fetched(trial, work).returncode == 0
+        remote, look = _in_bash(trial, work, _SCM.fetch)
+
+        assert not remote.returncode
+        assert look.returncode
         assert not _git(work, "branch", "--list", "main")
 
     @staticmethod
     def test_a_remote_that_is_gone_fails(trial: Trial, work: Path) -> None:
         _git(work, "remote", "set-url", "origin", str(work / "nowhere"))
 
-        assert _fetched(trial, work).returncode
-        assert _log(work, "main") == ["root"]
+        assert _in_bash(trial, work, _SCM.fetch)[0].returncode
 
 
 def _git(repo: Path, *argv: str) -> str:
-    identity = ("-c", "user.name=cabinet", "-c", "user.email=cabinet@example.com")
     ran = subprocess.run(
-        ["git", *identity, *argv],
+        ["git", *argv],
         cwd=repo,
         env=_ISOLATED,
         capture_output=True,
@@ -433,19 +457,6 @@ def _git(repo: Path, *argv: str) -> str:
         check=True,
     )
     return ran.stdout.strip()
-
-
-def _fetched(trial: Trial, repo: Path) -> subprocess.CompletedProcess[str]:
-    trial.shell.replies(when="git fetch*")
-    drive(trial, _SCM.fetch)
-    return subprocess.run(
-        ["bash", "-c", trial.shell.commands[0]],
-        cwd=repo,
-        env=_ISOLATED,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 class TestRelease:
