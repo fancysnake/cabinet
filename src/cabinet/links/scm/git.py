@@ -17,12 +17,13 @@ _STATUS = "git status --porcelain"
 # on.
 _HERE = "git rev-parse --abbrev-ref HEAD"
 
-# One fetch of the remote a minute, however many branches a survey reads:
-# a stamp in the common git dir, which every worktree shares with the refs,
-# is touched after a fetch, and a stamp under a minute old skips the next.
+# One fetch of the remote per `fetch_every` minutes, however many branches a
+# survey reads: a stamp in the common git dir, which every worktree shares
+# with the refs, is touched after a fetch, and a stamp younger than that
+# skips the next. `-mmin -0` matches nothing, so zero always fetches.
 _FRESH = (
     'stamp="$(git rev-parse --git-common-dir)/cabinet-fetched"; '
-    '[ -n "$(find "$stamp" -mmin -1 2>/dev/null)" ] || '
+    '[ -n "$(find "$stamp" -mmin -{minutes} 2>/dev/null)" ] || '
     '{{ git fetch {remote} && touch "$stamp"; }}'
 )
 
@@ -83,6 +84,7 @@ def stash_name(branch: str) -> str:
 class GitScm(ScmProtocol):
     def __init__(self, project: Project) -> None:
         self._remote = project.remote
+        self._fetch_every = project.fetch_every
         self._sign = project.sign_commits
         self._helper = _HELPER[project.forge]
 
@@ -189,7 +191,7 @@ class GitScm(ScmProtocol):
     @override
     async def behind(self, base: str, branch: str) -> bool:
         await _asked(
-            _FRESH.format(remote=_quoted(self._remote)),
+            _FRESH.format(remote=_quoted(self._remote), minutes=self._fetch_every),
             f"could not fetch {self._remote}",
             stream=False,
         )

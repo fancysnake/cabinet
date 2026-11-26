@@ -24,6 +24,7 @@ forge = "github"                      # or "gitlab"
 base = "main"
 main_fix_branch = "fix/main-{sha}"    # must hold {sha} once
 remote = "origin"
+fetch_every = 1                       # minutes a fetch is trusted for
 gate = "mise run pr-fix"
 coverage = "mise run diff-cover"
 fast_coverage = "mise run test:py:cov:diff"
@@ -74,6 +75,7 @@ escalated = "opus"                    # where a big or retried fix goes
 | `base`          | the branch every pull request is merged from                                |
 | `main_fix_branch` | the branch `heal.main` fixes a red base on; `{sha}` becomes the base's head commit, so each fix gets a name of its own, and an open pull request of yours on any branch of this shape counts as a fix already open |
 | `remote`        | pushed to and fetched from by name; must be https, see [the remote](#the-remote) |
+| `fetch_every`   | minutes a survey trusts its last fetch of the remote for, default `1`; `0` fetches at every survey |
 | `gate`          | the command a merge has to pass before it is committed; the merge task repairs until it does |
 | `coverage`      | the full diff coverage measurement a `covering` job runs, named to agents as a task to leave alone |
 | `fast_coverage` | the same measurement without the slow suites, re-run between repair rounds  |

@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `fetch_every` in `[cabinet]`: the minutes a survey trusts its last fetch of
+  the remote for. Default `1`; `0` fetches at every survey.
+
 ### Changed
 
 - The `heal.*` rituals and `merge` merge the base into every branch that is
   behind it, not only into a branch that conflicts. The gate runs over the
   merge and the branch is pushed, so each cast leaves the branch holding its
   whole base. `heal.mine` queues a `heal.pr` for every such branch. Git says
-  whether a branch is behind, not the forge, and a survey fetches the remote
-  at most once a minute.
+  whether a branch is behind, not the forge.
 
 ### Fixed
 

@@ -485,3 +485,19 @@ def _git(repo: Path, *argv: str) -> str:
         check=True,
     )
     return ran.stdout.strip()
+
+
+class TestFetchEvery:
+    @staticmethod
+    def test_zero_fetches_at_every_ask(trial: Trial, repo: Path) -> None:
+        _git(repo, "remote", "add", "origin", ".")
+        trial.shell.replies(when=_FETCH)
+        trial.shell.replies(when=_BEHIND)
+        drive(trial, lambda: GitScm(Project(fetch_every=0)).behind("main", "feature"))
+        command = trial.shell.commands[0]
+
+        _bash(repo, command)
+        _git(repo, "commit", "-q", "--allow-empty", "-m", "next")
+        _bash(repo, command)
+
+        assert _remote(repo) == _git(repo, "rev-parse", "HEAD")
