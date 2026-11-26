@@ -24,9 +24,10 @@ the order a cast works it:
 | nothing else to do                           | `labels.qa`           | `guide`  |
 
 Facts make todos; labels only remove them. A branch is behind its base when
-the base has a commit the branch has not, so every cast leaves the branch
-holding its whole base. Git answers that against the remote's refs, which a
-survey fetches at most once every `fetch_every` minutes.
+the base has a commit the branch has not. Git answers that against the
+remote's refs, which a cast fetches once after it lists the pull requests, and
+again before it works a branch. A branch the cast merges holds its base as
+fetched.
 
 `heal.mine` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first. `heal.pr --number N` takes the open pull request

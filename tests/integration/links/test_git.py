@@ -34,7 +34,6 @@ _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
 _VERIFY = "git rev-parse --verify --quiet refs/heads/fix/main-abc1234"
-_FETCH = "stamp=*git fetch origin*"
 _BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 _COMMIT = (
@@ -262,22 +261,13 @@ class TestBehind:
     def test_asked_of_the_remote_refs(
         trial: Trial, exit_code: int, *, behind: bool
     ) -> None:
-        trial.shell.replies(when=_FETCH)
         trial.shell.replies(when=_BEHIND, exit_code=exit_code)
 
         assert drive(trial, lambda: _SCM.behind("main", "feature")) is behind
-        assert trial.shell.commands[1:] == [_BEHIND]
-
-    @staticmethod
-    def test_a_fetch_that_fails(trial: Trial) -> None:
-        trial.shell.replies(when=_FETCH, exit_code=128, stderr="gone")
-
-        with pytest.raises(ScmError, match="could not fetch origin: gone"):
-            drive(trial, lambda: _SCM.behind("main", "feature"))
+        assert trial.shell.commands == [_BEHIND]
 
     @staticmethod
     def test_refs_git_could_not_compare(trial: Trial) -> None:
-        trial.shell.replies(when=_FETCH)
         trial.shell.replies(when=_BEHIND, exit_code=128, stderr="bad ref")
 
         with pytest.raises(
@@ -427,77 +417,3 @@ class TestMise:
         )
         assert trial.shell.calls[0].command == "CI=1 mise run pr-fix"
         assert trial.deltas == ["1 failed", "x"]
-
-
-# What `find` and the braces make of the stamp only shows when bash runs it.
-class TestFetchInBash:
-    @staticmethod
-    def test_a_second_ask_within_the_minute_does_not_fetch(
-        trial: Trial, repo: Path
-    ) -> None:
-        _git(repo, "remote", "add", "origin", ".")
-        command = _fetching(trial)
-
-        _bash(repo, command)
-        first = _remote(repo)
-        _git(repo, "commit", "-q", "--allow-empty", "-m", "next")
-        _bash(repo, command)
-
-        assert _remote(repo) == first
-
-    @staticmethod
-    def test_a_stamp_older_than_a_minute_fetches_again(
-        trial: Trial, repo: Path
-    ) -> None:
-        _git(repo, "remote", "add", "origin", ".")
-        command = _fetching(trial)
-
-        _bash(repo, command)
-        _git(repo, "commit", "-q", "--allow-empty", "-m", "next")
-        os.utime(repo / ".git" / "cabinet-fetched", (0, 0))
-        _bash(repo, command)
-
-        assert _remote(repo) == _git(repo, "rev-parse", "HEAD")
-
-
-def _remote(repo: Path) -> str:
-    return _git(repo, "rev-parse", f"origin/{_git(repo, 'branch', '--show-current')}")
-
-
-def _fetching(trial: Trial) -> str:
-    trial.shell.replies(when=_FETCH)
-    trial.shell.replies(when=_BEHIND)
-    drive(trial, lambda: _SCM.behind("main", "feature"))
-    return trial.shell.commands[0]
-
-
-def _bash(repo: Path, command: str) -> None:
-    subprocess.run(["bash", "-c", command], cwd=repo, env=_ISOLATED, check=True)
-
-
-def _git(repo: Path, *argv: str) -> str:
-    ran = subprocess.run(
-        ["git", *argv],
-        cwd=repo,
-        env=_ISOLATED,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return ran.stdout.strip()
-
-
-class TestFetchEvery:
-    @staticmethod
-    def test_zero_fetches_at_every_ask(trial: Trial, repo: Path) -> None:
-        _git(repo, "remote", "add", "origin", ".")
-        trial.shell.replies(when=_FETCH)
-        trial.shell.replies(when=_BEHIND)
-        drive(trial, lambda: GitScm(Project(fetch_every=0)).behind("main", "feature"))
-        command = trial.shell.commands[0]
-
-        _bash(repo, command)
-        _git(repo, "commit", "-q", "--allow-empty", "-m", "next")
-        _bash(repo, command)
-
-        assert _remote(repo) == _git(repo, "rev-parse", "HEAD")

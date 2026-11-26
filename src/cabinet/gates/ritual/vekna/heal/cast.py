@@ -17,9 +17,10 @@ request. A branch its gate will not go green on is opened all the same, and
 the pull request says what stopped it. Where nothing was committed, nothing
 is opened.
 
-Each pull request is surveyed first: whether it is behind its base, which
-of the configured CI jobs are red, how many review threads are open, and which
-labels it wears. That becomes its todo list, in the order a cast works it:
+The surveys share one fetch of the remote, made after the pull requests are
+listed. Each pull request is surveyed first: whether it is behind its base,
+which of the configured CI jobs are red, how many review threads are open, and
+which labels it wears. That becomes its todo list, in the order a cast works it:
 merge, ci, review, answer, guide. Facts make a todo; the reviewed and qa labels
 only take one away. The list is printed a line per pull request as it is read.
 With ``--plan-only true`` that is all: no checkout, no commit, no label.
@@ -116,6 +117,7 @@ def _queued(run: Run, queue: list[PullRequest], kind: type[_RunT]) -> _RunT:
 async def muster_mine(run: MusterMine) -> Handoff | Summon:
     try:
         run, pulls = await _listed(run)
+        await services().scm(run.project).fetch()
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Handoff)
     queue = services().pulls.wanted(pulls, run.project)
@@ -127,6 +129,7 @@ async def muster_mine(run: MusterMine) -> Handoff | Summon:
 async def muster_this(run: MusterThis) -> Chart | Survey:
     try:
         run, pulls = await _listed(run)
+        await services().scm(run.project).fetch()
         here = await services().scm(run.project).here()
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
@@ -144,6 +147,7 @@ async def muster_pr(mustering: MusterPr) -> Chart | Survey:
     run = mustering.run
     try:
         run, pulls = await _listed(run)
+        await services().scm(run.project).fetch()
     except (ScmError, ForgeError) as error:
         return run.but(stopped=str(error)).to(Chart)
     if not (queue := services().pulls.numbered(pulls, mustering.number)):

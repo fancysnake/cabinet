@@ -439,6 +439,7 @@ def _taken(
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+    trial.shell.replies(when="git fetch --prune origin")
     worn = [{"name": label} for label in labels]
     trial.shell.replies(when=LIST, stdout=listing(row(7, labels=worn)), always=True)
     trial.shell.replies(when=_BEHIND, exit_code=int(behind), always=True)
@@ -642,12 +643,13 @@ class TestWholeCast:
 
     # Nothing this cast works: surveyed, said, and never checked out.
     @staticmethod
-    @pytest.mark.usefixtures("here", "fresh")
+    @pytest.mark.usefixtures("here", "holds_base")
     def test_a_branch_with_nothing_to_work_is_not_taken(trial: Trial) -> None:
         trial.shell.replies(
             when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
         )
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+        trial.shell.replies(when="git fetch --prune origin")
         trial.shell.replies(
             when=LIST,
             stdout=listing(
@@ -777,12 +779,13 @@ class TestWholeCast:
             when="git remote get-url origin", stdout="https://gitlab.example/o/r.git\n"
         )
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!glab auth\n")
+        trial.shell.replies(when="git fetch --prune origin")
         trial.shell.replies(when="glab api 'projects/:id/merge_requests?*", stdout="[]")
 
         result = trial.cast(heal_mine, Heal())
 
         assert result == Handed()
-        assert trial.shell.commands[-1].startswith("glab api")
+        assert trial.shell.commands[-2].startswith("glab api")
         assert trial.steps == ["muster_mine", "summon", "handoff"]
 
 

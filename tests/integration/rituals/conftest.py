@@ -17,15 +17,9 @@ def _no_plain_comments(trial: Trial) -> None:
     )
 
 
-# A survey fetches the remote before it asks git about a branch.
-@pytest.fixture(autouse=True)
-def _fetched(trial: Trial) -> None:
-    trial.shell.replies(when="stamp=*git fetch origin*", always=True)
-
-
 # A survey asks git whether the branch is behind its base. Here it is not.
 @pytest.fixture
-def fresh(trial: Trial) -> None:
+def holds_base(trial: Trial) -> None:
     trial.shell.replies(
         when="git merge-base --is-ancestor origin/main origin/feature*", always=True
     )

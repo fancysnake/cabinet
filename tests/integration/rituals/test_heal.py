@@ -77,10 +77,10 @@ _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
-# The preflight's two, the listing, the board, the threads, the plain
-# comments with the login they are read by, and the fetch with what git is
-# asked after it.
+# The preflight's two, the listing, the fetch, the board, the threads, the
+# plain comments with the login they are read by, and the ancestor question.
 _READS = 9
+_FETCH = "git fetch --prune origin"
 # A branch behind its base with red checks and no threads, as `summon` reads it.
 _QUEUED = Surveyed(
     number=7,
@@ -115,6 +115,7 @@ def _preflight(trial: Trial) -> None:
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+    trial.shell.replies(when="git fetch --prune origin")
 
 
 # Unattended, so open threads are said rather than taken.
@@ -318,6 +319,23 @@ class TestMuster:
         )
 
     @staticmethod
+    def test_a_fetch_that_fails_ends_the_cast(trial: Trial, project: Project) -> None:
+        trial.shell.replies(
+            when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
+        )
+        trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+        trial.shell.replies(when=LIST, stdout=listing(row()))
+        trial.shell.replies(when=_FETCH, exit_code=128, stderr="no network")
+
+        assert trial.walk(
+            muster_mine, MusterMine(attended=True, project=project)
+        ) == Run(
+            attended=True, project=project, stopped="could not fetch origin: no network"
+        ).to(
+            Handoff
+        )
+
+    @staticmethod
     def test_an_ssh_remote_stops_before_anything_is_fetched(
         trial: Trial, project: Project
     ) -> None:
@@ -380,7 +398,7 @@ class TestSurvey:
         assert transition.surveyed[0].todos == ["merge"]
 
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_a_branch_with_nothing_left_is_guided(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
@@ -442,7 +460,7 @@ class TestSurvey:
     # Every item of a triage is the operator's to decide, so only a cast with
     # somebody at the terminal answers threads.
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_an_attended_cast_takes_the_threads_too(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
@@ -470,7 +488,7 @@ class TestSurvey:
         assert transition.todos == ["review"]
 
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_a_branch_with_nothing_this_cast_works_is_not_taken(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
@@ -518,7 +536,7 @@ class TestSummon:
         assert queued.components == HealPr(number=7, bound=2, batch=4)
 
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_a_branch_with_nothing_this_cast_works_is_not_queued(
         trial: Trial, pull: PullRequest, project: Project
     ) -> None:
@@ -589,6 +607,7 @@ class TestWholeCast:
             HealPr(number=7, bound=2)
         ]
         assert trial.steps == ["muster_mine", "summon", "summon", "summon", "handoff"]
+        assert trial.shell.commands.count(_FETCH) == 1
         assert trial.deltas[-1] == (
             f"heal — 1 queued\n\n  #7 feature: cast {queued.cast}\n"
         )
@@ -623,7 +642,7 @@ class TestWholeCast:
         assert trial.queue.enqueued == []
 
     @staticmethod
-    @pytest.mark.usefixtures("here", "fresh")
+    @pytest.mark.usefixtures("here", "holds_base")
     def test_this_plans_the_branch_at_the_cwd(trial: Trial) -> None:
         _preflight(trial)
         trial.shell.replies(when=LIST, stdout=listing(row(8), row()))
@@ -652,7 +671,7 @@ def _reviewed(work: Work) -> Work:
 
 class TestResurvey:
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_the_threads_a_review_left_are_answered_in_the_same_cast(
         trial: Trial, work: Work
     ) -> None:
@@ -667,7 +686,7 @@ class TestResurvey:
         assert trial.deltas == ["#7 feature: answer (1 thread)"]
 
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_a_check_gone_red_comes_with_its_job(trial: Trial, work: Work) -> None:
         _relisted(trial, "pr::thermo")
         trial.shell.replies(when=board(), stdout=_RED)
@@ -681,7 +700,7 @@ class TestResurvey:
     # `ci` stood the branch down on this check: it is not `ci`'s again, and a
     # later repair must not count it among the reds that escalate the model.
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_a_check_still_red_after_ci_is_not_carried_forward(
         trial: Trial, work: Work
     ) -> None:
@@ -697,7 +716,7 @@ class TestResurvey:
     # The check `ci` could not make green is still red, and the cast ends
     # there rather than work it for ever.
     @staticmethod
-    @pytest.mark.usefixtures("fresh")
+    @pytest.mark.usefixtures("holds_base")
     def test_a_task_already_handed_is_not_handed_again(
         trial: Trial, work: Work
     ) -> None:

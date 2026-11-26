@@ -174,9 +174,6 @@ class Project(BaseModel):
     # its credential helper: a command under a cast has no terminal for ssh to
     # ask a passphrase on.
     remote: str = "origin"
-    # Minutes a survey trusts its last fetch of the remote for. Zero fetches
-    # at every survey.
-    fetch_every: Annotated[int, Field(ge=0)] = 1
     gate: str = "mise run pr-fix"
     coverage: str = "mise run diff-cover"
     # The same measurement without the slow suites, re-run between repair
