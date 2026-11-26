@@ -29,7 +29,7 @@ HERE = "git rev-parse --abbrev-ref HEAD"
 FETCH = (
     "git fetch --prune origin",
     "git rev-parse --verify --quiet refs/heads/main",
-    "git fetch . refs/remotes/origin/main:refs/heads/main",
+    "git fetch --show-forced-updates . refs/remotes/origin/main:refs/heads/main",
 )
 GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 LABELS = "gh pr view 7 --json labels"

@@ -228,7 +228,7 @@ class TestMoving:
     def test_a_fast_forward_git_refuses_is_no_failure(trial: Trial) -> None:
         trial.shell.replies(when="git fetch --prune*")
         trial.shell.replies(when="git rev-parse*")
-        trial.shell.replies(when="git fetch .*", exit_code=128, stderr="refusing")
+        trial.shell.replies(when="git fetch --show*", exit_code=128, stderr="refusing")
 
         drive(trial, _SCM.fetch)
 

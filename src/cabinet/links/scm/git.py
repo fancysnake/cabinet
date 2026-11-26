@@ -162,10 +162,12 @@ class GitScm(ScmProtocol):
         )
         # `fetch .` would create a missing base. Its result is ignored: no step
         # reads the local base, and git refuses to move one that has commits of
-        # its own or that a worktree stands on.
+        # its own or that a worktree stands on. `fetch.showForcedUpdates=false`
+        # skips that ancestry check, so the flag turns it back on.
         if exists.exit_code == 0:
             theirs = f"refs/remotes/{self._remote}/{self._base}"
-            await shell(f"git fetch . {_quoted(f'{theirs}:{local}')}", stream=False)
+            refspec = _quoted(f"{theirs}:{local}")
+            await shell(f"git fetch --show-forced-updates . {refspec}", stream=False)
 
     # `merge --ff-only`, never `reset --hard`: a branch this ritual worked on
     # last night carries commits the remote has not seen, and they are the
