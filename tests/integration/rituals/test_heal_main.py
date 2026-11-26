@@ -23,15 +23,17 @@ from cabinet.rituals.heal_main import heal_main
 from tests.conftest import LIST, STATUS, board, listing, row, watched
 
 _RED = json.dumps(
-    {
-        "total_count": 2,
-        "check_runs": [
-            {"id": 1, "name": "checks", "conclusion": "failure"},
-            {"id": 2, "name": "docs", "conclusion": "failure"},
-        ],
-    }
+    [
+        {
+            "total_count": 2,
+            "check_runs": [
+                {"id": 1, "name": "checks", "conclusion": "failure"},
+                {"id": 2, "name": "docs", "conclusion": "failure"},
+            ],
+        }
+    ]
 )
-_GREEN = json.dumps({"total_count": 0, "check_runs": []})
+_GREEN = json.dumps([{"total_count": 0, "check_runs": []}])
 _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _BRANCH = "fix/main-abc1234"
 _FETCH = "git fetch --prune origin"

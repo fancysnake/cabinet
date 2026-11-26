@@ -19,9 +19,9 @@ _LIST = (
     f"gh pr list --author @me --state open --limit {PULL_LIMIT} "
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
-_BOARD = "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100&page=1'"
-_BOARD_SECOND = (
-    "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100&page=2'"
+_BOARD = (
+    "gh api 'repos/{owner}/{repo}/commits/feature/check-runs?per_page=100'"
+    " --paginate --slurp"
 )
 _THREAD = Thread(
     id="PRRT_1",
@@ -414,7 +414,7 @@ class TestBoard:
                 },
             ],
         }
-        trial.shell.replies(when=_BOARD, stdout=json.dumps(answer))
+        trial.shell.replies(when=_BOARD, stdout=json.dumps([answer]))
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
             checks=[
@@ -425,27 +425,23 @@ class TestBoard:
         )
 
     @staticmethod
-    def test_a_count_past_the_page_asks_for_the_next(trial: Trial) -> None:
-        full = [{"id": index, "name": f"job{index}"} for index in range(100)]
-        last = [{"id": 100, "name": "lint", "conclusion": "failure"}]
-        trial.shell.replies(
-            when=_BOARD, stdout=json.dumps({"total_count": 101, "check_runs": full})
-        )
-        trial.shell.replies(
-            when=_BOARD_SECOND,
-            stdout=json.dumps({"total_count": 101, "check_runs": last}),
-        )
+    def test_every_page_is_on_the_board(trial: Trial) -> None:
+        pages = [
+            {"total_count": 2, "check_runs": [{"id": 5, "name": "test"}]},
+            {"total_count": 2, "check_runs": [{"id": 6, "name": "lint"}]},
+        ]
+        trial.shell.replies(when=_BOARD, stdout=json.dumps(pages))
 
         assert drive(trial, lambda: _FORGE.board("feature")) == Board(
-            checks=[
-                *(Check(name=f"job{index}", id=index) for index in range(100)),
-                Check(name="lint", passed=False, id=100),
-            ]
+            checks=[Check(name="test", id=5), Check(name="lint", id=6)]
         )
 
     @staticmethod
-    def test_a_board_that_will_not_parse(trial: Trial) -> None:
-        trial.shell.replies(when=_BOARD, stdout='{"check_runs": 1}')
+    @pytest.mark.parametrize(
+        "answer", ['[{"total_count": 1, "check_runs": 1}]', '[{"check_runs": []}]']
+    )
+    def test_a_board_that_will_not_parse(trial: Trial, answer: str) -> None:
+        trial.shell.replies(when=_BOARD, stdout=answer)
 
         with pytest.raises(ForgeError, match="board this could not read"):
             drive(trial, lambda: _FORGE.board("feature"))
@@ -479,8 +475,11 @@ class TestRuns:
         assert drive(trial, lambda: _FORGE.runs("feature", _JOB)) == _TWICE
 
     @staticmethod
-    def test_runs_that_will_not_parse(trial: Trial) -> None:
-        trial.shell.replies(when=_RUNS, stdout='{"total_count": "many"}')
+    @pytest.mark.parametrize(
+        "answer", ['{"total_count": "many"}', '{"check_runs": []}']
+    )
+    def test_runs_that_will_not_parse(trial: Trial, answer: str) -> None:
+        trial.shell.replies(when=_RUNS, stdout=answer)
 
         with pytest.raises(ForgeError, match="runs this could not read"):
             drive(trial, lambda: _FORGE.runs("feature", _JOB))
