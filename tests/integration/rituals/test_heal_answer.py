@@ -87,7 +87,7 @@ _ITEM = TriageItem(
     action="fix",
     thread="PRRT_1",
 )
-_GREEN_BOARD = '{"total_count": 0, "check_runs": []}'
+_GREEN_BOARD = '[{"total_count": 0, "check_runs": []}]'
 _AHEAD = f'test feature = "$({HERE})" && git rev-list --count origin/feature..HEAD'
 
 

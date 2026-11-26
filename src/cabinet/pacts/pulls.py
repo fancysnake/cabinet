@@ -80,10 +80,6 @@ class Watched(BaseModel):
 
 class Board(BaseModel):
     checks: list[Check] = []
-    # A page that stopped short of the whole board. What fell off the end could
-    # be the check a reader turns on, and a page that does not say is not a
-    # page saying yes.
-    truncated: bool = False
 
     # The checks whose job is configured: red anywhere else is not the
     # rituals' business. A covering job measures with the project's coverage

@@ -62,15 +62,17 @@ from tests.conftest import (
 
 _URL = "https://github.com/o/r/pull/7"
 _RED = json.dumps(
-    {
-        "total_count": 2,
-        "check_runs": [
-            {"id": 1, "name": "checks", "conclusion": "failure"},
-            {"id": 2, "name": "docs", "conclusion": "failure"},
-        ],
-    }
+    [
+        {
+            "total_count": 2,
+            "check_runs": [
+                {"id": 1, "name": "checks", "conclusion": "failure"},
+                {"id": 2, "name": "docs", "conclusion": "failure"},
+            ],
+        }
+    ]
 )
-_GREEN = json.dumps({"total_count": 0, "check_runs": []})
+_GREEN = json.dumps([{"total_count": 0, "check_runs": []}])
 _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))

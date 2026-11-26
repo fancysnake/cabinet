@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Fixed
+
+- The `heal.*` rituals read every page of a branch's checks. A red check past
+  the first hundred no longer goes unseen, so `heal.main` and the survey stop
+  calling such a branch green.
+
 ## [8.0.0] - 2026-11-25
 
 ### Added

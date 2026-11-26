@@ -483,18 +483,16 @@ class GitlabForge(ForgeProtocol):
 
     # Commit statuses rather than pipelines, because that is where an external
     # coverage service posts its patch summary — the same "N% of diff hit"
-    # line the GitHub board carries. A full page may be a short page.
+    # line the GitHub board carries.
     @override
     async def board(self, branch: str) -> Board:
-        found = await _read(
+        found = await _pages(
             _STATUSES,
-            _api(f"projects/:id/repository/commits/{branch}/statuses?per_page={_PAGE}"),
+            f"projects/:id/repository/commits/{branch}/statuses?per_page={_PAGE}",
             "glab could not read the commit statuses",
             "statuses",
         )
-        return Board(
-            checks=[_check(status) for status in found], truncated=len(found) >= _PAGE
-        )
+        return Board(checks=[_check(status) for status in found])
 
     @override
     async def runs(self, branch: str, check: Check) -> int:

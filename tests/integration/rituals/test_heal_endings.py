@@ -76,7 +76,7 @@ _WORKED_ROW = Checked(
     number=7, branch="feature", url=_URL, outcome="worked", unpushed=0
 )
 _NO_THREADS = threads_page(page([]))
-_GREEN_BOARD = json.dumps({"total_count": 0, "check_runs": []})
+_GREEN_BOARD = json.dumps([{"total_count": 0, "check_runs": []}])
 
 
 class TestQualityReview:
@@ -479,13 +479,15 @@ def _worst_gate(trial: Trial, bound: int) -> None:
 
 _JOBS = ("a", "b", "c")
 _RED_JOBS = json.dumps(
-    {
-        "total_count": len(_JOBS),
-        "check_runs": [
-            {"id": index, "name": job, "conclusion": "failure"}
-            for index, job in enumerate(_JOBS, start=1)
-        ],
-    }
+    [
+        {
+            "total_count": len(_JOBS),
+            "check_runs": [
+                {"id": index, "name": job, "conclusion": "failure"}
+                for index, job in enumerate(_JOBS, start=1)
+            ],
+        }
+    ]
 )
 
 
@@ -899,7 +901,7 @@ class TestTaskRituals:
         _taken(
             trial,
             mergeable="CONFLICTING",
-            checks=json.dumps({"total_count": 1, "check_runs": [red]}),
+            checks=json.dumps([{"total_count": 1, "check_runs": [red]}]),
         )
         trial.shell.replies(when=HERE, stdout="feature\n")
         trial.shell.replies(when="gh run view --job 9 --log-failed", stdout="E501\n")

@@ -32,10 +32,9 @@ _LIST = (
     "--json number,title,headRefName,baseRefName,url,updatedAt,labels,mergeable"
 )
 
-# The endpoint pages at thirty by default and a board can run to twenty-odd,
-# so the default is two workflows away from silently dropping the check the
-# answer turns on. The branch as the ref rather than a sha, so this asks about
-# the head the branch has now. `filter=latest` is the endpoint's own default,
+# Every page is read; the page size only sets how many calls a board costs.
+# The branch as the ref rather than a sha, so each call asks about the head the
+# branch has at that moment. `filter=latest` is the endpoint's own default,
 # so a re-run's earlier attempt is never the answer.
 _BOARD = "repos/{{owner}}/{{repo}}/commits/{branch}/check-runs?per_page=100"
 
@@ -145,7 +144,7 @@ class _Check(BaseModel):
 # The endpoint wraps the board in one key, and it stays wrapped until it is
 # parsed: unwrapping with `--jq` would move the reading into the command.
 class _Board(BaseModel):
-    total_count: int = 0
+    total_count: int
     check_runs: list[_Check] = []
 
 
@@ -234,6 +233,7 @@ class _Opened(BaseModel):
 
 _PULLS: TypeAdapter[list[_Pull]] = TypeAdapter(list[_Pull])
 _ISSUE_LIST: TypeAdapter[list[_Issue]] = TypeAdapter(list[_Issue])
+_BOARDS: TypeAdapter[list[_Board]] = TypeAdapter(list[_Board])
 
 
 # `gh` knows which repository this is, but graphql variables are not a REST
@@ -528,20 +528,21 @@ class GithubForge(ForgeProtocol):
             f"could not resolve thread {thread.id}",
         )
 
+    # `--slurp` wraps the pages in one array: each is an object of its own.
     @override
     async def board(self, branch: str) -> Board:
         path = _BOARD.format(branch=branch)
         answered = await asked(
-            f"gh api {quoted(path)}", "gh could not read the check board"
+            f"gh api {quoted(path)} --paginate --slurp",
+            "gh could not read the check board",
         )
         try:
-            found = _Board.model_validate_json(answered)
+            pages = _BOARDS.validate_json(answered)
         except ValidationError as error:
             msg = f"gh returned a board this could not read: {error}"
             raise ForgeError(msg) from error
         return Board(
-            checks=[_check(check) for check in found.check_runs],
-            truncated=len(found.check_runs) < found.total_count,
+            checks=[_check(run) for found in pages for run in found.check_runs]
         )
 
     @override

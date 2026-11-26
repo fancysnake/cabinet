@@ -51,7 +51,7 @@ _LAST = {"hasNextPage": False}
 
 def board(name: str = "feature") -> str:
     path = f"repos/{{owner}}/{{repo}}/commits/{name}/check-runs?per_page=100"
-    return f"gh api '{path}'"
+    return f"gh api '{path}' --paginate --slurp"
 
 
 def commit(message: str) -> str:
