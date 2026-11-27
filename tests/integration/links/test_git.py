@@ -34,8 +34,7 @@ _STATUS = "git status --porcelain"
 _HERE = "git rev-parse --abbrev-ref HEAD"
 _AHEAD = 2
 _VERIFY = "git rev-parse --verify --quiet refs/heads/fix/main-abc1234"
-_FETCH = "git fetch origin main feature"
-_MERGE_TREE = "git merge-tree --write-tree origin/main origin/feature > /dev/null"
+_BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
 _GPG_TTY = 'GPG_TTY="${GPG_TTY:-$(tty </dev/tty 2>/dev/null)}"'
 _COMMIT = (
     "git add -A && (git diff --cached --quiet || ("
@@ -256,32 +255,25 @@ class TestMoving:
             drive(trial, lambda: _SCM.push("feature"))
 
 
-class TestConflicts:
+class TestBehind:
     @staticmethod
-    @pytest.mark.parametrize(("exit_code", "conflicts"), [(0, False), (1, True)])
-    def test_merged_in_memory_against_the_remote(
-        trial: Trial, exit_code: int, *, conflicts: bool
+    @pytest.mark.parametrize(("exit_code", "behind"), [(0, False), (1, True)])
+    def test_asked_of_the_remote_refs(
+        trial: Trial, exit_code: int, *, behind: bool
     ) -> None:
-        trial.shell.replies(when=_FETCH)
-        trial.shell.replies(when=_MERGE_TREE, exit_code=exit_code)
+        trial.shell.replies(when=_BEHIND, exit_code=exit_code)
 
-        assert drive(trial, lambda: _SCM.conflicts("main", "feature")) is conflicts
-        assert trial.shell.commands == [_FETCH, _MERGE_TREE]
-
-    @staticmethod
-    def test_a_fetch_that_fails(trial: Trial) -> None:
-        trial.shell.replies(when=_FETCH, exit_code=128, stderr="gone")
-
-        with pytest.raises(ScmError, match="could not fetch main and feature: gone"):
-            drive(trial, lambda: _SCM.conflicts("main", "feature"))
+        assert drive(trial, lambda: _SCM.behind("main", "feature")) is behind
+        assert trial.shell.commands == [_BEHIND]
 
     @staticmethod
-    def test_a_merge_git_could_not_try(trial: Trial) -> None:
-        trial.shell.replies(when=_FETCH)
-        trial.shell.replies(when=_MERGE_TREE, exit_code=128, stderr="bad ref")
+    def test_refs_git_could_not_compare(trial: Trial) -> None:
+        trial.shell.replies(when=_BEHIND, exit_code=128, stderr="bad ref")
 
-        with pytest.raises(ScmError, match="could not try the merge: bad ref"):
-            drive(trial, lambda: _SCM.conflicts("main", "feature"))
+        with pytest.raises(
+            ScmError, match="could not compare main and feature: bad ref"
+        ):
+            drive(trial, lambda: _SCM.behind("main", "feature"))
 
 
 class TestCommit:
@@ -318,21 +310,21 @@ class TestCommit:
             drive(trial, lambda: _SCM.commit("fix"))
 
 
+@pytest.fixture(name="repo")
+def _repo(tmp_path: Path) -> Path:
+    for argv in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.name", "cabinet"],
+        ["git", "config", "user.email", "cabinet@example.com"],
+        ["git", "commit", "-q", "--allow-empty", "-m", "root"],
+    ):
+        subprocess.run(argv, cwd=tmp_path, env=_ISOLATED, check=True)
+    return tmp_path
+
+
 # The scripted shell answers whatever it is told, so what bash makes of the
 # operators in the commit command only shows when bash runs it.
 class TestCommitInBash:
-    @staticmethod
-    @pytest.fixture
-    def repo(tmp_path: Path) -> Path:
-        for argv in (
-            ["git", "init", "-q"],
-            ["git", "config", "user.name", "cabinet"],
-            ["git", "config", "user.email", "cabinet@example.com"],
-            ["git", "commit", "-q", "--allow-empty", "-m", "root"],
-        ):
-            subprocess.run(argv, cwd=tmp_path, env=_ISOLATED, check=True)
-        return tmp_path
-
     @staticmethod
     def test_a_change_is_committed_and_said(trial: Trial, repo: Path) -> None:
         (repo / "fixed.py").write_text("x = 1\n")

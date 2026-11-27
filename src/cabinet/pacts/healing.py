@@ -58,8 +58,8 @@ class Facts(BaseModel):
     pull: PullRequest
     board: Board
     threads: list[Thread]
-    # The forge's answer where it had one, git's where it did not.
-    conflicted: bool
+    # The base has a commit the branch has not, as git reads the remote.
+    behind: bool
 
 
 # What the survey made of one pull request.

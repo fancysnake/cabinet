@@ -12,8 +12,7 @@ that is what another worktree standing on it looks like. A fetch that fails
 ends the cast, with every branch after it.
 
 What a cast committed and has not pushed goes up before the branch is left.
-Nothing waits for CI after a push, and nothing merges a branch that is merely
-behind.
+Nothing waits for CI after a push.
 """
 
 from typing import TypeAlias

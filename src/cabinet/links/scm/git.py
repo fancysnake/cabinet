@@ -174,24 +174,19 @@ class GitScm(ScmProtocol):
         )
         return asked.exit_code == 0
 
-    # Asked of the remote's refs, so no checkout moves: `merge-tree` merges
-    # in memory and exits 1 on a conflict, anything else above 0 on a failure.
+    # Asked of the remote's refs, so no checkout moves: `--is-ancestor` exits
+    # 1 where the branch lacks a base commit, anything else above 0 on a
+    # failure.
     @override
-    async def conflicts(self, base: str, branch: str) -> bool:
-        remote = _quoted(self._remote)
-        await _asked(
-            f"git fetch {remote} {_quoted(base)} {_quoted(branch)}",
-            f"could not fetch {base} and {branch}",
-            stream=False,
-        )
+    async def behind(self, base: str, branch: str) -> bool:
         theirs, ours = (_quoted(f"{self._remote}/{ref}") for ref in (base, branch))
-        merged = await shell(
-            f"git merge-tree --write-tree {theirs} {ours} > /dev/null", stream=False
+        asked = await shell(
+            f"git merge-base --is-ancestor {theirs} {ours}", stream=False
         )
-        if merged.exit_code > 1:
-            msg = f"git could not try the merge: {_said(merged)}"
+        if asked.exit_code > 1:
+            msg = f"git could not compare {base} and {branch}: {_said(asked)}"
             raise ScmError(msg)
-        return merged.exit_code == 1
+        return asked.exit_code == 1
 
     @override
     async def merge(self, ref: str) -> Ran:

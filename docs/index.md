@@ -27,7 +27,8 @@ Each is filed under a school of magic, the way a spellbook is.
   its own, or with `--plan-only true` to see what each needs next.
 - **`heal.main`** (Evocation): to fix a red base on a branch and open a pull
   request for it.
-- **`merge`** (Transmutation): to merge the base into a conflicting branch.
+- **`merge`** (Transmutation): to merge the base into a branch that is behind
+  it.
 - **`ci`** (Abjuration): to rerun, fix or cover your branch's red CI jobs.
 - **`answer`** (Enchantment): to work through the review threads on your
   branch with you.

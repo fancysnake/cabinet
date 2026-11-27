@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Changed
+
+- The `heal.*` rituals and `merge` merge the base into every branch that is
+  behind it, not only into a branch that conflicts. The gate runs over the
+  merge and the branch is pushed, so a branch the cast merges holds its base as
+  fetched. `heal.mine` queues a `heal.pr` for every such branch. Git says
+  whether a branch is behind, not the forge.
+
 ### Fixed
 
 - The `heal.*` rituals read every page of a branch's checks. A red check past

@@ -3,8 +3,8 @@
     vekna cast merge [--plan-only true] [--bound N]
 
 ``heal.this`` that works the merge task and no other, the way *Mending* joins
-what was split. Only a conflict makes a merge todo, so a branch that is merely
-behind is left as it is. The steps live in ``cabinet.gates.ritual.vekna.heal``;
+what was split. A branch behind its base has a merge todo, conflict or not.
+The steps live in ``cabinet.gates.ritual.vekna.heal``;
 this module is the ritual itself and the surface vekna sweeps.
 """
 

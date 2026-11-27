@@ -1,7 +1,8 @@
 """The merge task: the base merged in, and the gate made green over it.
 
-Only where the branch conflicts: the base is merged in, an agent resolves the
-conflicts, and the gate is made green before the merge is committed. A branch
+Wherever the branch is behind its base: the base is merged in, an agent
+resolves any conflicts, and the gate is made green before the merge is
+committed. A branch
 the gate will not go green on stands down: the worktree is released and the
 rest of its tasks are worked anyway.
 """
@@ -25,8 +26,8 @@ from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 
 
-# Merge the base in. Only a conflict brings a branch here, so a merge that
-# goes through is the forge's answer gone stale, and still owes the gate.
+# Merge the base in. A merge that goes through still owes the gate: the
+# base's commits have not been run with the branch's.
 @step
 async def merge_base(work: MergeBase) -> Tend | GateCheck | ResolveConflicts:
     scm = services().scm(work.run.project)

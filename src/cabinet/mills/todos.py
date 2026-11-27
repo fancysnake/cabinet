@@ -43,8 +43,7 @@ class Todos(TodosProtocol):
         # theirs to resolve, so it stops counting once the ritual has replied.
         threads = sum(thread.waits(project.bots) for thread in facts.threads)
         due: set[Task] = set()
-        # Only a conflict: a branch behind its base merges fine.
-        if facts.conflicted:
+        if facts.behind:
             due.add("merge")
         if red:
             due.add("ci")

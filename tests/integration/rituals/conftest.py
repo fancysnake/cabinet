@@ -15,3 +15,11 @@ def _no_plain_comments(trial: Trial) -> None:
         stdout="",
         always=True,
     )
+
+
+# A survey asks git whether the branch is behind its base. Here it is not.
+@pytest.fixture
+def holds_base(trial: Trial) -> None:
+    trial.shell.replies(
+        when="git merge-base --is-ancestor origin/main origin/feature*", always=True
+    )
