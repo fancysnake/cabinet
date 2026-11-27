@@ -16,7 +16,7 @@ def _facts(
     labels: list[str] | None = None,
     checks: list[Check] | None = None,
     threads: list[Thread] | None = None,
-    conflicted: bool = False,
+    behind: bool = False,
 ) -> Facts:
     pull = PullRequest(
         number=7,
@@ -31,7 +31,7 @@ def _facts(
         pull=pull,
         board=Board(checks=checks or []),
         threads=threads or [],
-        conflicted=conflicted,
+        behind=behind,
     )
 
 
@@ -46,8 +46,8 @@ def _red(board: Board, project: Project) -> list[str]:
 
 class TestTodos:
     @staticmethod
-    def test_a_conflict_is_a_merge() -> None:
-        assert _todos(_facts(conflicted=True)) == ["merge"]
+    def test_a_branch_behind_its_base_is_a_merge() -> None:
+        assert _todos(_facts(behind=True)) == ["merge"]
 
     @staticmethod
     def test_a_red_configured_job_is_ci() -> None:
@@ -85,7 +85,7 @@ class TestTodos:
             labels=[],
             checks=[Check(name="checks", passed=False, id=1)],
             threads=[Thread(id="1", resolved=False)],
-            conflicted=True,
+            behind=True,
         )
 
         assert _todos(facts) == ["merge", "ci", "review", "answer"]
@@ -99,8 +99,8 @@ class TestTodos:
         assert not _todos(_facts(labels=labels))
 
     @staticmethod
-    def test_a_branch_behind_its_base_is_not_a_merge() -> None:
-        assert "merge" not in _todos(_facts(conflicted=False))
+    def test_a_branch_holding_its_base_is_not_a_merge() -> None:
+        assert "merge" not in _todos(_facts(behind=False))
 
     @staticmethod
     def test_a_resolved_thread_is_not_an_answer() -> None:

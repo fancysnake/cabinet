@@ -17,15 +17,17 @@ the order a cast works it:
 
 | fact                                         | label that removes it | todo     |
 | -------------------------------------------- | --------------------- | -------- |
-| conflicts with its base                      | none                  | `merge`  |
+| behind its base, conflict or not             | none                  | `merge`  |
 | a red check whose job is in `ci.jobs`        | none                  | `ci`     |
 | an open pull request                         | `labels.reviewed`     | `review` |
 | unresolved review threads, whoever wrote them | none                 | `answer` |
 | nothing else to do                           | `labels.qa`           | `guide`  |
 
-Facts make todos; labels only remove them. A branch behind its base but
-without a conflict needs no merge. Where the forge has not worked out whether
-a branch conflicts, git does, in memory, against the remote's refs.
+Facts make todos; labels only remove them. A branch is behind its base when
+the base has a commit the branch has not. Git answers that against the
+remote's refs, which a cast fetches once after it lists the pull requests, and
+again before it works a branch. A branch the cast merges holds its base as
+fetched.
 
 `heal.mine` surveys every open pull request of yours not wearing the wait
 label, oldest-modified first. `heal.pr --number N` takes the open pull request
@@ -145,7 +147,7 @@ it is in `ci.jobs`.
 ## merge
 
 *Transmutation.* `heal.this` with the merge task alone, the way *Mending*
-joins what was split. Only a conflict makes a merge todo:
+joins what was split. A branch behind its base has a merge todo:
 
 1. Merge the base in. A conflict goes to an agent, which stages what it
    resolved; the ritual makes the commit.

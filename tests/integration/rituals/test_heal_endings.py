@@ -72,6 +72,7 @@ _URL = "https://github.com/o/r/pull/7"
 _AHEAD = f'test feature = "$({HERE})" && git rev-list --count origin/feature..HEAD'
 _RELEASE = "if git rev-parse*"
 _UNMERGED = "git diff --name-only --diff-filter=U"
+_BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
 _LABEL = "gh pr edit 7 --add-label pr::thermo"
 _WORKED_ROW = Checked(
     number=7, branch="feature", url=_URL, outcome="worked", unpushed=0
@@ -431,7 +432,7 @@ class TestHandoff:
 def _taken(
     trial: Trial,
     *,
-    mergeable: str,
+    behind: bool,
     checks: str = _GREEN_BOARD,
     labels: tuple[str, ...] = (),
 ) -> None:
@@ -439,10 +440,10 @@ def _taken(
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+    fetches(trial)
     worn = [{"name": label} for label in labels]
-    trial.shell.replies(
-        when=LIST, stdout=listing(row(7, mergeable=mergeable, labels=worn)), always=True
-    )
+    trial.shell.replies(when=LIST, stdout=listing(row(7, labels=worn)), always=True)
+    trial.shell.replies(when=_BEHIND, exit_code=int(behind), always=True)
     trial.shell.replies(when=board(), stdout=checks, always=True)
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
@@ -563,21 +564,20 @@ def _worst_answers(trial: Trial, bound: int) -> None:
 
 
 # What the forge says at each survey of the longest path, one new task each:
-# the review, a conflict once it is reviewed, red jobs, a thread, and the
+# the review, a base that moved once it is reviewed, red jobs, a thread, and the
 # guide once nothing else is left.
 def _worst_surveys(trial: Trial) -> None:
     reviewed = [{"name": "pr::thermo"}]
     surveys = [
-        ("MERGEABLE", [], _GREEN_BOARD),
-        ("CONFLICTING", reviewed, _GREEN_BOARD),
-        ("MERGEABLE", reviewed, _RED_JOBS),
-        ("MERGEABLE", reviewed, _GREEN_BOARD),
-        ("MERGEABLE", reviewed, _GREEN_BOARD),
+        (0, [], _GREEN_BOARD),
+        (1, reviewed, _GREEN_BOARD),
+        (0, reviewed, _RED_JOBS),
+        (0, reviewed, _GREEN_BOARD),
+        (0, reviewed, _GREEN_BOARD),
     ]
-    for mergeable, labels, checks in surveys:
-        trial.shell.replies(
-            when=LIST, stdout=listing(row(7, mergeable=mergeable, labels=labels))
-        )
+    for behind, labels, checks in surveys:
+        trial.shell.replies(when=LIST, stdout=listing(row(7, labels=labels)))
+        trial.shell.replies(when=_BEHIND, exit_code=behind)
         trial.shell.replies(when=board(), stdout=checks)
 
 
@@ -596,7 +596,7 @@ class TestWholeCast:
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_pr_merges_pushes_and_reviews(trial: Trial) -> None:
-        _taken(trial, mergeable="CONFLICTING")
+        _taken(trial, behind=True)
         _conflicted(trial)
         trial.shell.replies(when="CI=1 mise run pr-fix")
         trial.shell.replies(when=_RELEASE, always=True)
@@ -644,20 +644,17 @@ class TestWholeCast:
 
     # Nothing this cast works: surveyed, said, and never checked out.
     @staticmethod
-    @pytest.mark.usefixtures("here")
+    @pytest.mark.usefixtures("here", "holds_base")
     def test_a_branch_with_nothing_to_work_is_not_taken(trial: Trial) -> None:
         trial.shell.replies(
             when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
         )
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
+        fetches(trial)
         trial.shell.replies(
             when=LIST,
             stdout=listing(
-                row(
-                    7,
-                    mergeable="MERGEABLE",
-                    labels=[{"name": "pr::thermo"}, {"name": "v:guide:done"}],
-                )
+                row(7, labels=[{"name": "pr::thermo"}, {"name": "v:guide:done"}])
             ),
         )
         trial.shell.replies(when=board(), stdout=_GREEN_BOARD)
@@ -688,7 +685,7 @@ class TestWholeCast:
         )
         _worst_answers(trial, bound)
         _worst_surveys(trial)
-        _taken(trial, mergeable="MERGEABLE", labels=("pr::thermo", "v:guide:done"))
+        _taken(trial, behind=False, labels=("pr::thermo", "v:guide:done"))
         trial.shell.replies(when="git merge-base*", exit_code=1)
         trial.shell.replies(when="git merge --no-edit origin/main", exit_code=1)
         for _ in range(bound):
@@ -783,12 +780,13 @@ class TestWholeCast:
             when="git remote get-url origin", stdout="https://gitlab.example/o/r.git\n"
         )
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!glab auth\n")
+        fetches(trial)
         trial.shell.replies(when="glab api 'projects/:id/merge_requests?*", stdout="[]")
 
         result = trial.cast(heal_mine, Heal())
 
         assert result == Handed()
-        assert trial.shell.commands[-1].startswith("glab api")
+        assert any(ran.startswith("glab api") for ran in trial.shell.commands)
         assert trial.steps == ["muster_mine", "summon", "handoff"]
 
 
@@ -797,7 +795,7 @@ class TestTaskRituals:
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_merge_works_the_merge_and_leaves_the_review(trial: Trial) -> None:
-        _taken(trial, mergeable="CONFLICTING")
+        _taken(trial, behind=True)
         trial.shell.replies(when=HERE, stdout="feature\n")
         _conflicted(trial)
         trial.shell.replies(when="CI=1 mise run pr-fix")
@@ -831,7 +829,7 @@ class TestTaskRituals:
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_review_reviews_and_leaves_the_conflict(trial: Trial) -> None:
-        _taken(trial, mergeable="CONFLICTING")
+        _taken(trial, behind=True)
         trial.shell.replies(when=HERE, stdout="feature\n")
         _reviewed(trial)
 
@@ -856,7 +854,7 @@ class TestTaskRituals:
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_guide_posts_the_guide_once_nothing_else_is_left(trial: Trial) -> None:
-        _taken(trial, mergeable="MERGEABLE", labels=("pr::thermo",))
+        _taken(trial, behind=False, labels=("pr::thermo",))
         trial.shell.replies(when=HERE, stdout="feature\n")
         trial.coding.replies(Guide(body="click it"), when="Write the manual smoke*")
         trial.shell.replies(when="gh api user*", stdout="me\n")
@@ -886,7 +884,7 @@ class TestTaskRituals:
     @staticmethod
     @pytest.mark.usefixtures("here")
     def test_guide_leaves_a_branch_with_anything_else_to_do(trial: Trial) -> None:
-        _taken(trial, mergeable="MERGEABLE")
+        _taken(trial, behind=False)
         trial.shell.replies(when=HERE, stdout="feature\n")
 
         result = trial.cast(guide, Heal())
@@ -901,7 +899,7 @@ class TestTaskRituals:
         red = {"id": 9, "name": "checks", "conclusion": "failure"}
         _taken(
             trial,
-            mergeable="CONFLICTING",
+            behind=True,
             checks=json.dumps([{"total_count": 1, "check_runs": [red]}]),
         )
         trial.shell.replies(when=HERE, stdout="feature\n")

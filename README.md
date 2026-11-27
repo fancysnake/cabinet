@@ -32,7 +32,7 @@ Grouped by school, the way a spellbook is.
 ### Transmutation
 
 - **`merge`**: `heal.this` with the merge task alone. Where your branch
-  conflicts with its base, it merges the base in, has an agent resolve the
+  is behind its base, it merges the base in, has an agent resolve any
   conflicts, makes the gate green, and pushes. Like *Mending*: what was split
   is joined.
 

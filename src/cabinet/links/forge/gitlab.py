@@ -31,8 +31,6 @@ _PULL_PAGES = PULL_LIMIT // _PAGE
 _PASSED = "success"
 # Still on its way, as opposed to finished badly.
 _PENDING = ("pending", "running", "created", "waiting_for_resource", "preparing")
-# Mergeability not worked out yet.
-_CHECKING = ("unchecked", "checking", "preparing", "approvals_syncing")
 
 
 class _Author(BaseModel):
@@ -54,8 +52,6 @@ class _MergeRequest(BaseModel):
     target_branch: str
     updated_at: str
     labels: list[str] = []
-    detailed_merge_status: str = ""
-    has_conflicts: bool | None = None
 
 
 class _DiffRefs(BaseModel):
@@ -189,15 +185,6 @@ async def _pages(
     return listed
 
 
-# `has_conflicts` is stale while GitLab is still working the answer out.
-def _conflicted(found: _MergeRequest) -> bool | None:
-    if found.detailed_merge_status == "conflict":
-        return True
-    if found.detailed_merge_status in _CHECKING:
-        return None
-    return found.has_conflicts
-
-
 def _pull(found: _MergeRequest) -> PullRequest:
     return PullRequest(
         number=found.iid,
@@ -207,7 +194,6 @@ def _pull(found: _MergeRequest) -> PullRequest:
         base=found.target_branch,
         updated_at=found.updated_at,
         labels=found.labels,
-        conflicted=_conflicted(found),
     )
 
 
