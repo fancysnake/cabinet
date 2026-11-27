@@ -43,6 +43,8 @@ from cabinet.pacts.project import CiJob, Project
 from cabinet.pacts.scm import ScmError
 from cabinet.pacts.services import services
 from cabinet.pacts.threads import (
+    POSTS,
+    TAKES,
     Answer,
     Answered,
     Finding,
@@ -234,10 +236,12 @@ async def ask_triage(triage: AskTriage) -> AnswerThreads:
     report = services().report
     told: list[Told] = []
     for item, card in report.cards(work.pr, triage.items, triage.threads):
-        # Free text and not a choice: an item is answered by saying how the
-        # thing is supposed to work, which no four options carry. A return or
-        # `ok` agrees with the reading's own proposal.
-        said = await decide(report.asked(card), free=True)
+        # Suggestions and not a closed choice: an item is answered by saying
+        # how the thing is supposed to work, which no four options carry. A
+        # return or `ok` agrees with the reading's own proposal.
+        said = await decide(
+            report.asked(card), options=tuple(TAKES), free=True, reactions=TAKES
+        )
         told.append(
             Told(
                 thread=item.thread,
@@ -322,7 +326,8 @@ async def approve_replies(
     again: list[Answer] = []
     for draft in (draft for draft in drafted.drafts if draft.thread in threads):
         card = report.drafted(work.pr, threads[draft.thread], draft, last=last)
-        if report.agreed(said := await decide(card, free=True)):
+        said = await decide(card, options=tuple(POSTS), free=True, reactions=POSTS)
+        if report.agreed(said):
             taken.append(draft)
         elif last:
             emit_delta(
@@ -348,8 +353,10 @@ async def approve_replies(
 
 # An issue is opened before the reply that names it, and a thread is settled
 # after the reply that answers it; both carry a mark `settle_left` reads back
-# when the forge fails between them. A thread the agent invented is said and
-# skipped; a thread it left unanswered stays open, and the next round reads it
+# when the forge fails between them. A label the forge refuses is said and the
+# reply still goes up: the mark would find the issue again and never its
+# labels. A thread the agent invented is said and skipped; a thread it left
+# unanswered stays open, and the next round reads it
 # again. Answers with how many threads were settled.
 async def _posted(answering: PostAnswers) -> int:
     work = answering.work
@@ -366,6 +373,11 @@ async def _posted(answering: PostAnswers) -> int:
         if item.issue is not None:
             body = f"{item.issue.body}\n\n{filed_for(item.thread)}"
             opened = await forge.issue(item.issue.title, body)
+            wanted = [item.issue.kind, item.issue.size]
+            try:
+                await forge.label_issue(opened.number, add=wanted)
+            except ForgeError as error:
+                emit_delta(f"#{opened.number} was opened without its labels: {error}")
             reply = f"{reply}\n\n{_filed(opened.url)}"
         await _settled(project, number, threads[item.thread], reply)
         settled += 1

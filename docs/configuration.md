@@ -10,8 +10,7 @@ three places.
 
 Every key has the default shown; a missing `[cabinet]` table means all of
 them. A ritual checks the keys it reads when it is cast, and a refused value
-names the tables that set `[cabinet]`. The heal rituals read every key but
-`identify_skill`; `identify` reads `forge`, `identify_skill` and
+names the tables that set `[cabinet]`. The heal rituals read every key; `identify` reads `forge`, `identify_skill` and
 `[cabinet.agent]`; the label rituals read `forge` and `[cabinet.labels]`. A
 key that is not one of these is refused by every ritual before anything is
 checked out, so a misspelled key dies at the boundary. The values are not
@@ -80,7 +79,7 @@ escalated = "opus"                    # where a big or retried fix goes
 | `sign_commits`  | `false` commits with `commit.gpgsign=false`, for casts nobody can unlock a key for |
 | `review_skill`  | the skill file the review task reviews with; see [the review skill](#the-review-skill) |
 | `review_title`  | the heading its review comments open with                                   |
-| `identify_skill`  | the skill file `identify` has its agent read; see [the issues skill](#the-issues-skill) |
+| `identify_skill`  | the skill file the agents of `identify` and `answer` read; see [the issues skill](#the-issues-skill) |
 | `smoke_skill`   | the skill file the guide task writes its smoke test with; see [the smoke-test skill](#the-smoke-test-skill) |
 | `bots`          | more logins whose review threads `answer` resolves after it replies; see [answer](rituals.md#answer). `answer` already resolves your threads and, on GitHub, the threads an app such as CodeRabbit opened. GitLab does not say which accounts are bots, so name each one here |
 | `approve_replies` | `true` puts each drafted reply to you before `answer` posts it: press return or answer `ok` to post, or say what to change and the agent redrafts it, up to `--bound` times |
@@ -153,8 +152,9 @@ heading its comments should open with.
 
 ## The issues skill
 
-`identify` has its agent read the `issues` skill, which lives in this
-repository's [plugins](plugins.md). Put a copy where `identify_skill` points
+`identify` has its agent read the `issues` skill, and so does `answer` before
+it writes an issue to file. The skill lives in this repository's
+[plugins](plugins.md). Put a copy where `identify_skill` points
 before the first cast:
 
 ```bash

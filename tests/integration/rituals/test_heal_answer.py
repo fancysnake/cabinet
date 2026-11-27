@@ -118,6 +118,11 @@ _THREAD = Thread(
 )
 
 _ITEM_URL = "https://github.com/o/r/pull/7#issuecomment-12"
+_FILING = Answer(
+    thread="PRRT_1",
+    reply="filed",
+    issue=IssueDraft(title="guard", body="x", kind="bug", size="S"),
+)
 # A review item posted as a plain comment, which the forge cannot resolve.
 _PLAIN = Thread(
     id=_ITEM_URL,
@@ -592,6 +597,26 @@ class TestAskTriage:
             in transition.prompt.text
         )
 
+    # A tap on Discord gives the suggested answer its emoji stands for.
+    @staticmethod
+    def test_each_suggested_answer_has_a_reaction(trial: Trial, work: Work) -> None:
+        trial.decide.answers(answer="fix now")
+        triage = AskTriage(work=work, items=[_ITEM], threads=[_THREAD], unsettled=1)
+
+        transition = trial.walk(ask_triage, triage)
+
+        assert isinstance(transition, AnswerThreads)
+        assert "what I want: fix now" in transition.prompt.text
+        (asked,) = trial.decide.asked
+        assert asked.free
+        assert asked.options == ("ok", "fix now", "file", "reject")
+        assert asked.reactions == {
+            "ok": "👍",
+            "fix now": "🔧",
+            "file": "📌",
+            "reject": "❌",
+        }
+
 
 class TestAnswerThreads:
     @staticmethod
@@ -694,9 +719,12 @@ class TestApproveReplies:
             work, draft
         )
         assert (
-            "\n\nguarded\n\nPress return or answer ok to post it"
-            in trial.decide.prompts[0]
+            "\n\nguarded\n\nok posts it, and so does a return." in trial.decide.prompts[
+                0
+            ]
         )
+        assert trial.decide.asked[0].options == ("ok",)
+        assert trial.decide.asked[0].reactions == {"ok": "👍"}
         assert not trial.coding.prompts
 
     # Discord sends no empty reply, so a word takes the draft too.
@@ -852,20 +880,45 @@ class TestPostAnswers:
             when="gh api repos/{owner}/{repo}/issues -X POST*",
             stdout='{"number": 9, "html_url": "https://github.com/o/r/issues/9"}',
         )
+        trial.shell.replies(when="gh issue edit 9 *")
         trial.shell.replies(when="gh api repos/*")
         trial.shell.replies(when=_RESOLVE)
-        filing = Answer(
-            thread="PRRT_1", reply="filed", issue=IssueDraft(title="guard", body="x")
-        )
 
-        trial.walk(post_answers, _answering(_written(work), filing))
+        trial.walk(post_answers, _answering(_written(work), _FILING))
 
         assert trial.shell.commands[0] == (
             "gh api repos/{owner}/{repo}/issues -X POST -f title=guard"
             f" -f body='x\n\n{filed_for('PRRT_1')}'"
         )
+        assert (
+            trial.shell.commands[1] == "gh issue edit 9 --add-label bug --add-label S"
+        )
         body = signed("filed\n\nFiled as https://github.com/o/r/issues/9")
-        assert trial.shell.commands[1].endswith(f"-f body='{body}'")
+        assert trial.shell.commands[2].endswith(f"-f body='{body}'")
+        assert trial.deltas == []
+
+    # The issue is open either way, and the reply naming it is what stops a
+    # second one being filed for the thread.
+    @staticmethod
+    def test_a_refused_label_is_said_and_the_reply_still_posted(
+        trial: Trial, work: Work
+    ) -> None:
+        trial.shell.replies(
+            when="gh api repos/{owner}/{repo}/issues -X POST*",
+            stdout='{"number": 9, "html_url": "https://github.com/o/r/issues/9"}',
+        )
+        trial.shell.replies(
+            when="gh issue edit 9 *", exit_code=1, stderr="'bug' not found"
+        )
+        trial.shell.replies(when="gh api repos/*")
+        trial.shell.replies(when=_RESOLVE)
+        written = _written(work)
+
+        assert trial.walk(post_answers, _answering(written, _FILING)) == written.to(
+            ReadThreads
+        )
+        (said,) = trial.deltas
+        assert said.startswith("#9 was opened without its labels: could not label #9")
 
     # Nothing settled, so another round would read the same thread back.
     @staticmethod

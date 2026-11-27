@@ -22,7 +22,8 @@ it gets, when it becomes an epic, and how issues are linked. Knowledge only:
 it triggers on "make an issue for this", "put that in the backlog", any ask to
 file, open, raise or write an issue or ticket, and any ask to refine, type,
 size, split or link the backlog. The [`identify`](rituals.md#identify) ritual has
-its agent read it too, from `identify_skill`.
+its agent read it too, from `identify_skill`, and the answer task does the
+same for an issue it files from a review thread.
 
 1. **Types**: `feature` for something a user can see, `edit` for a refactor
    with no feature change, `chore` for docs, CI, tooling and tests, `bug`

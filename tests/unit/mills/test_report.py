@@ -9,6 +9,7 @@ from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.pacts.threads import (
     ITEM,
+    TAKES,
     Answer,
     Comment,
     Finding,
@@ -270,9 +271,8 @@ class TestTriage:
     def test_the_question_names_the_answers_it_takes() -> None:
         asked = _REPORT.asked("the card")
 
-        assert asked.startswith("the card\n\nPress return")
-        assert "answer fix, reject\nor file" in asked
-        assert asked.endswith("\n->")
+        assert asked.startswith("the card\n\nok takes the action above")
+        assert all(answer in asked for answer in TAKES)
 
 
 class TestAgreed:
@@ -296,13 +296,15 @@ class TestDrafted:
         assert _REPORT.drafted(_PULL, thread, answer, last=False) == (
             f"#{_PULL.number} {_PULL.title} — reply to reviewer — src/thing.py:12\n\n"
             "Guarded.\n\nThe loop stops first.\n\n"
-            "Press return or answer ok to post it, or say what to change.\n->"
+            "ok posts it, and so does a return. Or say what to change."
         )
 
     @staticmethod
     def test_an_issue_to_file_is_named_above_the_reply() -> None:
         filing = Answer(
-            thread="T1", reply="Filed.", issue=IssueDraft(title="Guard it", body="x")
+            thread="T1",
+            reply="Filed.",
+            issue=IssueDraft(title="Guard it", body="x", kind="bug", size="S"),
         )
 
         drafted = _REPORT.drafted(_PULL, _THREAD, filing, last=False)
@@ -317,7 +319,6 @@ class TestDrafted:
 
         assert "No redrafts are left at this --bound" in drafted
         assert "say what to change" not in drafted
-        assert drafted.endswith("\n->")
 
     @staticmethod
     def test_a_thread_nobody_wrote_on_is_the_reviews() -> None:

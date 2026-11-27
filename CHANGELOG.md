@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+### Added
+
+- `answer` takes a reaction on Discord, from vekna 3.2.0. A triage card
+  suggests `ok` 👍, `fix now` 🔧, `file` 📌 and `reject` ❌, and a drafted reply
+  suggests `ok` 👍. A terminal lists the same answers under the question. Any
+  other text is still an answer in your own words.
+
+### Changed
+
+- **Breaking:** cabinet needs vekna 3.2.0 or later.
+- The heal rituals now read `identify_skill`, and refuse a value there that
+  is no text.
+
 ### Fixed
+
+- An issue that `answer` files from a review thread is written as the skill at
+  `identify_skill` says, and gets its type and size labels. It was opened with
+  a free-form body and no labels.
 
 - The `heal.*` rituals read every page of a branch's checks. A red check past
   the first hundred no longer goes unseen, so `heal.main` and the survey stop

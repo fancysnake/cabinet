@@ -130,8 +130,11 @@ forge yourself.
 
 - fix — make the change, and say in `reply` what changed.
 - reject — say in `reply` why it will not be done.
-- file — put a title and a body for the issue in `issue`, and say in `reply`
-  that it has been filed; the ritual appends the link.
+- file — write the issue as the skill at {issues} says: read it and follow it.
+  Put the issue in `issue`: its `title`, its `body`, and the type and the size
+  the skill gives it in `kind` and `size`. Say in `reply` that it has been
+  filed. The ritual opens the issue, puts the two labels on and appends the
+  link.
 
 A `reply` is read by whoever wrote the comment, not by me, and they saw none of
 this: not the triage, not my line, not your shell. Write it to them. Say what
@@ -375,7 +378,7 @@ class Prompts(PromptsProtocol):
         return _prompt(
             f"Below is a triage of pull request #{number}'s open review threads, one"
             " item per thread, each with what I want done about it.\n\n"
-            f"{_FENCE}\n{_TRIAGE_WORK}\n"
+            f"{_FENCE}\n{_TRIAGE_WORK.format(issues=project.identify_skill)}\n"
             f"{_may_not_run(project, _GATE_NEXT)}\nThe triage:\n\n",
             shown,
         )
