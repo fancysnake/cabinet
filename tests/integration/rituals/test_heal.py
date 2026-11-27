@@ -52,7 +52,6 @@ from tests.conftest import (
     THREADS,
     board,
     comment,
-    fetches,
     listing,
     node,
     page,
@@ -78,10 +77,9 @@ _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _OPEN = threads_page(page([node("PRRT_1", page([comment(101)]))]))
 _NONE = threads_page(page([]))
 _BEHIND = "git merge-base --is-ancestor origin/main origin/feature"
-# The preflight's two, the listing, the fetch with its base look and
-# fast-forward, the board, the threads, the
+# The preflight's two, the listing, the fetch, the board, the threads, the
 # plain comments with the login they are read by, and the ancestor question.
-_READS = 11
+_READS = 9
 _FETCH = "git fetch --prune origin"
 # A branch behind its base with red checks and no threads, as `summon` reads it.
 _QUEUED = Surveyed(
@@ -117,7 +115,8 @@ def _preflight(trial: Trial) -> None:
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
-    fetches(trial)
+    # No reply for the base fast-forward: a muster that runs it fails the test.
+    trial.shell.replies(when=_FETCH)
 
 
 # Unattended, so open threads are said rather than taken.

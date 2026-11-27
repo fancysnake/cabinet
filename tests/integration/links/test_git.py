@@ -219,9 +219,17 @@ class TestMoving:
     def test_fetch_checks_nothing_out(trial: Trial) -> None:
         fetches(trial)
 
-        drive(trial, _SCM.fetch)
+        drive(trial, lambda: _SCM.fetch(forward=True))
 
         assert trial.shell.commands == list(FETCH)
+
+    @staticmethod
+    def test_a_fetch_leaves_the_local_base_alone(trial: Trial) -> None:
+        trial.shell.replies(when="git fetch --prune*")
+
+        drive(trial, _SCM.fetch)
+
+        assert trial.shell.commands == [FETCH[0]]
 
     @staticmethod
     def test_a_fast_forward_git_refuses_is_no_failure(trial: Trial) -> None:
@@ -229,7 +237,7 @@ class TestMoving:
         trial.shell.replies(when="git rev-parse*")
         trial.shell.replies(when="git fetch --show*", exit_code=128, stderr="refusing")
 
-        drive(trial, _SCM.fetch)
+        drive(trial, lambda: _SCM.fetch(forward=True))
 
         assert trial.shell.commands == list(FETCH)
 
@@ -382,6 +390,10 @@ def _log(repo: Path, ref: str = "HEAD") -> list[str]:
     return _git(repo, "log", "--format=%s", ref).splitlines()
 
 
+def _forwarding() -> Awaitable[None]:
+    return _SCM.fetch(forward=True)
+
+
 # What git makes of the fetch command only shows when git runs it: `work` is
 # a clone standing on `feature`, one commit behind the remote's `main`.
 class TestFetchInBash:
@@ -397,7 +409,7 @@ class TestFetchInBash:
 
     @staticmethod
     def test_the_local_base_is_fast_forwarded(trial: Trial, work: Path) -> None:
-        remote, _, forward = _in_bash(trial, work, _SCM.fetch)
+        remote, _, forward = _in_bash(trial, work, _forwarding)
 
         assert not remote.returncode
         assert not forward.returncode
@@ -408,7 +420,7 @@ class TestFetchInBash:
     def test_a_base_some_worktree_stands_on_is_left(trial: Trial, work: Path) -> None:
         _git(work, "worktree", "add", "-q", "../standing", "main")
 
-        remote, _, forward = _in_bash(trial, work, _SCM.fetch)
+        remote, _, forward = _in_bash(trial, work, _forwarding)
 
         assert not remote.returncode
         assert forward.returncode
@@ -420,7 +432,7 @@ class TestFetchInBash:
         _git(work, "commit", "-q", "--allow-empty", "-m", "mine")
         _git(work, "branch", "-f", "main", "feature")
 
-        remote, _, forward = _in_bash(trial, work, _SCM.fetch)
+        remote, _, forward = _in_bash(trial, work, _forwarding)
 
         assert not remote.returncode
         assert forward.returncode
@@ -431,7 +443,7 @@ class TestFetchInBash:
         _git(work, "branch", "-D", "main")
         trial.shell.replies(when="git rev-parse*", exit_code=1)
 
-        remote, look = _in_bash(trial, work, _SCM.fetch)
+        remote, look = _in_bash(trial, work, _forwarding)
 
         assert not remote.returncode
         assert look.returncode

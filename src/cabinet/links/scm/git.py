@@ -151,11 +151,13 @@ class GitScm(ScmProtocol):
         return ran.stdout.strip() != "0"
 
     @override
-    async def fetch(self) -> None:
+    async def fetch(self, *, forward: bool = False) -> None:
         await _asked(
             f"git fetch --prune {_quoted(self._remote)}",
             f"could not fetch {self._remote}",
         )
+        if not forward:
+            return
         local = f"refs/heads/{self._base}"
         exists = await shell(
             f"git rev-parse --verify --quiet {_quoted(local)}", stream=False

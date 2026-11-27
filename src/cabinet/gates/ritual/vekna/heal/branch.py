@@ -70,7 +70,7 @@ async def sync_branch(work: SyncBranch) -> Chart | SetAside | Tend:
     scm = services().scm(work.run.project)
     pull = work.pr
     try:
-        await scm.fetch()
+        await scm.fetch(forward=True)
     except ScmError as error:
         return work.abandoned(str(error)).to(Chart)
     try:

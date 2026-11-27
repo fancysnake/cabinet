@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning].
 
 ### Changed
 
-- The `heal.*` rituals fast-forward your local base branch after each fetch,
-  with no checkout. A base that a worktree stands on, or that has commits of
-  its own, is left as it is.
+- The `heal.*` rituals fast-forward your local base branch, with no checkout,
+  when they take a branch or `heal.main` cuts its fix branch. A base that a
+  worktree stands on, or that has commits of its own, is left as it is. A
+  survey, and so a `--plan-only` cast, does not move it.
 
 - The `heal.*` rituals and `merge` merge the base into every branch that is
   behind it, not only into a branch that conflicts. The gate runs over the
