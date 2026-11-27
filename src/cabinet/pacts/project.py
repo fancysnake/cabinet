@@ -184,8 +184,9 @@ class Project(BaseModel):
     sign_commits: bool = True
     review_skill: str = "~/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
     review_title: str = "Thermo-nuclear code quality review"
-    # The skill file `identify` has the agent read once, at the top of its
-    # session: what the types and sizes mean and how issues are linked.
+    # The skill file on how issues are written, typed and sized. `identify`
+    # has its agent read it once, at the top of its session, and `answer` has
+    # its agent read it before it writes an issue to file.
     identify_skill: str = "~/.claude/skills/issues/SKILL.md"
     # The skill file the guide task has its agent follow: the manual check a
     # person runs before the branch merges.
@@ -235,7 +236,7 @@ class Project(BaseModel):
 # The top-level keys each ritual reads, and so the ones checked at its cast.
 # The heal rituals share one graph, and one set.
 KEYS = frozenset(Project.model_fields)
-HEAL_NEEDS = KEYS - {"identify_skill"}
+HEAL_NEEDS = KEYS
 IDENTIFY_NEEDS = frozenset({"forge", "identify_skill", "agent"})
 LABELS_NEEDS = frozenset({"forge", "labels"})
 FORGE_NEEDS = frozenset({"forge"})

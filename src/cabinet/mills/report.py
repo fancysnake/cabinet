@@ -16,7 +16,7 @@ from cabinet.pacts.issues import (
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import PullRequest
 from cabinet.pacts.services import ReportProtocol
-from cabinet.pacts.threads import ITEM, Answer, Finding, Thread, TriageItem
+from cabinet.pacts.threads import ITEM, OK, Answer, Finding, Thread, TriageItem
 from cabinet.specs import CARD_WIDTH
 
 _WAITING = "waiting for you, cast without --unattended:"
@@ -62,19 +62,21 @@ def _priority(item: TriageItem) -> str:
     return item.priority
 
 
-# The answers the three questions below announce as agreeing: a return, or `ok`
-# where no empty answer can be sent, as from Discord.
-_AGREEING = frozenset({"", "ok"})
+# The answers the three questions below announce as agreeing: a return, or
+# `ok` where no empty answer can be sent, as from Discord. The questions name
+# no key or emoji: the menu under them does, in the words of the place asking.
+_AGREEING = frozenset({"", OK})
 
 _TAKES = (
-    "Press return or answer ok to take the action above, or answer fix, reject\n"
-    "or file, or say in your own words what should happen.\n->"
+    "ok takes the action above, and so does a return. fix now makes the change\n"
+    "on this branch, file opens an issue for later, and reject closes the thread\n"
+    "with the reason. Or say in your own words what should happen."
 )
 
-_POSTS = "Press return or answer ok to post it, or say what to change.\n->"
+_POSTS = "ok posts it, and so does a return. Or say what to change."
 _LAST = (
-    "Press return or answer ok to post it. No redrafts are left at this --bound:\n"
-    "anything else leaves the thread open without a reply.\n->"
+    "ok posts it, and so does a return. No redrafts are left at this --bound:\n"
+    "anything else leaves the thread open without a reply."
 )
 
 # Estimate is the longest of the six labels, which spell TRIAGE.

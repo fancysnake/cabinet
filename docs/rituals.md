@@ -68,7 +68,9 @@ vekna prints each one's rows and prompts as they come, and the command exits
 `1` where one of them failed. A queued cast with no terminal following it
 asks in the `vekna` window, and on Discord where vekna 3.1.0 or later has a
 `[discord]` table. Discord sends no empty reply, so answer `ok` there where a
-terminal takes the return key. With no daemon running, `heal.mine` prints its
+terminal takes the return key. From vekna 3.2.0, each answer a question
+suggests has a reaction under it on Discord, and a tap on one gives that
+answer. With no daemon running, `heal.mine` prints its
 survey and fails: start one with `vekna`. If the daemon goes away after some
 casts were queued, the report names those and `heal.mine` fails.
 [Configuration](configuration.md#worktrees)
@@ -215,8 +217,15 @@ Attended, the task goes round in batches of `--batch` open threads:
    triage: one item per thread, with a priority (p1 to p4) and what it would
    do (fix, reject or file).
 3. **Decide.** Each item is put to you as one card, the most urgent first.
-   Press return or answer `ok` to take the reading's proposal, or answer in
-   your own words.
+   The question suggests four answers, and takes any other text as what
+   should happen, in your own words:
+
+    | answer    | Discord | what happens                                         |
+    | --------- | ------- | ---------------------------------------------------- |
+    | `ok`      | 👍      | the reading's proposal; a return key does the same   |
+    | `fix now` | 🔧      | the change is made on this branch, whatever was proposed |
+    | `file`    | 📌      | an issue is opened for later, and nothing is fixed now |
+    | `reject`  | ❌      | nothing is done, and the thread is told why          |
 
     ```text
     #58 Add the export page — thread 1 of 3
@@ -238,14 +247,18 @@ Attended, the task goes round in batches of `--batch` open threads:
     code, or did neither. The card wraps its rows at 80 columns.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item, written for the comment's author: it leaves out what you said
-   at the triage and what the agent could not run or verify.
+   at the triage and what the agent could not run or verify. It writes each
+   issue to file as the skill at `identify_skill` says, with a type and a
+   size.
 5. **Approve.** Only with `approve_replies = true`. Each drafted reply is put
-   to you as it would be posted. Press return or answer `ok` to post it, or
-   say what to change: the agent redrafts it and you are asked again, up to
+   to you as it would be posted. Press return, answer `ok` or tap 👍 to post
+   it, or say what to change: the agent redrafts it and you are asked again, up to
    `--bound` times. The last asking says that no redraft is left. A reply you still do
    not take then is not posted, and its thread stays open.
-6. **Post.** The ritual opens the issues you said to file, posts the replies
-   and resolves the threads that are its to resolve.
+6. **Post.** The ritual opens the issues you said to file and puts the type
+   and size labels on them, posts the replies and resolves the threads that
+   are its to resolve. A label the forge refuses is named on your terminal,
+   and the issue stays open without it: `labels.identify` makes the labels.
 
 Then the next batch is read, up to three rounds a cast; what is still open
 after that waits for the next one. What the answers changed goes through the

@@ -6,7 +6,13 @@ import pytest
 from vekna.lexicon import RitualDefinitionError
 
 from cabinet.links.config.vekna_toml import read_project
-from cabinet.pacts.project import HEAL_NEEDS, IDENTIFY_NEEDS, ConfigError, Project
+from cabinet.pacts.project import (
+    HEAL_NEEDS,
+    IDENTIFY_NEEDS,
+    LABELS_NEEDS,
+    ConfigError,
+    Project,
+)
 
 _SECTION = """\
 [rituals]
@@ -102,7 +108,7 @@ class TestReadProject:
     def test_a_value_only_another_ritual_reads_is_not_checked(here: Path) -> None:
         (here / ".vekna.toml").write_text("[cabinet]\nidentify_skill = 7\n")
 
-        assert read_project(HEAL_NEEDS) == Project()
+        assert read_project(LABELS_NEEDS) == Project()
         with pytest.raises(ConfigError, match="identify_skill"):
             read_project(IDENTIFY_NEEDS)
 

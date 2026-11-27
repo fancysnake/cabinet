@@ -192,6 +192,15 @@ class TestTriageWork:
         assert "what I want: guard the empty case" in prompt
         assert "do not reach the\nforge yourself" in prompt
 
+    # An issue filed from a thread is written by the rules every issue is.
+    @staticmethod
+    def test_an_issue_to_file_is_written_as_the_issues_skill_says() -> None:
+        project = _PLAIN.model_copy(update={"identify_skill": "skills/issues.md"})
+
+        prompt = _PROMPTS.triage_work(project, 7, [_told("file")]).text
+
+        assert "write the issue as the skill at skills/issues.md says" in prompt
+
     # The prompt promises markers, so it has to emit them: the reading of a
     # thread goes inside, and the answer that is an instruction stays out.
     @staticmethod
@@ -247,7 +256,9 @@ class TestRedraft:
     @staticmethod
     def test_an_issue_still_to_file_is_named_inside_the_fence() -> None:
         filing = Answer(
-            thread="T1", reply="Filed.", issue=IssueDraft(title="Guard it", body="x")
+            thread="T1",
+            reply="Filed.",
+            issue=IssueDraft(title="Guard it", body="x", kind="bug", size="S"),
         )
 
         prompt = _PROMPTS.redraft(_PLAIN, filing, "shorter").text

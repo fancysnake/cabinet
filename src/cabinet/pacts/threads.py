@@ -1,11 +1,11 @@
 """Review threads as the forge holds them, and what the agents make of them."""
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Final, Literal
 
 from pydantic import BaseModel
 
-from cabinet.pacts.issues import Issue
+from cabinet.pacts.issues import Issue, Part
 
 
 class Comment(BaseModel):
@@ -172,9 +172,17 @@ class Told(BaseModel):
     said: str
 
 
-class IssueDraft(BaseModel):
-    title: str
-    body: str
+# The answers the two questions suggest, each with the emoji that gives it on
+# Discord. Suggestions: any other text is an answer too.
+OK: Final = "ok"
+TAKES: Final = {OK: "👍", "fix now": "🔧", "file": "📌", "reject": "❌"}
+POSTS: Final = {OK: "👍"}
+
+
+# The issue a filed thread becomes. Typed and sized as a part of an epic is, so
+# it is not opened without its labels.
+class IssueDraft(Part):
+    pass
 
 
 # One answered thread: what to say under it, and the issue to open first where

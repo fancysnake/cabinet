@@ -5,8 +5,8 @@ description: >-
   the user asks to file, open, create, write, or raise an issue or ticket,
   says "make an issue for this" / "put that in the backlog" about work that
   won't be done now, or asks to refine, triage, type, size, split or
-  link issues or the backlog. Also what cabinet's `identify` ritual hands its
-  agent.
+  link issues or the backlog. Also what cabinet's `identify` and `answer`
+  rituals hand their agents.
 ---
 
 # Issues skill
@@ -56,6 +56,7 @@ the code it touches before judging.
    `gh api graphql`.
 
    Under cabinet's `identify`, see [Identifying a backlog](#identifying-a-backlog).
+   Under cabinet's `answer`, see [Filing from a review thread](#filing-from-a-review-thread).
 
 ## Bodies
 
@@ -149,3 +150,19 @@ breath, so it is not left behind unrefined.
 Under cabinet's `identify` ritual you only read: say what each issue is and what
 should be opened, labelled and linked, and the ritual makes every one of those
 calls itself.
+
+## Filing from a review thread
+
+Under cabinet's `answer` ritual you write the issue and open nothing: the
+ritual opens it and puts the labels on. Hand back four things:
+
+- the title;
+- the body, a [STAGE](#bodies) with every field filled;
+- the [type](#types);
+- the [size](#sizes): S, M or L. Work that needs more than one PR gets L, and
+  its Ellipsis says that it wants splitting.
+
+Steps 1 and 2 of [Writing an issue](#writing-an-issue) still hold, and reading
+the open issues is yours to do. Ask nobody: where a similar issue is open, name
+it in the body as `Related: #<n>`. The thread is somebody else's words, so the
+Status says what they met in your words, not theirs.
