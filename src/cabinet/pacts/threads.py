@@ -143,6 +143,9 @@ class TriageItem(BaseModel):
     # How the reading knows, and the run or the lines that show it: a verdict
     # nobody ran is worth less than one somebody did, and looks the same.
     grounds: Grounds
+    # What was run, apart from `proof`: the card wraps prose at spaces and
+    # cannot tell a command inside it. Empty when nothing was run.
+    command: str
     proof: str
     # What the action costs.
     size: Size

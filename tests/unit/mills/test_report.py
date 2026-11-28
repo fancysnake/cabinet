@@ -153,7 +153,8 @@ _ITEM = TriageItem(
     raised="stop on an empty list",
     left="an empty list crashes the run",
     what="the guard is missing",
-    grounds="tested",
+    grounds="read",
+    command="",
     proof="ran it with [] and got IndexError",
     size="small",
     files=1,
@@ -204,7 +205,7 @@ class TestTriage:
                     "\n"
                     f"{_ruled('── The reading would FIX it ')}\n"
                     "Action:   fix — the guard is missing\n"
-                    "Grounds:  tested — ran it with [] and got IndexError\n"
+                    "Grounds:  read — ran it with [] and got IndexError\n"
                     "Estimate: small, 1 file, low risk"
                 ),
             ),
@@ -222,7 +223,7 @@ class TestTriage:
                     "\n"
                     f"{_ruled('── The reading would FILE it ')}\n"
                     "Action:   file — the guard is missing\n"
-                    "Grounds:  tested — ran it with [] and got IndexError\n"
+                    "Grounds:  read — ran it with [] and got IndexError\n"
                     "Estimate: small, 2 files, low risk"
                 ),
             ),
@@ -260,11 +261,58 @@ class TestTriage:
         [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
 
         assert (
-            "Grounds:  tested — ran it with []\n"
+            "Grounds:  read — ran it with []\n"
             "          Traceback:\n"
             "\n"
             "          IndexError\n"
         ) in card
+
+    # A command broken at a space pastes as two commands.
+    @staticmethod
+    def test_a_command_longer_than_the_card_stays_on_one_line() -> None:
+        command = (
+            "mise run test:unit -- tests/unit/mills/test_report.py"
+            " -k a_command_longer_than_the_card"
+        )
+        assert len(command) > CARD_WIDTH
+        item = _ITEM.model_copy(
+            update={"grounds": "tested", "command": command, "proof": "1 failed"}
+        )
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        pad = " " * 10
+        assert f"Grounds:  tested — ran\n{pad}{command}\n{pad}1 failed\n" in card
+
+    @staticmethod
+    def test_every_line_of_a_command_is_indented() -> None:
+        item = _ITEM.model_copy(
+            update={
+                "grounds": "tested",
+                "command": "cd x\nmise run test:unit",
+                "proof": "1 failed",
+            }
+        )
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        pad = " " * 10
+        assert (
+            f"Grounds:  tested — ran\n{pad}cd x\n{pad}mise run test:unit\n"
+            f"{pad}1 failed\n"
+        ) in card
+
+    # "ran" is said only of a reading that tested and names what it ran.
+    @staticmethod
+    @pytest.mark.parametrize(("grounds", "command"), [("read", "ls"), ("tested", "")])
+    def test_no_command_is_shown_unless_one_was_run(grounds: str, command: str) -> None:
+        item = _ITEM.model_copy(
+            update={"grounds": grounds, "command": command, "proof": "a.py:1"}
+        )
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        assert f"Grounds:  {grounds} — a.py:1\nEstimate:" in card
 
     @staticmethod
     def test_the_question_names_the_answers_it_takes() -> None:

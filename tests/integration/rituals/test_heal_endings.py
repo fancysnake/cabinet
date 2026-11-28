@@ -543,6 +543,7 @@ def _worst_answers(trial: Trial, bound: int) -> None:
         left="z",
         what="y",
         grounds="read",
+        command="",
         proof="a.py:1",
         size="small",
         files=1,
