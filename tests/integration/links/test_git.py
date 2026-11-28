@@ -153,15 +153,23 @@ class TestReading:
 class TestMoving:
     @staticmethod
     def test_checkout(trial: Trial) -> None:
-        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(
+            when="git -c checkout.defaultRemote=origin checkout feature"
+        )
 
         drive(trial, lambda: _SCM.checkout("feature"))
 
-        assert trial.shell.commands == ["git checkout feature"]
+        assert trial.shell.commands == [
+            "git -c checkout.defaultRemote=origin checkout feature"
+        ]
 
     @staticmethod
     def test_a_checkout_that_will_not_go_through(trial: Trial) -> None:
-        trial.shell.replies(when="git checkout feature", exit_code=1, stderr="busy")
+        trial.shell.replies(
+            when="git -c checkout.defaultRemote=origin checkout feature",
+            exit_code=1,
+            stderr="busy",
+        )
 
         with pytest.raises(ScmError, match="could not take feature: busy"):
             drive(trial, lambda: _SCM.checkout("feature"))
@@ -454,6 +462,24 @@ class TestFetchInBash:
         _git(work, "remote", "set-url", "origin", str(work / "nowhere"))
 
         assert _in_bash(trial, work, _SCM.fetch)[0].returncode
+
+
+# Which remote's branch git takes only shows when git runs the checkout.
+class TestCheckoutInBash:
+    @staticmethod
+    def test_a_branch_two_remotes_hold_is_taken(trial: Trial, tmp_path: Path) -> None:
+        _git(tmp_path, "init", "-q", "-b", "main", "up")
+        _git(tmp_path / "up", "commit", "-q", "--allow-empty", "-m", "root")
+        _git(tmp_path / "up", "branch", "feature")
+        _git(tmp_path, "clone", "-q", "up", "work")
+        work = tmp_path / "work"
+        _git(work, "remote", "add", "second", str(tmp_path / "up"))
+        _git(work, "fetch", "-q", "second")
+
+        [ran] = _in_bash(trial, work, lambda: _SCM.checkout("feature"))
+
+        assert not ran.returncode
+        assert _git(work, "branch", "--show-current") == "feature"
 
 
 def _git(repo: Path, *argv: str) -> str:

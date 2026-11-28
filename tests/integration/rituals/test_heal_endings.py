@@ -448,7 +448,7 @@ def _taken(
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
     fetches(trial)
-    trial.shell.replies(when="git checkout feature")
+    trial.shell.replies(when="git -c checkout.defaultRemote=origin checkout feature")
     trial.shell.replies(when="git merge --ff-only*")
     trial.shell.replies(when=_AHEAD, stdout="0\n")
 

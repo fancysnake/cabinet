@@ -59,13 +59,15 @@ class TestSyncBranch:
         trial: Trial, work: Work
     ) -> None:
         fetches(trial)
-        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(
+            when="git -c checkout.defaultRemote=origin checkout feature"
+        )
         trial.shell.replies(when="git merge --ff-only*")
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.to(Tend)
         assert trial.shell.commands == [
             *FETCH,
-            "git checkout feature",
+            "git -c checkout.defaultRemote=origin checkout feature",
             "git merge --ff-only origin/feature",
         ]
 
@@ -84,7 +86,11 @@ class TestSyncBranch:
         trial: Trial, work: Work
     ) -> None:
         fetches(trial)
-        trial.shell.replies(when="git checkout feature", exit_code=1, stderr="busy")
+        trial.shell.replies(
+            when="git -c checkout.defaultRemote=origin checkout feature",
+            exit_code=1,
+            stderr="busy",
+        )
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.but(
             note="could not take feature: busy"
@@ -93,7 +99,9 @@ class TestSyncBranch:
     @staticmethod
     def test_a_diverged_branch_is_set_aside(trial: Trial, work: Work) -> None:
         fetches(trial)
-        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(
+            when="git -c checkout.defaultRemote=origin checkout feature"
+        )
         trial.shell.replies(when="git merge --ff-only*", exit_code=1, stderr="diverged")
 
         assert trial.walk(sync_branch, work.to(SyncBranch)) == work.but(

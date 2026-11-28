@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning].
 
 ### Fixed
 
+- The `heal.*` rituals take a branch that two remotes hold and that has no
+  local copy. The branch is made from the one on `[cabinet] remote`. Before,
+  git refused to choose and the branch was blocked.
+
 - The triage card of `answer` shows the command the reading ran on a line of
   its own, never wrapped. A long command no longer breaks at a space, so it
   can be copied from the card.
