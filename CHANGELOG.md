@@ -7,28 +7,28 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+## [8.1.0] - 2026-11-28
+
 ### Changed
 
-- The `heal.*` rituals fast-forward your local base branch, with no checkout,
-  when they take a branch or `heal.main` cuts its fix branch. A base that a
-  worktree stands on, or that has commits of its own, is left as it is. A
-  survey, and so a `--plan-only` cast, does not move it.
-
 - The `heal.*` rituals and `merge` merge the base into every branch that is
-  behind it, not only into a branch that conflicts. The gate runs over the
-  merge and the branch is pushed, so a branch the cast merges holds its base as
-  fetched. `heal.mine` queues a `heal.pr` for every such branch. Git says
-  whether a branch is behind, not the forge.
+  behind it, not only into a branch that conflicts, then run the gate and
+  push; `heal.mine` queues a `heal.pr` for every such branch.
+
+- The `heal.*` rituals fast-forward your local base branch, with no checkout,
+  when they take a branch or `heal.main` cuts its fix branch; a base that a
+  worktree stands on, or that has commits of its own, is left as it is.
 
 ### Fixed
 
-- The triage card of `answer` shows the command the reading ran on a line of
-  its own, never wrapped. A long command no longer breaks at a space, so it
-  can be copied from the card.
+- The `heal.*` rituals take a branch that two remotes hold, from the one on
+  `[cabinet] remote`, where git refused to choose and the branch was blocked.
 
-- The `heal.*` rituals read every page of a branch's checks. A red check past
-  the first hundred no longer goes unseen, so `heal.main` and the survey stop
-  calling such a branch green.
+- The triage card of `answer` shows the command the reading ran on a line of
+  its own, never wrapped, so it can be copied from the card.
+
+- The `heal.*` rituals read every page of a branch's checks, so `heal.main`
+  and the survey see a red check past the first hundred.
 
 ## [8.0.0] - 2026-11-25
 
@@ -508,7 +508,8 @@ and this project adheres to [Semantic Versioning].
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
 <!-- Versions -->
-[unreleased]: https://github.com/fancysnake/cabinet/compare/v8.0.0...HEAD
+[unreleased]: https://github.com/fancysnake/cabinet/compare/v8.1.0...HEAD
+[8.1.0]: https://github.com/fancysnake/cabinet/compare/v8.0.0...v8.1.0
 [8.0.0]: https://github.com/fancysnake/cabinet/compare/v7.3.0...v8.0.0
 [7.3.0]: https://github.com/fancysnake/cabinet/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/fancysnake/cabinet/compare/v7.1.0...v7.2.0

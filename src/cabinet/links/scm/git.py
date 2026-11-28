@@ -111,9 +111,14 @@ class GitScm(ScmProtocol):
         ran = await _asked(_HERE, "could not read the current branch", stream=False)
         return ran.stdout.strip()
 
+    # A branch with no local copy is made from the remote's. Git refuses to
+    # choose when two remotes hold the name, so the project's remote is named.
     @override
     async def checkout(self, branch: str) -> None:
-        await _asked(f"git checkout {_quoted(branch)}", f"could not take {branch}")
+        ours = _quoted(f"checkout.defaultRemote={self._remote}")
+        await _asked(
+            f"git -c {ours} checkout {_quoted(branch)}", f"could not take {branch}"
+        )
 
     @override
     async def head(self, ref: str) -> str:

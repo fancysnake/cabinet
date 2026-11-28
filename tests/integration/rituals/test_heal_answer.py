@@ -1036,7 +1036,9 @@ class TestWholeCast:
         trial.shell.replies(when=STATUS)
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
         fetches(trial)
-        trial.shell.replies(when="git checkout feature")
+        trial.shell.replies(
+            when="git -c checkout.defaultRemote=origin checkout feature"
+        )
         trial.shell.replies(when="git merge --ff-only*")
         trial.coding.replies(TriageNotes(items=[_ITEM]), when=_READER)
         trial.decide.answers(answer="", when="#7 *")
