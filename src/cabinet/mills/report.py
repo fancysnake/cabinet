@@ -105,13 +105,14 @@ def _row(label: str, value: str) -> str:
     return "\n".join(rows)
 
 
-# The command has a line to itself, past the card's width when it is longer:
-# one broken at a space pastes as two commands.
+# The command has lines to itself, past the card's width when one is longer:
+# a line broken at a space pastes as two commands.
 def _grounds(item: TriageItem) -> str:
-    if not item.command:
+    if item.grounds != "tested" or not item.command:
         return _row("Grounds", f"{item.grounds} — {item.proof}")
     ran, *printed = _row("Grounds", f"{item.grounds} — ran\n{item.proof}").splitlines()
-    return "\n".join([ran, f"{_PAD}{item.command}", *printed])
+    command = [f"{_PAD}{line}" for line in item.command.splitlines()]
+    return "\n".join([ran, *command, *printed])
 
 
 def _title(text: str) -> str:

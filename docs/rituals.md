@@ -242,7 +242,7 @@ Attended, the task goes round in batches of `--batch` open threads:
     The second title names what a return key does. Grounds is `tested`,
     `read` or `not checked`: whether the reading ran something, only read the
     code, or did neither. The card wraps its rows at 80 columns, except the
-    command the reading ran: that stays on one line, so you can copy it.
+    command the reading ran: its lines are never broken, so you can copy it.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item, written for the comment's author: it leaves out what you said
    at the triage and what the agent could not run or verify.
