@@ -80,6 +80,8 @@ Otherwise each branch with a task the cast works is taken: the worktree must
 be clean, the remote is fetched, and the branch is checked out and
 fast-forwarded to it. The base is read as the remote has it and never checked
 out, because a worktree cannot check out a branch another worktree stands on.
+After the fetch your local base is fast-forwarded to the remote's, unless a
+worktree stands on it or it has commits of its own.
 For the same reason a pull request branch that another worktree stands on is
 blocked, and fails the cast: move that worktree off the branch and cast again.
 The tasks then run in order, and each one hands

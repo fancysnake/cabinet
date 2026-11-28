@@ -74,6 +74,7 @@ def stash_name(branch: str) -> str:
 class GitScm(ScmProtocol):
     def __init__(self, project: Project) -> None:
         self._remote = project.remote
+        self._base = project.base
         self._sign = project.sign_commits
         self._helper = _HELPER[project.forge]
 
@@ -150,11 +151,25 @@ class GitScm(ScmProtocol):
         return ran.stdout.strip() != "0"
 
     @override
-    async def fetch(self) -> None:
+    async def fetch(self, *, forward: bool = False) -> None:
         await _asked(
             f"git fetch --prune {_quoted(self._remote)}",
             f"could not fetch {self._remote}",
         )
+        if not forward:
+            return
+        local = f"refs/heads/{self._base}"
+        exists = await shell(
+            f"git rev-parse --verify --quiet {_quoted(local)}", stream=False
+        )
+        # `fetch .` would create a missing base. Its result is ignored: no step
+        # reads the local base, and git refuses to move one that has commits of
+        # its own or that a worktree stands on. `fetch.showForcedUpdates=false`
+        # skips that ancestry check, so the flag turns it back on.
+        if exists.exit_code == 0:
+            theirs = f"refs/remotes/{self._remote}/{self._base}"
+            refspec = _quoted(f"{theirs}:{local}")
+            await shell(f"git fetch --show-forced-updates . {refspec}", stream=False)
 
     # `merge --ff-only`, never `reset --hard`: a branch this ritual worked on
     # last night carries commits the remote has not seen, and they are the

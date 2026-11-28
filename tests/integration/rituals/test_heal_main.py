@@ -20,7 +20,7 @@ from cabinet.pacts.healing import Heal, Run, Surveyed, Work
 from cabinet.pacts.project import Project
 from cabinet.pacts.pulls import Check, PullRequest
 from cabinet.rituals.heal_main import heal_main
-from tests.conftest import LIST, STATUS, board, listing, row, watched
+from tests.conftest import FETCH, LIST, STATUS, board, fetches, listing, row, watched
 
 _RED = json.dumps(
     [
@@ -36,7 +36,6 @@ _RED = json.dumps(
 _GREEN = json.dumps([{"total_count": 0, "check_runs": []}])
 _CHECKS = watched(Check(name="checks", passed=False, id=1))[0]
 _BRANCH = "fix/main-abc1234"
-_FETCH = "git fetch --prune origin"
 _HEAD = "git rev-parse --short origin/main"
 _VERIFY = f"git rev-parse --verify --quiet refs/heads/{_BRANCH}"
 _CUT = f"git checkout --no-track -b {_BRANCH} origin/main"
@@ -81,7 +80,7 @@ class TestMusterMain:
     ) -> None:
         _listed(trial, row(7))
         trial.shell.replies(when=STATUS)
-        trial.shell.replies(when=_FETCH)
+        fetches(trial)
         trial.shell.replies(when=_HEAD, stdout="abc1234\n")
         trial.shell.replies(when=_VERIFY, exit_code=1)
         trial.shell.replies(when="git checkout --no-track*")
@@ -92,7 +91,7 @@ class TestMusterMain:
         assert transition == Work(
             run=run.but(surveyed=[_SURVEYED]), pr=_FIX, red=[_CHECKS]
         ).to(PickJob)
-        assert trial.shell.commands[-5:] == [STATUS, _FETCH, _HEAD, _VERIFY, _CUT]
+        assert trial.shell.commands[-7:] == [STATUS, *FETCH, _HEAD, _VERIFY, _CUT]
         assert trial.deltas == ["main: ci (checks)"]
 
     @staticmethod

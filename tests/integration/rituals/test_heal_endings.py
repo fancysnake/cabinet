@@ -59,6 +59,7 @@ from tests.conftest import (
     board,
     comment,
     commit,
+    fetches,
     listing,
     node,
     page,
@@ -439,14 +440,14 @@ def _taken(
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
-    trial.shell.replies(when="git fetch --prune origin")
+    fetches(trial)
     worn = [{"name": label} for label in labels]
     trial.shell.replies(when=LIST, stdout=listing(row(7, labels=worn)), always=True)
     trial.shell.replies(when=_BEHIND, exit_code=int(behind), always=True)
     trial.shell.replies(when=board(), stdout=checks, always=True)
     trial.shell.replies(when=THREADS, stdout=_NO_THREADS, always=True)
     trial.shell.replies(when=STATUS, always=True)
-    trial.shell.replies(when="git fetch*")
+    fetches(trial)
     trial.shell.replies(when="git checkout feature")
     trial.shell.replies(when="git merge --ff-only*")
     trial.shell.replies(when=_AHEAD, stdout="0\n")
@@ -649,7 +650,7 @@ class TestWholeCast:
             when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
         )
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
-        trial.shell.replies(when="git fetch --prune origin")
+        fetches(trial)
         trial.shell.replies(
             when=LIST,
             stdout=listing(
@@ -779,13 +780,13 @@ class TestWholeCast:
             when="git remote get-url origin", stdout="https://gitlab.example/o/r.git\n"
         )
         trial.shell.replies(when="git config --get-urlmatch*", stdout="!glab auth\n")
-        trial.shell.replies(when="git fetch --prune origin")
+        fetches(trial)
         trial.shell.replies(when="glab api 'projects/:id/merge_requests?*", stdout="[]")
 
         result = trial.cast(heal_mine, Heal())
 
         assert result == Handed()
-        assert trial.shell.commands[-2].startswith("glab api")
+        assert any(ran.startswith("glab api") for ran in trial.shell.commands)
         assert trial.steps == ["muster_mine", "summon", "handoff"]
 
 

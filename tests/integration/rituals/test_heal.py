@@ -115,7 +115,8 @@ def _preflight(trial: Trial) -> None:
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
-    trial.shell.replies(when="git fetch --prune origin")
+    # No reply for the base fast-forward: a muster that runs it fails the test.
+    trial.shell.replies(when=_FETCH)
 
 
 # Unattended, so open threads are said rather than taken.

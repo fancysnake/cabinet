@@ -41,10 +41,11 @@ class ScmProtocol(Protocol):
     # Whether HEAD has a commit `ref` has not.
     async def beyond(self, ref: str) -> bool: ...
 
-    # Fetch the remote, and touch no branch: the base is read as the remote
+    # Fetch the remote and check nothing out: the base is read as the remote
     # has it, since a pooled worktree cannot stand on a base the tree it was
-    # made from is standing on.
-    async def fetch(self) -> None: ...
+    # made from is standing on. With `forward` the local base is fast-forwarded
+    # where no worktree stands on it.
+    async def fetch(self, *, forward: bool = False) -> None: ...
 
     # Fast-forward the branch to the remote — never reset: a branch a ritual
     # worked on last night carries commits the remote has not seen.

@@ -198,7 +198,7 @@ async def _base_read(run: MusterMain) -> tuple[MusterMain, list[Watched]]:
 async def _fix_cut(project: Project) -> str:
     scm = services().scm(project)
     base = f"{project.remote}/{project.base}"
-    await scm.fetch()
+    await scm.fetch(forward=True)
     branch = project.fix_branch(await scm.head(base))
     await scm.branch(branch, base)
     return branch

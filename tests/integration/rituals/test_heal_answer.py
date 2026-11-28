@@ -57,6 +57,7 @@ from tests.conftest import (
     board,
     comment,
     commit,
+    fetches,
     listing,
     node,
     page,
@@ -993,7 +994,7 @@ def _listed(trial: Trial) -> None:
         when="git remote get-url origin", stdout="https://github.com/o/r.git\n"
     )
     trial.shell.replies(when="git config --get-urlmatch*", stdout="!gh auth\n")
-    trial.shell.replies(when="git fetch --prune origin")
+    fetches(trial)
     labels = [{"name": "pr::thermo"}, {"name": "v:guide:done"}]
     trial.shell.replies(when=LIST, stdout=listing(row(7, labels=labels)), always=True)
     trial.shell.replies(when=board(), stdout=_GREEN_BOARD, always=True)
@@ -1033,7 +1034,7 @@ class TestWholeCast:
         trial.shell.replies(when=_ISSUES, stdout="[]", always=True)
         trial.shell.replies(when=STATUS)
         trial.shell.replies(when=STATUS, stdout=" M a.py\n")
-        trial.shell.replies(when="git fetch*")
+        fetches(trial)
         trial.shell.replies(when="git checkout feature")
         trial.shell.replies(when="git merge --ff-only*")
         trial.coding.replies(TriageNotes(items=[_ITEM]), when=_READER)
