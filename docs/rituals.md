@@ -233,13 +233,16 @@ Attended, the task goes round in batches of `--batch` open threads:
 
     ── The reading would FIX it ────────────────────────────────────────────────────
     Action:   fix — the loop reads the first row before it checks for one
-    Grounds:  tested — ran the export with no rows and got IndexError
+    Grounds:  tested — ran
+              mise run test:unit -- tests/unit/test_export.py -k no_rows
+              IndexError: list index out of range
     Estimate: small, 1 file, low risk
     ```
 
     The second title names what a return key does. Grounds is `tested`,
     `read` or `not checked`: whether the reading ran something, only read the
-    code, or did neither. The card wraps its rows at 80 columns.
+    code, or did neither. The card wraps its rows at 80 columns, except the
+    command the reading ran: that stays on one line, so you can copy it.
 4. **Answer.** Another agent fixes what you said to fix and drafts a reply for
    every item, written for the comment's author: it leaves out what you said
    at the triage and what the agent could not run or verify.

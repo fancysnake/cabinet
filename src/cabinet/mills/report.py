@@ -79,31 +79,39 @@ _LAST = (
 
 # Estimate is the longest of the six labels, which spell TRIAGE.
 _LABEL = len("Estimate: ")
+_PAD = " " * _LABEL
 
 
 # A label and its value, wrapped lines indented under the value so the label
 # column holds labels only. Each line of the value wraps on its own, so proof
 # that is code or command output keeps its lines. A path longer than the line
-# stays whole: one broken across lines cannot be copied. A command with spaces
-# in it can still break at them. A blank line keeps its label, which `fill`
-# alone would drop.
+# stays whole: one broken across lines cannot be copied. A blank line keeps its
+# label, which `fill` alone would drop.
 def _row(label: str, value: str) -> str:
-    pad = " " * _LABEL
     rows = []
     for index, line in enumerate(value.splitlines() or [""]):
-        head = f"{label}:".ljust(_LABEL) if index == 0 else pad
+        head = f"{label}:".ljust(_LABEL) if index == 0 else _PAD
         rows.append(
             fill(
                 line,
                 CARD_WIDTH,
                 initial_indent=head,
-                subsequent_indent=pad,
+                subsequent_indent=_PAD,
                 break_long_words=False,
                 break_on_hyphens=False,
             )
             or head.rstrip()
         )
     return "\n".join(rows)
+
+
+# The command has a line to itself, past the card's width when it is longer:
+# one broken at a space pastes as two commands.
+def _grounds(item: TriageItem) -> str:
+    if not item.command:
+        return _row("Grounds", f"{item.grounds} — {item.proof}")
+    ran, *printed = _row("Grounds", f"{item.grounds} — ran\n{item.proof}").splitlines()
+    return "\n".join([ran, f"{_PAD}{item.command}", *printed])
 
 
 def _title(text: str) -> str:
@@ -130,7 +138,7 @@ def _card(head: str, item: TriageItem, author: str) -> str:
             "",
             _title(f"The reading would {item.action.upper()} it"),
             _row("Action", f"{item.action} — {item.what}"),
-            _row("Grounds", f"{item.grounds} — {item.proof}"),
+            _grounds(item),
             _row("Estimate", f"{item.size}, {files}, {item.risk} risk"),
         ]
     )

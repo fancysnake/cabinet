@@ -80,6 +80,7 @@ _ITEM = TriageItem(
     left="an empty list crashes the run",
     what="the guard is missing",
     grounds="tested",
+    command="",
     proof="ran it with [] and got IndexError",
     size="small",
     files=1,

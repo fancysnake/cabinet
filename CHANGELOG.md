@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning].
 
 ### Fixed
 
+- The triage card of `answer` shows the command the reading ran on a line of
+  its own, never wrapped. A long command no longer breaks at a space, so it
+  can be copied from the card.
+
 - The `heal.*` rituals read every page of a branch's checks. A red check past
   the first hundred no longer goes unseen, so `heal.main` and the survey stop
   calling such a branch green.

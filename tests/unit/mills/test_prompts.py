@@ -22,6 +22,7 @@ _ITEM = TriageItem(
     left="an empty list crashes the run",
     what="the guard is missing",
     grounds="read",
+    command="",
     proof="the loop indexes before it checks",
     size="small",
     files=1,

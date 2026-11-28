@@ -102,9 +102,12 @@ who has forgotten this code: no file, function, class or variable names.
 
 `grounds` is how you know, and `proof` is the example that shows it:
 
-- tested — you ran something: `proof` is the command and what it printed
+- tested — you ran something: `command` is the command alone, on one line, as
+  it can be pasted into a shell, and `proof` is what it printed
 - read — you read the code and ran nothing: `proof` is the lines you read
 - not checked — neither: `proof` is what stopped you
+
+`command` is empty unless `grounds` is `tested`.
 
 `size`, `files` and `risk` are what your action costs. `size` is `small` for a
 few lines, `medium` for a function or two, `large` for more. `files` is how many

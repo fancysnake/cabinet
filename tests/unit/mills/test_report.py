@@ -154,6 +154,7 @@ _ITEM = TriageItem(
     left="an empty list crashes the run",
     what="the guard is missing",
     grounds="tested",
+    command="",
     proof="ran it with [] and got IndexError",
     size="small",
     files=1,
@@ -265,6 +266,21 @@ class TestTriage:
             "\n"
             "          IndexError\n"
         ) in card
+
+    # A command broken at a space pastes as two commands.
+    @staticmethod
+    def test_a_command_longer_than_the_card_stays_on_one_line() -> None:
+        command = (
+            "mise run test:unit -- tests/unit/mills/test_report.py"
+            " -k a_command_longer_than_the_card"
+        )
+        assert len(command) > CARD_WIDTH
+        item = _ITEM.model_copy(update={"command": command, "proof": "1 failed"})
+
+        [(_, card)] = _REPORT.cards(_PULL, [item], [_THREAD])
+
+        pad = " " * 10
+        assert f"Grounds:  tested — ran\n{pad}{command}\n{pad}1 failed\n" in card
 
     @staticmethod
     def test_the_question_names_the_answers_it_takes() -> None:
